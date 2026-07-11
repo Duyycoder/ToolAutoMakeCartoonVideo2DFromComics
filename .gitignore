@@ -1,0 +1,73 @@
+# ==========================================================================
+#  .gitignore — ToolAutoMakeCartoonVideo2DFromComics (repo tổng)
+#  Nguyên tắc: KHÔNG đưa lên Git: môi trường ảo, trọng số mô hình AI (nhiều GB),
+#  dữ liệu người dùng, sản phẩm đầu ra (audio/video), và mọi bí mật (API key/cookie).
+# ==========================================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.log
+
+# --- Môi trường ảo (mỗi máy tự tạo bằng setup.bat) ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Bí mật / cấu hình cá nhân (KHÔNG BAO GIỜ commit) ---
+.env
+.env.*
+configs/global_config.json
+**/cookies.json
+**/api_keys.json
+*.key
+*.pem
+
+# --- Trọng số mô hình AI (tải bằng setup.bat / download_models.py) ---
+# Dùng đường dẫn có neo (/) để KHÔNG chặn nhầm package mã nguồn "app/models".
+/models/
+/AIVoice/models/
+/AIVoice/storage/
+/AIVoice/apps/storage/
+/AIVoice/apps/MediaComposer/models/
+/AIVoice/apps/MediaComposer/storage/
+/AIVoice/third_party/
+/toolCaoTruyen/Gemini-API/models/
+
+# --- Dữ liệu người dùng & sản phẩm đầu ra ---
+/storage/
+/AIVoice/data/
+/toolCaoTruyen/truyen_tai_ve/
+/toolCaoTruyen/test_output/
+/toolCaoTruyen/scratch/
+/AIVoice/scratch/
+
+# --- File media sinh ra (force-add fixture nhỏ nếu test cần: git add -f) ---
+*.wav
+*.mp3
+*.mp4
+*.zip
+*.pth
+*.onnx
+*.safetensors
+*.ckpt
+*.gguf
+
+# --- IDE / hệ điều hành ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini

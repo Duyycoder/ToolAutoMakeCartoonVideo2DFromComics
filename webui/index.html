@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoCartoon Video Maker - AI Comic Video Creator</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="glass-bg"></div>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <span class="logo-icon">🎬</span>
+                <h2>AutoCartoon</h2>
+            </div>
+            
+            <div class="story-selector-container">
+                <label for="storySelect">Truyện hiện tại</label>
+                <div class="select-wrapper">
+                    <select id="storySelect">
+                        <option value="" disabled selected>Chọn truyện hoặc tạo mới...</option>
+                    </select>
+                </div>
+                <button id="btnNewStory" class="btn btn-secondary btn-sm">+ Tạo truyện mới</button>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="step1">
+                    <span class="nav-icon">📥</span>
+                    <div class="nav-text">
+                        <span class="nav-title">Bước 1: Cào & Dịch</span>
+                        <span class="nav-subtitle">Cào text & dịch Việt ngữ</span>
+                    </div>
+                </button>
+                <button class="nav-item" data-tab="step2">
+                    <span class="nav-icon">🔊</span>
+                    <div class="nav-text">
+                        <span class="nav-title">Bước 2: Sinh Giọng</span>
+                        <span class="nav-subtitle">Chuyển văn bản thành giọng nói</span>
+                    </div>
+                </button>
+                <button class="nav-item" data-tab="step3">
+                    <span class="nav-icon">🎞️</span>
+                    <div class="nav-text">
+                        <span class="nav-title">Bước 3: Dựng Hoạt Hình</span>
+                        <span class="nav-subtitle">Sinh ảnh, upscale & dựng video</span>
+                    </div>
+                </button>
+                <button class="nav-item" data-tab="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <div class="nav-text">
+                        <span class="nav-title">Cấu Hình Chung</span>
+                        <span class="nav-subtitle">Quản lý API Key & Mặc định</span>
+                    </div>
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main Dashboard View -->
+        <main class="main-content">
+            <!-- Modal for New Story Creation -->
+            <div id="modalNewStory" class="modal">
+                <div class="modal-content glass-card">
+                    <h3>📖 Tạo dự án truyện mới</h3>
+                    <div class="form-group">
+                        <label for="newStoryName">Tên truyện chữ</label>
+                        <input type="text" id="newStoryName" placeholder="Ví dụ: Đắc Kỷ Trụ Vương" required>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="btnCancelStory" class="btn btn-secondary">Hủy</button>
+                        <button id="btnConfirmStory" class="btn btn-primary">Tạo dự án</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Header status panel -->
+            <header class="top-header glass-card">
+                <div>
+                    <h1 id="activeStoryTitle">Chưa chọn truyện</h1>
+                    <p id="activeStorySubtitle">Vui lòng chọn truyện ở thanh bên để bắt đầu quy trình dựng video</p>
+                </div>
+                <div class="status-indicator">
+                    Trạng thái: <span id="pipelineStatusBadge" class="badge badge-inactive">Offline</span>
+                </div>
+            </header>
+
+            <!-- Tabs content -->
+            <section class="tab-panel active" id="tab-step1">
+                <div class="panel-grid">
+                    <div class="card glass-card">
+                        <h3>📥 Cào & Dịch Kịch Bản</h3>
+                        <form id="formStep1" class="form-grid">
+                            <div class="form-group">
+                            <label for="s1Source">Nguồn truyện</label>
+                            <select id="s1Source">
+                                <option value="69shuba">69shu (Tiếng Trung)</option>
+                                <option value="metruyenchu">Mê Truyện Chữ (Tiếng Việt)</option>
+                                <option value="tangthuvien">Tàng Thư Viện</option>
+                                <option value="local">Thư mục cục bộ (Local Folder)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="s1StoryIdGroup">
+                            <label for="s1StoryId">ID truyện hoặc Link</label>
+                            <input type="text" id="s1StoryId" placeholder="Ví dụ: 12345 hoặc link truyện..." required>
+                        </div>
+                        <div class="form-group" id="s1LocalFolderGroup" style="display: none;">
+                            <label for="s1LocalFolder">Đường dẫn thư mục cục bộ (chứa file .md)</label>
+                            <input type="text" id="s1LocalFolder" placeholder="Ví dụ: C:\path\to\story_chapters">
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="s1AutoTranslate" checked>
+                                <span class="checkmark"></span>
+                                Tự động dịch sang Tiếng Việt (Sẽ ghi đè/xóa bản gốc)
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="s1ContinueDownload">
+                                <span class="checkmark"></span>
+                                Tiếp tục tải (tự động nối tiếp từ chương đã lưu)
+                            </label>
+                        </div>
+                            <div class="form-group">
+                                <label for="s1StartChapterId">ID Chương bắt đầu (nếu nhập ID thủ công)</label>
+                                <input type="text" id="s1StartChapterId" placeholder="Bỏ trống nếu lấy chương đầu mặc định">
+                            </div>
+                            <div class="form-group">
+                                <label for="s1NumChapters">Số lượng chương tải</label>
+                                <input type="number" id="s1NumChapters" value="50" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="s1Genre">Thể loại truyện (cho dịch thuật)</label>
+                                <select id="s1Genre">
+                                    <option value="tien_hiep">Tiên Hiệp / Huyền Huyễn</option>
+                                    <option value="ngon_tinh">Ngôn Tình / Đô Thị</option>
+                                    <option value="khoa_huyen">Khoa Huyễn / Võng Du</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="s1Engine">Bộ máy dịch (Translator)</label>
+                                <select id="s1Engine">
+                                    <option value="gemini_api" selected>Gemini Offline (Local Server / Free API)</option>
+                                    <option value="gemini">Gemini Online (Yêu cầu API Key)</option>
+                                    <option value="ollama">Ollama Local (Mô hình Offline)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="groupOllamaModel" style="display:none;">
+                                <label for="s1OllamaModel">Model Ollama</label>
+                                <input type="text" id="s1OllamaModel" value="qwen2.5:7b-instruct">
+                            </div>
+                            <div class="form-group" id="groupGeminiKey" style="display:none;">
+                                <label for="s1GeminiKey">Gemini API Key (Ghi đè cấu hình chung)</label>
+                                <input type="password" id="s1GeminiKey" placeholder="sk-gemini-...">
+                            </div>
+                            <div class="form-group" id="groupGeminiOfflineUrl" style="display:none;">
+                                <label for="s1GeminiOfflineUrl">Base URL (API cục bộ - Ghi đè cấu hình chung)</label>
+                                <input type="text" id="s1GeminiOfflineUrl" placeholder="http://localhost:7860/v1">
+                            </div>
+                            <div class="form-group" id="groupGeminiOfflineModel" style="display:none;">
+                                <label for="s1GeminiOfflineModel">Model (API cục bộ)</label>
+                                <input type="text" id="s1GeminiOfflineModel" placeholder="gemini-2.5-flash">
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="s1AutoExtract" checked>
+                                    <span class="checkmark"></span>
+                                    Tự động quét & học từ điển (Glossary)
+                                </label>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="submit" id="btnStartStep1" class="btn btn-primary w-100">Bắt đầu Cào & Dịch</button>
+                                <button type="button" id="btnStopStep1" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="card glass-card log-panel">
+                        <h3>🖥️ Log Tiến Trình</h3>
+                        <div id="logConsole-step1" class="console-box"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tab-panel" id="tab-step2">
+                <div class="panel-grid">
+                    <div class="card glass-card">
+                        <h3>🔊 Cấu Hình Chuyển Bản Dịch Sang Giọng Nói (TTS)</h3>
+                        <form id="formStep2" class="form-grid">
+                            <div class="form-group">
+                                <label for="s2Preset">Cấu hình mẫu (Preset)</label>
+                                <select id="s2Preset">
+                                    <option value="default" selected>Mặc định (Edge-TTS NamMinh)</option>
+                                    <option value="fast">Đọc Nhanh (Edge-TTS NamMinh 1.15x)</option>
+                                    <option value="female_reading">Giọng Nữ (Edge-TTS HoaiMy)</option>
+                                    <option value="offline_cloning">Nhân Bản Giọng (Local XTTSv2 - GPU)</option>
+                                    <option value="offline_fast">Offline Nhanh (Local Piper - CPU/GPU)</option>
+                                    <option value="kokoro_vi">Local Kokoro Vietnamese (GPU)</option>
+                                    <option value="vieneu">Local VieNeu TTS (GPU)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="s2Engine">Bộ máy TTS (Engine)</label>
+                                <select id="s2Engine">
+                                    <option value="edge">Edge-TTS (Online Microsoft)</option>
+                                    <option value="piper">Piper (Offline ONNX)</option>
+                                    <option value="clone">XTTSv2 (Local Voice Cloning)</option>
+                                    <option value="kokoro">Kokoro-Vietnamese (Offline)</option>
+                                    <option value="vieneu">VieNeu-TTS (Offline)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="s2Voice">Giọng đọc / Mã ngôn ngữ</label>
+                                <select id="s2Voice">
+                                    <option value="vi-VN-NamMinhNeural">vi-VN-NamMinhNeural (Nam)</option>
+                                    <option value="vi-VN-HoaiMyNeural">vi-VN-HoaiMyNeural (Nữ)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="s2Speed">Tốc độ đọc</label>
+                                <input type="number" id="s2Speed" value="1.0" step="0.05" min="0.5" max="2.0">
+                            </div>
+                            <div class="form-group" id="groupTtsModel" style="display:none;">
+                                <label for="s2Model">Đường dẫn mô hình cục bộ</label>
+                                <input type="text" id="s2Model" placeholder="Ví dụ: models/piper/vi_VN-vais1000-medium.onnx">
+                            </div>
+                            <div class="form-group" id="groupRefAudio" style="display:none;">
+                                <label for="s2RefAudio">Đường dẫn file âm thanh mẫu (WAV)</label>
+                                <input type="text" id="s2RefAudio" placeholder="Ví dụ: refs/sample_voice.wav">
+                            </div>
+                            
+                            <!-- VieNeu Specific Options -->
+                            <div class="form-grid" id="groupVieneuOptions" style="display:none; grid-column: 1 / -1; margin-top: 5px; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 8px;">
+                                <div class="form-group">
+                                    <label for="s2VieneuMode">Chế độ VieNeu-TTS (Mode)</label>
+                                    <select id="s2VieneuMode">
+                                        <option value="v3turbo">v3turbo (ONNX - Siêu tốc CPU)</option>
+                                        <option value="standard">standard (PyTorch - Chất lượng cao)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="s2VieneuEmotion">Ngữ điệu / Biểu cảm (Emotion)</label>
+                                    <select id="s2VieneuEmotion">
+                                        <option value="natural">Tự nhiên (Natural)</option>
+                                        <option value="happy">Vui vẻ (Happy)</option>
+                                        <option value="sad">Buồn (Sad)</option>
+                                        <option value="angry">Tức giận (Angry)</option>
+                                        <option value="storytelling">Đọc truyện (Storytelling)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="s2Temperature">Sự sáng tạo (Temperature)</label>
+                                    <input type="number" id="s2Temperature" value="0.3" step="0.1" min="0.1" max="1.0">
+                                </div>
+                            </div>
+                            
+                            <!-- Semantic Cache -->
+                            <div class="form-grid" style="grid-column: 1 / -1; margin-top: 10px; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 8px;">
+                                <h4 style="grid-column: 1 / -1; margin: 0 0 10px 0; color: var(--accent);">Bộ đệm ngữ nghĩa (Semantic Cache)</h4>
+                                <div class="form-group" style="display: flex; align-items: center; justify-content: space-between;">
+                                    <label for="s2UseCache" style="margin: 0;">Kích hoạt Semantic Cache</label>
+                                    <label class="switch">
+                                        <input type="checkbox" id="s2UseCache">
+                                        <span class="slider round"></span>
+                                    </label>
+                                </div>
+                                <div class="form-group" style="display: flex; gap: 10px; align-items: flex-end;">
+                                    <div style="flex: 1;">
+                                        <label for="s2CacheThreshold">Độ tương đồng tối thiểu</label>
+                                        <input type="number" id="s2CacheThreshold" value="0.95" step="0.01" min="0.5" max="1.0">
+                                    </div>
+                                    <button type="button" id="btnClearCache" class="btn btn-secondary btn-sm" style="height: 38px; margin-bottom: 2px;">🗑️ Xóa Cache</button>
+                                </div>
+                            </div>
+                            
+                            <details class="advanced-tweaks" style="grid-column: 1 / -1; margin-top: 10px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
+                                <summary style="cursor: pointer; font-weight: bold; color: var(--accent);">Tùy Chỉnh Âm Thanh Nâng Cao ⚙️</summary>
+                                <div class="form-grid" style="margin-top: 15px;">
+                                    <div class="form-group" style="display: flex; align-items: center; justify-content: space-between;">
+                                        <label for="s2Phonemize" style="margin: 0;">Phiên âm IPA tiếng Việt (--phonemize)</label>
+                                        <label class="switch">
+                                            <input type="checkbox" id="s2Phonemize">
+                                            <span class="slider round"></span>
+                                        </label>
+                                    </div>
+                                    <div class="form-group" style="display: flex; align-items: center; justify-content: space-between;">
+                                        <label for="s2Normalize" style="margin: 0;">Chuẩn hóa LUFS (--normalize)</label>
+                                        <label class="switch">
+                                            <input type="checkbox" id="s2Normalize" checked>
+                                            <span class="slider round"></span>
+                                        </label>
+                                    </div>
+                                    <div class="form-group" style="grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px; padding-top: 10px;"></div>
+                                    
+                                    <div class="form-group">
+                                        <label for="s2Device">Thiết Bị Xử Lý (Device)</label>
+                                        <select id="s2Device">
+                                            <option value="cuda">GPU (CUDA)</option>
+                                            <option value="cpu">CPU</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s2TargetLufs">Chuẩn hóa âm lượng (LUFS)</label>
+                                        <input type="number" id="s2TargetLufs" value="-14.0" step="0.5">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s2FadeIn">Fade In (giây)</label>
+                                        <input type="number" id="s2FadeIn" value="0.1" step="0.1" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s2FadeOut">Fade Out (giây)</label>
+                                        <input type="number" id="s2FadeOut" value="0.1" step="0.1" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s2Silence">Khoảng lặng giữa câu (giây)</label>
+                                        <input type="number" id="s2Silence" value="0.3" step="0.1" min="0">
+                                    </div>
+                                    <div class="form-group" style="display: flex; align-items: center; gap: 15px; margin-top: 25px;">
+                                        <label class="checkbox-container">
+                                            <input type="checkbox" id="s2Normalize" checked>
+                                            <span class="checkmark"></span> Normalize
+                                        </label>
+                                        <label class="checkbox-container">
+                                            <input type="checkbox" id="s2Phonemize">
+                                            <span class="checkmark"></span> IPA Phonemize
+                                        </label>
+                                    </div>
+                                </div>
+                            </details>
+
+
+                            <div class="form-actions">
+                                <button type="submit" id="btnStartStep2" class="btn btn-primary w-100">Bắt đầu Tạo Âm Thanh</button>
+                                <button type="button" id="btnStopStep2" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="card glass-card log-panel">
+                        <h3>🖥️ Log Tiến Trình</h3>
+                        <div id="logConsole-step2" class="console-box"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tab-panel" id="tab-step3">
+                <div class="panel-grid">
+                    <div class="card glass-card">
+                        <h3>🎞️ Dựng Hoạt Hình Hoàn Chỉnh (MediaComposer)</h3>
+                        <form id="formStep3" class="form-grid">
+                            <div class="form-group">
+                                <label for="s3Genre">Thể loại truyện (Làm context cho AI)</label>
+                                <select id="s3Genre">
+                                    <option value="tien_hiep" selected>Tiên Hiệp / Cổ Trang</option>
+                                    <option value="ngon_tinh">Ngôn Tình / Đô Thị</option>
+                                    <option value="khoa_huyen">Khoa Huyễn / Viễn Tưởng</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="display: flex; gap: 10px; align-items: flex-end;">
+                                <div style="flex: 1;">
+                                    <label for="s3GpuDevice">Thiết bị xử lý Video (GPU)</label>
+                                    <select id="s3GpuDevice">
+                                        <option value="auto">Tự động nhận diện</option>
+                                        <option value="cuda:0">NVIDIA GPU 0</option>
+                                        <option value="cuda:1">NVIDIA GPU 1</option>
+                                        <option value="cpu">CPU (Rất chậm)</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn" style="height: 42px;" onclick="fetchGpuInfo()">🔄 Detect</button>
+                            </div>
+                            <div class="form-group" style="grid-column: 1 / -1; margin-top: -15px;">
+                                <small id="gpuInfoText" style="color: var(--accent);"></small>
+                            </div>
+                            <div class="form-group">
+                                <label for="s3Style">Phong cách hình ảnh (Style)</label>
+                                <select id="s3Style">
+                                    <option value="flat_anime" selected>Anime 2D Flat (Lineart)</option>
+                                    <option value="anime_2d">Anime 2D Truyền Thống</option>
+                                    <option value="xianxia">Xianxia / Cổ Trang Trung Hoa</option>
+                                    <option value="watercolor">Watercolor / Tranh Thủy Mặc</option>
+                                    <option value="comic">Comic / Truyện Tranh Mỹ</option>
+                                    <option value="manga">Manga (Trắng Đen)</option>
+                                    <option value="chibi">Chibi (Dễ thương)</option>
+                                    <option value="cinematic">Cinematic (Điện ảnh)</option>
+                                    <option value="photorealistic">Photorealistic (Chân thực)</option>
+                                    <option value="oil_painting">Sơn Dầu / Oil Painting</option>
+                                    <option value="pixel_art">Pixel Art</option>
+                                    <option value="stickman">Stickman / Người Que</option>
+                                </select>
+                            <div class="form-group">
+                                <label for="s3Checkpoint">Mô hình SD Checkpoint</label>
+                                <select id="s3Checkpoint">
+                                    <option value="anything-v5">Anything V5 (Anime)</option>
+                                    <option value="dreamshaper-8">DreamShaper 8 (Semi-Realistic)</option>
+                                    <option value="majicmix-realistic">MajicMix Realistic</option>
+                                    <option value="cetus-mix">Cetus-Mix (Anime)</option>
+                                    <option value="rpg-v4">RPG v4 (Fantasy)</option>
+                                    <option value="meinamix">MeinaMix (Anime)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="s3Bgm">Nhạc nền (BGM)</label>
+                                <input type="text" id="s3Bgm" placeholder="Bỏ trống nếu không lồng nhạc nền">
+                            </div>
+                            <div class="form-group">
+                                <label for="s3BgmVolume">Âm lượng nhạc nền</label>
+                                <input type="number" id="s3BgmVolume" value="0.15" step="0.05" min="0.0" max="1.0">
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="s3Upscale" checked>
+                                    <span class="checkmark"></span>
+                                    Upscale ảnh 4x bằng RealESRGAN (GPU)
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="s3Subtitles" checked>
+                                    <span class="checkmark"></span>
+                                    Tự động tạo và thiêu phụ đề (Burn SRT)
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="s3Semantic" checked>
+                                    <span class="checkmark"></span>
+                                    Tách cảnh bằng LLM thông minh
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="s3ExtractChars" checked>
+                                    <span class="checkmark"></span>
+                                    Tự động nhận diện nhân vật bằng LLM (Chỉ chạy 1 lần)
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="s3FaceDetailer" checked>
+                                    <span class="checkmark"></span>
+                                    Bật Phẫu thuật khuôn mặt (Face Detailer) (Tắt đi để tăng tốc)
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="s3HardwareProfile">Cấu hình VRAM</label>
+                                <select id="s3HardwareProfile">
+                                    <option value="auto">Tự động phát hiện (Auto)</option>
+                                    <option value="cuda_low">Tiết kiệm VRAM (6GB) - Chậm</option>
+                                    <option value="cuda_high">Tối đa tốc độ (8GB+) - Nhanh nhưng dễ sập</option>
+                                </select>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" id="btnStartStep3" class="btn btn-primary w-100">Bắt đầu Dựng Hoạt Hình</button>
+                                <button type="button" id="btnStopStep3" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="card glass-card log-panel">
+                        <h3>🖥️ Log Tiến Trình</h3>
+                        <div id="logConsole-step3" class="console-box"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tab-panel" id="tab-settings">
+                <div class="card glass-card max-w-2xl">
+                    <h3>⚙️ Cấu Hình Toàn Cục Hệ Thống</h3>
+                    <form id="formSettings" class="form-grid">
+                        <div class="settings-section">
+                            <h4>🔑 API & Kết Nối</h4>
+                            <div class="form-group">
+                                <label for="cfgGeminiKey">Gemini API Key</label>
+                                <input type="password" id="cfgGeminiKey" placeholder="sk-gemini-...">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgGeminiOfflineUrl">Gemini Offline Base URL</label>
+                                <input type="text" id="cfgGeminiOfflineUrl" value="http://localhost:7860/v1">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h4>🔊 Mặc Định TTS</h4>
+                            <div class="form-group">
+                                <label for="cfgTtsEngine">TTS Engine Mặc định</label>
+                                <select id="cfgTtsEngine">
+                                    <option value="edge">Edge-TTS</option>
+                                    <option value="piper">Piper</option>
+                                    <option value="clone">XTTSv2</option>
+                                    <option value="kokoro">Kokoro</option>
+                                    <option value="vieneu">VieNeu</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgTtsVoice">Voice Mặc định</label>
+                                <input type="text" id="cfgTtsVoice" value="vi-VN-NamMinhNeural">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgTtsSpeed">Tốc độ Mặc định</label>
+                                <input type="number" id="cfgTtsSpeed" value="1.0" step="0.05">
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="cfgTtsNormalize" checked>
+                                    <span class="checkmark"></span>
+                                    Chuẩn hóa âm lượng (-14 LUFS)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h4>🎞️ Mặc Định Video</h4>
+                            <div class="form-group">
+                                <label for="cfgVideoStyle">Style Mặc định</label>
+                                <select id="cfgVideoStyle">
+                                    <option value="anime_2d_flat">Anime 2D Flat</option>
+                                    <option value="xianxia_cultivation">Xianxia</option>
+                                    <option value="watercolor_storytelling">Watercolor</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="cfgVideoGpu" checked>
+                                    <span class="checkmark"></span>
+                                    Sử dụng GPU cho Video
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-section">
+                            <h4>📂 Lưu Trữ & Khác</h4>
+                            <div class="form-group">
+                                <label for="cfgStorageDir">Thư mục Storage lưu trữ</label>
+                                <input type="text" id="cfgStorageDir" value="storage" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgDefaultSite">Trang web nguồn mặc định</label>
+                                <input type="text" id="cfgDefaultSite" value="69shuba">
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions" style="grid-column: 1 / -1; margin-top: 1rem;">
+                            <button type="submit" class="btn btn-primary w-100">💾 Lưu Cấu Hình</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

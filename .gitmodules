@@ -1,0 +1,6 @@
+[submodule "AIVoice"]
+	path = AIVoice
+	url = https://github.com/Duyycoder/AIVoice.git
+[submodule "toolCaoTruyen"]
+	path = toolCaoTruyen
+	url = https://github.com/Duyycoder/toolCaoTruyen.git

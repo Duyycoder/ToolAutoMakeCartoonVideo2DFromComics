@@ -1,0 +1,21 @@
+{
+  "_comment": "Mau cau hinh. Copy file nay thanh global_config.json va dien gia tri that. global_config.json da bi .gitignore loai tru - KHONG commit key that.",
+  "api_keys": {
+    "gemini": "YOUR_GEMINI_API_KEY_HERE"
+  },
+  "storage_dir": "storage",
+  "crawler": {
+    "default_site": "biquge",
+    "gemini_offline_base_url": "http://localhost:7860/v1"
+  },
+  "tts": {
+    "default_engine": "edge",
+    "default_voice": "vi-VN-NamMinhNeural",
+    "normalize": true,
+    "speed": 1
+  },
+  "video": {
+    "default_style": "",
+    "use_gpu": true
+  }
+}
