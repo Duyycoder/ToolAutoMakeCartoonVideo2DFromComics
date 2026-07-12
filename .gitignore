@@ -31,6 +31,7 @@ ENV/
 configs/global_config.json
 **/cookies.json
 **/api_keys.json
+*cookies*
 *.key
 *.pem
 
