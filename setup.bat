@@ -29,6 +29,11 @@ if not exist "AIVoice\setup.bat" (
     pause
     exit /b 1
 )
+
+:: Tu dong sua loi ki tu dac biet & trong file setup cua submodules neu co
+powershell -Command "(gc toolCaoTruyen\setup.bat) -replace 'CAU HINH OLLAMA & MODEL AI', 'CAU HINH OLLAMA ^& MODEL AI' | Out-File -encoding utf8 toolCaoTruyen\setup.bat"
+powershell -Command "(gc AIVoice\setup.bat) -replace 'Piper & XTTSv2', 'Piper ^& XTTSv2' | Out-File -encoding utf8 AIVoice\setup.bat"
+
 echo.
 
 :: 0.5. Kiem tra va cai dat Python 3.11.9
