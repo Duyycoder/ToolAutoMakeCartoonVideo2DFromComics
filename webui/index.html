@@ -417,6 +417,26 @@
                                 <input type="number" id="s3BgmVolume" value="0.15" step="0.05" min="0.0" max="1.0">
                             </div>
                             <div class="form-group">
+                                <label for="s3LlmEngine">Engine LLM Kịch bản & Prompt</label>
+                                <select id="s3LlmEngine">
+                                    <option value="gemini_api" selected>Gemini Offline (Local Server / Free API)</option>
+                                    <option value="gemini">Gemini Online (Yêu cầu API Key)</option>
+                                    <option value="ollama">Ollama (Local)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="groupS3GeminiKey" style="display:none;">
+                                <label for="s3GeminiKey">Gemini API Key (Ghi đè cấu hình chung)</label>
+                                <input type="password" id="s3GeminiKey" placeholder="sk-gemini-...">
+                            </div>
+                            <div class="form-group" id="groupS3GeminiOfflineUrl" style="display:none;">
+                                <label for="s3GeminiOfflineUrl">Base URL (API cục bộ - Ghi đè cấu hình chung)</label>
+                                <input type="text" id="s3GeminiOfflineUrl" placeholder="http://localhost:7860/v1">
+                            </div>
+                            <div class="form-group" id="groupS3LlmModel" style="display:none;">
+                                <label for="s3LlmModel">Model LLM (Ghi đè mặc định)</label>
+                                <input type="text" id="s3LlmModel" placeholder="gemini-3-flash">
+                            </div>
+                            <div class="form-group">
                                 <label class="checkbox-container">
                                     <input type="checkbox" id="s3Upscale" checked>
                                     <span class="checkmark"></span>
@@ -488,6 +508,10 @@
                                 <label for="cfgGeminiOfflineUrl">Gemini Offline Base URL</label>
                                 <input type="text" id="cfgGeminiOfflineUrl" value="http://localhost:7860/v1">
                             </div>
+                            <div class="form-group">
+                                <label for="cfgOllamaUrl">Ollama Base URL</label>
+                                <input type="text" id="cfgOllamaUrl" value="http://localhost:11434/v1">
+                            </div>
                         </div>
                         
                         <div class="settings-section">
@@ -517,6 +541,18 @@
                                     Chuẩn hóa âm lượng (-14 LUFS)
                                 </label>
                             </div>
+                            <div class="form-group">
+                                <label for="cfgTtsKokoroVoice">Kokoro Voice Mặc định</label>
+                                <input type="text" id="cfgTtsKokoroVoice" value="thuc_trinh">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgTtsVieneuMode">VieNeu Mode Mặc định</label>
+                                <input type="text" id="cfgTtsVieneuMode" value="v3turbo">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgTtsVieneuVoice">VieNeu Voice Mặc định</label>
+                                <input type="text" id="cfgTtsVieneuVoice" value="Ngọc Lan">
+                            </div>
                         </div>
 
                         <div class="settings-section">
@@ -535,6 +571,26 @@
                                     <span class="checkmark"></span>
                                     Sử dụng GPU cho Video
                                 </label>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgVideoCheckpoint">Checkpoint SD Mặc định</label>
+                                <input type="text" id="cfgVideoCheckpoint" value="anything-v5">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgVideoBgmVolume">Âm lượng BGM Mặc định</label>
+                                <input type="number" id="cfgVideoBgmVolume" value="0.15" step="0.05" min="0.0" max="1.0">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgVideoLlmEngine">Step 3 LLM Engine Mặc định</label>
+                                <select id="cfgVideoLlmEngine">
+                                    <option value="gemini_api">Gemini Offline (Local)</option>
+                                    <option value="gemini">Gemini Online (AI Studio)</option>
+                                    <option value="ollama">Ollama (Local)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgVideoLlmModel">Step 3 LLM Model Mặc định</label>
+                                <input type="text" id="cfgVideoLlmModel" value="gemini-3-flash">
                             </div>
                         </div>
                         

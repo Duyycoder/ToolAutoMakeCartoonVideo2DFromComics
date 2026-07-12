@@ -303,6 +303,34 @@ function setupEventHandlers() {
         }
     });
 
+    const elS3LlmEngine = document.getElementById("s3LlmEngine");
+    const elGroupS3GeminiKey = document.getElementById("groupS3GeminiKey");
+    const elGroupS3GeminiOfflineUrl = document.getElementById("groupS3GeminiOfflineUrl");
+    const elGroupS3LlmModel = document.getElementById("groupS3LlmModel");
+
+    elS3LlmEngine.addEventListener("change", () => {
+        const eng = elS3LlmEngine.value;
+        elGroupS3GeminiKey.style.display = (eng === "gemini" || eng === "gemini_api") ? "block" : "none";
+        elGroupS3GeminiOfflineUrl.style.display = (eng === "gemini_api" || eng === "ollama") ? "block" : "none";
+        elGroupS3LlmModel.style.display = "block"; // Always allow custom model overriding
+        
+        const modelInput = document.getElementById("s3LlmModel");
+        if (eng === "gemini") {
+            modelInput.value = "gemini-2.0-flash";
+        } else if (eng === "ollama") {
+            modelInput.value = "qwen2.5:7b-instruct";
+        } else {
+            modelInput.value = "gemini-3-flash";
+        }
+
+        // Xóa URL cũ khi đổi engine để backend tự resolve theo engine mới (tránh trỏ nhầm cổng)
+        const urlInput = document.getElementById("s3GeminiOfflineUrl");
+        if (urlInput) {
+            urlInput.value = "";
+            urlInput.placeholder = (eng === "ollama") ? "http://localhost:11434/v1" : "http://localhost:7860/v1";
+        }
+    });
+
     const btnClearCache = document.getElementById("btnClearCache");
     if (btnClearCache) {
         btnClearCache.addEventListener("click", async () => {
@@ -431,7 +459,11 @@ function setupEventHandlers() {
             extract_characters: document.getElementById("s3ExtractChars").checked,
             enable_face_detailer: document.getElementById("s3FaceDetailer").checked,
             hardware_profile: document.getElementById("s3HardwareProfile").value,
-            device: document.getElementById("s3GpuDevice").value
+            device: document.getElementById("s3GpuDevice").value,
+            llm_engine: document.getElementById("s3LlmEngine").value,
+            llm_api_key: document.getElementById("s3GeminiKey").value || null,
+            llm_offline_base_url: document.getElementById("s3GeminiOfflineUrl").value || null,
+            llm_offline_model: document.getElementById("s3LlmModel").value || null
         };
 
         toggleFormButtons("step3", true);
@@ -460,17 +492,25 @@ function setupEventHandlers() {
             storage_dir: document.getElementById("cfgStorageDir").value,
             crawler: {
                 default_site: document.getElementById("cfgDefaultSite").value,
-                gemini_offline_base_url: document.getElementById("cfgGeminiOfflineUrl").value
+                gemini_offline_base_url: document.getElementById("cfgGeminiOfflineUrl").value,
+                ollama_base_url: document.getElementById("cfgOllamaUrl").value
             },
             tts: {
                 default_engine: document.getElementById("cfgTtsEngine").value,
                 default_voice: document.getElementById("cfgTtsVoice").value,
                 normalize: document.getElementById("cfgTtsNormalize").checked,
-                speed: parseFloat(document.getElementById("cfgTtsSpeed").value)
+                speed: parseFloat(document.getElementById("cfgTtsSpeed").value),
+                kokoro_voice: document.getElementById("cfgTtsKokoroVoice").value,
+                vieneu_mode: document.getElementById("cfgTtsVieneuMode").value,
+                vieneu_voice: document.getElementById("cfgTtsVieneuVoice").value
             },
             video: {
                 default_style: document.getElementById("cfgVideoStyle").value,
-                use_gpu: document.getElementById("cfgVideoGpu").checked
+                use_gpu: document.getElementById("cfgVideoGpu").checked,
+                default_checkpoint: document.getElementById("cfgVideoCheckpoint").value,
+                bgm_volume: parseFloat(document.getElementById("cfgVideoBgmVolume").value),
+                default_llm_engine: document.getElementById("cfgVideoLlmEngine").value,
+                default_llm_model: document.getElementById("cfgVideoLlmModel").value
             }
         };
 
@@ -757,6 +797,7 @@ async function loadGlobalConfig() {
         document.getElementById("cfgStorageDir").value = config.storage_dir || "storage";
         document.getElementById("cfgDefaultSite").value = config.crawler?.default_site || "69shuba";
         document.getElementById("cfgGeminiOfflineUrl").value = config.crawler?.gemini_offline_base_url || "http://localhost:7860/v1";
+        document.getElementById("cfgOllamaUrl").value = config.crawler?.ollama_base_url || "http://localhost:11434/v1";
         
         // Also load into Step 1 if not already modified
         if(!document.getElementById("s1GeminiOfflineUrl").value) {
@@ -770,9 +811,62 @@ async function loadGlobalConfig() {
         document.getElementById("cfgTtsVoice").value = config.tts?.default_voice || "vi-VN-NamMinhNeural";
         document.getElementById("cfgTtsSpeed").value = config.tts?.speed || 1.0;
         document.getElementById("cfgTtsNormalize").checked = config.tts?.normalize !== false;
+        document.getElementById("cfgTtsKokoroVoice").value = config.tts?.kokoro_voice || "thuc_trinh";
+        document.getElementById("cfgTtsVieneuMode").value = config.tts?.vieneu_mode || "v3turbo";
+        document.getElementById("cfgTtsVieneuVoice").value = config.tts?.vieneu_voice || "Ngọc Lan";
         
         document.getElementById("cfgVideoStyle").value = config.video?.default_style || "anime_2d_flat";
         document.getElementById("cfgVideoGpu").checked = config.video?.use_gpu !== false;
+        document.getElementById("cfgVideoCheckpoint").value = config.video?.default_checkpoint || "anything-v5";
+        document.getElementById("cfgVideoBgmVolume").value = config.video?.bgm_volume !== undefined ? config.video.bgm_volume : 0.15;
+        document.getElementById("cfgVideoLlmEngine").value = config.video?.default_llm_engine || "gemini_api";
+        document.getElementById("cfgVideoLlmModel").value = config.video?.default_llm_model || "gemini-3-flash";
+        
+        // Load defaults into Step 2 forms (if not already custom selected)
+        const s2Engine = document.getElementById("s2Engine");
+        if (s2Engine) {
+            s2Engine.value = config.tts?.default_engine || "edge";
+            s2Engine.dispatchEvent(new Event('change'));
+            
+            const s2Voice = document.getElementById("s2Voice");
+            if (s2Voice) {
+                if (config.tts?.default_engine === "kokoro") {
+                    s2Voice.value = config.tts?.kokoro_voice || "thuc_trinh";
+                } else if (config.tts?.default_engine === "vieneu") {
+                    s2Voice.value = config.tts?.default_voice || "Ngọc Lan";
+                    const s2VieneuMode = document.getElementById("s2VieneuMode");
+                    if (s2VieneuMode) s2VieneuMode.value = config.tts?.vieneu_mode || "v3turbo";
+                } else {
+                    s2Voice.value = config.tts?.default_voice || "vi-VN-NamMinhNeural";
+                }
+            }
+            
+            const s2Speed = document.getElementById("s2Speed");
+            if (s2Speed) s2Speed.value = config.tts?.speed || 1.0;
+            
+            const s2Normalize = document.getElementById("s2Normalize");
+            if (s2Normalize) s2Normalize.checked = config.tts?.normalize !== false;
+        }
+
+        // Load defaults into Step 3 forms (if not already custom selected)
+        const s3Style = document.getElementById("s3Style");
+        if (s3Style) s3Style.value = config.video?.default_style || "anime_2d_flat";
+
+        const s3Checkpoint = document.getElementById("s3Checkpoint");
+        if (s3Checkpoint) s3Checkpoint.value = config.video?.default_checkpoint || "anything-v5";
+
+        const s3BgmVolume = document.getElementById("s3BgmVolume");
+        if (s3BgmVolume) s3BgmVolume.value = config.video?.bgm_volume !== undefined ? config.video.bgm_volume : 0.15;
+        
+        const s3Engine = document.getElementById("s3LlmEngine");
+        if (s3Engine) {
+            s3Engine.value = config.video?.default_llm_engine || "gemini_api";
+            s3Engine.dispatchEvent(new Event('change'));
+        }
+        const s3Model = document.getElementById("s3LlmModel");
+        if (s3Model) {
+            s3Model.value = config.video?.default_llm_model || "gemini-3-flash";
+        }
     } catch (e) {
         console.error("Lỗi khi tải cấu hình chung:", e);
     }

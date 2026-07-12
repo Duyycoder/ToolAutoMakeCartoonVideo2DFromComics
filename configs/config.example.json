@@ -1,21 +1,30 @@
 {
   "_comment": "Mau cau hinh. Copy file nay thanh global_config.json va dien gia tri that. global_config.json da bi .gitignore loai tru - KHONG commit key that.",
+  "_comment_copyright": "Cau hinh mac dinh huong toi che do KHONG vuong ban quyen: nguon truyen tu thu muc cuc bo (source local) + LLM chay local qua Gemini-API proxy (khong can key tra phi).",
   "api_keys": {
     "gemini": "YOUR_GEMINI_API_KEY_HERE"
   },
   "storage_dir": "storage",
   "crawler": {
-    "default_site": "biquge",
-    "gemini_offline_base_url": "http://localhost:7860/v1"
+    "default_site": "local",
+    "gemini_offline_base_url": "http://localhost:7860/v1",
+    "ollama_base_url": "http://localhost:11434/v1"
   },
   "tts": {
     "default_engine": "edge",
     "default_voice": "vi-VN-NamMinhNeural",
+    "kokoro_voice": "thuc_trinh",
+    "vieneu_mode": "v3turbo",
+    "vieneu_voice": "Ngọc Lan",
     "normalize": true,
     "speed": 1
   },
   "video": {
-    "default_style": "",
-    "use_gpu": true
+    "default_style": "anime_2d_flat",
+    "use_gpu": true,
+    "default_checkpoint": "anything-v5",
+    "bgm_volume": 0.15,
+    "default_llm_engine": "gemini_api",
+    "default_llm_model": "gemini-3-flash"
   }
 }

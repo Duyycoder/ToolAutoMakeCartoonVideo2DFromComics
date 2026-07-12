@@ -95,6 +95,10 @@ class Step3Schema(BaseModel):
     enable_face_detailer: Optional[bool] = True
     hardware_profile: Optional[str] = "auto"
     device: Optional[str] = "cuda"
+    llm_engine: Optional[str] = "gemini_api"
+    llm_api_key: Optional[str] = None
+    llm_offline_base_url: Optional[str] = None
+    llm_offline_model: Optional[str] = None
 
 # API Endpoints
 
@@ -235,7 +239,10 @@ def run_step3(body: Step3Schema):
     if process_mgr.is_running(task_key):
         raise HTTPException(status_code=400, detail="A video generation process is already active for this story.")
 
-    success = pipeline.start_step_3_video(body.story_name, body.dict())
+    try:
+        success = pipeline.start_step_3_video(body.story_name, body.dict())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if success:
         return {"status": "success", "task_key": task_key}
     raise HTTPException(status_code=500, detail="Failed to start pipeline Step 3.")

@@ -1,5 +1,7 @@
 # ToolAutoMakeCartoonVideo2DFromComics
 
+[![CI](https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/actions/workflows/ci.yml/badge.svg)](https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/actions/workflows/ci.yml)
+
 Hệ thống tự động chuyển **truyện chữ → video hoạt hình 2D có lồng tiếng**, chạy cục bộ trên máy cá nhân (Windows + GPU NVIDIA). Đây là repo tổng (đồ án tốt nghiệp), điều phối hai dự án con qua kiến trúc **orchestrator + subprocess**.
 
 ## Kiến trúc tổng quan
@@ -48,6 +50,27 @@ git submodule update --init --recursive
    (`global_config.json` đã bị `.gitignore` loại trừ — không bao giờ commit key thật.)
 2. Chạy `setup.bat` — tạo venv tổng + gọi setup của 2 dự án con (tự nhận GPU, tải model).
 3. Chạy `run.bat` — khởi động orchestrator :8100, tự bật Gemini-API proxy, mở trình duyệt.
+
+## Chế độ trình diễn "sạch bản quyền" (khuyến nghị cho đồ án)
+
+Toàn bộ pipeline có thể chạy **hoàn toàn cục bộ, không dùng dịch vụ trả phí và không cào nội dung có bản quyền**. Đây là cấu hình mặc định trong `config.example.json`:
+
+| Bước | Lựa chọn "sạch" | Ghi chú |
+|------|-----------------|---------|
+| 1. Nguồn truyện | **Thư mục cục bộ** (`Nguồn truyện → Local Folder`) | Dùng truyện tự sáng tác hoặc tác phẩm thuộc phạm vi công cộng (public domain) dưới dạng `.md`/`.txt` — không cào web |
+| 1. Dịch thuật | **Gemini Local** (engine `gemini_api`) qua proxy [Gemini-API](toolCaoTruyen/Gemini-API) tại `localhost:7860`, hoặc **Ollama** | Chạy trên máy, không cần API key trả phí |
+| 2. TTS | **Kokoro-Vietnamese / VieNeu / Piper** (offline, GPU/CPU local) | Edge-TTS là tùy chọn online miễn phí |
+| 3. LLM phân cảnh & prompt | **Gemini Local** (mặc định) hoặc **Ollama** — chọn ngay trên form Bước 3 | Cùng proxy `localhost:7860` như Bước 1 |
+| 3. Sinh ảnh | **Stable Diffusion local** (checkpoint mã nguồn mở, vd. Anything V5) | Chạy trên GPU cá nhân |
+
+> Khi viết báo cáo: nhấn mạnh chuỗi xử lý trên để chứng minh hệ thống không phụ thuộc dịch vụ thương mại và không phân phối nội dung có bản quyền.
+
+## Kiểm thử & CI/CD
+
+- **Unit tests** (`tests/`): kiểm tra logic resolve engine LLM Bước 3 (Gemini local/online, Ollama, validation thiếu API key) và fallback cấu hình TTS Bước 2 — chạy bằng `pip install pytest && pytest -v`, không cần GPU/model.
+- **CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)): tự chạy trên mỗi push/PR vào `main` — lint lỗi nghiêm trọng (ruff), kiểm tra biên dịch toàn bộ `orchestrator/`, chạy unit tests.
+- **CD** ([.github/workflows/release.yml](.github/workflows/release.yml)): gắn tag `v*` (vd `git tag v1.0.0 && git push origin v1.0.0`) sẽ tự đóng gói mã nguồn và tạo GitHub Release kèm release notes.
+- Mỗi submodule (`AIVoice`, `toolCaoTruyen`) có workflow CI riêng kiểm tra cú pháp Python độc lập.
 
 ## Yêu cầu hệ thống
 

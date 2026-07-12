@@ -162,16 +162,34 @@ class NovelPipeline:
         if os.path.isdir(translated_dir) and any(f.endswith('.md') for f in os.listdir(translated_dir)):
             tts_input_dir = translated_dir
 
+        from orchestrator.config import load_global_config
+        g_config = load_global_config()
+        tts_cfg = g_config.get("tts", {})
+
         python_exe = os.path.abspath("AIVoice/.venv/Scripts/python.exe")
         adapter_path = os.path.abspath("AIVoice/adapter_tts_cli.py")
+
+        engine = tts_args.get("engine") or tts_cfg.get("default_engine", "edge")
+        
+        # Determine voice fallback depending on engine
+        if engine == "kokoro":
+            default_voice = tts_cfg.get("kokoro_voice", "thuc_trinh")
+        elif engine == "vieneu":
+            default_voice = tts_cfg.get("vieneu_voice") or "Ngọc Lan"
+        else:
+            default_voice = tts_cfg.get("default_voice", "vi-VN-NamMinhNeural")
+            
+        voice = tts_args.get("voice") or default_voice
+        speed = tts_args.get("speed") if tts_args.get("speed") is not None else tts_cfg.get("speed", 1.0)
+        normalize_val = tts_args.get("normalize") if tts_args.get("normalize") is not None else tts_cfg.get("normalize", True)
 
         cmd = [
             python_exe, adapter_path,
             "--input-dir", tts_input_dir,
             "--output-dir", tts_input_dir,
-            "--engine", tts_args.get("engine", "edge"),
-            "--voice", tts_args.get("voice", "vi-VN-NamMinhNeural"),
-            "--speed", str(tts_args.get("speed", 1.0)),
+            "--engine", engine,
+            "--voice", voice,
+            "--speed", str(speed),
             "--target-lufs", str(tts_args.get("target_lufs") if tts_args.get("target_lufs") is not None else -14.0),
             "--fade-in", str(tts_args.get("fade_in") if tts_args.get("fade_in") is not None else 0.1),
             "--fade-out", str(tts_args.get("fade_out") if tts_args.get("fade_out") is not None else 0.1),
@@ -188,18 +206,22 @@ class NovelPipeline:
             cmd.append("--phonemize")
         else:
             cmd.append("--no-phonemize")
-        if tts_args.get("normalize", True):
+            
+        if normalize_val:
             cmd.append("--normalize")
         else:
             cmd.append("--no-normalize")
+            
         if tts_args.get("use_cache", False):
             cmd.append("--use-cache")
         else:
             cmd.append("--no-cache")
         if tts_args.get("cache_threshold") is not None:
             cmd += ["--cache-threshold", str(tts_args["cache_threshold"])]
-        if tts_args.get("vieneu_mode"):
-            cmd += ["--vieneu-mode", str(tts_args["vieneu_mode"])]
+            
+        vieneu_mode = tts_args.get("vieneu_mode") or tts_cfg.get("vieneu_mode", "v3turbo")
+        if vieneu_mode:
+            cmd += ["--vieneu-mode", str(vieneu_mode)]
         if tts_args.get("vieneu_emotion"):
             cmd += ["--vieneu-emotion", str(tts_args["vieneu_emotion"])]
         if tts_args.get("temperature") is not None:
@@ -249,16 +271,44 @@ class NovelPipeline:
         python_exe = os.path.abspath("AIVoice/.venv/Scripts/python.exe")
         adapter_path = os.path.abspath("AIVoice/apps/MediaComposer/adapter_video_cli.py")
 
+        from orchestrator.config import load_global_config
+        g_config = load_global_config()
+        video_cfg = g_config.get("video", {})
+
+        # Resolve LLM parameters for Step 3
+        llm_engine = video_args.get("llm_engine") or video_cfg.get("default_llm_engine") or "gemini_api"
+        llm_api_key = video_args.get("llm_api_key")
+        llm_offline_base_url = video_args.get("llm_offline_base_url")
+        llm_offline_model = video_args.get("llm_offline_model") or video_cfg.get("default_llm_model")
+
+        if llm_engine == "gemini":  # Gemini Online (AI Studio)
+            resolved_key = llm_api_key or g_config.get("api_keys", {}).get("gemini", "")
+            if not resolved_key:
+                raise ValueError("Đã chọn Gemini Online nhưng chưa có API Key. Nhập key ở Bước 3 hoặc lưu vào Cấu Hình Chung (api_keys.gemini).")
+            resolved_base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+            resolved_model = llm_offline_model or "gemini-2.0-flash"
+        elif llm_engine == "ollama":  # Ollama (Local)
+            resolved_key = "ollama"  # placeholder: get_llm_client() yeu cau key khac rong
+            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
+            resolved_model = llm_offline_model or "qwen2.5:7b-instruct"
+        else:  # gemini_api (Local Gemini proxy)
+            resolved_key = llm_api_key or "sk-gemini-YrVwXWGegzkFlevHPdQy7Fpry14HJVirqvnuxukz"
+            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("gemini_offline_base_url") or "http://localhost:7860/v1"
+            resolved_model = llm_offline_model or "gemini-3-flash"
+
         cmd = [
             python_exe, adapter_path,
             "--story-name", story_name,
             "--genre", video_args.get("genre", "tien_hiep"),
             "--input-dir", video_input_dir,
             "--output-dir", video_output_dir,
-            "--style", video_args.get("style", "anime_2d_flat"),
-            "--checkpoint", video_args.get("checkpoint") or "anything-v5",
+            "--style", video_args.get("style") or video_cfg.get("default_style") or "anime_2d_flat",
+            "--checkpoint", video_args.get("checkpoint") or video_cfg.get("default_checkpoint") or "anything-v5",
             "--bgm-path", video_args.get("bgm_path") or "",
-            "--bgm-volume", str(video_args.get("bgm_volume") if video_args.get("bgm_volume") is not None else 0.15)
+            "--bgm-volume", str(video_args.get("bgm_volume") if video_args.get("bgm_volume") is not None else video_cfg.get("bgm_volume", 0.15)),
+            "--llm-api-key", resolved_key,
+            "--llm-base-url", resolved_base_url,
+            "--llm-model", resolved_model
         ]
         if video_args.get("enable_upscale", True):
             cmd.append("--enable-upscale")
