@@ -114,6 +114,33 @@ def get_gpu_info():
     except Exception:
         return {"name": "No nvidia-smi", "vram": "N/A"}
 
+@app.get("/api/ollama/models")
+def get_ollama_models():
+    """Danh sách model Ollama: các model đã cài trên máy + các model khuyến nghị."""
+    import urllib.request
+    import json as _json
+    curated = {
+        "hy-mt2:1.8b": "Chuyên dịch Trung/Anh→Việt, siêu nhẹ (khuyến nghị)",
+        "translategemma:4b": "Chuyên dịch Google, 55 ngôn ngữ",
+        "qwen2.5:7b-instruct": "Model chat, đã kiểm thử",
+        "qwen3:8b": "Model chat, đã tối ưu giảm leak"
+    }
+    installed = []
+    online = False
+    try:
+        with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=3) as res:
+            data = _json.loads(res.read().decode("utf-8"))
+            installed = [m.get("name") for m in data.get("models", []) if m.get("name")]
+            online = True
+    except Exception:
+        pass
+
+    models = [{"name": n, "label": curated.get(n, ""), "installed": True} for n in installed]
+    for name, label in curated.items():
+        if name not in installed:
+            models.append({"name": name, "label": label, "installed": False})
+    return {"ollama_online": online, "models": models}
+
 @app.post("/api/config")
 def update_config(config: GlobalConfigSchema):
     if save_global_config(config.dict()):
@@ -241,7 +268,8 @@ def stream_logs(task_key: str):
 def clear_semantic_cache():
     import shutil
     import os
-    cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "storage", "cache")
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cache_dir = os.path.join(repo_root, "AIVoice", "storage", "cache")
     if os.path.exists(cache_dir):
         try:
             shutil.rmtree(cache_dir)

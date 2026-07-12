@@ -185,6 +185,9 @@ function setupEventHandlers() {
     elS1Engine.addEventListener("change", () => {
         elGroupOllama.style.display = elS1Engine.value === "ollama" ? "block" : "none";
         elGroupGemini.style.display = elS1Engine.value === "gemini" ? "block" : "none";
+        if (elS1Engine.value === "ollama") {
+            loadOllamaModels();
+        }
     });
 
     const elS2Engine = document.getElementById("s2Engine");
@@ -330,7 +333,8 @@ function setupEventHandlers() {
             max_chapters: parseInt(document.getElementById("s1NumChapters").value) || 1,
             engine: elS1Engine.value,
             ollama_model: document.getElementById("s1OllamaModel").value,
-            gemini_api_key: document.getElementById("s1GeminiKey").value || "",
+            gemini_api_key: (elS1Engine.value === "gemini" || elS1Engine.value === "gemini_api")
+                ? (document.getElementById("s1GeminiKey").value || "") : "",
             gemini_offline_base_url: document.getElementById("s1GeminiOfflineUrl")?.value || "",
             gemini_offline_model: document.getElementById("s1GeminiOfflineModel")?.value || "",
             genre: document.getElementById("s1Genre").value,
@@ -628,6 +632,27 @@ function streamLogs(stepName, taskKey) {
                         displayText = `[CẢNH BÁO] ${parsed.message}`;
                         logClass = "log-warn";
                         break;
+                    case "file_repair_start": {
+                        const roundInfo = parsed.round ? ` (Vòng ${parsed.round}/${parsed.max_rounds})` : "";
+                        displayText = `[DỊCH VÁ] File ${parsed.file} có ${parsed.failed_paragraphs} đoạn lỗi. Đang tự động dịch lại${roundInfo}...`;
+                        logClass = "log-warn";
+                        break;
+                    }
+                    case "file_repair_done": {
+                        const roundLabel = parsed.round ? ` (vòng ${parsed.round})` : "";
+                        if (parsed.still_failed > 0) {
+                            displayText = `[DỊCH VÁ] Đã vá ${parsed.repaired} đoạn${roundLabel}, còn ${parsed.still_failed} đoạn lỗi trong file ${parsed.file}.`;
+                            logClass = "log-warn";
+                        } else {
+                            displayText = `[THÀNH CÔNG] Đã dịch vá toàn bộ ${parsed.repaired} đoạn lỗi của file ${parsed.file}${roundLabel}.`;
+                            logClass = "log-success";
+                        }
+                        break;
+                    }
+                    case "file_repair_warn":
+                        displayText = `[CẢNH BÁO] Lỗi khi dịch vá file ${parsed.file} (vòng ${parsed.round || "?"}): ${parsed.error}`;
+                        logClass = "log-warn";
+                        break;
                     case "translate_failed":
                         displayText = `[LỖI DỊCH] Tiến trình dịch bị lỗi: ${parsed.error}`;
                         logClass = "log-danger";
@@ -677,6 +702,49 @@ function streamLogs(stepName, taskKey) {
         toggleFormButtons(stepName, false);
         loadStories();
     };
+}
+
+// Load danh sách model Ollama (model đã cài + model khuyến nghị) vào dropdown
+async function loadOllamaModels() {
+    const sel = document.getElementById("s1OllamaModel");
+    const status = document.getElementById("s1OllamaStatus");
+    if (!sel) return;
+    const previous = sel.value;
+    try {
+        const res = await fetch(`${API_BASE}/api/ollama/models`);
+        const data = await res.json();
+        const models = data.models || [];
+        if (models.length > 0) {
+            sel.innerHTML = "";
+            models.forEach(m => {
+                const opt = document.createElement("option");
+                opt.value = m.name;
+                let text = m.name;
+                if (m.label) text += ` — ${m.label}`;
+                if (!m.installed) text += " (chưa cài, cần: ollama pull)";
+                opt.textContent = text;
+                sel.appendChild(opt);
+            });
+            // Giữ lại lựa chọn trước đó nếu vẫn tồn tại
+            if (previous && [...sel.options].some(o => o.value === previous)) {
+                sel.value = previous;
+            } else {
+                const firstInstalled = models.find(m => m.installed);
+                if (firstInstalled) sel.value = firstInstalled.name;
+            }
+        }
+        if (status) {
+            status.textContent = data.ollama_online
+                ? `Ollama đang chạy — ${models.filter(m => m.installed).length} model đã cài.`
+                : "Không kết nối được Ollama (http://localhost:11434). Hãy mở Ollama trước khi dịch.";
+            status.style.color = data.ollama_online ? "" : "#e0a800";
+        }
+    } catch (e) {
+        if (status) {
+            status.textContent = "Không tải được danh sách model (server orchestrator chưa chạy?).";
+            status.style.color = "#e0a800";
+        }
+    }
 }
 
 // Load Global Configuration from database

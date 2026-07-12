@@ -8,7 +8,7 @@ Hệ thống gồm 3 tầng, giao tiếp với nhau qua tiến trình con (subpr
 
 ```
 ToolAutoMakeCartoonVideo2DFromComics/   (repo tổng)
-├── orchestrator/     # FastAPI :3000 — điều phối pipeline, máy trạng thái, quản lý tiến trình
+├── orchestrator/     # FastAPI :8100 — điều phối pipeline, máy trạng thái, quản lý tiến trình
 │                     # (venv siêu nhẹ: fastapi + uvicorn + httpx, KHÔNG import torch)
 ├── webui/            # Giao diện web 1 trang (HTML/CSS/JS thuần + SSE cập nhật tiến độ)
 ├── configs/          # Cấu hình toàn cục (config.example.json — copy thành global_config.json)
@@ -47,7 +47,7 @@ git submodule update --init --recursive
    ```
    (`global_config.json` đã bị `.gitignore` loại trừ — không bao giờ commit key thật.)
 2. Chạy `setup.bat` — tạo venv tổng + gọi setup của 2 dự án con (tự nhận GPU, tải model).
-3. Chạy `run.bat` — khởi động orchestrator :3000, tự bật Gemini-API proxy, mở trình duyệt.
+3. Chạy `run.bat` — khởi động orchestrator :8100, tự bật Gemini-API proxy, mở trình duyệt.
 
 ## Yêu cầu hệ thống
 
