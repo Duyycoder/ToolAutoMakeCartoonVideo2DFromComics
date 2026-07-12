@@ -395,7 +395,7 @@ class NovelPipeline:
         """Runs MediaComposer autosub and dubbing workflow on a video."""
         import datetime
         import uuid
-        task_id = uuid.uuid4().hex[:8]
+        task_id = autosub_args.get("task_id") or uuid.uuid4().hex[:8]
         
         slug = ""
         if story_name:
@@ -472,6 +472,10 @@ class NovelPipeline:
         crop_w = autosub_args.get("crop_w", -1)
         crop_h = autosub_args.get("crop_h", -1)
         if crop_x >= 0 and crop_y >= 0 and crop_w > 0 and crop_h > 0:
+            crop_x = max(0, crop_x)
+            crop_y = max(0, crop_y)
+            crop_w = max(0, crop_w)
+            crop_h = max(0, crop_h)
             cmd.extend([
                 "--crop-x", str(crop_x),
                 "--crop-y", str(crop_y),

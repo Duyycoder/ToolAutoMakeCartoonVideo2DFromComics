@@ -75,9 +75,6 @@ def merge_videos(video_dir: str, output_file: str, only_files: list[str] | None 
             
         print(f"[Success] Successfully merged videos to {output_file}")
         return True
-            
-        print(f"[Success] Successfully merged videos to {output_file}")
-        return True
     except Exception as e:
         print(f"[Error] Failed to merge videos: {e}")
         return False

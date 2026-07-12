@@ -473,10 +473,12 @@ def stop_task(task_key: str):
                 slug = parts[0]
                 stories = storage_mgr.list_stories()
                 for s in stories:
-                    meta = storage_mgr.read_story_meta(s)
-                    if meta and meta.get("story_slug") == slug:
-                        meta["status"] = "CANCELLED"
-                        storage_mgr.write_story_meta(s, meta)
+                    if s.get("story_slug") == slug:
+                        story_name = s.get("story_name")
+                        meta = storage_mgr.read_story_meta(story_name)
+                        if meta:
+                            meta["status"] = "CANCELLED"
+                            storage_mgr.write_story_meta(story_name, meta)
                         break
         except Exception:
             pass
