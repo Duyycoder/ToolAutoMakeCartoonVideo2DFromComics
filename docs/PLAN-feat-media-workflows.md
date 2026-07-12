@@ -11,10 +11,16 @@
 > - Giữ nguyên phong cách log JSON của adapter CLI (`print(json.dumps({...}, ensure_ascii=False))` mỗi dòng) để orchestrator stream qua SSE.
 > - Toàn bộ tiến trình nặng (whisper/tts/ffmpeg/yt-dlp) chạy trong **`AIVoice/.venv`** (cwd=`AIVoice`), KHÔNG chạy trong venv orchestrator (venv này cố ý không có torch).
 >
+> ## ⚠️ CẢNH BÁO KỸ THUẬT SỐ 1 (đọc trước khi làm Task A/C — dễ làm hỏng luồng nếu bỏ qua)
+> `composer.run_translation_workflow()` (`app/services/composer.py:272`) **hard-code Whisper** ở mục 1-2 (dòng ~329-347): nó LUÔN extract audio rồi gọi `create_subtitle()` để sinh SRT nguồn. Muốn cho phép nguồn SRT là **OCR (tách chữ trên hình)** thay vì Whisper, KHÔNG được viết workflow song song — hãy **thêm 1 tham số `source_srt_override: str = ""`** vào hàm này:
+> - Nếu `source_srt_override` có giá trị (đường dẫn SRT đã dựng sẵn) → **BỎ QUA** extract audio + Whisper + `release_whisper_model`, gán thẳng `source_srt_path = source_srt_override` rồi đi tiếp mục dịch (translate_srt) + lồng tiếng + burn.
+> - Nếu rỗng → giữ nguyên hành vi cũ (Whisper). Đây là sửa **~10 dòng, tương thích ngược 100%** (tham số mới có default rỗng).
+> - Lý do phải override thay vì tự dịch trong adapter: bước lồng tiếng + burn + ducking nằm gọn trong workflow này; tái dùng để không lặp code và không lệch hành vi.
+>
 > ## Gợi ý commit (đặt tên theo Conventional Commits)
 > - `feat(mediacomposer): add adapter_autosub_cli for translate-and-sub workflow` (Task A)
 > - `feat(mediacomposer): add yt-dlp video downloader (tiktok/douyin/generic)` (Task B)
-> - `feat(mediacomposer): add subtitle extraction (embedded + OCR) options` (Task C)
+> - `feat(mediacomposer): add hardsub OCR extraction + preview frame (videocr-PaddleOCR)` (Task C)
 > - `feat(orchestrator): add step4 autosub + step5 merge pipeline & endpoints` (Task D, E)
 > - `feat(webui): add Bước 4 Autosub & Bước 5 Ghép Video tabs` (Task F)
 > - `chore: bump AIVoice submodule pointer for media workflows` (cập nhật con trỏ submodule)
@@ -30,11 +36,11 @@ MediaComposer (Streamlit app trong `AIVoice/apps/MediaComposer`) **đã có sẵ
 | Yêu cầu người dùng | Workflow có sẵn trong MediaComposer | Việc cần làm |
 |---|---|---|
 | **(1) Subvideo tự động / Autosub** (có lồng tiếng tuỳ chọn) | `composer.run_translation_workflow()` (`app/services/composer.py:272`) = "Workflow 4: Auto Translate & Sub" trong Streamlit (`webui/Main.py:2581`) | Task A (adapter CLI) + Task D (step4) + Task F (tab UI) |
-| **(1b) Nguồn video: tải từ TikTok / "glibli" Trung Quốc** | *(chưa có)* — chỉ có local path / upload | Task B (yt-dlp downloader) |
-| **(2) Tạo SRT: thêm option tách sub bên trong video + dịch** | Whisper transcribe (`app/services/subtitle.py`) đã làm SRT-từ-âm-thanh; tách sub *có sẵn trong khung hình* thì CHƯA có | Task C (embedded + OCR), tích hợp vào Task A |
+| **(1b) Nguồn video: tải từ Bilibili/TikTok/Douyin/YouTube** | *(chưa có)* — chỉ có local path / upload | Task B (yt-dlp downloader) |
+| **(2) Tạo SRT: chọn Whisper HOẶC OCR tách sub trên hình + dịch** | Whisper transcribe (`app/services/subtitle.py`) đã làm SRT-từ-âm-thanh; OCR tách hardsub *trên khung hình* thì CHƯA có | Task C (OCR hardsub) + Task C-preview (chọn vùng ROI), tích hợp vào Task A |
 | **(3) Ghép các video đã tạo mà chưa từng ghép thành 1 video** | `orchestrator/video_merger.py:merge_videos()` (concat stream-copy) + `combine_videos()` (`app/services/video.py:538`) | Task E (step5 merge) + Task F (tab UI) |
 
-> **CÂU HỎI MỞ (cần hỏi lại chủ dự án trước/khi làm Task B):** "glibli Trung Quốc" là nền tảng nào? Nhiều khả năng là **Douyin** (TikTok Trung Quốc) hoặc **Bilibili**, hoặc một site tạo video kiểu Ghibli. `yt-dlp` hỗ trợ TikTok/Douyin/Bilibili sẵn. Task B dưới đây thiết kế downloader **generic dựa trên yt-dlp** để không phụ thuộc câu trả lời, nhưng dropdown "nền tảng" nên chốt danh sách đúng theo xác nhận của chủ dự án.
+> **ĐÃ CHỐT (chủ dự án xác nhận 2026-07-12):** Nền tảng tải video = **Bilibili** (chủ dự án nhầm "glibli" → thực ra là Bilibili), **TikTok**, **Douyin**, **YouTube**. Cả 4 đều được `yt-dlp` hỗ trợ sẵn → dropdown "nền tảng" ở Bước 4 chốt đúng 4 mục này (+ "Khác/generic" phòng hờ). Task B thiết kế downloader generic dựa trên `yt-dlp` nên không cần logic riêng cho từng site (yt-dlp tự nhận extractor theo URL).
 
 ---
 
@@ -87,7 +93,8 @@ MediaComposer (Streamlit app trong `AIVoice/apps/MediaComposer`) **đã có sẵ
 --platform          (str)  tiktok|douyin|bilibili|generic (Task B)
 --output-dir        (str)  thư mục lưu kết quả cuối (BẮT BUỘC)
 --source-lang       (str)  English|Chinese (mặc định English)
---sub-source        (str)  whisper|embedded|ocr   (Task C — mặc định whisper)
+--sub-source        (str)  whisper|ocr   (Task C — mặc định whisper)
+--crop-x --crop-y --crop-w --crop-h  (int, mặc định -1)  vùng ROI cho OCR (Task C-Preview); -1 = không crop
 --burn-method       (str)  ffmpeg|moviepy (mặc định ffmpeg)
 --clean-audio       (flag, default False) Demucs tách giọng trước whisper
 --enable-voiceover  (flag, default False)
@@ -102,9 +109,7 @@ MediaComposer (Streamlit app trong `AIVoice/apps/MediaComposer`) **đã có sẵ
 2. `log_json("autosub_init", {...})`.
 3. Nếu `--download-url`: gọi downloader Task B → nhận `video_path` local; `log_json("download_done", {"path":...})`. Ngược lại dùng `--video-path` (kiểm tra tồn tại, raise nếu không).
 4. `task_id = uuid4().hex`; tạo MC task_dir qua `from app.utils import utils; utils.task_dir(task_id)`.
-5. **Nếu `--sub-source != whisper`** (Task C): tự trích SRT nguồn (embedded/OCR) rồi dịch, KHÔNG dùng whisper. Vì `run_translation_workflow` hard-code whisper, cần một trong hai hướng (chọn hướng (a) để ít sửa nhất):
-   - **(a) khuyến nghị:** thêm tham số mới `source_srt_override: str = ""` vào `run_translation_workflow` (composer.py). Nếu có, BỎ QUA bước extract audio + whisper, dùng thẳng SRT này làm `source_srt_path`. Adapter tự sinh SRT (Task C) rồi truyền vào. Sửa tối thiểu ~10 dòng trong composer.py (đầu hàm, mục 1-2).
-   - (b) không khuyến nghị: viết workflow song song riêng trong adapter.
+5. **Nếu `--sub-source == ocr`** (Task C): gọi `extract_hardsub_ocr_srt(video_path, <srt>, lang=map(source_lang), crop=(crop_x,crop_y,crop_w,crop_h) nếu != -1)` → nhận `source_srt`. Vì `run_translation_workflow` hard-code whisper, truyền `source_srt` qua tham số mới `source_srt_override` (xem **⚠️ CẢNH BÁO KỸ THUẬT SỐ 1** đầu tài liệu — sửa ~10 dòng composer.py, tương thích ngược). Nếu `whisper` → để rỗng, workflow tự chạy whisper như cũ.
 6. Gọi `composer.run_translation_workflow(task_id=task_id, video_path=..., source_lang=..., burn_method=..., enable_voiceover=..., tts_engine=..., tts_voice=..., ducking_ratio=..., auto_clone=..., clean_audio=..., source_srt_override=...)`.
 7. Copy file kết quả sang `--output-dir` với tên `<basename>_autosub_<timestamp>.mp4`; `log_json("autosub_done", {"output": <đường dẫn cuối>})`.
 8. `except`: `log_json("autosub_error", {"error": str(e)})`, `sys.exit(1)`.
@@ -124,7 +129,7 @@ cd AIVoice && .venv/Scripts/python.exe apps/MediaComposer/adapter_autosub_cli.py
 
 ---
 
-## Task B — Tải video từ TikTok / Douyin / "glibli" (yt-dlp)
+## Task B — Tải video từ Bilibili / TikTok / Douyin / YouTube (yt-dlp)
 
 **File mới:** `AIVoice/apps/MediaComposer/app/services/video_downloader.py`.
 
@@ -138,7 +143,7 @@ def download_video(url: str, output_dir: str, platform: str = "generic",
 ```
 Dùng `yt_dlp.YoutubeDL` với opts: `format="mp4/best"`, `outtmpl=<output_dir>/dl_%(id)s.%(ext)s`, `merge_output_format="mp4"`, `ffmpeg_location=<thư mục chứa ffmpeg>`, `noplaylist=True`, `quiet=True`, và `progress_hooks=[hook]` để phát `log_json("download_progress", {...})`. Trả `ydl.prepare_filename(info)` (đổi ext thành `.mp4`).
 
-**`platform`** hiện chỉ là nhãn (yt-dlp tự nhận extractor theo URL). Giữ tham số để: (1) validate domain hợp lệ, (2) tương lai gắn cookies/headers riêng cho site cần đăng nhập (vd Bilibili/Douyin có thể chặn). Với site "glibli" chưa xác định: nếu là trang có link video trực tiếp, thêm nhánh fallback tải bằng `requests` stream (giống `app/services/material.py:save_video` dòng 244 — có sẵn mẫu tải file trực tiếp).
+**`platform`** ∈ {`bilibili`, `tiktok`, `douyin`, `youtube`, `generic`} — hiện chỉ là nhãn (yt-dlp tự nhận extractor theo URL). Giữ tham số để: (1) validate domain hợp lệ theo nền tảng, (2) tương lai gắn cookies/headers riêng cho site cần đăng nhập (Bilibili/Douyin có thể chặn khách).
 
 **Tích hợp:** Task A gọi `download_video()` khi có `--download-url`. Không tạo endpoint tải riêng — tải là bước con của autosub (đúng ý người dùng: "paste link + chọn nền tảng" ngay trong luồng tạo phụ đề). Nếu sau này cần tải-độc-lập cho Bước 3, tách endpoint riêng.
 
@@ -152,55 +157,81 @@ Dùng `yt_dlp.YoutubeDL` với opts: `format="mp4/best"`, `outtmpl=<output_dir>/
 
 ---
 
-## Task C — Option "tách sub bên trong video" + dịch (nghiên cứu model + phương án)
+## Task C — Nguồn SRT: Whisper HOẶC OCR tách chữ cháy trên hình (nghiên cứu công cụ + phương án)
 
-Người dùng muốn thêm lựa chọn lấy **phụ đề có sẵn TRONG video** thay vì phiên âm từ âm thanh (whisper). Có 2 loại "sub bên trong":
+**Yêu cầu người dùng (mô tả lại chính xác 2026-07-12):**
+1. Video đầu ra **luôn có phụ đề** (burn sub) — điều này không đổi, `run_translation_workflow` đã burn sẵn.
+2. File SRT nguồn được tạo bằng **1 trong 2 cách** (đây là điểm mới):
+   - **(A) Whisper** — phiên âm từ *âm thanh* (đã có, giữ mặc định).
+   - **(B) OCR** — công cụ đọc **chữ tiếng Trung/tiếng Anh cháy trên khung hình** rồi trích thành SRT.
+3. Với cách (B): **sau khi tải video xong, hiện màn hình preview để người dùng khoanh vùng (ROI) chứa phụ đề** → OCR chỉ chạy trong vùng đó để **tăng tốc & giảm nhiễu**. (Chi tiết preview ở Task C-Preview + Task D3 + Task F.)
 
-### Phương án C1 — Phụ đề mềm (soft/embedded subtitle stream)  ✅ làm trước, rẻ
-Nhiều video (mkv, một số mp4) chứa track phụ đề (`mov_text`, `subrip`, `ass`). Trích bằng ffmpeg, **0 chi phí AI, rất nhanh, chính xác 100%**.
-- Dò: `ffprobe -v quiet -print_format json -show_streams <video>` → tìm stream `codec_type=="subtitle"`.
-- Trích: `ffmpeg -y -i <video> -map 0:s:0 <out>.srt` (nếu là ass thì `-map 0:s:0 out.ass` rồi convert `ffmpeg -i out.ass out.srt`).
-- Nếu KHÔNG có subtitle stream → báo và fallback sang C2 (nếu người dùng chọn OCR) hoặc whisper.
+→ Dropdown `sub_source` ở UI chỉ có **2 mục**: `whisper` và `ocr`. (Trích phụ đề *mềm* embedded stream là bonus rẻ — xem "Ghi chú C0" cuối mục, KHÔNG đưa thành mục UI riêng để tránh rối.)
 
-### Phương án C2 — Phụ đề cháy (hardcoded/burned-in) → OCR khung hình  ⚠️ nặng hơn
-Video TikTok/Douyin thường **cháy chữ vào hình** → phải OCR. Đây là phần "tìm hiểu model" người dùng yêu cầu. **Các lựa chọn model (khuyến nghị theo thứ tự):**
+### Nghiên cứu công cụ OCR hardsub (đã tra cứu, cập nhật 07/2026)
 
-| Lựa chọn | Model | Ưu | Nhược |
-|---|---|---|---|
-| **C2a (khuyến nghị)** | **RapidOCR** (onnxruntime, PP-OCRv4 weights) | Nhẹ, chỉ cần `onnxruntime`, hỗ trợ Trung+Anh, không kéo theo paddlepaddle nặng; hợp với `.venv` sẵn có torch/cuda | Cần tự viết vòng lặp sample frame + dedupe |
-| C2b | **PaddleOCR** (`ch_PP-OCRv4`, `en_PP-OCRv4`) | Chính xác cao, cộng đồng lớn | Kéo `paddlepaddle`(-gpu) nặng, hay xung đột CUDA với torch trong cùng venv |
-| C2c | **VideoSubFinder + OCR** | VideoSubFinder tự dò vùng phụ đề + mốc thời gian rất tốt (chuyên cho hardsub) | Là app ngoài (GUI/CLI Windows), khó tự động hoá trong subprocess |
-| C2d | **Whisper (giữ mặc định)** | Đã có sẵn, không cần OCR | Không đọc chữ trên hình, chỉ nghe tiếng — KHÔNG đáp ứng "tách sub bên trong" |
+| Công cụ | Bản chất | ROI/crop | Ngôn ngữ | Đánh giá cho dự án này |
+|---|---|---|---|---|
+| **`videocr-PaddleOCR`** (thư viện Python, fork `devmaxxing`/`oliverfei`) | Lib gọi PaddleOCR, sample frame → SRT **1 hàm** | ✅ `crop_x/crop_y/crop_width/crop_height` | `ch`, `en`, +nhiều | **KHUYẾN NGHỊ** — API gọn (`save_subtitles_to_file`), có sẵn crop ROI + `time_start/time_end`, tự dedupe (`sim_threshold`), tự lo timestamp. Ít code nhất. |
+| **VideOCR** (`timminator/VideOCR`) | App GUI + CLI đóng gói, PaddleOCR, hỗ trợ 200+ ngôn ngữ | ✅ (GUI kéo vùng) | 200+ | Tốt cho người dùng cuối, nhưng là app ngoài → khó nhúng headless vào adapter subprocess. Tham khảo UI ROI của họ. |
+| RapidOCR (onnxruntime) | Engine OCR thô, tự viết vòng lặp frame | tự crop | ch/en | Nhẹ (chỉ onnxruntime, không kéo paddle), nhưng **phải tự viết** sample+dedupe+timestamp → nhiều việc hơn videocr. |
+| VideoSubFinder | App Windows dò vùng sub + mốc thời gian rất tốt | ✅ | (cần OCR ngoài) | Chuyên hardsub nhưng là .exe GUI, khó tự động hoá. Ghi nhận cho tương lai. |
 
-**Khuyến nghị:** làm **C1 + C2a (RapidOCR)**. Bỏ C2b/C2c ở giai đoạn này (ghi vào "mở rộng tương lai").
+**Chốt:** dùng **`videocr-PaddleOCR`** làm engine chính (API `crop_*` khớp thẳng với yêu cầu ROI). Dự phòng: nếu cài PaddleOCR gặp xung đột CUDA (xem Bẫy), fallback **RapidOCR** tự viết. Ghi VideoSubFinder/VideOCR-GUI vào "mở rộng tương lai".
 
-**File mới:** `AIVoice/apps/MediaComposer/app/services/subtitle_extractor.py`
+### C-core: file `AIVoice/apps/MediaComposer/app/services/subtitle_extractor.py`
 ```python
-def extract_embedded_srt(video_path: str, output_srt: str) -> str | None:
-    """C1: dò & trích subtitle stream bằng ffprobe/ffmpeg. None nếu không có."""
-
-def extract_hardsub_ocr_srt(video_path: str, output_srt: str,
-                            lang: str = "ch", sample_fps: float = 2.0,
-                            roi=("bottom", 0.75, 1.0), progress_cb=None) -> str:
-    """C2a: sample frame (sample_fps khung/giây), crop vùng phụ đề (ROI đáy màn),
-    RapidOCR đọc chữ, gộp khung liên tiếp cùng nội dung thành 1 câu + mốc thời gian,
-    build SRT bằng app.services.translation.build_srt()."""
+def extract_hardsub_ocr_srt(
+    video_path: str,
+    output_srt: str,
+    lang: str = "ch",                # "ch" (Trung) | "en" (Anh)
+    crop: tuple[int,int,int,int] | None = None,  # (x, y, w, h) theo pixel gốc; None = toàn khung
+    time_start: str = "",            # "" hoặc "mm:ss"
+    time_end: str = "",
+    conf_threshold: int = 75,
+    sim_threshold: int = 80,
+    frames_to_skip: int = 1,         # tăng để nhanh hơn (bỏ bớt frame)
+    use_gpu: bool = False,           # xem Bẫy CUDA — mặc định CPU
+    progress_cb=None
+) -> str:
+    """Gọi videocr-PaddleOCR: save_subtitles_to_file(video_path, output_srt, lang=..,
+    crop_x/crop_y/crop_width/crop_height=.., time_start/time_end=.., conf_threshold,
+    sim_threshold, frames_to_skip, use_gpu). Trả về output_srt."""
 ```
-Chi tiết C2a:
-- Lấy fps & duration bằng ffprobe; đọc frame bằng `cv2.VideoCapture` (opencv đã có trong MC — kiểm tra; nếu không, dùng `imageio_ffmpeg`/`ffmpeg -vf fps=` xuất PNG tạm).
-- Với mỗi frame lấy mẫu: crop ROI (mặc định 25% đáy — nơi phụ đề thường nằm), `rapidocr(frame_crop)` → text.
-- **Dedupe:** nếu text trùng frame trước (so sánh sau khi chuẩn hoá khoảng trắng, hoặc similarity ≥ 0.85) → kéo dài `end_time` của segment hiện tại; khác → chốt segment cũ, mở segment mới. Bỏ text rỗng/nhiễu (độ dài < 2 ký tự).
-- Xuất list `[{index,start,end,text}]` → `build_srt()` → ghi `output_srt`. Trả path.
+- Nếu `crop` = None → gọi với `use_fullframe=True` (chậm hơn, nhưng vẫn chạy).
+- `lang`: map `source_lang` "Chinese"→"ch", "English"→"en".
+- Bọc `progress_hooks`/log JSON nếu lib cho phép callback; nếu không, log mốc "bắt đầu OCR / xong OCR".
 
-**Tích hợp:** trong adapter Task A, khi `--sub-source`:
-- `whisper` → hành vi hiện tại (không đụng).
-- `embedded` → `extract_embedded_srt()`; nếu None → log cảnh báo, fallback whisper.
-- `ocr` → `extract_hardsub_ocr_srt(lang="ch" if source_lang=="Chinese" else "en")`.
-- SRT thu được truyền vào `run_translation_workflow(..., source_srt_override=<srt>)` (đã thêm ở Task A mục 5a) → workflow bỏ qua whisper, chỉ dịch + (lồng tiếng) + burn.
+### C-Preview: trích 1 khung hình đại diện để người dùng khoanh vùng
+File cùng module, hàm:
+```python
+def grab_preview_frame(video_path: str, out_image: str, at_seconds: float = None) -> dict:
+    """Dùng ffmpeg lấy 1 frame (mặc định ~giữa video nếu at_seconds=None) ghi ra out_image (jpg/png).
+    Trả về {'image': out_image, 'width': W, 'height': H, 'duration': D} (kích thước gốc để UI map toạ độ)."""
+```
+- ffmpeg: `ffmpeg -y -ss <t> -i <video> -frames:v 1 -q:v 3 <out_image>` (dùng `utils.get_ffmpeg_binary()`).
+- Lấy W/H/duration qua ffprobe (JSON). **W/H là kích thước GỐC** — UI sẽ vẽ rectangle trên ảnh scale rồi quy đổi về pixel gốc trước khi gửi crop (Task F).
+- Chọn `at_seconds`: mặc định giữa video để chắc chắn có phụ đề; cho phép người dùng đổi thời điểm ở UI (tuỳ chọn).
 
-**Phụ thuộc:** thêm `rapidocr-onnxruntime` (và `opencv-python-headless` nếu MC chưa có) vào `requirements.txt` + cài vào `.venv`. **Bẫy CUDA:** RapidOCR mặc định chạy CPU (ổn); nếu bật GPU phải đảm bảo onnxruntime-gpu không đụng CUDA của torch — để CPU cho an toàn.
+### Tích hợp vào adapter Task A (`--sub-source`)
+- `whisper` → hành vi hiện tại, KHÔNG đụng.
+- `ocr` → gọi `extract_hardsub_ocr_srt(lang=.., crop=(cx,cy,cw,ch) nếu có, ...)` → nhận `source_srt` → truyền `run_translation_workflow(..., source_srt_override=source_srt)` (dùng tham số mới ở ⚠️ CẢNH BÁO KỸ THUẬT SỐ 1). Adapter nhận crop qua arg mới: `--crop-x --crop-y --crop-w --crop-h` (int, mặc định -1 = không crop).
+- Bất kể cách nào, sau khi có `source_srt` thì luồng dịch + (lồng tiếng) + burn của workflow chạy y như cũ → **đầu ra luôn có sub**.
 
-**Nghiệm thu Task C:** (C1) video mkv có sub → ra `.srt` đúng lời. (C2a) video hardsub tiếng Trung ngắn → ra `.srt` có mốc thời gian hợp lý, dịch được sang tiếng Việt.
+### Ghi chú C0 (bonus, tuỳ chọn — làm nếu còn thời gian)
+Trước khi OCR, có thể thử trích phụ đề **mềm** (nếu video có subtitle stream): `ffprobe` dò `codec_type=="subtitle"` → `ffmpeg -map 0:s:0 out.srt`. Nếu có → dùng luôn (0 chi phí, chính xác 100%), khỏi OCR. Đa số video Bilibili/TikTok là hardsub nên thường KHÔNG có → cứ để như một bước kiểm tra nhanh, không phải mục UI.
+
+### Phụ thuộc & Bẫy
+- Thêm vào `AIVoice/apps/MediaComposer/requirements.txt`: `videocr-PaddleOCR` (cài qua `pip install "git+https://github.com/oliverfei/videocr-PaddleOCR.git"` — kiểm tra fork còn sống; nếu không, dùng `devmaxxing/videocr-PaddleOCR`) + `paddleocr` + `paddlepaddle` (CPU) hoặc `paddlepaddle-gpu`. Python `.venv` phải 3.8–3.12 (kiểm tra: dự án dùng 3.11 ✅).
+- **Bẫy CUDA (QUAN TRỌNG):** `paddlepaddle-gpu` và `torch` cùng venv dễ xung đột phiên bản CUDA/cuDNN và giành VRAM (GPU 6GB). **Mặc định cài `paddlepaddle` bản CPU + `use_gpu=False`** cho ổn định (OCR vài chục frame không quá chậm khi đã crop ROI). Chỉ bật GPU nếu người thực thi tự xác minh không vỡ môi trường. Vì OCR chạy trong **subprocess adapter riêng** (nạp/nhả độc lập), CPU-only không ảnh hưởng các bước khác.
+- **Tốc độ:** crop ROI + `frames_to_skip>=2` giảm mạnh thời gian. Đây chính là lý do có màn preview chọn vùng.
+- Model PaddleOCR tải lần đầu (vài chục–trăm MB) → cần mạng lần đầu; log rõ "đang tải model OCR" để người dùng không tưởng bị treo.
+- `videocr` nhận `time_start/time_end` dạng chuỗi `"m:ss"` — adapter tự format từ giây nếu cần.
+
+**Nghiệm thu Task C:**
+- `grab_preview_frame(<mp4>, <jpg>)` ra ảnh + đúng W/H/duration.
+- `extract_hardsub_ocr_srt(<mp4 hardsub tiếng Trung ngắn>, <srt>, lang="ch", crop=<vùng đáy>)` ra `.srt` có mốc thời gian hợp lý; sau đó `translate_srt` dịch sang tiếng Việt OK.
+- So sánh: chạy có crop nhanh hơn rõ rệt so với `use_fullframe`.
 
 ---
 
@@ -216,14 +247,29 @@ Bám mẫu `start_step_3_video` (dòng 259-392):
 - `on_completed`: cập nhật meta nếu gắn truyện; đóng queue. KHÔNG tự merge (khác step3).
 - `start_process(task_key, cmd, cwd="AIVoice", env_override, on_completed)`.
 
-### D2. `orchestrator/main.py` — schema + endpoint
-- Thêm `class Step4Schema(BaseModel)`: `story_name: Optional[str]=None`, `video_path: Optional[str]=None`, `download_url: Optional[str]=None`, `platform: Optional[str]="generic"`, `source_lang="English"`, `sub_source="whisper"`, `burn_method="ffmpeg"`, `clean_audio=False`, `enable_voiceover=False`, `tts_engine="edge"`, `tts_voice=""`, `auto_clone=False`, `ducking_ratio=90.0`, `device="cuda"`, `llm_engine="gemini_api"`, `llm_api_key/llm_offline_base_url/llm_offline_model: Optional`.
-- `POST /api/pipeline/step4`: validate (phải có `video_path` HOẶC `download_url`); chặn nếu `is_running(task_key)`; gọi `pipeline.start_step_4_autosub(...)`. Trả `{"status":"success","task_key":...}` (UI cần task_key để mở SSE).
-- Endpoint `stop` hiện tại (`/api/pipeline/stop`) dùng `f"{slug}_step{step}"` → KHÔNG khớp task_key autosub độc lập. **Sửa** `stop_pipeline` nhận thêm dạng task_key tự do, hoặc thêm `POST /api/pipeline/stop-task?task_key=` tổng quát. Khuyến nghị thêm endpoint mới gọn hơn.
+### D2. `orchestrator/main.py` — schema + endpoint chạy autosub
+- Thêm `class Step4Schema(BaseModel)`: `story_name: Optional[str]=None`, `video_path: Optional[str]=None`, `download_url: Optional[str]=None`, `platform: Optional[str]="generic"`, `source_lang="English"`, `sub_source="whisper"` (∈ whisper|ocr), `crop_x/crop_y/crop_w/crop_h: int=-1`, `burn_method="ffmpeg"`, `clean_audio=False`, `enable_voiceover=False`, `tts_engine="edge"`, `tts_voice=""`, `auto_clone=False`, `ducking_ratio=90.0`, `device="cuda"`, `llm_engine="gemini_api"`, `llm_api_key/llm_offline_base_url/llm_offline_model: Optional`.
+- `POST /api/pipeline/step4`: validate (phải có `video_path` HOẶC `download_url`); nếu `sub_source=="ocr"` thì **khuyến nghị đã có `video_path`** (đã tải sẵn ở phase preview, xem D3) + `crop_*`; chặn nếu `is_running(task_key)`; gọi `pipeline.start_step_4_autosub(...)`. Trả `{"status":"success","task_key":...}`.
+- Endpoint `stop` hiện tại (`/api/pipeline/stop`) dùng `f"{slug}_step{step}"` → KHÔNG khớp task_key autosub độc lập. **Thêm** `POST /api/pipeline/stop-task?task_key=` tổng quát (gọi `process_mgr.stop_process(task_key)`), UI Bước 4/5 dùng cái này.
 
-**Bẫy:** `StaticFiles` mount ở `/` (main.py:296) nuốt mọi route KHÔNG khớp → route API phải khai báo TRƯỚC dòng mount (đã đúng vì mount ở cuối file — giữ nguyên thứ tự, thêm endpoint mới phía trên dòng 294).
+### D3. Luồng 2 pha cho OCR + endpoint Preview (phục vụ chọn vùng ROI)
+Vì OCR cần người dùng khoanh vùng phụ đề TRƯỚC khi chạy, Bước 4 (chế độ OCR) chạy **2 pha**:
 
-**Nghiệm thu Task D:** `curl -XPOST localhost:8100/api/pipeline/step4 -d '{...}'` trả task_key; SSE `/api/pipeline/logs/<task_key>` chảy log JSON tới khi "autosub_done".
+**Pha 1 — Chuẩn bị & lấy khung xem trước:** `POST /api/autosub/prepare`
+- Body: `{video_path?, download_url?, platform?, at_seconds?}`.
+- Xử lý: tạo `task_id=uuid8`, thư mục `storage/tasks/autosub_<task_id>/`. Nếu có `download_url` → gọi downloader Task B tải về `source.mp4` (video mạng xã hội thường ngắn → chạy đồng bộ chấp nhận được; **nếu lo tải lâu** thì làm biến thể SSE giống các step khác — ghi chú, không bắt buộc). Nếu `video_path` → dùng thẳng. Sau đó gọi `subtitle_extractor.grab_preview_frame()` → `preview.jpg`.
+- Trả: `{task_id, prepared_path: <abs path source.mp4>, width, height, duration, preview_b64: "data:image/jpeg;base64,..."}`. **Dùng base64 data-URI** cho ảnh preview để KHỎI thêm route static (đơn giản, ảnh 1 frame ~50-200KB ổn). *(Thay thế: `GET /api/autosub/preview/{task_id}` trả `FileResponse` — chỉ dùng nếu ảnh quá lớn.)*
+
+**Pha 2 — Chạy:** UI gửi `POST /api/pipeline/step4` với `video_path=<prepared_path>` (KHÔNG gửi lại `download_url` → adapter không tải lại) + `sub_source="ocr"` + `crop_x/y/w/h` (đã quy đổi về **pixel gốc**) + phần còn lại.
+
+**Chế độ Whisper KHÔNG cần pha 1** — người dùng dán link/đường dẫn rồi bấm chạy thẳng `POST /api/pipeline/step4` (adapter tự tải nếu là link). Preview chỉ bắt buộc khi `sub_source=="ocr"`.
+
+**Bẫy:** `StaticFiles` mount ở `/` (main.py:296) nuốt mọi route KHÔNG khớp → mọi route API (kể cả `/api/autosub/prepare`) phải khai báo TRƯỚC dòng `app.mount(...)` ở cuối file. Toạ độ crop từ UI phải quy đổi từ ảnh hiển thị (đã scale) về **pixel gốc** trước khi gửi (UI biết `width/height` gốc từ pha 1 → nhân tỉ lệ). Kẹp giá trị trong `[0, width/height]`.
+
+**Nghiệm thu Task D:**
+- `POST /api/autosub/prepare {download_url:<tiktok>}` → trả `prepared_path` + `preview_b64` + `width/height`.
+- `POST /api/pipeline/step4 {video_path:<prepared_path>, sub_source:"ocr", crop_*}` → task_key; SSE chảy log tới `autosub_done`.
+- Chế độ whisper: `POST /api/pipeline/step4 {download_url:<link>, sub_source:"whisper"}` chạy 1 phát.
 
 ---
 
@@ -253,22 +299,30 @@ Bám mẫu `start_step_3_video` (dòng 259-392):
 - Thêm 2 `<button class="nav-item" data-tab="step4">` và `data-tab="step5"` trong `.nav-menu` (sau step3, trước settings). Icon gợi ý: 🎬 (Bước 4 Phụ đề & Lồng tiếng), 🔗 (Bước 5 Ghép video).
 - Thêm 2 `<section class="tab-panel" id="tab-step4">` và `id="tab-step5">` (copy khung 1 panel step3: form bên trái + `.log-panel` console bên phải).
 - **Form Bước 4** (khớp Step4Schema):
-  - Nhóm "Nguồn video" — radio 3 lựa chọn: `Upload` / `Đường dẫn cục bộ` / `Tải từ link`. Chọn "Tải từ link" → hiện input URL + dropdown nền tảng (`TikTok/Douyin/Bilibili/Khác`). *(Lưu ý: upload file cần endpoint nhận multipart — HIỆN orchestrator CHƯA có; xem Bẫy bên dưới.)*
+  - Nhóm "Nguồn video" — radio 2 lựa chọn: `Đường dẫn cục bộ` / `Tải từ link`. Chọn "Tải từ link" → hiện input URL + dropdown nền tảng (`Bilibili / TikTok / Douyin / YouTube / Khác`). *(Upload multipart CHƯA hỗ trợ — xem Bẫy; đừng thêm nút Upload ở giai đoạn 1.)*
   - Dropdown `source_lang` (English/Chinese).
-  - Dropdown `sub_source` (**Phiên âm từ âm thanh — Whisper** / **Trích phụ đề có sẵn (mềm)** / **OCR chữ cháy trên hình**).
-  - Dropdown `burn_method` (FFmpeg/MoviePy). Checkbox `clean_audio`.
+  - Dropdown `sub_source` chỉ **2 mục**: **"Phiên âm từ âm thanh (Whisper)"** / **"Tách chữ cháy trên hình (OCR)"**.
+  - **Khối Preview + chọn vùng ROI (chỉ hiện khi `sub_source == ocr`):**
+    - Nút **"Tải & Xem trước"** → `POST /api/autosub/prepare` → nhận `preview_b64` + `width/height/duration` + `prepared_path` (lưu vào biến JS của tab). Vẽ ảnh preview lên `<canvas>` (hoặc `<img>` phủ 1 `<div>` overlay).
+    - **Bộ chọn hình chữ nhật:** cho người dùng kéo chuột trên ảnh để vẽ khung ROI (mousedown→mousemove→mouseup, vanilla JS). Hiển thị khung + cho kéo lại. Lưu toạ độ **theo pixel ảnh hiển thị**, rồi **quy đổi về pixel gốc** = `round(val * width_goc / width_hien_thi)`. Mặc định gợi ý khung 25% đáy màn (người dùng chỉnh lại).
+    - Chỉ khi đã có `prepared_path` + ROI mới cho bấm "Bắt đầu".
+  - Dropdown `burn_method` (FFmpeg/MoviePy). Checkbox `clean_audio` (chỉ có tác dụng với Whisper — có thể ẩn khi OCR).
   - Checkbox `enable_voiceover` → khi bật hiện dropdown `tts_engine` + ô voice (đổi theo engine, mô phỏng Main.py:2640-2706) + slider `ducking_ratio` + (engine clone) checkbox `auto_clone`.
-  - Dropdown `llm_engine` (Gemini Local/Online/Ollama) — copy y hệt logic Bước 3 đã có trong app.js (tái dùng hàm resolve/hiển thị key).
-  - Nút "Bắt đầu tạo phụ đề".
+  - Dropdown `llm_engine` (Gemini Local/Online/Ollama) — copy y hệt logic Bước 3 đã có trong app.js (tái dùng hàm resolve/hiển thị key). Cần cho bước dịch SRT.
+  - Nút **"Bắt đầu tạo phụ đề"**.
 - **Form Bước 5**:
   - Chọn truyện (đã có `activeStoryName`). Nút "Tải danh sách video" → gọi `GET /api/stories/{name}/videos`, render checklist (bỏ tick sẵn `TongHop_*`). Nút "Ghép video đã chọn".
 
 ### F2. `webui/app.js`
 - `initTabs()` tự động hoạt động với tab mới (nó quét mọi `.nav-item[data-tab]`). Kiểm tra: nếu có mảng cứng danh sách tab thì bổ sung `step4`, `step5`.
-- Trong `setupEventHandlers()`: gắn nút Bước 4 → build payload → `postPipelineAction("step4", payload)` → nhận `task_key` → `streamLogs("step4", task_key)`. Tương tự Bước 5 → `postPipelineAction("step5", ...)`.
-- `streamLogs` hiện nhận (stepName, taskKey) → dùng lại được ngay. Log Bước 4/5 là JSON — có thể hiển thị thô hoặc parse `event/message/percent` cho đẹp (tuỳ, không bắt buộc).
+- **Bước 4 (Whisper):** build payload → `postPipelineAction("step4", payload)` → `streamLogs("step4", task_key)`.
+- **Bước 4 (OCR) — 2 pha:**
+  1. Nút "Tải & Xem trước" → `fetch POST /api/autosub/prepare` → lưu `state.step4 = {prepared_path, width, height}` + vẽ ảnh + bật bộ chọn ROI.
+  2. Nút "Bắt đầu" → payload gồm `video_path=prepared_path`, `sub_source:"ocr"`, `crop_x/y/w/h` (đã quy đổi pixel gốc) → `postPipelineAction("step4", ...)` → `streamLogs`.
+- Thêm hàm mới: `prepareAutosub(payload)` (gọi /prepare + render preview), `setupRoiSelector(canvas, imgW, imgH)` (kéo vẽ + trả crop gốc), `getCrop()`.
+- `streamLogs` hiện nhận (stepName, taskKey) → dùng lại được ngay. Log Bước 4/5 là JSON — có thể parse `event/message/percent` cho đẹp (tuỳ).
 - Thêm hàm `loadStoryVideos(storyName)` cho Bước 5 (fetch danh sách + render checkbox).
-- Toggle nút chạy/dừng: tái dùng `toggleFormButtons("step4"/"step5", isRunning)`.
+- Toggle nút chạy/dừng: tái dùng `toggleFormButtons("step4"/"step5", isRunning)`. Nút "Dừng" gọi endpoint `POST /api/pipeline/stop-task?task_key=` mới (D2).
 
 **Bẫy (QUAN TRỌNG — quyết định trước khi code F1):**
 - **Upload file qua trình duyệt CHƯA được orchestrator hỗ trợ** (không có endpoint multipart, và `postPipelineAction` gửi JSON). Có 2 hướng:
@@ -276,22 +330,25 @@ Bám mẫu `start_step_3_video` (dòng 259-392):
   - (Nhiều việc): thêm `POST /api/upload` multipart lưu vào `storage/tasks/uploads/` rồi truyền path — làm sau nếu người dùng thực sự cần upload.
 - Style: tái dùng class `.card .glass-card .panel-grid .log-panel` sẵn có để đồng bộ giao diện; KHÔNG tự chế CSS mới trừ khi cần.
 
-**Nghiệm thu Task F:** Mở webUI → thấy Bước 4 & Bước 5. Bước 4 với "Tải từ link" TikTok → chạy ra video có phụ đề Việt, log chảy realtime. Bước 5 chọn video → ra file ghép.
+**Nghiệm thu Task F:** Mở webUI → thấy Bước 4 & Bước 5.
+- Bước 4 (Whisper) + "Tải từ link" TikTok → ra video có phụ đề Việt, log realtime.
+- Bước 4 (OCR): dán link → "Tải & Xem trước" hiện khung hình → kéo vẽ vùng phụ đề → "Bắt đầu" → OCR đúng vùng đã chọn, ra video phụ đề Việt.
+- Bước 5 chọn video chương → ra file `TongHop_*.mp4` ghép liền mạch.
 
 ---
 
 ## Thứ tự thực thi & kiểm thử tổng
 
-1. **Task B** (downloader) — độc lập, test riêng trước.
-2. **Task C** (subtitle_extractor) — độc lập, test riêng.
-3. **Task A** (adapter autosub) — tích hợp B+C, test CLI tay.
-4. **Task D** (step4 pipeline+endpoint) — test bằng curl + SSE.
+0. Cập nhật `AIVoice/apps/MediaComposer/requirements.txt` + cài vào `AIVoice/.venv`: `yt-dlp` (Task B), `videocr-PaddleOCR` + `paddleocr` + `paddlepaddle` (bản CPU) (Task C). Kiểm tra `opencv`/`ffprobe` sẵn có. Xác minh cài được TRƯỚC khi code (paddle hay lỗi cài trên Windows — nếu vỡ, chuyển phương án RapidOCR ngay từ đầu, đừng để lộ ở cuối).
+1. **Task B** (downloader) — độc lập, test riêng trước với link Bilibili/TikTok/YouTube công khai.
+2. **Task C** (subtitle_extractor: `grab_preview_frame` + `extract_hardsub_ocr_srt`) — độc lập, test riêng có/không crop.
+3. **Task A** (adapter autosub) — tích hợp B+C + `source_srt_override`, test CLI tay cả whisper lẫn ocr.
+4. **Task D** (step4 pipeline + endpoint + `/api/autosub/prepare` + `stop-task`) — test bằng curl + SSE.
 5. **Task E** (step5 merge) — test bằng curl.
-6. **Task F** (UI) — test end-to-end trên trình duyệt.
-7. Cập nhật `requirements.txt` (thêm `yt-dlp`, `rapidocr-onnxruntime`, `opencv-python-headless` nếu thiếu) + cài vào `AIVoice/.venv`.
-8. Commit trong submodule `AIVoice` (Task A/B/C) → push → cập nhật con trỏ submodule ở repo tổng cùng Task D/E/F.
-9. `pytest -q` ở repo tổng (đảm bảo không vỡ test hiện có); `python -m py_compile orchestrator/*.py`.
-10. Cập nhật `README.md` mục pipeline: bổ sung Bước 4 (Autosub) & Bước 5 (Ghép), và bảng ánh xạ workflow.
+6. **Task F** (UI: 2 tab + bộ chọn ROI) — test end-to-end trên trình duyệt.
+7. Commit trong submodule `AIVoice` (Task A/B/C) → push → cập nhật con trỏ submodule ở repo tổng cùng Task D/E/F.
+8. `pytest -q` ở repo tổng (đảm bảo không vỡ test hiện có); `python -m py_compile orchestrator/*.py`.
+9. Cập nhật `README.md` mục pipeline: bổ sung Bước 4 (Autosub) & Bước 5 (Ghép), và bảng ánh xạ workflow.
 
 ## Checklist "không gây lỗi" (đọc lại trước khi kết thúc)
 - [ ] Mọi tiến trình con chạy `cwd="AIVoice"`, dùng `.venv/Scripts/python.exe` — KHÔNG dùng python orchestrator.
@@ -303,9 +360,16 @@ Bám mẫu `start_step_3_video` (dòng 259-392):
 - [ ] Submodule: commit con + cập nhật con trỏ ở repo tổng.
 - [ ] Merge stream-copy có fallback re-encode khi codec khác nhau.
 - [ ] Upload multipart: giai đoạn 1 dùng path/link, không giả định endpoint upload đã có.
+- [ ] **`source_srt_override` đã thêm vào `run_translation_workflow`** — OCR mới bỏ qua được Whisper (⚠️ CẢNH BÁO KỸ THUẬT SỐ 1).
+- [ ] **Toạ độ ROI quy đổi về pixel gốc** trước khi gửi + kẹp trong biên ảnh.
+- [ ] **paddlepaddle chạy CPU (`use_gpu=False`)** để không đụng CUDA của torch; nếu paddle cài lỗi → fallback RapidOCR.
+- [ ] Chế độ OCR đi qua 2 pha (prepare → step4); chế độ Whisper chạy 1 pha.
 
 ## Mở rộng tương lai (ghi nhận, KHÔNG làm ở đợt này)
-- PaddleOCR/VideoSubFinder cho hardsub chất lượng cao hơn.
-- Endpoint upload multipart.
+- VideOCR (GUI, timminator) hoặc RapidOCR làm engine thay thế/nâng cấp cho hardsub.
+- Trích phụ đề mềm (embedded stream) tự động trước khi OCR (Ghi chú C0).
+- Endpoint upload multipart; tải video độc lập cấp nguồn cho Bước 3.
+- Cho người dùng đổi thời điểm frame preview (thanh trượt thời gian) + xem trước nhiều frame.
+- Né watermark; cookies cho site cần đăng nhập (Bilibili/Douyin).
 - Tải video độc lập (không qua autosub) để cấp nguồn cho Bước 3.
 - Né watermark TikTok; hỗ trợ cookies cho site cần đăng nhập.
