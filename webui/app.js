@@ -195,16 +195,20 @@ function setupEventHandlers() {
     const elS1GlossaryEngine = document.getElementById("s1GlossaryEngine");
     const elGroupS1GlossaryOllama = document.getElementById("groupS1GlossaryOllama");
 
-    elS1AutoExtract.addEventListener("change", () => {
-        elBlockS1GlossaryConfig.style.display = elS1AutoExtract.checked ? "flex" : "none";
-    });
+    if (elS1AutoExtract && elBlockS1GlossaryConfig) {
+        elS1AutoExtract.addEventListener("change", () => {
+            elBlockS1GlossaryConfig.style.display = elS1AutoExtract.checked ? "flex" : "none";
+        });
+    }
 
-    elS1GlossaryEngine.addEventListener("change", () => {
-        elGroupS1GlossaryOllama.style.display = elS1GlossaryEngine.value === "ollama" ? "block" : "none";
-        if (elS1GlossaryEngine.value === "ollama") {
-            loadGlossaryOllamaModels();
-        }
-    });
+    if (elS1GlossaryEngine && elGroupS1GlossaryOllama) {
+        elS1GlossaryEngine.addEventListener("change", () => {
+            elGroupS1GlossaryOllama.style.display = elS1GlossaryEngine.value === "ollama" ? "block" : "none";
+            if (elS1GlossaryEngine.value === "ollama") {
+                loadGlossaryOllamaModels();
+            }
+        });
+    }
 
     const elS2Engine = document.getElementById("s2Engine");
     const elGroupTtsModel = document.getElementById("groupTtsModel");
@@ -391,8 +395,8 @@ function setupEventHandlers() {
             auto_extract: document.getElementById("s1AutoExtract").checked,
             auto_translate: document.getElementById("s1AutoTranslate")?.checked,
             continue_download: document.getElementById("s1ContinueDownload")?.checked,
-            glossary_extract_engine: document.getElementById("s1GlossaryEngine").value,
-            glossary_extract_ollama_model: document.getElementById("s1GlossaryOllamaModel").value
+            glossary_extract_engine: document.getElementById("s1GlossaryEngine")?.value || "same_as_trans",
+            glossary_extract_ollama_model: document.getElementById("s1GlossaryOllamaModel")?.value || ""
         };
 
         toggleFormButtons("step1", true);
