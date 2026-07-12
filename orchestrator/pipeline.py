@@ -505,6 +505,11 @@ class NovelPipeline:
         if autosub_args.get("custom_position") is not None:
             cmd.extend(["--custom-position", str(autosub_args.get("custom_position"))])
 
+        # Resolve cookies file from args or global config
+        cookies_file = autosub_args.get("cookies_file") or g_config.get("video", {}).get("downloader_cookies", "")
+        if cookies_file:
+            cmd.extend(["--cookies-file", cookies_file])
+
         def on_autosub_completed(exit_code: int):
             if story_name:
                 meta = self.storage_mgr.read_story_meta(story_name)

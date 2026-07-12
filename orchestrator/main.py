@@ -136,6 +136,7 @@ class Step4Schema(BaseModel):
     bg_alpha: Optional[int] = None
     sub_position: Optional[str] = None
     custom_position: Optional[float] = None
+    cookies_file: Optional[str] = None
 
 class Step5Schema(BaseModel):
     story_name: str
@@ -145,6 +146,7 @@ class PrepareSchema(BaseModel):
     video_path: Optional[str] = None
     download_url: Optional[str] = None
     platform: Optional[str] = "generic"
+    cookies_file: Optional[str] = None
 
 # API Endpoints
 
@@ -389,6 +391,12 @@ def autosub_prepare(body: PrepareSchema):
         cmd += ["--download-url", body.download_url, "--platform", body.platform or "generic"]
     else:
         cmd += ["--video-path", body.video_path]
+        
+    from orchestrator.config import load_global_config
+    g_config = load_global_config()
+    resolved_cookies = body.cookies_file or g_config.get("video", {}).get("downloader_cookies", "")
+    if resolved_cookies:
+        cmd += ["--cookies-file", resolved_cookies]
         
     try:
         res = subprocess.run(cmd, cwd="AIVoice", capture_output=True, text=True, encoding="utf-8", timeout=900)

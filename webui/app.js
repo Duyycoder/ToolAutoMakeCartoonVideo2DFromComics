@@ -542,7 +542,8 @@ function setupEventHandlers() {
                 default_checkpoint: document.getElementById("cfgVideoCheckpoint").value,
                 bgm_volume: parseFloat(document.getElementById("cfgVideoBgmVolume").value),
                 default_llm_engine: document.getElementById("cfgVideoLlmEngine").value,
-                default_llm_model: document.getElementById("cfgVideoLlmModel").value
+                default_llm_model: document.getElementById("cfgVideoLlmModel").value,
+                downloader_cookies: document.getElementById("cfgDownloaderCookies").value
             }
         };
 
@@ -682,6 +683,7 @@ function setupEventHandlers() {
             } else {
                 body.download_url = downloadUrl;
                 body.platform = platform;
+                body.cookies_file = document.getElementById("s4CookiesFile").value.trim() || null;
             }
             
             const response = await fetch(`${API_BASE}/api/autosub/prepare`, {
@@ -777,7 +779,8 @@ function setupEventHandlers() {
             bg_color: document.getElementById("s4BgColor").value || null,
             bg_alpha: parseInt(document.getElementById("s4BgAlpha").value) || null,
             sub_position: document.getElementById("s4SubPosition").value || null,
-            custom_position: parseFloat(document.getElementById("s4CustomPosition").value) || null
+            custom_position: parseFloat(document.getElementById("s4CustomPosition").value) || null,
+            cookies_file: document.getElementById("s4CookiesFile").value.trim() || null
         };
         
         if (subSource === "ocr" && step4State.crop) {
@@ -1221,6 +1224,7 @@ async function loadGlobalConfig() {
         document.getElementById("cfgVideoBgmVolume").value = config.video?.bgm_volume !== undefined ? config.video.bgm_volume : 0.15;
         document.getElementById("cfgVideoLlmEngine").value = config.video?.default_llm_engine || "gemini_api";
         document.getElementById("cfgVideoLlmModel").value = config.video?.default_llm_model || "gemini-3-flash";
+        document.getElementById("cfgDownloaderCookies").value = config.video?.downloader_cookies || "";
         
         // Load defaults into Step 2 forms (if not already custom selected)
         const s2Engine = document.getElementById("s2Engine");

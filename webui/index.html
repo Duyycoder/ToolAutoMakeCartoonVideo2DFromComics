@@ -569,6 +569,10 @@
                                         <option value="youtube">YouTube</option>
                                     </select>
                                 </div>
+                                <div style="margin-top: 10px;">
+                                    <label for="s4CookiesFile">Đường dẫn file Cookies (.txt) cho URL này (Ghi đè mặc định)</label>
+                                    <input type="text" id="s4CookiesFile" placeholder="Sử dụng mặc định từ Cấu hình chung nếu để trống...">
+                                </div>
                             </div>
 
                             <div class="form-group">
@@ -891,6 +895,10 @@
                             <div class="form-group">
                                 <label for="cfgVideoLlmModel">Step 3 LLM Model Mặc định</label>
                                 <input type="text" id="cfgVideoLlmModel" value="gemini-3-flash">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgDownloaderCookies">Đường dẫn file Cookies (.txt) cho Downloader</label>
+                                <input type="text" id="cfgDownloaderCookies" placeholder="Ví dụ: configs/cookies_iqiyi.txt">
                             </div>
                         </div>
                         
