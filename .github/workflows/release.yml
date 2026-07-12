@@ -1,0 +1,30 @@
+name: Release
+
+# Tao GitHub Release kem goi ma nguon moi khi gan tag dang v* (vd: v1.0.0)
+#   git tag v1.0.0 && git push origin v1.0.0
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  dong-goi:
+    name: Dong goi va phat hanh
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lay ma nguon
+        uses: actions/checkout@v4
+
+      - name: Tao goi ma nguon
+        run: |
+          zip -r "ToolAutoMakeCartoonVideo2DFromComics-${GITHUB_REF_NAME}.zip" \
+            orchestrator webui configs tests README.md pytest.ini run.bat setup.bat \
+            -x "*__pycache__*"
+
+      - name: Tao GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ToolAutoMakeCartoonVideo2DFromComics-*.zip
+          generate_release_notes: true

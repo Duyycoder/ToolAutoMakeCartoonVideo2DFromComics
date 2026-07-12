@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  kiem-thu:
+    name: Lint + Unit tests (orchestrator)
+    runs-on: ubuntu-latest
+    steps:
+      # Unit test chi cham vao orchestrator/ (stub het tien trinh con)
+      # nen KHONG can keo submodule nang (AIVoice/toolCaoTruyen).
+      - name: Lay ma nguon
+        uses: actions/checkout@v4
+
+      - name: Cai Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cai cong cu kiem thu
+        run: pip install ruff pytest
+
+      - name: Lint loi nghiem trong (cu phap, ten chua dinh nghia)
+        run: ruff check orchestrator tests --select E9,F63,F7,F82
+
+      - name: Kiem tra bien dich toan bo orchestrator
+        run: python -m compileall orchestrator -q
+
+      - name: Chay unit tests
+        run: pytest -v
