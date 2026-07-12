@@ -124,6 +124,18 @@ class Step4Schema(BaseModel):
     llm_api_key: Optional[str] = None
     llm_offline_base_url: Optional[str] = None
     llm_offline_model: Optional[str] = None
+    
+    # Subtitle Customization Styling fields
+    font_name: Optional[str] = None
+    font_size: Optional[int] = None
+    text_color: Optional[str] = None
+    stroke_color: Optional[str] = None
+    stroke_width: Optional[float] = None
+    bg_style: Optional[str] = None
+    bg_color: Optional[str] = None
+    bg_alpha: Optional[int] = None
+    sub_position: Optional[str] = None
+    custom_position: Optional[float] = None
 
 class Step5Schema(BaseModel):
     story_name: str

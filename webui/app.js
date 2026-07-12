@@ -634,6 +634,25 @@ function setupEventHandlers() {
         }
     });
 
+    // Subtitle customization styles toggles
+    const elS4BgStyle = document.getElementById("s4BgStyle");
+    const elGroupS4BgColor = document.getElementById("groupS4BgColor");
+    const elGroupS4BgAlpha = document.getElementById("groupS4BgAlpha");
+    
+    elS4BgStyle.addEventListener("change", () => {
+        const isBox = (elS4BgStyle.value === "Box");
+        elGroupS4BgColor.style.display = isBox ? "block" : "none";
+        elGroupS4BgAlpha.style.display = isBox ? "block" : "none";
+    });
+    
+    const elS4SubPosition = document.getElementById("s4SubPosition");
+    const elGroupS4CustomPosition = document.getElementById("groupS4CustomPosition");
+    
+    elS4SubPosition.addEventListener("change", () => {
+        const isCustom = (elS4SubPosition.value === "custom");
+        elGroupS4CustomPosition.style.display = isCustom ? "block" : "none";
+    });
+
     const elBtnS4Prepare = document.getElementById("btnS4Prepare");
     const elS4RoiSelectionArea = document.getElementById("s4RoiSelectionArea");
     const elS4PreviewImg = document.getElementById("s4PreviewImg");
@@ -746,7 +765,19 @@ function setupEventHandlers() {
             llm_offline_base_url: document.getElementById("s4GeminiOfflineUrl").value || null,
             llm_offline_model: (elS4LlmEngine.value === "ollama"
                 ? document.getElementById("s4OllamaModel").value
-                : document.getElementById("s4LlmModel").value) || null
+                : document.getElementById("s4LlmModel").value) || null,
+            
+            // Subtitle Customization Styling fields
+            font_name: document.getElementById("s4FontName").value || null,
+            font_size: parseInt(document.getElementById("s4FontSize").value) || null,
+            text_color: document.getElementById("s4TextColor").value || null,
+            stroke_color: document.getElementById("s4StrokeColor").value || null,
+            stroke_width: parseFloat(document.getElementById("s4StrokeWidth").value) || null,
+            bg_style: document.getElementById("s4BgStyle").value || null,
+            bg_color: document.getElementById("s4BgColor").value || null,
+            bg_alpha: parseInt(document.getElementById("s4BgAlpha").value) || null,
+            sub_position: document.getElementById("s4SubPosition").value || null,
+            custom_position: parseFloat(document.getElementById("s4CustomPosition").value) || null
         };
         
         if (subSource === "ocr" && step4State.crop) {

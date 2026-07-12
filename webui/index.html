@@ -52,18 +52,18 @@
                         <span class="nav-subtitle">Sinh ảnh, upscale & dựng video</span>
                     </div>
                 </button>
-                <button class="nav-item" data-tab="step4">
-                    <span class="nav-icon">🎬</span>
-                    <div class="nav-text">
-                        <span class="nav-title">Bước 4: Phụ Đề & Lồng Tiếng</span>
-                        <span class="nav-subtitle">Dịch & ghép sub cho video</span>
-                    </div>
-                </button>
                 <button class="nav-item" data-tab="step5">
                     <span class="nav-icon">🔗</span>
                     <div class="nav-text">
-                        <span class="nav-title">Bước 5: Ghép Video</span>
+                        <span class="nav-title">Bước 4: Ghép Video</span>
                         <span class="nav-subtitle">Hợp nhất các video chương</span>
+                    </div>
+                </button>
+                <button class="nav-item" data-tab="step4">
+                    <span class="nav-icon">🎬</span>
+                    <div class="nav-text">
+                        <span class="nav-title">Tự Động Tạo Phụ Đề</span>
+                        <span class="nav-subtitle">Dịch & ghép sub cho video lẻ</span>
                     </div>
                 </button>
                 <button class="nav-item" data-tab="settings">
@@ -537,7 +537,7 @@
             <section class="tab-panel" id="tab-step4">
                 <div class="panel-grid">
                     <div class="card glass-card">
-                        <h3>🎬 Phụ Đề & Lồng Tiếng Tự Động (Autosub & Dubbing)</h3>
+                        <h3>🎬 Tự Động Tạo Phụ Đề & Lồng Tiếng</h3>
                         <form id="formStep4" class="form-grid">
                             <div class="form-group" style="grid-column: 1 / -1;">
                                 <label>Nguồn Video</label>
@@ -648,6 +648,76 @@
                                 </div>
                             </div>
 
+                            <!-- Subtitle Customization Styling section -->
+                            <div class="form-group" style="grid-column: 1 / -1; margin-top: 15px;">
+                                <h4>🎨 Tùy Chỉnh Kiểu Phụ Đề</h4>
+                            </div>
+                            <div class="form-group" style="grid-column: 1 / -1; background: rgba(0,0,0,0.15); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="s4FontName">Phông chữ (Font)</label>
+                                        <select id="s4FontName">
+                                            <option value="Montserrat-Bold.ttf" selected>Montserrat Bold</option>
+                                            <option value="Montserrat-Regular.ttf">Montserrat Regular</option>
+                                            <option value="BeVietnamPro-Bold.ttf">BeVietnam Pro Bold</option>
+                                            <option value="BeVietnamPro-SemiBold.ttf">BeVietnam Pro SemiBold</option>
+                                            <option value="BeVietnamPro-Regular.ttf">BeVietnam Pro Regular</option>
+                                            <option value="Arial-Bold.ttf">Arial Bold</option>
+                                            <option value="Arial-Regular.ttf">Arial Regular</option>
+                                            <option value="Charm-Bold.ttf">Charm Bold</option>
+                                            <option value="Charm-Regular.ttf">Charm Regular</option>
+                                            <option value="STHeitiMedium.ttc">STHeiti Medium</option>
+                                            <option value="MicrosoftYaHeiBold.ttc">Microsoft YaHei Bold</option>
+                                            <option value="UTM Kabel KT.ttf">UTM Kabel KT</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4FontSize">Kích thước chữ (Font Size)</label>
+                                        <input type="number" id="s4FontSize" value="45" min="10" max="150" step="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4TextColor">Màu chữ (Text Color)</label>
+                                        <input type="color" id="s4TextColor" value="#ffffff">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4StrokeColor">Màu viền (Stroke Color)</label>
+                                        <input type="color" id="s4StrokeColor" value="#000000">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4StrokeWidth">Độ dày viền (Stroke Width)</label>
+                                        <input type="number" id="s4StrokeWidth" value="1.5" min="0" max="10" step="0.5">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4BgStyle">Kiểu nền (Background Style)</label>
+                                        <select id="s4BgStyle">
+                                            <option value="None" selected>Không nền (None)</option>
+                                            <option value="Box">Có nền hộp (Box)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="groupS4BgColor" style="display: none;">
+                                        <label for="s4BgColor">Màu nền (Background Color)</label>
+                                        <input type="color" id="s4BgColor" value="#000000">
+                                    </div>
+                                    <div class="form-group" id="groupS4BgAlpha" style="display: none;">
+                                        <label for="s4BgAlpha">Độ mờ nền (Opacity 0-255)</label>
+                                        <input type="number" id="s4BgAlpha" value="140" min="0" max="255" step="10">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4SubPosition">Vị trí phụ đề (Position)</label>
+                                        <select id="s4SubPosition">
+                                            <option value="bottom" selected>Dưới (Bottom)</option>
+                                            <option value="top">Trên (Top)</option>
+                                            <option value="center">Giữa (Center)</option>
+                                            <option value="custom">Tùy chọn (Custom Y %)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="groupS4CustomPosition" style="display: none;">
+                                        <label for="s4CustomPosition">Vị trí Y (%)</label>
+                                        <input type="number" id="s4CustomPosition" value="70.0" min="0" max="100" step="5">
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Translation LLM settings -->
                             <div class="form-group" style="grid-column: 1 / -1; margin-top: 10px;">
                                 <h4>🤖 Cấu Hình API Dịch Phụ Đề</h4>
@@ -698,7 +768,7 @@
             <section class="tab-panel" id="tab-step5">
                 <div class="panel-grid">
                     <div class="card glass-card">
-                        <h3>🔗 Ghép Video Chưa Từng Ghép</h3>
+                        <h3>🔗 Bước 4: Ghép Video (Hợp Nhất Chương)</h3>
                         <p class="help-text" style="margin-bottom: 15px;">Chọn các file video chương vừa được tạo từ truyện đã chọn để ghép lại thành video dài hoàn chỉnh.</p>
                         
                         <form id="formStep5" class="form-grid">

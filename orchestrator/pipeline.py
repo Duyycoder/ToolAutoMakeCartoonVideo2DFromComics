@@ -483,6 +483,28 @@ class NovelPipeline:
                 "--crop-h", str(crop_h)
             ])
 
+        # Append subtitle styling parameters if provided
+        if autosub_args.get("font_name"):
+            cmd.extend(["--font-name", autosub_args.get("font_name")])
+        if autosub_args.get("font_size"):
+            cmd.extend(["--font-size", str(autosub_args.get("font_size"))])
+        if autosub_args.get("text_color"):
+            cmd.extend(["--text-color", autosub_args.get("text_color")])
+        if autosub_args.get("stroke_color"):
+            cmd.extend(["--stroke-color", autosub_args.get("stroke_color")])
+        if autosub_args.get("stroke_width") is not None:
+            cmd.extend(["--stroke-width", str(autosub_args.get("stroke_width"))])
+        if autosub_args.get("bg_style"):
+            cmd.extend(["--bg-style", autosub_args.get("bg_style")])
+        if autosub_args.get("bg_color"):
+            cmd.extend(["--bg-color", autosub_args.get("bg_color")])
+        if autosub_args.get("bg_alpha") is not None:
+            cmd.extend(["--bg-alpha", str(autosub_args.get("bg_alpha"))])
+        if autosub_args.get("sub_position"):
+            cmd.extend(["--sub-position", autosub_args.get("sub_position")])
+        if autosub_args.get("custom_position") is not None:
+            cmd.extend(["--custom-position", str(autosub_args.get("custom_position"))])
+
         def on_autosub_completed(exit_code: int):
             if story_name:
                 meta = self.storage_mgr.read_story_meta(story_name)
