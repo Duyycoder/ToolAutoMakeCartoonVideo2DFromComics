@@ -178,6 +178,25 @@
                                 </label>
                             </div>
                             
+                            <!-- Block cấu hình chi tiết trích xuất Glossary -->
+                            <div id="blockS1GlossaryConfig" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; padding-left: 1.25rem; border-left: 2px solid #3b82f6;">
+                                <div class="form-group">
+                                    <label for="s1GlossaryEngine">Engine trích xuất từ điển</label>
+                                    <select id="s1GlossaryEngine" style="background-color: rgba(255, 255, 255, 0.05); color: #fff; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 0.35rem 0.5rem; width: 100%;">
+                                        <option value="gemini" selected>Gemini API (Online)</option>
+                                        <option value="ollama">Ollama (Offline Local)</option>
+                                        <option value="gemini_api">Gemini API (Offline/Local)</option>
+                                        <option value="same_as_trans">Sử dụng cùng Engine dịch thuật</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="groupS1GlossaryOllama" style="display: none;">
+                                    <label for="s1GlossaryOllamaModel">Model Ollama trích xuất</label>
+                                    <select id="s1GlossaryOllamaModel" style="background-color: rgba(255, 255, 255, 0.05); color: #fff; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 0.35rem 0.5rem; width: 100%;">
+                                        <!-- Sẽ load tự động -->
+                                    </select>
+                                </div>
+                            </div>
+                            
                             <div class="form-actions">
                                 <button type="submit" id="btnStartStep1" class="btn btn-primary w-100">Bắt đầu Cào & Dịch</button>
                                 <button type="button" id="btnStopStep1" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>

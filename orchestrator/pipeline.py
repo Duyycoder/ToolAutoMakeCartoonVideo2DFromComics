@@ -63,6 +63,10 @@ class NovelPipeline:
             translate_cmd.extend(["--genre", trans_args.get("genre")])
         if trans_args.get("auto_extract", True):
             translate_cmd.append("--auto-extract")
+        if trans_args.get("glossary_extract_engine"):
+            translate_cmd.extend(["--glossary-extract-engine", trans_args.get("glossary_extract_engine")])
+        if trans_args.get("glossary_extract_ollama_model"):
+            translate_cmd.extend(["--glossary-extract-ollama-model", trans_args.get("glossary_extract_ollama_model")])
 
         task_key = f"{story_meta['story_slug']}_step1"
 

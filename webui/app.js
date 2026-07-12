@@ -190,6 +190,22 @@ function setupEventHandlers() {
         }
     });
 
+    const elS1AutoExtract = document.getElementById("s1AutoExtract");
+    const elBlockS1GlossaryConfig = document.getElementById("blockS1GlossaryConfig");
+    const elS1GlossaryEngine = document.getElementById("s1GlossaryEngine");
+    const elGroupS1GlossaryOllama = document.getElementById("groupS1GlossaryOllama");
+
+    elS1AutoExtract.addEventListener("change", () => {
+        elBlockS1GlossaryConfig.style.display = elS1AutoExtract.checked ? "flex" : "none";
+    });
+
+    elS1GlossaryEngine.addEventListener("change", () => {
+        elGroupS1GlossaryOllama.style.display = elS1GlossaryEngine.value === "ollama" ? "block" : "none";
+        if (elS1GlossaryEngine.value === "ollama") {
+            loadGlossaryOllamaModels();
+        }
+    });
+
     const elS2Engine = document.getElementById("s2Engine");
     const elGroupTtsModel = document.getElementById("groupTtsModel");
     const elGroupRefAudio = document.getElementById("groupRefAudio");
@@ -374,7 +390,9 @@ function setupEventHandlers() {
             genre: document.getElementById("s1Genre").value,
             auto_extract: document.getElementById("s1AutoExtract").checked,
             auto_translate: document.getElementById("s1AutoTranslate")?.checked,
-            continue_download: document.getElementById("s1ContinueDownload")?.checked
+            continue_download: document.getElementById("s1ContinueDownload")?.checked,
+            glossary_extract_engine: document.getElementById("s1GlossaryEngine").value,
+            glossary_extract_ollama_model: document.getElementById("s1GlossaryOllamaModel").value
         };
 
         toggleFormButtons("step1", true);
@@ -793,6 +811,38 @@ async function loadOllamaModels(selectId = "s1OllamaModel", statusId = "s1Ollama
             status.textContent = "Không tải được danh sách model (server orchestrator chưa chạy?).";
             status.style.color = "#e0a800";
         }
+    }
+// Load danh sách model Ollama cho trích xuất Glossary
+async function loadGlossaryOllamaModels() {
+    const sel = document.getElementById("s1GlossaryOllamaModel");
+    if (!sel) return;
+    const previous = sel.value;
+    try {
+        const res = await fetch(`${API_BASE}/api/ollama/models`);
+        const data = await res.json();
+        const models = data.models || [];
+        sel.innerHTML = "";
+        
+        const optDefault = document.createElement("option");
+        optDefault.value = "";
+        optDefault.textContent = "Sử dụng Model mặc định của Ollama";
+        sel.appendChild(optDefault);
+        
+        models.forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = m.name;
+            let text = m.name;
+            if (m.label) text += ` — ${m.label}`;
+            if (!m.installed) text += " (chưa cài, cần: ollama pull)";
+            opt.textContent = text;
+            sel.appendChild(opt);
+        });
+        
+        if (previous && [...sel.options].some(o => o.value === previous)) {
+            sel.value = previous;
+        }
+    } catch (e) {
+        console.error("Không tải được danh sách model cho glossary: ", e);
     }
 }
 

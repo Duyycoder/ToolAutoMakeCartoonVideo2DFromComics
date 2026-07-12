@@ -59,6 +59,8 @@ class Step1Schema(BaseModel):
     auto_extract: bool = False
     auto_translate: bool = True
     continue_download: bool = False
+    glossary_extract_engine: Optional[str] = "gemini"
+    glossary_extract_ollama_model: Optional[str] = ""
 
 class Step2Schema(BaseModel):
     story_name: str
@@ -206,7 +208,9 @@ def run_step1(body: Step1Schema):
         "gemini_offline_base_url": gemini_offline_base_url,
         "gemini_offline_model": body.gemini_offline_model or "gemini-2.5-flash",
         "genre": body.genre or "tien_hiep",
-        "auto_extract": body.auto_extract
+        "auto_extract": body.auto_extract,
+        "glossary_extract_engine": body.glossary_extract_engine or "gemini",
+        "glossary_extract_ollama_model": body.glossary_extract_ollama_model or ""
     }
 
     success = pipeline.start_step_1_crawl_translate(body.story_name, crawl_args, trans_args)
