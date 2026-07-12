@@ -47,7 +47,7 @@ if %errorlevel% equ 0 (
 )
 
 if "!PYTHON_EXE!"=="" (
-    :: Check via Python Launcher (py -3.11)
+    rem Check via Python Launcher (py -3.11)
     py -3.11 -c "import sys" >nul 2>&1
     if !errorlevel! equ 0 (
         for /f "delims=" %%i in ('py -3.11 -c "import sys; print(sys.executable)"') do (
@@ -58,7 +58,7 @@ if "!PYTHON_EXE!"=="" (
 )
 
 if "!PYTHON_EXE!"=="" (
-    :: Check if installed in default Local AppData folder for User
+    rem Check if installed in default Local AppData folder for User
     set "LOCAL_PY_EXE=%LocalAppData%\Programs\Python\Python311\python.exe"
     if exist "!LOCAL_PY_EXE!" (
         set "PYTHON_EXE=!LOCAL_PY_EXE!"
@@ -67,7 +67,7 @@ if "!PYTHON_EXE!"=="" (
 )
 
 if "!PYTHON_EXE!"=="" (
-    :: Check in default Program Files (for all users installation)
+    rem Check in default Program Files (for all users installation)
     set "SYSTEM_PY_EXE=%ProgramFiles%\Python311\python.exe"
     if exist "!SYSTEM_PY_EXE!" (
         set "PYTHON_EXE=!SYSTEM_PY_EXE!"
@@ -95,7 +95,7 @@ if "!PYTHON_EXE!"=="" (
     start /wait python-3.11.9-amd64.exe /quiet PrependPath=1 Include_test=0
     del python-3.11.9-amd64.exe
     
-    :: Verify silent install
+    rem Verify silent install
     set "LOCAL_PY_EXE=%LocalAppData%\Programs\Python\Python311\python.exe"
     set "SYSTEM_PY_EXE=%ProgramFiles%\Python311\python.exe"
     if exist "!LOCAL_PY_EXE!" (
