@@ -816,6 +816,8 @@ async function loadOllamaModels(selectId = "s1OllamaModel", statusId = "s1Ollama
             status.style.color = "#e0a800";
         }
     }
+}
+
 // Load danh sách model Ollama cho trích xuất Glossary
 async function loadGlossaryOllamaModels() {
     const sel = document.getElementById("s1GlossaryOllamaModel");
