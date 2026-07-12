@@ -1,5 +1,6 @@
 @echo off
 setlocal
+set PYTHONUTF8=1
 pushd "%~dp0"
 echo ============================================================
 echo  AutoCartoon Video Maker - Running Application

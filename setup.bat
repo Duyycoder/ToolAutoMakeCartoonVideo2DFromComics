@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+set PYTHONUTF8=1
 pushd "%~dp0"
 echo ============================================================
 echo  AutoCartoon Video Maker - Global Setup Wizard
