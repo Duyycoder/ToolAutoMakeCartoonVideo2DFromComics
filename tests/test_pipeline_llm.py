@@ -75,7 +75,7 @@ def test_step3_ollama_doc_base_url_tu_cau_hinh_chung(pipe):
     cmd = proc.captured_cmd
     assert arg_of(cmd, "--llm-base-url") == "http://192.168.1.9:11434/v1"
     assert arg_of(cmd, "--llm-api-key") == "ollama"
-    assert arg_of(cmd, "--llm-model") == "qwen2.5:7b-instruct"
+    assert arg_of(cmd, "--llm-model") == "qwen2.5:3b-instruct"
 
 
 def test_step3_ollama_fallback_11434_khi_config_trong(pipe):

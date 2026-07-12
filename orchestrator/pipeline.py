@@ -290,7 +290,8 @@ class NovelPipeline:
         elif llm_engine == "ollama":  # Ollama (Local)
             resolved_key = "ollama"  # placeholder: get_llm_client() yeu cau key khac rong
             resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
-            resolved_model = llm_offline_model or "qwen2.5:7b-instruct"
+            # Mac dinh qwen2.5:3b-instruct (~2-3GB VRAM) — vua GPU 6GB khi chay cung SD
+            resolved_model = llm_offline_model or "qwen2.5:3b-instruct"
         else:  # gemini_api (Local Gemini proxy)
             resolved_key = llm_api_key or "sk-gemini-YrVwXWGegzkFlevHPdQy7Fpry14HJVirqvnuxukz"
             resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("gemini_offline_base_url") or "http://localhost:7860/v1"
@@ -314,7 +315,7 @@ class NovelPipeline:
             cmd.append("--enable-upscale")
         else:
             cmd.append("--no-upscale")
-        if video_args.get("burn_subtitles", True):
+        if video_args.get("burn_subtitles", False):
             cmd.append("--burn-subtitles")
         else:
             cmd.append("--no-subtitles")
@@ -328,7 +329,7 @@ class NovelPipeline:
         else:
             cmd.append("--no-extract-characters")
             
-        if video_args.get("enable_face_detailer", True):
+        if video_args.get("enable_face_detailer", False):
             cmd.append("--enable-face-detailer")
         else:
             cmd.append("--no-face-detailer")

@@ -89,10 +89,10 @@ class Step3Schema(BaseModel):
     bgm_path: Optional[str] = ""
     bgm_volume: Optional[float] = 0.15
     enable_upscale: Optional[bool] = True
-    burn_subtitles: Optional[bool] = True
+    burn_subtitles: Optional[bool] = False
     use_semantic_split: Optional[bool] = True
     extract_characters: Optional[bool] = True
-    enable_face_detailer: Optional[bool] = True
+    enable_face_detailer: Optional[bool] = False
     hardware_profile: Optional[str] = "auto"
     device: Optional[str] = "cuda"
     llm_engine: Optional[str] = "gemini_api"
@@ -124,9 +124,10 @@ def get_ollama_models():
     import urllib.request
     import json as _json
     curated = {
-        "hy-mt2:1.8b": "Chuyên dịch Trung/Anh→Việt, siêu nhẹ (khuyến nghị)",
+        "qwen2.5:3b-instruct": "Chat siêu nhẹ ~2-3GB VRAM — khuyến nghị cho Bước 3 trên GPU 6GB",
+        "hy-mt2:1.8b": "Chuyên dịch Trung/Anh→Việt, siêu nhẹ (khuyến nghị Bước 1)",
         "translategemma:4b": "Chuyên dịch Google, 55 ngôn ngữ",
-        "qwen2.5:7b-instruct": "Model chat, đã kiểm thử",
+        "qwen2.5:7b-instruct": "Model chat, chất lượng cao hơn nhưng ~5GB VRAM",
         "qwen3:8b": "Model chat, đã tối ưu giảm leak"
     }
     installed = []
