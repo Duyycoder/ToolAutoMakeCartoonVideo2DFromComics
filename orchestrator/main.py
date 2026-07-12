@@ -102,6 +102,38 @@ class Step3Schema(BaseModel):
     llm_offline_base_url: Optional[str] = None
     llm_offline_model: Optional[str] = None
 
+class Step4Schema(BaseModel):
+    story_name: Optional[str] = None
+    video_path: Optional[str] = None
+    download_url: Optional[str] = None
+    platform: Optional[str] = "generic"
+    source_lang: Optional[str] = "English"
+    sub_source: Optional[str] = "whisper"
+    crop_x: Optional[int] = -1
+    crop_y: Optional[int] = -1
+    crop_w: Optional[int] = -1
+    crop_h: Optional[int] = -1
+    burn_method: Optional[str] = "ffmpeg"
+    clean_audio: Optional[bool] = False
+    enable_voiceover: Optional[bool] = False
+    tts_engine: Optional[str] = "edge"
+    tts_voice: Optional[str] = ""
+    auto_clone: Optional[bool] = False
+    ducking_ratio: Optional[float] = 90.0
+    llm_engine: Optional[str] = "gemini_api"
+    llm_api_key: Optional[str] = None
+    llm_offline_base_url: Optional[str] = None
+    llm_offline_model: Optional[str] = None
+
+class Step5Schema(BaseModel):
+    story_name: str
+    selected_files: Optional[list[str]] = None
+
+class PrepareSchema(BaseModel):
+    video_path: Optional[str] = None
+    download_url: Optional[str] = None
+    platform: Optional[str] = "generic"
+
 # API Endpoints
 
 @app.get("/api/config")
@@ -289,6 +321,169 @@ def clear_semantic_cache():
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     return {"status": "success", "message": "Không tìm thấy bộ đệm cache nào để xóa."}
+
+@app.post("/api/pipeline/step4")
+def run_step4(body: Step4Schema):
+    if not body.video_path and not body.download_url:
+        raise HTTPException(status_code=400, detail="Cần cung cấp video_path hoặc download_url.")
+        
+    from orchestrator.storage import slugify
+    import uuid
+    
+    slug = ""
+    if body.story_name:
+        slug = slugify(body.story_name)
+        task_key = f"{slug}_step4"
+    else:
+        task_id = uuid.uuid4().hex[:8]
+        task_key = f"autosub_{task_id}_step4"
+        
+    if process_mgr.is_running(task_key):
+        raise HTTPException(status_code=400, detail="Tiến trình Autosub đang chạy cho truyện/tác vụ này.")
+        
+    autosub_args = {k: v for k, v in body.dict().items() if v is not None}
+    
+    if not body.story_name:
+        autosub_args["task_id"] = task_id
+        
+    try:
+        success = pipeline.start_step_4_autosub(body.story_name, autosub_args)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+        
+    if success:
+        return {"status": "success", "task_key": task_key}
+    raise HTTPException(status_code=500, detail="Không khởi tạo được pipeline Bước 4.")
+
+@app.post("/api/autosub/prepare")
+def autosub_prepare(body: PrepareSchema):
+    import subprocess
+    import uuid
+    import base64
+    import json as _json
+    
+    if not body.video_path and not body.download_url:
+        raise HTTPException(status_code=400, detail="Cần cung cấp video_path hoặc download_url.")
+        
+    task_id = uuid.uuid4().hex[:8]
+    work_dir = os.path.join(storage_mgr.tasks_dir, f"autosub_{task_id}")
+    os.makedirs(work_dir, exist_ok=True)
+    
+    python_exe = os.path.abspath("AIVoice/.venv/Scripts/python.exe")
+    adapter = os.path.abspath("AIVoice/apps/MediaComposer/adapter_autosub_cli.py")
+    
+    cmd = [python_exe, adapter, "--prepare-only", "--output-dir", work_dir]
+    if body.download_url:
+        cmd += ["--download-url", body.download_url, "--platform", body.platform or "generic"]
+    else:
+        cmd += ["--video-path", body.video_path]
+        
+    try:
+        res = subprocess.run(cmd, cwd="AIVoice", capture_output=True, text=True, encoding="utf-8", timeout=900)
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Tải/chuẩn bị video quá 15 phút — kiểm tra link hoặc mạng.")
+        
+    if res.returncode != 0:
+        err_msg = res.stderr[-1000:] if res.stderr else (res.stdout[-1000:] if res.stdout else "No output")
+        raise HTTPException(status_code=500, detail=f"Lỗi prepare_only: {err_msg}")
+        
+    info = None
+    for line in res.stdout.splitlines():
+        if line.strip():
+            try:
+                data = _json.loads(line)
+                if data.get("event") == "prepare_done":
+                    info = data
+                    break
+            except:
+                pass
+                
+    if not info:
+        err_msg = res.stdout[-1000:] if res.stdout else "No output"
+        raise HTTPException(status_code=500, detail=f"Không nhận được phản hồi prepare_done. Log: {err_msg}")
+        
+    preview_img_path = info.get("preview_image")
+    if not preview_img_path or not os.path.exists(preview_img_path):
+        raise HTTPException(status_code=500, detail="Không tạo được ảnh xem trước.")
+        
+    with open(preview_img_path, "rb") as f:
+        img_b64 = base64.b64encode(f.read()).decode("utf-8")
+        
+    return {
+        "task_id": task_id,
+        "prepared_path": info.get("prepared_path"),
+        "width": info.get("width"),
+        "height": info.get("height"),
+        "duration": info.get("duration"),
+        "preview_b64": f"data:image/jpeg;base64,{img_b64}"
+    }
+
+@app.post("/api/pipeline/step5")
+def run_step5(body: Step5Schema):
+    from orchestrator.storage import slugify
+    slug = slugify(body.story_name)
+    task_key = f"{slug}_step5"
+    
+    if process_mgr.is_running(task_key):
+        raise HTTPException(status_code=400, detail="Tiến trình Ghép Video đang chạy.")
+        
+    try:
+        success = pipeline.start_step_5_merge(body.story_name, body.selected_files)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+        
+    if success:
+        return {"status": "success", "task_key": task_key}
+    raise HTTPException(status_code=500, detail="Không khởi tạo được pipeline Bước 5.")
+
+@app.get("/api/stories/{story_name}/videos")
+def get_story_videos(story_name: str):
+    from orchestrator.storage import slugify
+    import glob
+    
+    slug = slugify(story_name)
+    story_dir = storage_mgr.get_story_dir(story_name)
+    if not os.path.exists(story_dir):
+        raise HTTPException(status_code=404, detail="Truyện không tồn tại.")
+        
+    video_dir = os.path.join(story_dir, "video")
+    if not os.path.exists(video_dir):
+        return []
+        
+    mp4_files = sorted(glob.glob(os.path.join(video_dir, "*.mp4")))
+    
+    videos = []
+    for f in mp4_files:
+        name = os.path.basename(f)
+        size = os.path.getsize(f)
+        is_merged = name.startswith("TongHop_")
+        videos.append({
+            "name": name,
+            "size": size,
+            "is_merged": is_merged
+        })
+    return videos
+
+@app.post("/api/pipeline/stop-task")
+def stop_task(task_key: str):
+    if process_mgr.stop_process(task_key):
+        try:
+            parts = task_key.rsplit("_", 1)
+            if len(parts) == 2 and parts[1].startswith("step"):
+                slug = parts[0]
+                stories = storage_mgr.list_stories()
+                for s in stories:
+                    meta = storage_mgr.read_story_meta(s)
+                    if meta and meta.get("story_slug") == slug:
+                        meta["status"] = "CANCELLED"
+                        storage_mgr.write_story_meta(s, meta)
+                        break
+        except Exception:
+            pass
+            
+        return {"status": "success", "message": f"Successfully stopped task '{task_key}'."}
+        
+    raise HTTPException(status_code=404, detail=f"No active running task found for key '{task_key}'.")
 
 # Serve Web UI assets directly
 webui_dir = os.path.abspath("webui")

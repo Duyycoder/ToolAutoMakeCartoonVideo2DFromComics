@@ -390,3 +390,162 @@ class NovelPipeline:
             env_override=env_override,
             on_completed=on_video_completed
         )
+
+    def start_step_4_autosub(self, story_name: str | None, autosub_args: dict) -> bool:
+        """Runs MediaComposer autosub and dubbing workflow on a video."""
+        import datetime
+        import uuid
+        task_id = uuid.uuid4().hex[:8]
+        
+        slug = ""
+        if story_name:
+            story_meta = self.storage_mgr.read_story_meta(story_name)
+            if not story_meta:
+                return False
+            slug = story_meta['story_slug']
+            output_dir = os.path.join(self.storage_mgr.get_story_dir(story_name), "video")
+            task_key = f"{slug}_step4"
+        else:
+            output_dir = os.path.join(self.storage_mgr.tasks_dir, f"autosub_{task_id}")
+            task_key = f"autosub_{task_id}_step4"
+            
+        os.makedirs(output_dir, exist_ok=True)
+        
+        python_exe = os.path.abspath("AIVoice/.venv/Scripts/python.exe")
+        adapter_path = os.path.abspath("AIVoice/apps/MediaComposer/adapter_autosub_cli.py")
+        
+        from orchestrator.config import load_global_config
+        g_config = load_global_config()
+        video_cfg = g_config.get("video", {})
+        
+        # Resolve LLM parameters for translation
+        llm_engine = autosub_args.get("llm_engine") or video_cfg.get("default_llm_engine") or "gemini_api"
+        llm_api_key = autosub_args.get("llm_api_key")
+        llm_offline_base_url = autosub_args.get("llm_offline_base_url")
+        llm_offline_model = autosub_args.get("llm_offline_model") or video_cfg.get("default_llm_model")
+
+        if llm_engine == "gemini":  # Gemini Online
+            resolved_key = llm_api_key or g_config.get("api_keys", {}).get("gemini", "")
+            if not resolved_key:
+                raise ValueError("Đã chọn Gemini Online nhưng chưa có API Key. Nhập key ở Bước 4 hoặc lưu vào Cấu Hình Chung (api_keys.gemini).")
+            resolved_base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+            resolved_model = llm_offline_model or "gemini-2.0-flash"
+        elif llm_engine == "ollama":  # Ollama (Local)
+            resolved_key = "ollama"
+            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
+            resolved_model = llm_offline_model or "qwen2.5:3b-instruct"
+        else:  # gemini_api (Local Gemini proxy)
+            resolved_key = llm_api_key or "sk-gemini-YrVwXWGegzkFlevHPdQy7Fpry14HJVirqvnuxukz"
+            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("gemini_offline_base_url") or "http://localhost:7860/v1"
+            resolved_model = llm_offline_model or "gemini-3-flash"
+            
+        cmd = [
+            python_exe, adapter_path,
+            "--output-dir", output_dir,
+            "--source-lang", autosub_args.get("source_lang", "English"),
+            "--sub-source", autosub_args.get("sub_source", "whisper"),
+            "--burn-method", autosub_args.get("burn_method", "ffmpeg"),
+            "--tts-engine", autosub_args.get("tts_engine", "edge"),
+            "--tts-voice", autosub_args.get("tts_voice") or "",
+            "--ducking-ratio", str(autosub_args.get("ducking_ratio", 90.0)),
+            "--llm-api-key", resolved_key,
+            "--llm-base-url", resolved_base_url,
+            "--llm-model", resolved_model
+        ]
+        
+        if autosub_args.get("video_path"):
+            cmd.extend(["--video-path", autosub_args.get("video_path")])
+        if autosub_args.get("download_url"):
+            cmd.extend(["--download-url", autosub_args.get("download_url")])
+            if autosub_args.get("platform"):
+                cmd.extend(["--platform", autosub_args.get("platform")])
+                
+        if autosub_args.get("clean_audio"):
+            cmd.append("--clean-audio")
+        if autosub_args.get("enable_voiceover"):
+            cmd.append("--enable-voiceover")
+        if autosub_args.get("auto_clone"):
+            cmd.append("--auto-clone")
+            
+        crop_x = autosub_args.get("crop_x", -1)
+        crop_y = autosub_args.get("crop_y", -1)
+        crop_w = autosub_args.get("crop_w", -1)
+        crop_h = autosub_args.get("crop_h", -1)
+        if crop_x >= 0 and crop_y >= 0 and crop_w > 0 and crop_h > 0:
+            cmd.extend([
+                "--crop-x", str(crop_x),
+                "--crop-y", str(crop_y),
+                "--crop-w", str(crop_w),
+                "--crop-h", str(crop_h)
+            ])
+
+        def on_autosub_completed(exit_code: int):
+            if story_name:
+                meta = self.storage_mgr.read_story_meta(story_name)
+                if meta:
+                    if exit_code == 0:
+                        meta["status"] = "AUTOSUB_COMPLETED"
+                    else:
+                        meta["status"] = "AUTOSUB_FAILED"
+                    meta["updated_at"] = datetime.datetime.now().isoformat()
+                    self.storage_mgr.write_story_meta(story_name, meta)
+
+        if story_name:
+            story_meta = self.storage_mgr.read_story_meta(story_name)
+            if story_meta:
+                story_meta["status"] = "AUTOSUB_RUNNING"
+                story_meta["updated_at"] = datetime.datetime.now().isoformat()
+                self.storage_mgr.write_story_meta(story_name, story_meta)
+
+        return self.process_mgr.start_process(
+            task_key=task_key,
+            cmd=cmd,
+            cwd="AIVoice",
+            on_completed=on_autosub_completed
+        )
+
+    def start_step_5_merge(self, story_name: str, selected_files: list[str] | None = None) -> bool:
+        """Merges specific or all story chapter videos in a background thread."""
+        import queue as _q
+        import threading
+        import time
+        import contextlib
+        
+        meta = self.storage_mgr.read_story_meta(story_name)
+        if not meta:
+            return False
+            
+        task_key = f"{meta['story_slug']}_step5"
+        q = _q.Queue()
+        self.process_mgr.log_queues[task_key] = q
+        
+        video_dir = os.path.join(self.storage_mgr.get_story_dir(story_name), "video")
+        out = os.path.join(video_dir, f"TongHop_{time.strftime('%Y%m%d_%H%M%S')}.mp4")
+        
+        class QueueWriter:
+            def __init__(self, queue):
+                self.queue = queue
+            def write(self, message):
+                if message.strip():
+                    self.queue.put(message.strip() + "\n")
+            def flush(self):
+                pass
+                
+        def _run():
+            try:
+                from orchestrator.video_merger import merge_videos
+                q.put(f"[SYSTEM] Bắt đầu ghép video vào {out}...\n")
+                
+                writer = QueueWriter(q)
+                with contextlib.redirect_stdout(writer):
+                    ok = merge_videos(video_dir, out, only_files=selected_files)
+                    
+                q.put("[SYSTEM] Ghép video thành công!\n" if ok
+                      else "[SYSTEM] Ghép thất bại — xem chi tiết phía trên.\n")
+            except Exception as e:
+                q.put(f"[ERROR] {e}\n")
+            finally:
+                q.put(None)
+                
+        threading.Thread(target=_run, daemon=True).start()
+        return True

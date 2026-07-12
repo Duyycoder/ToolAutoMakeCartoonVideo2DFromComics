@@ -4,7 +4,7 @@ import glob
 import sys
 import datetime
 
-def merge_videos(video_dir: str, output_file: str) -> bool:
+def merge_videos(video_dir: str, output_file: str, only_files: list[str] | None = None) -> bool:
     """Merges all mp4 files in video_dir into output_file using FFmpeg concat stream copy."""
     try:
         # Import imageio_ffmpeg from AIVoice virtual environment
@@ -19,6 +19,11 @@ def merge_videos(video_dir: str, output_file: str) -> bool:
     # Filter out files that might already be the output file or other merged files
     mp4_files = [f for f in mp4_files if not os.path.basename(f).startswith("TongHop_")]
     
+    if only_files:
+        # CHỐNG PATH TRAVERSAL: chỉ nhận basename thuần, phải nằm trong danh sách quét được
+        wanted = {name for name in only_files if os.path.basename(name) == name}
+        mp4_files = [f for f in mp4_files if os.path.basename(f) in wanted]
+        
     if not mp4_files:
         print(f"[Warning] No MP4 files found in {video_dir} to merge.")
         return False
@@ -47,9 +52,29 @@ def merge_videos(video_dir: str, output_file: str) -> bool:
         # Run ffmpeg
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if result.returncode != 0:
-            print(f"[Error] FFmpeg failed with exit code {result.returncode}")
-            print(result.stderr)
-            return False
+            print(f"[Error] FFmpeg concat -c copy failed with exit code {result.returncode}. Attempting fallback re-encoding...")
+            # Fallback re-encode đúng 1 tầng
+            cmd_fallback = [
+                ffmpeg_exe,
+                "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", list_file,
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "20",
+                "-c:a", "aac",
+                output_file
+            ]
+            result_fallback = subprocess.run(cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if result_fallback.returncode != 0:
+                print("[Error] Fallback re-encoding also failed.")
+                print(result_fallback.stderr)
+                print("[SYSTEM_MSG] Các video khác độ phân giải/định dạng — hãy chọn các video cùng nguồn (cùng được tạo từ Bước 3).")
+                return False
+            
+        print(f"[Success] Successfully merged videos to {output_file}")
+        return True
             
         print(f"[Success] Successfully merged videos to {output_file}")
         return True

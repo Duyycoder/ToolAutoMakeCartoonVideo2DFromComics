@@ -4,6 +4,8 @@ const API_BASE = "";
 // Global State
 let activeStoryName = "";
 let currentLogsSse = null;
+let currentTaskKeys = {};
+let step4State = { preparedPath: null, natW: null, natH: null, crop: null };
 
 // DOM Elements
 const elStorySelect = document.getElementById("storySelect");
@@ -558,6 +560,256 @@ function setupEventHandlers() {
             alert("Lỗi khi lưu cấu hình: " + e);
         }
     });
+
+    // --- STEP 4 EVENT HANDLERS ---
+    const radiosS4 = document.getElementsByName("s4VideoSource");
+    const groupS4Local = document.getElementById("groupS4Local");
+    const groupS4Url = document.getElementById("groupS4Url");
+    radiosS4.forEach(r => {
+        r.addEventListener("change", () => {
+            const isLocal = r.value === "local";
+            groupS4Local.style.display = isLocal ? "block" : "none";
+            groupS4Url.style.display = isLocal ? "none" : "block";
+        });
+    });
+
+    const elS4SubSource = document.getElementById("s4SubSource");
+    const elGroupS4OcrPreview = document.getElementById("groupS4OcrPreview");
+    const elGroupS4CleanAudio = document.getElementById("groupS4CleanAudio");
+    elS4SubSource.addEventListener("change", () => {
+        const isOcr = elS4SubSource.value === "ocr";
+        elGroupS4OcrPreview.style.display = isOcr ? "block" : "none";
+        elGroupS4CleanAudio.style.display = isOcr ? "none" : "block";
+    });
+
+    const elS4EnableVoiceover = document.getElementById("s4EnableVoiceover");
+    const elGroupS4Voiceover = document.getElementById("groupS4Voiceover");
+    elS4EnableVoiceover.addEventListener("change", () => {
+        elGroupS4Voiceover.style.display = elS4EnableVoiceover.checked ? "block" : "none";
+    });
+    
+    const elS4TtsEngine = document.getElementById("s4TtsEngine");
+    const elGroupS4AutoClone = document.getElementById("groupS4AutoClone");
+    elS4TtsEngine.addEventListener("change", () => {
+        elGroupS4AutoClone.style.display = elS4TtsEngine.value === "clone" ? "block" : "none";
+        
+        // Auto set default voice depending on engine
+        const voiceInput = document.getElementById("s4TtsVoice");
+        if (elS4TtsEngine.value === "edge") {
+            voiceInput.value = "vi-VN-NamMinhNeural";
+        } else if (elS4TtsEngine.value === "kokoro") {
+            voiceInput.value = "thuc_trinh";
+        } else if (elS4TtsEngine.value === "vieneu") {
+            voiceInput.value = "Ngọc Lan";
+        } else if (elS4TtsEngine.value === "piper") {
+            voiceInput.value = "vi_VN-vais1000-medium.onnx";
+        } else {
+            voiceInput.value = "";
+        }
+    });
+
+    const elS4LlmEngine = document.getElementById("s4LlmEngine");
+    const elGroupS4GeminiKey = document.getElementById("groupS4GeminiKey");
+    const elGroupS4GeminiOfflineUrl = document.getElementById("groupS4GeminiOfflineUrl");
+    const elGroupS4OllamaModel = document.getElementById("groupS4OllamaModel");
+    const elGroupS4LlmModel = document.getElementById("groupS4LlmModel");
+    
+    elS4LlmEngine.addEventListener("change", () => {
+        const eng = elS4LlmEngine.value;
+        const isOllama = (eng === "ollama");
+        elGroupS4GeminiKey.style.display = (eng === "gemini" || eng === "gemini_api") ? "block" : "none";
+        elGroupS4GeminiOfflineUrl.style.display = (eng === "gemini_api" || isOllama) ? "block" : "none";
+        elGroupS4OllamaModel.style.display = isOllama ? "block" : "none";
+        elGroupS4LlmModel.style.display = isOllama ? "none" : "block";
+        
+        const modelInput = document.getElementById("s4LlmModel");
+        if (eng === "gemini") {
+            modelInput.value = "gemini-2.0-flash";
+        } else {
+            modelInput.value = "gemini-3-flash";
+        }
+        
+        if (isOllama) {
+            loadOllamaModels("s4OllamaModel", "s4OllamaStatus");
+        }
+    });
+
+    const elBtnS4Prepare = document.getElementById("btnS4Prepare");
+    const elS4RoiSelectionArea = document.getElementById("s4RoiSelectionArea");
+    const elS4PreviewImg = document.getElementById("s4PreviewImg");
+    
+    elBtnS4Prepare.addEventListener("click", async () => {
+        const isLocal = document.querySelector('input[name="s4VideoSource"]:checked').value === "local";
+        const videoPath = document.getElementById("s4LocalPath").value.trim();
+        const downloadUrl = document.getElementById("s4Url").value.trim();
+        const platform = document.getElementById("s4Platform").value;
+        
+        if (isLocal && !videoPath) {
+            return alert("Vui lòng nhập đường dẫn video cục bộ!");
+        }
+        if (!isLocal && !downloadUrl) {
+            return alert("Vui lòng nhập link video tải về!");
+        }
+        
+        elBtnS4Prepare.disabled = true;
+        elBtnS4Prepare.textContent = "Đang tải & chuẩn bị...";
+        clearConsole("step4");
+        appendConsoleLog("step4", "[SYSTEM] Bắt đầu chuẩn bị video. Tiến trình này chạy prepare-only ở background thread...", "log-system");
+        
+        try {
+            const body = {};
+            if (isLocal) {
+                body.video_path = videoPath;
+            } else {
+                body.download_url = downloadUrl;
+                body.platform = platform;
+            }
+            
+            const response = await fetch(`${API_BASE}/api/autosub/prepare`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            });
+            
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.detail || "Không thể chuẩn bị video.");
+            }
+            
+            const data = await response.json();
+            step4State.preparedPath = data.prepared_path;
+            step4State.natW = data.width;
+            step4State.natH = data.height;
+            step4State.crop = null;
+            
+            // Set image preview
+            elS4PreviewImg.src = data.preview_b64;
+            elS4RoiSelectionArea.style.display = "block";
+            
+            // Remove old ROI boxes if any
+            const oldBoxes = elS4PreviewImg.parentElement.querySelectorAll("div");
+            oldBoxes.forEach(b => b.remove());
+            
+            // Setup ROI Selector
+            setupRoiSelector(elS4PreviewImg, data.width, data.height, (crop) => {
+                step4State.crop = crop;
+                appendConsoleLog("step4", `[SYSTEM] Đã vẽ vùng OCR (pixel gốc): x=${crop.x}, y=${crop.y}, w=${crop.w}, h=${crop.h}`, "log-system");
+            });
+            
+            appendConsoleLog("step4", `[THÀNH CÔNG] Đã chuẩn bị xong video! Kích thước: ${data.width}x${data.height}, Thời lượng: ${data.duration}s.`, "log-success");
+            appendConsoleLog("step4", "Hãy vẽ khoanh vùng phụ đề trên ảnh preview để tiếp tục.", "log-system");
+            
+        } catch (err) {
+            alert(`Lỗi chuẩn bị: ${err.message}`);
+            appendConsoleLog("step4", `[ERROR] Chuẩn bị thất bại: ${err.message}`, "log-error");
+        } finally {
+            elBtnS4Prepare.disabled = false;
+            elBtnS4Prepare.textContent = "Tải & Xem trước";
+        }
+    });
+
+    document.getElementById("formStep4").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const isLocal = document.querySelector('input[name="s4VideoSource"]:checked').value === "local";
+        const videoPath = isLocal ? document.getElementById("s4LocalPath").value.trim() : step4State.preparedPath;
+        const downloadUrl = isLocal ? "" : document.getElementById("s4Url").value.trim();
+        const subSource = document.getElementById("s4SubSource").value;
+        
+        if (subSource === "ocr" && !videoPath) {
+            return alert("Chế độ OCR yêu cầu chuẩn bị video trước bằng nút 'Tải & Xem trước'!");
+        }
+        
+        if (isLocal && !videoPath) {
+            return alert("Vui lòng nhập đường dẫn video!");
+        }
+        if (!isLocal && !downloadUrl && !videoPath) {
+            return alert("Vui lòng nhập link video hoặc chuẩn bị video trước!");
+        }
+        
+        const payload = {
+            story_name: activeStoryName || null,
+            video_path: videoPath || null,
+            download_url: downloadUrl || null,
+            platform: document.getElementById("s4Platform").value,
+            source_lang: document.getElementById("s4SourceLang").value,
+            sub_source: subSource,
+            burn_method: document.getElementById("s4BurnMethod").value,
+            clean_audio: document.getElementById("s4CleanAudio").checked,
+            enable_voiceover: elS4EnableVoiceover.checked,
+            tts_engine: elS4TtsEngine.value,
+            tts_voice: document.getElementById("s4TtsVoice").value,
+            auto_clone: document.getElementById("s4AutoClone").checked,
+            ducking_ratio: parseFloat(document.getElementById("s4DuckingRatio").value),
+            llm_engine: elS4LlmEngine.value,
+            llm_api_key: document.getElementById("s4GeminiKey").value || null,
+            llm_offline_base_url: document.getElementById("s4GeminiOfflineUrl").value || null,
+            llm_offline_model: (elS4LlmEngine.value === "ollama"
+                ? document.getElementById("s4OllamaModel").value
+                : document.getElementById("s4LlmModel").value) || null
+        };
+        
+        if (subSource === "ocr" && step4State.crop) {
+            payload.crop_x = step4State.crop.x;
+            payload.crop_y = step4State.crop.y;
+            payload.crop_w = step4State.crop.w;
+            payload.crop_h = step4State.crop.h;
+        }
+        
+        toggleFormButtons("step4", true);
+        clearConsole("step4");
+        
+        const taskKey = await postPipelineAction("step4", payload);
+        if (taskKey) {
+            currentTaskKeys["step4"] = taskKey;
+            streamLogs("step4", taskKey);
+        } else {
+            toggleFormButtons("step4", false);
+        }
+    });
+    
+    document.getElementById("btnStopStep4").addEventListener("click", () => stopTaskByKey("step4"));
+
+    // --- STEP 5 EVENT HANDLERS ---
+    const elBtnS5LoadVideos = document.getElementById("btnS5LoadVideos");
+    elBtnS5LoadVideos.addEventListener("click", () => {
+        if (!activeStoryName) {
+            return alert("Vui lòng chọn truyện trước!");
+        }
+        loadStoryVideos(activeStoryName);
+    });
+    
+    document.getElementById("formStep5").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!activeStoryName) return alert("Vui lòng chọn truyện trước!");
+        
+        const checkboxes = document.querySelectorAll('#s5VideoListContainer input[type="checkbox"]:checked');
+        const selectedFiles = Array.from(checkboxes).map(cb => cb.value);
+        
+        if (selectedFiles.length < 2) {
+            return alert("Vui lòng chọn ít nhất 2 video để ghép!");
+        }
+        
+        const payload = {
+            story_name: activeStoryName,
+            selected_files: selectedFiles
+        };
+        
+        toggleFormButtons("step5", true);
+        clearConsole("step5");
+        
+        const taskKey = await postPipelineAction("step5", payload);
+        if (taskKey) {
+            currentTaskKeys["step5"] = taskKey;
+            streamLogs("step5", taskKey);
+        } else {
+            toggleFormButtons("step5", false);
+        }
+    });
+
+    document.getElementById("btnStopStep5").addEventListener("click", () => {
+        appendConsoleLog("step5", "[SYSTEM] Tiến trình ghép video chạy bằng thread không thể dừng cưỡng bức.", "log-warn");
+    });
 }
 
 // Common function to send pipeline actions to the backend
@@ -744,6 +996,58 @@ function streamLogs(stepName, taskKey) {
                         break;
                     case "tts_file_skip":
                         displayText = `[CẢNH BÁO] Bỏ qua file ${parsed.file}: ${parsed.reason}`;
+                        logClass = "log-warn";
+                        break;
+                    case "autosub_init":
+                        displayText = `[HỆ THỐNG] Khởi tạo quy trình phụ đề: ${parsed.video_path || ''}`;
+                        logClass = "log-system";
+                        break;
+                    case "download_start":
+                        displayText = `[HỆ THỐNG] Bắt đầu tải video từ URL: ${parsed.url}`;
+                        logClass = "log-system";
+                        break;
+                    case "download_progress":
+                        displayText = `[TẢI VIDEO] Tiến trình: ${parsed.percent}% | Tốc độ: ${parsed.speed || 'N/A'} | ETA: ${parsed.eta || 0}s`;
+                        break;
+                    case "download_done":
+                        displayText = `[THÀNH CÔNG] Đã tải video thành công: ${parsed.path}`;
+                        logClass = "log-success";
+                        break;
+                    case "download_error":
+                        displayText = `[LỖI TẢI VIDEO] ${parsed.error}`;
+                        logClass = "log-error";
+                        break;
+                    case "ocr_start":
+                        displayText = `[OCR] Bắt đầu trích xuất chữ hardsub từ hình...`;
+                        logClass = "log-system";
+                        break;
+                    case "ocr_roi":
+                        displayText = `[OCR ROI] Vùng chọn: x=${parsed.crop_x}, y=${parsed.crop_y}, w=${parsed.crop_width}, h=${parsed.crop_height}`;
+                        break;
+                    case "ocr_progress":
+                        displayText = `[OCR] ${parsed.message}`;
+                        break;
+                    case "ocr_done":
+                        displayText = `[THÀNH CÔNG] Đã trích xuất phụ đề OCR xong: ${parsed.output_srt}`;
+                        logClass = "log-success";
+                        break;
+                    case "ocr_error":
+                        displayText = `[LỖI OCR] ${parsed.error}`;
+                        logClass = "log-error";
+                        break;
+                    case "autosub_progress":
+                        displayText = `[AUTOSUB] ${parsed.message} (${parsed.percent}%)`;
+                        break;
+                    case "autosub_done":
+                        displayText = `[THÀNH CÔNG] Quy trình phụ đề hoàn tất. Video đầu ra: ${parsed.output}`;
+                        logClass = "log-success";
+                        break;
+                    case "autosub_error":
+                        displayText = `[LỖI AUTOSUB] ${parsed.error}`;
+                        logClass = "log-error";
+                        break;
+                    case "autosub_warn":
+                        displayText = `[CẢNH BÁO AUTOSUB] ${parsed.message}`;
                         logClass = "log-warn";
                         break;
                     default:
@@ -934,5 +1238,115 @@ async function loadGlobalConfig() {
         }
     } catch (e) {
         console.error("Lỗi khi tải cấu hình chung:", e);
+    }
+}
+
+function setupRoiSelector(imgEl, natW, natH, onChange) {
+    const box = document.createElement("div");
+    box.style.cssText = "position:absolute;border:2px dashed #4ade80;background:rgba(74,222,128,.15);pointer-events:none;display:none;z-index:10;";
+    imgEl.parentElement.appendChild(box);
+    let sx = 0, sy = 0, drag = false, rect = null;
+    const rel = (e) => {
+        const r = imgEl.getBoundingClientRect();
+        return [Math.min(Math.max(e.clientX - r.left, 0), r.width),
+                Math.min(Math.max(e.clientY - r.top, 0), r.height)];
+    };
+    imgEl.addEventListener("mousedown", (e) => {
+        [sx, sy] = rel(e);
+        drag = true;
+        rect = null;
+        box.style.display = "none";
+        e.preventDefault();
+    });
+    window.addEventListener("mousemove", (e) => {
+        if (!drag) return;
+        const [x, y] = rel(e);
+        rect = { x: Math.min(sx, x), y: Math.min(sy, y), w: Math.abs(x - sx), h: Math.abs(y - sy) };
+        Object.assign(box.style, { display: "block", left: rect.x + "px", top: rect.y + "px",
+                                   width: rect.w + "px", height: rect.h + "px" });
+    });
+    window.addEventListener("mouseup", () => {
+        if (!drag) return;
+        drag = false;
+        if (rect && rect.w > 5 && rect.h > 5) {
+            const r = imgEl.getBoundingClientRect(), kx = natW / r.width, ky = natH / r.height;
+            onChange({ x: Math.round(rect.x * kx), y: Math.round(rect.y * ky),
+                       w: Math.round(rect.w * kx), h: Math.round(rect.h * ky) });  // PIXEL GỐC
+        }
+    });
+}
+
+async function stopTaskByKey(stepName) {
+    const key = currentTaskKeys[stepName];
+    if (!key) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/pipeline/stop-task?task_key=${encodeURIComponent(key)}`, { method: "POST" });
+        const data = await res.json();
+        appendConsoleLog(stepName, res.ok ? "[SYSTEM] Đã gửi yêu cầu dừng." : `[SYSTEM] Không dừng được: ${data.detail}`, "log-system");
+    } catch(e) {
+        appendConsoleLog(stepName, `[SYSTEM ERROR] Lỗi khi dừng: ${e}`, "log-error");
+    }
+}
+
+async function loadStoryVideos(storyName) {
+    const container = document.getElementById("s5VideoListContainer");
+    if (!container) return;
+    
+    container.innerHTML = "<p class='help-text' style='text-align:center;'>Đang tải danh sách video...</p>";
+    
+    try {
+        const res = await fetch(`${API_BASE}/api/stories/${encodeURIComponent(storyName)}/videos`);
+        if (!res.ok) {
+            throw new Error("Không thể tải danh sách video.");
+        }
+        const videos = await res.json();
+        
+        if (!videos || videos.length === 0) {
+            container.innerHTML = "<p class='help-text' style='text-align:center;'>Không tìm thấy video nào trong thư mục video của truyện này.</p>";
+            document.getElementById("btnStartStep5").disabled = true;
+            return;
+        }
+        
+        container.innerHTML = "";
+        
+        videos.forEach(v => {
+            const div = document.createElement("div");
+            div.style.cssText = "display: flex; align-items: center; margin-bottom: 8px; font-size: 14px;";
+            
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.value = v.name;
+            cb.id = `cb_video_${v.name.replace(/\./g, '_')}`;
+            cb.checked = !v.is_merged;
+            cb.style.marginRight = "10px";
+            
+            const label = document.createElement("label");
+            label.htmlFor = cb.id;
+            label.style.cursor = "pointer";
+            
+            const sizeMB = (v.size / (1024 * 1024)).toFixed(2);
+            const tag = v.is_merged ? " <span style='color:#f59e0b;'>[ĐÃ GHÉP]</span>" : "";
+            label.innerHTML = `${v.name} <small style='opacity:0.6;'>(${sizeMB} MB)</small>${tag}`;
+            
+            div.appendChild(cb);
+            div.appendChild(label);
+            container.appendChild(div);
+            
+            cb.addEventListener("change", updateStep5ButtonState);
+        });
+        
+        updateStep5ButtonState();
+        
+    } catch (err) {
+        container.innerHTML = `<p class='help-text' style='color:#f87171; text-align:center;'>Lỗi: ${err.message}</p>`;
+        document.getElementById("btnStartStep5").disabled = true;
+    }
+}
+
+function updateStep5ButtonState() {
+    const checkboxes = document.querySelectorAll('#s5VideoListContainer input[type="checkbox"]:checked');
+    const btn = document.getElementById("btnStartStep5");
+    if (btn) {
+        btn.disabled = checkboxes.length < 2;
     }
 }
