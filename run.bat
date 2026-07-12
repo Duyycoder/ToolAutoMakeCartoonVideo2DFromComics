@@ -7,7 +7,14 @@ echo ============================================================
 echo.
 
 if not exist "AIVoice\.venv\Scripts\python.exe" (
-    echo [ERROR] setup.bat has not been run or virtualenv is missing.
+    echo [ERROR] setup.bat has not been run or virtualenv for AIVoice is missing.
+    echo Please run setup.bat first.
+    pause
+    exit /b 1
+)
+
+if not exist "toolCaoTruyen\.venv\Scripts\python.exe" (
+    echo [ERROR] setup.bat has not been run or virtualenv for toolCaoTruyen is missing.
     echo Please run setup.bat first.
     pause
     exit /b 1
