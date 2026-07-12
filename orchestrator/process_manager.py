@@ -97,7 +97,14 @@ class ProcessManager:
 
     def is_running(self, task_key: str) -> bool:
         with self._lock:
-            return task_key in self.active_processes
+            proc = self.active_processes.get(task_key)
+            if not proc:
+                return False
+            # Check if process has terminated (poll returns exit code)
+            if proc.poll() is not None:
+                del self.active_processes[task_key]
+                return False
+            return True
 
     def get_logs_generator(self, task_key: str):
         """Returns a generator that yields log lines as they arrive (ideal for Server-Sent Events)."""
