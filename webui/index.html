@@ -432,6 +432,13 @@
                                 <label for="s3GeminiOfflineUrl">Base URL (API cục bộ - Ghi đè cấu hình chung)</label>
                                 <input type="text" id="s3GeminiOfflineUrl" placeholder="http://localhost:7860/v1">
                             </div>
+                            <div class="form-group" id="groupS3OllamaModel" style="display:none;">
+                                <label for="s3OllamaModel">Model Ollama</label>
+                                <select id="s3OllamaModel">
+                                    <option value="qwen2.5:3b-instruct" selected>qwen2.5:3b-instruct</option>
+                                </select>
+                                <small id="s3OllamaStatus" style="display:block; margin-top:4px; opacity:0.75;"></small>
+                            </div>
                             <div class="form-group" id="groupS3LlmModel" style="display:none;">
                                 <label for="s3LlmModel">Model LLM (Ghi đè mặc định)</label>
                                 <input type="text" id="s3LlmModel" placeholder="gemini-3-flash">
@@ -445,9 +452,9 @@
                             </div>
                             <div class="form-group">
                                 <label class="checkbox-container">
-                                    <input type="checkbox" id="s3Subtitles" checked>
+                                    <input type="checkbox" id="s3Subtitles">
                                     <span class="checkmark"></span>
-                                    Tự động tạo và thiêu phụ đề (Burn SRT)
+                                    Tự động tạo và thiêu phụ đề (Burn SRT) (Tắt mặc định — bật sẽ chạy Whisper, tốn ~2-3GB VRAM + ~60s/chương)
                                 </label>
                             </div>
                             <div class="form-group">
@@ -466,9 +473,9 @@
                             </div>
                             <div class="form-group">
                                 <label class="checkbox-container">
-                                    <input type="checkbox" id="s3FaceDetailer" checked>
+                                    <input type="checkbox" id="s3FaceDetailer">
                                     <span class="checkmark"></span>
-                                    Bật Phẫu thuật khuôn mặt (Face Detailer) (Tắt đi để tăng tốc)
+                                    Bật Phẫu thuật khuôn mặt (Face Detailer) (Tắt mặc định — bật sẽ chậm ~2× và tốn thêm VRAM)
                                 </label>
                             </div>
                             <div class="form-group">

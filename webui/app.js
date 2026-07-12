@@ -307,27 +307,33 @@ function setupEventHandlers() {
     const elGroupS3GeminiKey = document.getElementById("groupS3GeminiKey");
     const elGroupS3GeminiOfflineUrl = document.getElementById("groupS3GeminiOfflineUrl");
     const elGroupS3LlmModel = document.getElementById("groupS3LlmModel");
+    const elGroupS3OllamaModel = document.getElementById("groupS3OllamaModel");
 
     elS3LlmEngine.addEventListener("change", () => {
         const eng = elS3LlmEngine.value;
+        const isOllama = (eng === "ollama");
         elGroupS3GeminiKey.style.display = (eng === "gemini" || eng === "gemini_api") ? "block" : "none";
-        elGroupS3GeminiOfflineUrl.style.display = (eng === "gemini_api" || eng === "ollama") ? "block" : "none";
-        elGroupS3LlmModel.style.display = "block"; // Always allow custom model overriding
-        
+        elGroupS3GeminiOfflineUrl.style.display = (eng === "gemini_api" || isOllama) ? "block" : "none";
+        // Ollama chọn model bằng dropdown; Gemini nhập model bằng text
+        elGroupS3OllamaModel.style.display = isOllama ? "block" : "none";
+        elGroupS3LlmModel.style.display = isOllama ? "none" : "block";
+
         const modelInput = document.getElementById("s3LlmModel");
         if (eng === "gemini") {
             modelInput.value = "gemini-2.0-flash";
-        } else if (eng === "ollama") {
-            modelInput.value = "qwen2.5:7b-instruct";
         } else {
             modelInput.value = "gemini-3-flash";
+        }
+
+        if (isOllama) {
+            loadOllamaModels("s3OllamaModel", "s3OllamaStatus");
         }
 
         // Xóa URL cũ khi đổi engine để backend tự resolve theo engine mới (tránh trỏ nhầm cổng)
         const urlInput = document.getElementById("s3GeminiOfflineUrl");
         if (urlInput) {
             urlInput.value = "";
-            urlInput.placeholder = (eng === "ollama") ? "http://localhost:11434/v1" : "http://localhost:7860/v1";
+            urlInput.placeholder = isOllama ? "http://localhost:11434/v1" : "http://localhost:7860/v1";
         }
     });
 
@@ -463,7 +469,9 @@ function setupEventHandlers() {
             llm_engine: document.getElementById("s3LlmEngine").value,
             llm_api_key: document.getElementById("s3GeminiKey").value || null,
             llm_offline_base_url: document.getElementById("s3GeminiOfflineUrl").value || null,
-            llm_offline_model: document.getElementById("s3LlmModel").value || null
+            llm_offline_model: (document.getElementById("s3LlmEngine").value === "ollama"
+                ? document.getElementById("s3OllamaModel").value
+                : document.getElementById("s3LlmModel").value) || null
         };
 
         toggleFormButtons("step3", true);
@@ -744,10 +752,11 @@ function streamLogs(stepName, taskKey) {
     };
 }
 
-// Load danh sách model Ollama (model đã cài + model khuyến nghị) vào dropdown
-async function loadOllamaModels() {
-    const sel = document.getElementById("s1OllamaModel");
-    const status = document.getElementById("s1OllamaStatus");
+// Load danh sách model Ollama (model đã cài + model khuyến nghị) vào dropdown.
+// Dùng chung cho Bước 1 (s1OllamaModel) và Bước 3 (s3OllamaModel).
+async function loadOllamaModels(selectId = "s1OllamaModel", statusId = "s1OllamaStatus") {
+    const sel = document.getElementById(selectId);
+    const status = document.getElementById(statusId);
     if (!sel) return;
     const previous = sel.value;
     try {
