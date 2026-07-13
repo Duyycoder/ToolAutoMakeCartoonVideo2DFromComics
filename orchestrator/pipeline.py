@@ -417,6 +417,9 @@ class NovelPipeline:
         from orchestrator.config import load_global_config
         g_config = load_global_config()
         video_cfg = g_config.get("video", {})
+        ocr_use_gpu = autosub_args.get("ocr_use_gpu")
+        if ocr_use_gpu is None:
+            ocr_use_gpu = video_cfg.get("ocr_use_gpu", True)
         
         # Resolve LLM parameters for translation
         llm_engine = autosub_args.get("llm_engine") or video_cfg.get("default_llm_engine") or "gemini_api"
@@ -509,6 +512,9 @@ class NovelPipeline:
         cookies_file = autosub_args.get("cookies_file") or g_config.get("video", {}).get("downloader_cookies", "")
         if cookies_file:
             cmd.extend(["--cookies-file", cookies_file])
+
+        if ocr_use_gpu:
+            cmd.append("--use-gpu")
 
         def on_autosub_completed(exit_code: int):
             if story_name:
