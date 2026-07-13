@@ -66,6 +66,7 @@ configs/global_config.json
 *.gguf
 
 # --- IDE / hệ điều hành ---
+**/third_party/phantomjs/
 .vscode/
 .idea/
 *.swp

@@ -771,15 +771,15 @@ function setupEventHandlers() {
             
             // Subtitle Customization Styling fields
             font_name: document.getElementById("s4FontName").value || null,
-            font_size: parseInt(document.getElementById("s4FontSize").value) || null,
+            font_size: document.getElementById("s4FontSize").value === "" ? null : parseInt(document.getElementById("s4FontSize").value),
             text_color: document.getElementById("s4TextColor").value || null,
             stroke_color: document.getElementById("s4StrokeColor").value || null,
-            stroke_width: parseFloat(document.getElementById("s4StrokeWidth").value) || null,
+            stroke_width: document.getElementById("s4StrokeWidth").value === "" ? null : parseFloat(document.getElementById("s4StrokeWidth").value),
             bg_style: document.getElementById("s4BgStyle").value || null,
             bg_color: document.getElementById("s4BgColor").value || null,
-            bg_alpha: parseInt(document.getElementById("s4BgAlpha").value) || null,
+            bg_alpha: document.getElementById("s4BgAlpha").value === "" ? null : parseInt(document.getElementById("s4BgAlpha").value),
             sub_position: document.getElementById("s4SubPosition").value || null,
-            custom_position: parseFloat(document.getElementById("s4CustomPosition").value) || null,
+            custom_position: document.getElementById("s4CustomPosition").value === "" ? null : parseFloat(document.getElementById("s4CustomPosition").value),
             cookies_file: document.getElementById("s4CookiesFile").value.trim() || null
         };
         
