@@ -341,6 +341,10 @@ class NovelPipeline:
         hw_profile = video_args.get("hardware_profile", "auto")
         cmd.extend(["--hardware-profile", hw_profile])
 
+        # Studio Compositing: "classic" (1 anh/canh) | "studio" (render theo lop roi ghep)
+        render_mode = video_args.get("render_mode") or "classic"
+        cmd.extend(["--render-mode", render_mode])
+
         # Set MC_STORAGE_TASKS environment variable to redirect MediaComposer outputs into the storage/tasks folder
         env_override = {
             "MC_STORAGE_TASKS": self.storage_mgr.tasks_dir

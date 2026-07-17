@@ -512,6 +512,14 @@
                                 </label>
                             </div>
                             <div class="form-group">
+                                <label for="s3RenderMode">Chế độ dựng ảnh (Render Mode)</label>
+                                <select id="s3RenderMode">
+                                    <option value="classic">Classic — 1 ảnh/cảnh (SD vẽ chung, ổn định)</option>
+                                    <option value="studio">Studio — render theo lớp: nền + nhân vật riêng rồi ghép (thử nghiệm)</option>
+                                </select>
+                                <small>Studio: nhân vật sinh riêng khung to (mặt đẹp hơn), tách nền chroma rồi ghép lên nền tái dùng theo bối cảnh. Cảnh đông người/tương tác tự lùi về classic.</small>
+                            </div>
+                            <div class="form-group">
                                 <label for="s3HardwareProfile">Cấu hình VRAM</label>
                                 <select id="s3HardwareProfile">
                                     <option value="auto">Tự động phát hiện (Auto)</option>

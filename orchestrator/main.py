@@ -95,6 +95,7 @@ class Step3Schema(BaseModel):
     use_semantic_split: Optional[bool] = True
     extract_characters: Optional[bool] = True
     enable_face_detailer: Optional[bool] = False
+    render_mode: Optional[str] = "classic"  # "classic" | "studio" (render theo lop)
     hardware_profile: Optional[str] = "auto"
     device: Optional[str] = "cuda"
     llm_engine: Optional[str] = "gemini_api"

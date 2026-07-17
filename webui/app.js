@@ -488,6 +488,7 @@ function setupEventHandlers() {
             use_semantic_split: document.getElementById("s3Semantic").checked,
             extract_characters: document.getElementById("s3ExtractChars").checked,
             enable_face_detailer: document.getElementById("s3FaceDetailer").checked,
+            render_mode: document.getElementById("s3RenderMode").value,
             hardware_profile: document.getElementById("s3HardwareProfile").value,
             device: document.getElementById("s3GpuDevice").value,
             llm_engine: document.getElementById("s3LlmEngine").value,
