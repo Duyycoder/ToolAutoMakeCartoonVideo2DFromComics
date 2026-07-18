@@ -10,18 +10,64 @@ permissions:
   contents: write
 
 jobs:
+  verify:
+    name: Kiem tra truoc khi phat hanh
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lay ma nguon va submodule
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cai Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: orchestrator/requirements-dev.txt
+
+      - name: Cai dependencies repo tong
+        run: python -m pip install -r orchestrator/requirements-dev.txt
+
+      - name: Kiem tra repo tong
+        run: |
+          python -m ruff check orchestrator tests
+          python -m compileall orchestrator -q
+          python -m pytest -q tests/
+
+      - name: Cai dependencies test AIVoice
+        run: >-
+          python -m pip install numpy pillow loguru openai toml
+          opencv-python-headless
+
+      - name: Kiem tra AIVoice GPU-free
+        working-directory: AIVoice/apps/MediaComposer
+        run: |
+          python -m ruff check app tests --select E9,F63,F7,F82
+          python -m compileall app/services/storytelling -q
+          python -m pytest tests -q
+
+      - name: Kiem tra cu phap toolCaoTruyen
+        run: |
+          python -m compileall toolCaoTruyen/core toolCaoTruyen/translator toolCaoTruyen/sources toolCaoTruyen/web -q
+          python -m py_compile toolCaoTruyen/adapter_cli.py toolCaoTruyen/main.py toolCaoTruyen/app.py
+
   dong-goi:
     name: Dong goi va phat hanh
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - name: Lay ma nguon
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Tao goi ma nguon
         run: |
           zip -r "ToolAutoMakeCartoonVideo2DFromComics-${GITHUB_REF_NAME}.zip" \
-            orchestrator webui configs tests README.md pytest.ini run.bat setup.bat \
-            -x "*__pycache__*"
+            orchestrator webui configs tests scripts docs AIVoice toolCaoTruyen \
+            README.md pytest.ini run.bat setup.bat .gitmodules \
+            -x "*/.git" "*/.git/*" "*__pycache__*" "*.pyc"
 
       - name: Tao GitHub Release
         uses: softprops/action-gh-release@v2
