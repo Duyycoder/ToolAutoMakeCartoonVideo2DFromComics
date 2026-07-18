@@ -10,6 +10,9 @@ def slugify(text: str) -> str:
     Converts Vietnamese and Unicode text into a safe ASCII slug for directories.
     Example: "Đắc Kỷ Trụ Vương" -> "dac_ky_tru_vuong"
     """
+    if not text:
+        return "unknown"
+        
     # Convert to lowercase
     text = text.lower()
     
@@ -33,6 +36,8 @@ def slugify(text: str) -> str:
     text = re.sub(r'[^\w\s-]', '', text)
     text = re.sub(r'[\s_-]+', '_', text).strip('_')
     
+    if not text:
+        return "unknown"
     return text
 
 class StorageManager:

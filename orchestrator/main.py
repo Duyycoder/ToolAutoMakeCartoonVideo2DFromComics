@@ -1,7 +1,7 @@
 import os
 import sys
 from typing import Optional
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -20,8 +20,8 @@ app = FastAPI(title="AutoCartoon Novel-to-Video Maker Orchestrator")
 # Allow CORS for developmental UI/debugging
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["http://127.0.0.1:8100", "http://localhost:8100"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -38,6 +38,7 @@ class GlobalConfigSchema(BaseModel):
     crawler: dict
     tts: dict
     video: dict
+    orchestrator_port: Optional[int] = None
 
 class CreateStorySchema(BaseModel):
     story_name: str
@@ -323,6 +324,12 @@ def stream_logs(task_key: str):
         media_type="text/event-stream"
     )
 
+
+@app.get("/api/pipeline/status/{task_key}")
+def pipeline_task_status(task_key: str):
+    """Cho frontend kiểm tra task khi EventSource tạm ngắt/kết thúc."""
+    return process_mgr.get_task_status(task_key)
+
 @app.post("/api/system/clear-cache")
 def clear_semantic_cache():
     import shutil
@@ -416,8 +423,8 @@ def autosub_prepare(body: PrepareSchema):
                 if data.get("event") == "prepare_done":
                     info = data
                     break
-            except:
-                pass
+            except _json.JSONDecodeError:
+                continue
                 
     if not info:
         err_msg = res.stdout[-1000:] if res.stdout else "No output"
@@ -459,10 +466,8 @@ def run_step5(body: Step5Schema):
 
 @app.get("/api/stories/{story_name}/videos")
 def get_story_videos(story_name: str):
-    from orchestrator.storage import slugify
     import glob
-    
-    slug = slugify(story_name)
+
     story_dir = storage_mgr.get_story_dir(story_name)
     if not os.path.exists(story_dir):
         raise HTTPException(status_code=404, detail="Truyện không tồn tại.")

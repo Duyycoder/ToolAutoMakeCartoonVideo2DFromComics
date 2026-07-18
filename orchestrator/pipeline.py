@@ -1,7 +1,5 @@
 import os
-import shutil
 import datetime
-from typing import Dict, Any, Optional
 from orchestrator.storage import StorageManager
 from orchestrator.process_manager import ProcessManager
 
@@ -9,6 +7,62 @@ class NovelPipeline:
     def __init__(self, storage_mgr: StorageManager, process_mgr: ProcessManager):
         self.storage_mgr = storage_mgr
         self.process_mgr = process_mgr
+
+    def _resolve_llm(self, llm_engine: str, args: dict, g_config: dict, default_model: str) -> tuple[str, str, str]:
+        from .config import DEFAULT_GEMINI_ONLINE_MODEL, DEFAULT_GEMINI_PROXY_MODEL, DEFAULT_OLLAMA_MODEL
+        llm_api_key = args.get("llm_api_key")
+        llm_offline_base_url = args.get("llm_offline_base_url")
+        llm_offline_model = args.get("llm_offline_model") or default_model
+
+        if llm_engine == "gemini":  # Gemini Online
+            resolved_key = llm_api_key or g_config.get("api_keys", {}).get("gemini", "")
+            if not resolved_key:
+                raise ValueError("Đã chọn Gemini Online nhưng chưa có API Key. Nhập key ở giao diện hoặc lưu vào Cấu Hình Chung (api_keys.gemini).")
+            resolved_base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+            resolved_model = llm_offline_model or DEFAULT_GEMINI_ONLINE_MODEL
+        elif llm_engine == "ollama":  # Ollama (Local)
+            resolved_key = "ollama"
+            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
+            resolved_model = llm_offline_model or DEFAULT_OLLAMA_MODEL
+        else:  # gemini_api (Local Gemini proxy)
+            resolved_key = llm_api_key or g_config.get("crawler", {}).get("gemini_offline_key", "")
+            if not resolved_key:
+                raise ValueError("Đã chọn Gemini Proxy nhưng chưa cấu hình key. Nhập key ở giao diện hoặc config crawler.gemini_offline_key")
+            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("gemini_offline_base_url") or "http://localhost:7860/v1"
+            resolved_model = llm_offline_model or DEFAULT_GEMINI_PROXY_MODEL
+            
+        return resolved_key, resolved_base_url, resolved_model
+
+    def _finalize_video_task(self, story_name: str, video_output_dir: str,
+                             task_key: str, exit_code: int) -> bool:
+        """Merge output và chỉ công bố VIDEO_GENERATED khi có video thật."""
+        meta = self.storage_mgr.read_story_meta(story_name)
+        if not meta:
+            return False
+
+        success = False
+        if exit_code == 0:
+            import time
+            from orchestrator.video_merger import merge_videos
+
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            output_file = os.path.join(
+                video_output_dir, f"TongHop_{timestamp}.mp4")
+            q = self.process_mgr.log_queues.get(task_key)
+            if q:
+                q.put(f"\n[SYSTEM] Đang hợp nhất video vào {output_file}...\n")
+            success = merge_videos(video_output_dir, output_file)
+            if q:
+                q.put(
+                    "[SYSTEM] Đã hợp nhất video thành công!\n" if success
+                    else "[SYSTEM] Lỗi khi hợp nhất video.\n")
+
+        meta["status"] = "VIDEO_GENERATED" if success else "VIDEO_FAILED"
+        if success:
+            meta["pipeline_step"] = 3
+        meta["updated_at"] = datetime.datetime.now().isoformat()
+        self.storage_mgr.write_story_meta(story_name, meta)
+        return success
 
     def start_step_1_crawl_translate(self, story_name: str, crawl_args: dict, trans_args: dict) -> bool:
         """Runs crawl subcommand, and on success, triggers translate subcommand."""
@@ -18,7 +72,6 @@ class NovelPipeline:
 
         story_dir = self.storage_mgr.get_story_dir(story_name)
         raw_dir = os.path.join(story_dir, "raw")
-        translated_dir = os.path.join(story_dir, "translated")
 
         python_exe = os.path.abspath("toolCaoTruyen/.venv/Scripts/python.exe")
         adapter_path = os.path.abspath("toolCaoTruyen/adapter_cli.py")
@@ -70,6 +123,12 @@ class NovelPipeline:
 
         task_key = f"{story_meta['story_slug']}_step1"
 
+        def finish_step1(exit_code: int):
+            self.process_mgr.mark_completed(task_key, exit_code)
+            q = self.process_mgr.log_queues.get(task_key)
+            if q:
+                q.put(None)
+
         def on_translate_completed(exit_code: int):
             meta = self.storage_mgr.read_story_meta(story_name)
             if not meta:
@@ -85,9 +144,7 @@ class NovelPipeline:
         def on_crawl_completed(exit_code: int):
             meta = self.storage_mgr.read_story_meta(story_name)
             if not meta:
-                # If meta is not found, we still need to close the queue!
-                if task_key in self.process_mgr.log_queues:
-                    self.process_mgr.log_queues[task_key].put(None)
+                finish_step1(1)
                 return
             if exit_code == 0:
                 if trans_args.get("auto_translate", True):
@@ -100,7 +157,7 @@ class NovelPipeline:
                         self.process_mgr.log_queues[task_key].put("\n[Pipeline] Bắt đầu tự động dịch...\n")
                     
                     # Start translation process on the same queue!
-                    self.process_mgr.start_process(
+                    started = self.process_mgr.start_process(
                         task_key=task_key,
                         cmd=translate_cmd,
                         cwd="toolCaoTruyen",
@@ -108,16 +165,24 @@ class NovelPipeline:
                         close_queue_on_exit=True,
                         reuse_queue=True
                     )
+                    if not started:
+                        meta["status"] = "TRANSLATE_FAILED"
+                        meta["updated_at"] = datetime.datetime.now().isoformat()
+                        self.storage_mgr.write_story_meta(story_name, meta)
+                        q = self.process_mgr.log_queues.get(task_key)
+                        if q:
+                            q.put("[Pipeline] Không thể khởi động tiến trình dịch.\n")
+                        finish_step1(1)
                 else:
                     meta["status"] = "CRAWLED"
                     meta["updated_at"] = datetime.datetime.now().isoformat()
                     self.storage_mgr.write_story_meta(story_name, meta)
-                    self.process_mgr.log_queues[task_key].put(None)
+                    finish_step1(0)
             else:
                 meta["status"] = "CRAWL_FAILED"
                 meta["updated_at"] = datetime.datetime.now().isoformat()
                 self.storage_mgr.write_story_meta(story_name, meta)
-                self.process_mgr.log_queues[task_key].put(None)
+                finish_step1(exit_code or 1)
 
         # Start Crawling
         story_meta["status"] = "CRAWLING"
@@ -134,8 +199,13 @@ class NovelPipeline:
             )
         else:
             # Handle local folder copy in a background thread to not block
+            import queue as _q
             import threading
             import shutil
+            local_queue = _q.Queue()
+            if not self.process_mgr.register_manual_task(task_key, local_queue):
+                return False
+
             def _copy_local():
                 local_dir = crawl_args.get("local_folder")
                 try:
@@ -147,6 +217,8 @@ class NovelPipeline:
                     else:
                         on_crawl_completed(1)
                 except Exception as e:
+                    local_queue.put(
+                        f"[Pipeline] Lỗi khi copy thư mục cục bộ: {e}\n")
                     on_crawl_completed(1)
             threading.Thread(target=_copy_local, daemon=True).start()
             return True
@@ -281,25 +353,9 @@ class NovelPipeline:
 
         # Resolve LLM parameters for Step 3
         llm_engine = video_args.get("llm_engine") or video_cfg.get("default_llm_engine") or "gemini_api"
-        llm_api_key = video_args.get("llm_api_key")
-        llm_offline_base_url = video_args.get("llm_offline_base_url")
-        llm_offline_model = video_args.get("llm_offline_model") or video_cfg.get("default_llm_model")
-
-        if llm_engine == "gemini":  # Gemini Online (AI Studio)
-            resolved_key = llm_api_key or g_config.get("api_keys", {}).get("gemini", "")
-            if not resolved_key:
-                raise ValueError("Đã chọn Gemini Online nhưng chưa có API Key. Nhập key ở Bước 3 hoặc lưu vào Cấu Hình Chung (api_keys.gemini).")
-            resolved_base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
-            resolved_model = llm_offline_model or "gemini-2.0-flash"
-        elif llm_engine == "ollama":  # Ollama (Local)
-            resolved_key = "ollama"  # placeholder: get_llm_client() yeu cau key khac rong
-            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
-            # Mac dinh qwen2.5:3b-instruct (~2-3GB VRAM) — vua GPU 6GB khi chay cung SD
-            resolved_model = llm_offline_model or "qwen2.5:3b-instruct"
-        else:  # gemini_api (Local Gemini proxy)
-            resolved_key = llm_api_key or "sk-gemini-YrVwXWGegzkFlevHPdQy7Fpry14HJVirqvnuxukz"
-            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("gemini_offline_base_url") or "http://localhost:7860/v1"
-            resolved_model = llm_offline_model or "gemini-3-flash"
+        resolved_key, resolved_base_url, resolved_model = self._resolve_llm(
+            llm_engine, video_args, g_config, video_cfg.get("default_llm_model")
+        )
 
         cmd = [
             python_exe, adapter_path,
@@ -358,30 +414,8 @@ class NovelPipeline:
         task_key = f"{story_meta['story_slug']}_step3"
 
         def on_video_completed(exit_code: int):
-            meta = self.storage_mgr.read_story_meta(story_name)
-            if not meta:
-                return
-            if exit_code == 0:
-                # Merge videos
-                import time
-                from orchestrator.video_merger import merge_videos
-                timestamp = time.strftime("%Y%m%d_%H%M%S")
-                output_file = os.path.join(video_output_dir, f"TongHop_{timestamp}.mp4")
-                if task_key in self.process_mgr.log_queues:
-                    self.process_mgr.log_queues[task_key].put(f"\n[SYSTEM] Đang hợp nhất video vào {output_file}...\n")
-                
-                success = merge_videos(video_output_dir, output_file)
-                if success and task_key in self.process_mgr.log_queues:
-                    self.process_mgr.log_queues[task_key].put(f"[SYSTEM] Đã hợp nhất video thành công!\n")
-                elif not success and task_key in self.process_mgr.log_queues:
-                    self.process_mgr.log_queues[task_key].put(f"[SYSTEM] Lỗi khi hợp nhất video.\n")
-                    
-                meta["status"] = "VIDEO_GENERATED"
-                meta["pipeline_step"] = 3 # Complete!
-            else:
-                meta["status"] = "VIDEO_FAILED"
-            meta["updated_at"] = datetime.datetime.now().isoformat()
-            self.storage_mgr.write_story_meta(story_name, meta)
+            return self._finalize_video_task(
+                story_name, video_output_dir, task_key, exit_code)
 
         story_meta["status"] = "VIDEO_GENERATING"
         story_meta["updated_at"] = datetime.datetime.now().isoformat()
@@ -427,25 +461,9 @@ class NovelPipeline:
         
         # Resolve LLM parameters for translation
         llm_engine = autosub_args.get("llm_engine") or video_cfg.get("default_llm_engine") or "gemini_api"
-        llm_api_key = autosub_args.get("llm_api_key")
-        llm_offline_base_url = autosub_args.get("llm_offline_base_url")
-        llm_offline_model = autosub_args.get("llm_offline_model") or video_cfg.get("default_llm_model")
-
-        if llm_engine == "gemini":  # Gemini Online
-            resolved_key = llm_api_key or g_config.get("api_keys", {}).get("gemini", "")
-            if not resolved_key:
-                raise ValueError("Đã chọn Gemini Online nhưng chưa có API Key. Nhập key ở Bước 4 hoặc lưu vào Cấu Hình Chung (api_keys.gemini).")
-            resolved_base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
-            resolved_model = llm_offline_model or "gemini-2.0-flash"
-        elif llm_engine == "ollama":  # Ollama (Local)
-            resolved_key = "ollama"
-            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
-            resolved_model = llm_offline_model or "qwen2.5:3b-instruct"
-        else:  # gemini_api (Local Gemini proxy)
-            resolved_key = llm_api_key or "sk-gemini-YrVwXWGegzkFlevHPdQy7Fpry14HJVirqvnuxukz"
-            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("gemini_offline_base_url") or "http://localhost:7860/v1"
-            resolved_model = llm_offline_model or "gemini-3-flash"
-            
+        resolved_key, resolved_base_url, resolved_model = self._resolve_llm(
+            llm_engine, autosub_args, g_config, video_cfg.get("default_llm_model")
+        )
         cmd = [
             python_exe, adapter_path,
             "--output-dir", output_dir,
@@ -479,10 +497,6 @@ class NovelPipeline:
         crop_w = autosub_args.get("crop_w", -1)
         crop_h = autosub_args.get("crop_h", -1)
         if crop_x >= 0 and crop_y >= 0 and crop_w > 0 and crop_h > 0:
-            crop_x = max(0, crop_x)
-            crop_y = max(0, crop_y)
-            crop_w = max(0, crop_w)
-            crop_h = max(0, crop_h)
             cmd.extend([
                 "--crop-x", str(crop_x),
                 "--crop-y", str(crop_y),
@@ -558,7 +572,8 @@ class NovelPipeline:
             
         task_key = f"{meta['story_slug']}_step5"
         q = _q.Queue()
-        self.process_mgr.log_queues[task_key] = q
+        if not self.process_mgr.register_manual_task(task_key, q):
+            return False
         
         video_dir = os.path.join(self.storage_mgr.get_story_dir(story_name), "video")
         out = os.path.join(video_dir, f"TongHop_{time.strftime('%Y%m%d_%H%M%S')}.mp4")
@@ -573,6 +588,7 @@ class NovelPipeline:
                 pass
                 
         def _run():
+            ok = False
             try:
                 from orchestrator.video_merger import merge_videos
                 q.put(f"[SYSTEM] Bắt đầu ghép video vào {out}...\n")
@@ -586,6 +602,7 @@ class NovelPipeline:
             except Exception as e:
                 q.put(f"[ERROR] {e}\n")
             finally:
+                self.process_mgr.mark_completed(task_key, 0 if ok else 1)
                 q.put(None)
                 
         threading.Thread(target=_run, daemon=True).start()

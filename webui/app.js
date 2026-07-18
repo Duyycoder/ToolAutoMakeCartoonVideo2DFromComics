@@ -929,15 +929,33 @@ function streamLogs(stepName, taskKey) {
     }
 
     appendConsoleLog(stepName, `[SYSTEM] Đang mở luồng EventSource kết nối tới logs task: ${taskKey}...`, "log-system");
-    currentLogsSse = new EventSource(`${API_BASE}/api/pipeline/logs/${encodeURIComponent(taskKey)}`);
+    const source = new EventSource(`${API_BASE}/api/pipeline/logs/${encodeURIComponent(taskKey)}`);
+    currentLogsSse = source;
+    let terminalReceived = false;
+    let reconnectNoticeShown = false;
+    let statusCheckInFlight = false;
 
-    currentLogsSse.onmessage = (event) => {
+    source.onopen = () => {
+        reconnectNoticeShown = false;
+    };
+
+    source.onmessage = (event) => {
+        if (currentLogsSse !== source || terminalReceived) return;
         const rawLine = event.data;
         if (rawLine === "[PING]") return; // Keep-alive signal
         
-        if (rawLine.startsWith("[SYSTEM] Process completed.")) {
-            appendConsoleLog(stepName, "[SYSTEM] Quy trình hoàn thành xong.", "log-success");
-            currentLogsSse.close();
+        if (rawLine.startsWith("[SYSTEM] Process completed")) {
+            terminalReceived = true;
+            const exitMatch = rawLine.match(/exit_code=(-?\d+)/);
+            const terminalOk = !exitMatch || Number(exitMatch[1]) === 0;
+            appendConsoleLog(
+                stepName,
+                terminalOk ? "[SYSTEM] Quy trình hoàn thành xong."
+                           : `[SYSTEM ERROR] Quy trình kết thúc với mã lỗi ${exitMatch[1]}.`,
+                terminalOk ? "log-success" : "log-error"
+            );
+            source.close();
+            if (currentLogsSse === source) currentLogsSse = null;
             toggleFormButtons(stepName, false);
             loadStories(); // Reload to capture status changes
             return;
@@ -1105,11 +1123,71 @@ function streamLogs(stepName, taskKey) {
         appendConsoleLog(stepName, displayText, logClass);
     };
 
-    currentLogsSse.onerror = (e) => {
-        appendConsoleLog(stepName, "[SYSTEM ERROR] Đứt kết nối luồng logs SSE. Kiểm tra trạng thái máy chủ.", "log-error");
-        currentLogsSse.close();
-        toggleFormButtons(stepName, false);
-        loadStories();
+    source.onerror = async () => {
+        if (currentLogsSse !== source || terminalReceived || statusCheckInFlight) return;
+        statusCheckInFlight = true;
+
+        try {
+            const response = await fetch(
+                `${API_BASE}/api/pipeline/status/${encodeURIComponent(taskKey)}`,
+                { cache: "no-store" }
+            );
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const status = await response.json();
+            // Trong lúc fetch, terminal cũ có thể đã tới hoặc người dùng đã
+            // khởi động task mới. Handler cũ tuyệt đối không được đổi UI mới.
+            if (currentLogsSse !== source || terminalReceived) return;
+
+            if (status.completed) {
+                terminalReceived = true;
+                source.close();
+                if (currentLogsSse === source) currentLogsSse = null;
+                const ok = status.exit_code === 0;
+                appendConsoleLog(
+                    stepName,
+                    ok ? "[SYSTEM] Quy trình đã hoàn thành; luồng log đã đóng."
+                       : `[SYSTEM ERROR] Quy trình kết thúc với mã lỗi ${status.exit_code}.`,
+                    ok ? "log-success" : "log-error"
+                );
+                toggleFormButtons(stepName, false);
+                loadStories();
+                return;
+            }
+
+            if (status.running) {
+                if (!reconnectNoticeShown) {
+                    reconnectNoticeShown = true;
+                    appendConsoleLog(
+                        stepName,
+                        "[SYSTEM] Luồng log tạm gián đoạn; máy chủ vẫn chạy và EventSource đang tự kết nối lại...",
+                        "log-warn"
+                    );
+                }
+                return; // Giữ EventSource mở để trình duyệt tự reconnect.
+            }
+
+            source.close();
+            if (currentLogsSse === source) currentLogsSse = null;
+            appendConsoleLog(
+                stepName,
+                "[SYSTEM] Luồng log đã đóng và task không còn chạy. Đang tải lại trạng thái.",
+                "log-warn"
+            );
+            toggleFormButtons(stepName, false);
+            loadStories();
+        } catch (error) {
+            if (currentLogsSse !== source || terminalReceived) return;
+            source.close();
+            if (currentLogsSse === source) currentLogsSse = null;
+            appendConsoleLog(
+                stepName,
+                `[SYSTEM ERROR] Không liên lạc được máy chủ khi kiểm tra SSE: ${error.message}`,
+                "log-error"
+            );
+            toggleFormButtons(stepName, false);
+        } finally {
+            statusCheckInFlight = false;
+        }
     };
 }
 

@@ -8,6 +8,7 @@
   "crawler": {
     "default_site": "local",
     "gemini_offline_base_url": "http://localhost:7860/v1",
+    "gemini_offline_key": "",
     "ollama_base_url": "http://localhost:11434/v1"
   },
   "tts": {
@@ -25,6 +26,6 @@
     "default_checkpoint": "anything-v5",
     "bgm_volume": 0.15,
     "default_llm_engine": "gemini_api",
-    "default_llm_model": "gemini-3-flash"
+    "default_llm_model": "gemini-2.5-flash"
   }
 }

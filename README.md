@@ -11,7 +11,7 @@ Hệ thống gồm 3 tầng, giao tiếp với nhau qua tiến trình con (subpr
 ```
 ToolAutoMakeCartoonVideo2DFromComics/   (repo tổng)
 ├── orchestrator/     # FastAPI :8100 — điều phối pipeline, máy trạng thái, quản lý tiến trình
-│                     # (venv siêu nhẹ: fastapi + uvicorn + httpx, KHÔNG import torch)
+│                     # (dùng chung AIVoice/.venv, KHÔNG import torch; các bước AI nặng chạy subprocess và tự nhả VRAM)
 ├── webui/            # Giao diện web 1 trang (HTML/CSS/JS thuần + SSE cập nhật tiến độ)
 ├── configs/          # Cấu hình toàn cục (config.example.json — copy thành global_config.json)
 ├── AIVoice/          # [submodule] TTS đa engine (edge/piper/xtts/kokoro/vieneu) + MediaComposer (sinh video)

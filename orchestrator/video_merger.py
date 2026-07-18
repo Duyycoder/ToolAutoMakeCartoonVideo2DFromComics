@@ -2,7 +2,15 @@ import os
 import subprocess
 import glob
 import sys
-import datetime
+
+def _select_files(mp4_files: list[str], only_files: list[str] | None) -> list[str]:
+    # Filter out files that might already be the output file or other merged files
+    filtered = [f for f in mp4_files if not os.path.basename(f).startswith("TongHop_")]
+    if only_files:
+        # CHỐNG PATH TRAVERSAL: chỉ nhận basename thuần, phải nằm trong danh sách quét được
+        wanted = {name for name in only_files if os.path.basename(name) == name}
+        filtered = [f for f in filtered if os.path.basename(f) in wanted]
+    return filtered
 
 def merge_videos(video_dir: str, output_file: str, only_files: list[str] | None = None) -> bool:
     """Merges all mp4 files in video_dir into output_file using FFmpeg concat stream copy."""
@@ -16,13 +24,7 @@ def merge_videos(video_dir: str, output_file: str, only_files: list[str] | None 
         return False
 
     mp4_files = sorted(glob.glob(os.path.join(video_dir, "*.mp4")))
-    # Filter out files that might already be the output file or other merged files
-    mp4_files = [f for f in mp4_files if not os.path.basename(f).startswith("TongHop_")]
-    
-    if only_files:
-        # CHỐNG PATH TRAVERSAL: chỉ nhận basename thuần, phải nằm trong danh sách quét được
-        wanted = {name for name in only_files if os.path.basename(name) == name}
-        mp4_files = [f for f in mp4_files if os.path.basename(f) in wanted]
+    mp4_files = _select_files(mp4_files, only_files)
         
     if not mp4_files:
         print(f"[Warning] No MP4 files found in {video_dir} to merge.")
@@ -82,7 +84,7 @@ def merge_videos(video_dir: str, output_file: str, only_files: list[str] | None 
         if os.path.exists(list_file):
             try:
                 os.remove(list_file)
-            except:
+            except OSError:
                 pass
 
 if __name__ == "__main__":
