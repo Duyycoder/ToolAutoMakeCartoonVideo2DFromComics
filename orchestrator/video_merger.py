@@ -52,7 +52,8 @@ def merge_videos(video_dir: str, output_file: str, only_files: list[str] | None 
         ]
         
         # Run ffmpeg
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         if result.returncode != 0:
             print(f"[Error] FFmpeg concat -c copy failed with exit code {result.returncode}. Attempting fallback re-encoding...")
             # Fallback re-encode đúng 1 tầng
@@ -68,7 +69,8 @@ def merge_videos(video_dir: str, output_file: str, only_files: list[str] | None 
                 "-c:a", "aac",
                 output_file
             ]
-            result_fallback = subprocess.run(cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            result_fallback = subprocess.run(cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             if result_fallback.returncode != 0:
                 print("[Error] Fallback re-encoding also failed.")
                 print(result_fallback.stderr)

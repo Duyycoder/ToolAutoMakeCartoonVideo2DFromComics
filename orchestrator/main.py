@@ -160,7 +160,8 @@ def get_config():
 def get_gpu_info():
     import subprocess
     try:
-        result = subprocess.run(['nvidia-smi', '--query-gpu=name,memory.total', '--format=csv,noheader'], capture_output=True, text=True)
+        result = subprocess.run(['nvidia-smi', '--query-gpu=name,memory.total', '--format=csv,noheader'], capture_output=True, text=True,
+                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         if result.returncode == 0 and result.stdout.strip():
             parts = result.stdout.strip().split(', ')
             return {"name": parts[0], "vram": parts[1]}
@@ -312,8 +313,9 @@ def stop_pipeline(story_name: str, step: int):
         if meta:
             meta["status"] = "CANCELLED"
             storage_mgr.write_story_meta(story_name, meta)
-        return {"status": "success", "message": f"Successfully stopped task '{task_key}'."}
-    
+        return {"status": "success", "task_key": task_key,
+                "message": f"Successfully stopped task '{task_key}'."}
+
     raise HTTPException(status_code=404, detail=f"No active running task found for key '{task_key}'.")
 
 @app.get("/api/pipeline/logs/{task_key}")
@@ -407,7 +409,8 @@ def autosub_prepare(body: PrepareSchema):
         cmd += ["--cookies-file", resolved_cookies]
         
     try:
-        res = subprocess.run(cmd, cwd="AIVoice", capture_output=True, text=True, encoding="utf-8", timeout=900)
+        res = subprocess.run(cmd, cwd="AIVoice", capture_output=True, text=True, encoding="utf-8", timeout=900,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="Tải/chuẩn bị video quá 15 phút — kiểm tra link hoặc mạng.")
         

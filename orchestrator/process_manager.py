@@ -1,8 +1,13 @@
 import os
 import subprocess
 import threading
+import time
 import queue
 from typing import Dict, Optional, Callable
+
+# Chạy dưới pythonw (không console), mọi tiến trình con console-mode sẽ tự
+# mở cửa sổ đen mới nếu không có cờ này. Bằng 0 trên non-Windows.
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 class ProcessManager:
     def __init__(self):
@@ -11,6 +16,7 @@ class ProcessManager:
         self.completed_exit_codes: Dict[str, int] = {}
         self.finalizing_tasks: Dict[str, int] = {}
         self.manual_running_tasks: set[str] = set()
+        self.user_stopped_tasks: set[str] = set()
         self._lock = threading.Lock()
 
     def start_process(self, task_key: str, cmd: list, cwd: str, env_override: Optional[dict] = None, on_completed: Optional[Callable[[int], None]] = None, close_queue_on_exit: bool = True, reuse_queue: bool = False) -> bool:
@@ -28,6 +34,7 @@ class ProcessManager:
                 log_queue = queue.Queue()
                 self.log_queues[task_key] = log_queue
             self.completed_exit_codes.pop(task_key, None)
+            self.user_stopped_tasks.discard(task_key)
 
             # Windows-specific: run without showing console window if desired,
             # but keep it standard so subprocess.Popen works cleanly.
@@ -46,7 +53,8 @@ class ProcessManager:
                     text=True,
                     encoding="utf-8",
                     env=env,
-                    bufsize=1 # Line buffered
+                    bufsize=1, # Line buffered
+                    creationflags=NO_WINDOW
                 )
                 self.active_processes[task_key] = proc
                 self.manual_running_tasks.discard(task_key)
@@ -72,11 +80,17 @@ class ProcessManager:
                     # Chỉ reader sở hữu đúng process này mới được nhả slot.
                     # Nếu một lệnh mới đã được đăng ký trong khe thời gian rất
                     # nhỏ sau khi child exit, reader cũ không được xóa nhầm nó.
-                    if self.active_processes.get(task_key) is process:
+                    owned = self.active_processes.get(task_key) is process
+                    if owned:
                         del self.active_processes[task_key]
-                    if on_completed:
+                    if owned and on_completed:
                         self.finalizing_tasks[task_key] = (
                             self.finalizing_tasks.get(task_key, 0) + 1)
+                if not owned:
+                    # stop_process đã force-release slot này: bookkeeping do nó
+                    # ghi rồi, queue có thể đã thuộc về run mới -> reader cũ
+                    # không được chạy callback hay đặt sentinel nữa.
+                    return
 
                 # Callback hậu xử lý (vd merge video) phải hoàn tất và ghi log
                 # TRƯỚC sentinel; nếu không SSE sẽ báo xong quá sớm.
@@ -108,23 +122,84 @@ class ProcessManager:
         t.start()
         return True
 
+    @staticmethod
+    def _kill_process_tree(proc: subprocess.Popen) -> None:
+        """Diệt cả CÂY tiến trình (con adapter lẫn cháu ffmpeg/SD...).
+
+        Nếu chỉ terminate() con trực tiếp, cháu mồ côi vẫn giữ đầu ghi của
+        pipe stdout -> reader thread kẹt trong readline() vĩnh viễn -> task
+        không bao giờ được giải phóng và UI kẹt ở trạng thái 'đang chạy'.
+        """
+        try:
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                    capture_output=True, timeout=15,
+                    creationflags=NO_WINDOW)
+            else:
+                proc.terminate()
+        except Exception:
+            pass
+        try:
+            proc.wait(timeout=3)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+
     def stop_process(self, task_key: str) -> bool:
-        """Terminates an active subprocess."""
+        """Terminates an active subprocess (and its whole process tree)."""
         with self._lock:
             proc = self.active_processes.get(task_key)
             if not proc:
                 return False
-            
-            try:
-                proc.terminate()
-                # Wait up to 3 seconds for graceful shutdown, then force kill
-                try:
-                    proc.wait(timeout=3)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
+            self.user_stopped_tasks.add(task_key)
+
+        # Kill NGOÀI lock: wait có thể mất vài giây, giữ lock sẽ làm treo
+        # mọi endpoint khác (kể cả reload trang) trong lúc dừng.
+        self._kill_process_tree(proc)
+
+        # Chờ reader thread tự dọn dẹp (EOF -> callback -> sentinel).
+        deadline = time.time() + 8.0
+        while time.time() < deadline:
+            with self._lock:
+                freed = (self.active_processes.get(task_key) is not proc
+                         and not self.finalizing_tasks.get(task_key, 0))
+            if freed:
                 return True
-            except Exception:
-                return False
+            time.sleep(0.2)
+
+        # Fallback: vẫn còn tiến trình mồ côi giữ pipe -> reader không nhận
+        # EOF. Tự giải phóng bookkeeping để người dùng bắt đầu lại được.
+        with self._lock:
+            if self.active_processes.get(task_key) is proc:
+                del self.active_processes[task_key]
+            exit_code = proc.poll()
+            self.completed_exit_codes[task_key] = (
+                exit_code if exit_code is not None else -1)
+            q = self.log_queues.get(task_key)
+        if q:
+            q.put("[SYSTEM] Đã buộc dừng tiến trình theo yêu cầu.\n")
+            q.put(None)
+        return True
+
+    def was_user_stopped(self, task_key: str) -> bool:
+        """Task kết thúc do người dùng bấm Dừng (phân biệt với lỗi thật)."""
+        with self._lock:
+            return task_key in self.user_stopped_tasks
+
+    def stop_all(self) -> None:
+        """Diệt mọi tiến trình con đang chạy (gọi khi tắt app).
+
+        Không chờ reader dọn bookkeeping như stop_process — app sắp thoát,
+        chỉ cần bảo đảm không bỏ lại tiến trình mồ côi chiếm GPU/VRAM.
+        """
+        with self._lock:
+            procs = list(self.active_processes.values())
+            self.user_stopped_tasks.update(self.active_processes.keys())
+        for proc in procs:
+            self._kill_process_tree(proc)
 
     def is_running(self, task_key: str) -> bool:
         with self._lock:

@@ -119,15 +119,71 @@ async function selectStory(storyName) {
     try {
         const response = await fetch(`${API_BASE}/api/stories/${encodeURIComponent(storyName)}`);
         const meta = await response.json();
-        
+
         elActiveStoryTitle.textContent = meta.story_name;
         elActiveStorySubtitle.textContent = `Thư mục lưu trữ: ${meta.story_dir} | Chương đã cào: ${meta.raw_chapters_count || 0}`;
-        
+
         // Update badge status
         updateStatusBadge(meta.status);
+
+        // Khôi phục trạng thái nút Bắt đầu/Dừng sau khi reload trang hoặc
+        // đổi truyện: hỏi server xem bước nào đang thực sự chạy.
+        restoreRunningTasks(meta.story_slug);
     } catch (e) {
         console.error("Lỗi khi chọn truyện:", e);
     }
+}
+
+// Đồng bộ UI với trạng thái chạy thật ở server (sau reload, UI mặc định
+// luôn hiện "Bắt đầu" kể cả khi task còn chạy -> bấm bị lỗi "already active"
+// mà không có nút Dừng). Đồng thời tự nối lại luồng log của bước đang chạy.
+async function restoreRunningTasks(storySlug) {
+    if (!storySlug) return;
+    let attachStep = null, attachKey = null;
+    for (let i = 1; i <= 5; i++) {
+        const stepName = `step${i}`;
+        const key = `${storySlug}_step${i}`;
+        try {
+            const res = await fetch(`${API_BASE}/api/pipeline/status/${encodeURIComponent(key)}`, { cache: "no-store" });
+            if (!res.ok) continue;
+            const st = await res.json();
+            toggleFormButtons(stepName, !!st.running);
+            if (st.running) {
+                currentTaskKeys[stepName] = key;
+                attachStep = stepName;
+                attachKey = key;
+            }
+        } catch (e) { /* server chưa sẵn sàng thì bỏ qua */ }
+    }
+    // Chỉ có một luồng SSE toàn cục -> bám vào bước đang chạy sau cùng,
+    // và không cướp luồng nếu đã có EventSource đang mở.
+    if (attachKey && !currentLogsSse) {
+        appendConsoleLog(attachStep, "[SYSTEM] Phát hiện tiến trình đang chạy — nối lại luồng log...", "log-system");
+        streamLogs(attachStep, attachKey);
+    }
+}
+
+// Sau khi gửi lệnh dừng: chờ server xác nhận task đã giải phóng rồi trả
+// nút về "Bắt đầu" (dự phòng cho trường hợp SSE không còn mở, vd sau reload).
+async function waitTaskStopped(stepName, taskKey, tries = 25) {
+    const btnStop = document.getElementById(`btnStopStep${stepName.slice(-1)}`);
+    for (let i = 0; i < tries; i++) {
+        await new Promise(r => setTimeout(r, 400));
+        // SSE đã nhận tín hiệu kết thúc và tự trả nút thì thôi không poll nữa
+        if (btnStop && btnStop.style.display === "none") return;
+        try {
+            const res = await fetch(`${API_BASE}/api/pipeline/status/${encodeURIComponent(taskKey)}`, { cache: "no-store" });
+            if (!res.ok) continue;
+            const st = await res.json();
+            if (!st.running) {
+                toggleFormButtons(stepName, false);
+                appendConsoleLog(stepName, "[SYSTEM] Tiến trình đã dừng hẳn. Có thể bắt đầu lại.", "log-success");
+                loadStories();
+                return;
+            }
+        } catch (e) { /* thử lại ở vòng sau */ }
+    }
+    appendConsoleLog(stepName, "[SYSTEM] Tiến trình dừng chậm bất thường — hãy thử bấm Dừng lần nữa.", "log-warn");
 }
 
 function updateStatusBadge(status) {
@@ -880,6 +936,7 @@ async function stopPipelineTask(stepName, stepNum) {
         const res = await response.json();
         if (res.status === "success") {
             appendConsoleLog(stepName, "[SYSTEM] Đã gửi yêu cầu dừng tiến trình thành công.", "log-system");
+            waitTaskStopped(stepName, res.task_key || "");
         } else {
             alert("Không thể dừng tiến trình: " + res.detail);
         }
@@ -1397,6 +1454,7 @@ async function stopTaskByKey(stepName) {
         const res = await fetch(`${API_BASE}/api/pipeline/stop-task?task_key=${encodeURIComponent(key)}`, { method: "POST" });
         const data = await res.json();
         appendConsoleLog(stepName, res.ok ? "[SYSTEM] Đã gửi yêu cầu dừng." : `[SYSTEM] Không dừng được: ${data.detail}`, "log-system");
+        if (res.ok) waitTaskStopped(stepName, key);
     } catch(e) {
         appendConsoleLog(stepName, `[SYSTEM ERROR] Lỗi khi dừng: ${e}`, "log-error");
     }

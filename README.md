@@ -49,7 +49,7 @@ git submodule update --init --recursive
    ```
    (`global_config.json` đã bị `.gitignore` loại trừ — không bao giờ commit key thật.)
 2. Chạy `setup.bat` — tạo venv tổng + gọi setup của 2 dự án con (tự nhận GPU, tải model).
-3. Chạy `run.bat` — khởi động orchestrator :8100, tự bật Gemini-API proxy, mở trình duyệt.
+3. Chạy `run.bat` — mở **cửa sổ ứng dụng desktop** (WebView2 qua pywebview), bên trong tự khởi động orchestrator :8100 và Gemini-API proxy **chạy ẩn, không hiện console**; log ghi vào `logs/app.log` và `logs/gemini_api.log`. Đóng cửa sổ app sẽ tự tắt sạch mọi tiến trình con. Cần xem log trực tiếp thì chạy `run.bat debug`; máy thiếu pywebview/WebView2 sẽ tự fallback mở trình duyệt.
 
 ## Chế độ trình diễn "sạch bản quyền" (khuyến nghị cho đồ án)
 

@@ -57,7 +57,12 @@ class NovelPipeline:
                     "[SYSTEM] Đã hợp nhất video thành công!\n" if success
                     else "[SYSTEM] Lỗi khi hợp nhất video.\n")
 
-        meta["status"] = "VIDEO_GENERATED" if success else "VIDEO_FAILED"
+        if success:
+            meta["status"] = "VIDEO_GENERATED"
+        elif self.process_mgr.was_user_stopped(task_key):
+            meta["status"] = "CANCELLED"
+        else:
+            meta["status"] = "VIDEO_FAILED"
         if success:
             meta["pipeline_step"] = 3
         meta["updated_at"] = datetime.datetime.now().isoformat()
@@ -136,6 +141,8 @@ class NovelPipeline:
             if exit_code == 0:
                 meta["status"] = "TRANSLATED"
                 meta["pipeline_step"] = 2
+            elif self.process_mgr.was_user_stopped(task_key):
+                meta["status"] = "CANCELLED"
             else:
                 meta["status"] = "TRANSLATE_FAILED"
             meta["updated_at"] = datetime.datetime.now().isoformat()
@@ -179,7 +186,9 @@ class NovelPipeline:
                     self.storage_mgr.write_story_meta(story_name, meta)
                     finish_step1(0)
             else:
-                meta["status"] = "CRAWL_FAILED"
+                meta["status"] = ("CANCELLED"
+                                  if self.process_mgr.was_user_stopped(task_key)
+                                  else "CRAWL_FAILED")
                 meta["updated_at"] = datetime.datetime.now().isoformat()
                 self.storage_mgr.write_story_meta(story_name, meta)
                 finish_step1(exit_code or 1)
@@ -312,6 +321,8 @@ class NovelPipeline:
             if exit_code == 0:
                 meta["status"] = "VOICE_GENERATED"
                 meta["pipeline_step"] = 3
+            elif self.process_mgr.was_user_stopped(task_key):
+                meta["status"] = "CANCELLED"
             else:
                 meta["status"] = "VOICE_FAILED"
             meta["updated_at"] = datetime.datetime.now().isoformat()
@@ -540,6 +551,8 @@ class NovelPipeline:
                 if meta:
                     if exit_code == 0:
                         meta["status"] = "AUTOSUB_COMPLETED"
+                    elif self.process_mgr.was_user_stopped(task_key):
+                        meta["status"] = "CANCELLED"
                     else:
                         meta["status"] = "AUTOSUB_FAILED"
                     meta["updated_at"] = datetime.datetime.now().isoformat()
