@@ -64,6 +64,7 @@ configs/global_config.json
 *.safetensors
 *.ckpt
 *.gguf
+global_glossary.json
 
 # --- IDE / hệ điều hành ---
 **/third_party/phantomjs/
@@ -73,3 +74,4 @@ configs/global_config.json
 .DS_Store
 Thumbs.db
 desktop.ini
+global_glossary.json
