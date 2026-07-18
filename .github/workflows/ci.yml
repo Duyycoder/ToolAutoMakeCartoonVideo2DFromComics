@@ -1,18 +1,19 @@
-name: CI
+name: CI (AIVoice — Studio)
 
 on:
   push:
-    branches: [main]
+    branches: [master, "feat/**", "dev/**"]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
-  kiem-thu:
-    name: Lint + Unit tests (orchestrator)
+  studio-tests:
+    name: Studio GPU-free tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/MediaComposer
     steps:
-      # Unit test chi cham vao orchestrator/ (stub het tien trinh con)
-      # nen KHONG can keo submodule nang (AIVoice/toolCaoTruyen).
       - name: Lay ma nguon
         uses: actions/checkout@v4
 
@@ -21,14 +22,22 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Cai cong cu kiem thu
-        run: pip install ruff pytest
+      - name: Cai cong cu (khong torch)
+        run: pip install ruff pytest numpy pillow loguru
 
-      - name: Lint loi nghiem trong (cu phap, ten chua dinh nghia)
-        run: ruff check orchestrator tests --select E9,F63,F7,F82
+      - name: Lint loi nghiem trong (studio)
+        run: ruff check app/services/storytelling/studio tests/test_studio_*.py --select E9,F63,F7,F82
 
-      - name: Kiem tra bien dich toan bo orchestrator
-        run: python -m compileall orchestrator -q
+      - name: Bien dich package studio
+        run: python -m compileall app/services/storytelling/studio -q
 
-      - name: Chay unit tests
-        run: pytest -v
+      - name: Chay test studio (GPU-free)
+        run: >-
+          python -m pytest
+          tests/test_studio_matting.py
+          tests/test_studio_compositor.py
+          tests/test_studio_layout.py
+          tests/test_studio_llm_layout.py
+          tests/test_studio_shadow.py
+          tests/test_studio_bg_cache.py
+          tests/test_studio_pipeline_smoke.py -q
