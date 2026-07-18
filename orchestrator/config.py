@@ -5,7 +5,7 @@ from typing import Dict, Any
 CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "configs", "global_config.json"))
 
 DEFAULT_GEMINI_ONLINE_MODEL = "gemini-2.0-flash"
-DEFAULT_GEMINI_PROXY_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_PROXY_MODEL = "gemini-3-flash"
 DEFAULT_OLLAMA_MODEL = "qwen2.5:3b-instruct"
 
 def load_global_config() -> Dict[str, Any]:

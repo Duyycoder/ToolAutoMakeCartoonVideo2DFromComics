@@ -80,7 +80,7 @@ def test_step3_gemini_api_offline_mac_dinh(pipe):
     p.start_step_3_video("Test", {"llm_engine": "gemini_api"})
     cmd = proc.captured_cmd
     assert arg_of(cmd, "--llm-base-url") == "http://localhost:7860/v1"
-    assert arg_of(cmd, "--llm-model") == "gemini-2.5-flash"
+    assert arg_of(cmd, "--llm-model") == "gemini-3-flash"
     assert arg_of(cmd, "--llm-api-key") == "my-proxy-key"
 
 def test_step3_gemini_api_offline_thieu_key_phai_bao_loi_som(pipe):
