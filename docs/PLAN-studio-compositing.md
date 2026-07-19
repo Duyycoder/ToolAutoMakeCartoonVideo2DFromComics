@@ -143,6 +143,27 @@ Bật đồng nhất nhân vật thật sự bằng LoRA, tự động, không c
 - **Còn cân nhắc:** 2 nhân vật × ~6 phút = ~12 phút thêm ở lần render ĐẦU của truyện
   (chỉ 1 lần). Có thể tắt bằng `studio_auto_train_leads=false`.
 
+## 6.7 Dial chất lượng — tiệm cận nanobanana (2026-07-19)
+
+Thử nghiệm đo trên GPU để đẩy chất lượng gần nanobanana trong giới hạn 6GB:
+
+- **Phát hiện:** checkpoint là đòn bẩy chất lượng LỚN NHẤT. dreamshaper-8 (kể cả
+  8-step) chi tiết/nét hơn hẳn anything-v5 22-step. dreamshaper-8 @ ~20 bước DPM++
+  cho frame semi-realistic bóng bẩy, tiệm cận AI-illustration cao cấp.
+- **Dial mới:** `studio_render_steps` (>0 ghi đè num_inference_steps cho Studio),
+  `studio_render_guidance`. Thông qua bg_render_fn + char_renderer.render + classic.
+  8 = nhanh/phẳng (anything-v5, Hyper-SD); 18-22 = nét/chi tiết (DPM++, khuyên dùng
+  dreamshaper-8). Mặc định code = 0 (giữ hành vi cũ).
+- **Bằng chứng:** batch 4 cảnh, storyboard: anything-v5 8-step = 63s (phẳng);
+  dreamshaper-8 20-step = 78s (chi tiết cao, ~+25% thời gian). rembg matte vẫn ghép
+  sạch trên output dreamshaper. Ảnh: `storage/quicktest/batch_storyboard/` (chạy
+  gần nhất) và ma trận `storage/quicktest/quality/`. Script:
+  `scripts/quality_experiment.py`.
+- **Hai hướng thẩm mỹ (để user chọn):** (a) flat storyboard + anything-v5 + 8-step
+  = đơn giản/nhanh; (b) dreamshaper-8 + 20-step = chi tiết/tiệm cận nanobanana,
+  chậm hơn ~25%. UI đã có sẵn nút chọn checkpoint (DreamShaper 8 đã ghi "khuyến nghị").
+- SDXL/Pony bị loại: 6GB VRAM chạy được nhưng quá chậm, phá mục tiêu tốc độ.
+
 ## 6. Definition of Done trước merge
 
 - [x] Unit test/lint/compile cục bộ xanh ở cả hai tầng.
