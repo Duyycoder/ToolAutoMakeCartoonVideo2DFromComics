@@ -66,6 +66,9 @@ configs/global_config.json
 *.gguf
 global_glossary.json
 
+# --- Bộ cài (file build ra, không commit; giữ lại script .iss và app.ico) ---
+/installer/Output/
+
 # --- IDE / hệ điều hành ---
 **/third_party/phantomjs/
 .vscode/

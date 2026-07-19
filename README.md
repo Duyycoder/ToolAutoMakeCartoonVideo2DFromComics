@@ -65,6 +65,18 @@ Toàn bộ pipeline có thể chạy **hoàn toàn cục bộ, không dùng dị
 
 > Khi viết báo cáo: nhấn mạnh chuỗi xử lý trên để chứng minh hệ thống không phụ thuộc dịch vụ thương mại và không phân phối nội dung có bản quyền.
 
+## Đóng gói bộ cài `setup.exe` (Inno Setup)
+
+Thư mục [installer/](installer/) chứa script đóng gói ứng dụng thành bộ cài Windows:
+
+```bash
+installer\build_installer.bat   # cần Inno Setup 6 (winget install -e --id JRSoftware.InnoSetup)
+```
+
+- Kết quả: `installer/Output/AutoCartoonVideoMaker-Setup-<version>.exe` (~150 MB, chỉ chứa **mã nguồn** + tài nguyên đi kèm repo — không chứa venv/model/bí mật).
+- Máy đích **không cần cài sẵn Python hay Git**: bộ cài chép mã nguồn vào `%LocalAppData%\Programs\AutoCartoonVideoMaker`, tạo sẵn `global_config.json` từ file mẫu, tạo shortcut Desktop/Start Menu, rồi chạy `setup.bat` (tự tải Python 3.11 + thư viện + model AI — cần Internet, 30–60 phút).
+- Gỡ cài đặt xóa toàn bộ trừ thư mục `storage/` (truyện & video người dùng đã tạo).
+
 ## Kiểm thử & CI/CD
 
 - **Unit tests** (`tests/`): kiểm tra logic resolve engine LLM Bước 3 (Gemini local/online, Ollama, validation thiếu API key) và fallback cấu hình TTS Bước 2 — chạy bằng `pip install pytest && pytest -v`, không cần GPU/model.

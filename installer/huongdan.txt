@@ -1,0 +1,24 @@
+AutoCartoon Video Maker - He thong tu dong chuyen truyen chu thanh video hoat hinh 2D co long tieng.
+
+YEU CAU HE THONG
+  - Windows 10/11 64-bit
+  - Ket noi Internet (BAT BUOC trong luc cai dat)
+  - Trong 20-30 GB dung luong o dia
+  - GPU NVIDIA >= 6GB VRAM (khuyen nghi; khong co van chay duoc bang CPU nhung cham)
+  - KHONG can cai san Python hay Git - bo cai se tu lo het
+
+QUA TRINH CAI DAT GOM 2 GIAI DOAN
+  1. Chep ma nguon vao may (nhanh, vai giay)
+  2. Cai moi truong AI: tu dong tai Python 3.11, tao moi truong ao,
+     tai thu vien va model AI. Buoc nay hien cua so den (console) de ban
+     theo doi tien do, can Internet va co the mat 30-60 phut tuy toc do mang.
+
+SAU KHI CAI XONG
+  - Mo ung dung bang bieu tuong "AutoCartoon Video Maker" ngoai Desktop
+    hoac trong Start Menu.
+  - Neu dung engine dich "Gemini API (Offline/Local)": dien cookies vao
+    file toolCaoTruyen\Gemini-API\cookies.json (xem README trong thu muc do).
+  - Muon cai lai moi truong: chay "AutoCartoon Video Maker - Cai dat moi truong"
+    trong Start Menu.
+
+Nhan Next de tiep tuc.
