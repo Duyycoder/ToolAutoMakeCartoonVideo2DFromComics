@@ -118,6 +118,31 @@ Vá đúng nút thắt chất lượng đã quan sát trên GPU thật (RTX 3060
   Config keys mới: `studio_matte_engine`, `studio_matte_model`; đổi mặc định
   `studio_matte_bg_color` khi dùng rembg nên đặt xám.
 
+## 6.6 Auto-train LoRA nhân vật chính — 1 lần/truyện (2026-07-19)
+
+Bật đồng nhất nhân vật thật sự bằng LoRA, tự động, không cần user thao tác:
+
+- **`character_bootstrap.py`** giải bài con-gà-quả-trứng: sinh 1 ảnh SEED chân dung
+  từ keywords → dùng IP-Adapter sinh ~14 biến thể cùng khuôn mặt (đa góc/pose/biểu
+  cảm) làm dataset → train LoRA (`train_character_lora.py`). Cascade mặt anime hay
+  miss trên style phẳng nên `_face_crop` fallback center-crop để không mất ảnh.
+- **Wiring:** `StudioPipeline.run_batch` gọi `_auto_train_leads` NGAY ĐẦU (trước
+  warmup render — vì train release pipeline). Nhân vật chính = xuất hiện nhiều cảnh
+  nhất (`_detect_lead_slugs`). **Idempotent**: đã có LoRA khớp checkpoint thì bỏ
+  qua → chỉ train 1 lần/truyện, mọi chương sau dùng lại (context gọn hơn).
+  `image_generator.set_character_lora` đã tự nạp LoRA khi render → phía tiêu thụ sẵn.
+- **Config:** `studio_auto_train_leads=True`, `studio_auto_train_max_leads=2`,
+  `studio_auto_train_steps=700`.
+- **Bằng chứng GPU (RTX 3060):** bootstrap+train 1 nhân vật = **6 phút** (dataset 14
+  ảnh ~70s + train 500 bước), LoRA 12.2MB. So ảnh: **CÓ LoRA** → 2 cảnh khác nhau
+  vẫn cùng 1 nhân vật (tóc/mắt/trang phục khớp); **KHÔNG LoRA** → nhân vật đổi hẳn.
+  Ảnh: `storage/quicktest/lora/{with_lora_A,with_lora_B,no_lora_A}.png`. Script:
+  `scripts/lora_bootstrap_smoke.py [steps]`.
+- **Synergy Studio:** dataset nền phẳng khiến LoRA thiên về nền phẳng — đúng ý đồ
+  Studio (nhân vật render nền phẳng rồi ghép lên nền riêng).
+- **Còn cân nhắc:** 2 nhân vật × ~6 phút = ~12 phút thêm ở lần render ĐẦU của truyện
+  (chỉ 1 lần). Có thể tắt bằng `studio_auto_train_leads=false`.
+
 ## 6. Definition of Done trước merge
 
 - [x] Unit test/lint/compile cục bộ xanh ở cả hai tầng.
