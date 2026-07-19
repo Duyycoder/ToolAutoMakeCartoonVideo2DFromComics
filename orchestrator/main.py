@@ -10,10 +10,11 @@ from pydantic import BaseModel
 # Add parent directory to sys.path to resolve orchestrator package imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from orchestrator.config import load_global_config, save_global_config
+from orchestrator.config import load_global_config, save_global_config, load_ui_settings, save_ui_settings
 from orchestrator.storage import StorageManager
 from orchestrator.process_manager import ProcessManager
 from orchestrator.pipeline import NovelPipeline
+from orchestrator.auto_run import AutoRunManager
 
 app = FastAPI(title="AutoCartoon Novel-to-Video Maker Orchestrator")
 
@@ -30,6 +31,13 @@ app.add_middleware(
 storage_mgr = StorageManager(base_storage_dir="storage")
 process_mgr = ProcessManager()
 pipeline = NovelPipeline(storage_mgr, process_mgr)
+auto_run_mgr = AutoRunManager(storage_mgr, process_mgr, pipeline)
+
+def _reject_if_auto_running(slug: str):
+    """Các endpoint chạy bước lẻ không được chen vào khi chuỗi tự động đang chạy."""
+    if auto_run_mgr.is_chain_running(slug):
+        raise HTTPException(status_code=400,
+                            detail="Chuỗi tự động đang chạy cho truyện này — bấm 'Dừng chuỗi' trước.")
 
 # Pydantic Schemas
 class GlobalConfigSchema(BaseModel):
@@ -225,21 +233,12 @@ def get_story_details(story_name: str):
         raise HTTPException(status_code=404, detail=f"Story '{story_name}' not found.")
     return meta
 
-@app.post("/api/pipeline/step1")
-def run_step1(body: Step1Schema):
-    # Check if any step is currently running for this story
-    from orchestrator.storage import slugify
-    slug = slugify(body.story_name)
-    task_key = f"{slug}_step1"
-    
-    if process_mgr.is_running(task_key):
-        raise HTTPException(status_code=400, detail="A crawl/translate process is already active for this story.")
-
-    # Override api keys from global config if empty in body
+def _build_step1_args(body: Step1Schema) -> dict:
+    """Build crawl/trans args cho Bước 1 — dùng chung bởi endpoint lẻ và auto-run."""
     g_config = load_global_config()
     gemini_key = body.gemini_api_key or g_config.get("api_keys", {}).get("gemini", "")
     gemini_offline_base_url = body.gemini_offline_base_url or g_config.get("crawler", {}).get("gemini_offline_base_url", "http://localhost:7860/v1")
-    
+
     crawl_args = {
         "source": body.source_site,
         "base_url": body.base_url,
@@ -261,8 +260,26 @@ def run_step1(body: Step1Schema):
         "glossary_extract_engine": body.glossary_extract_engine or "gemini",
         "glossary_extract_ollama_model": body.glossary_extract_ollama_model or ""
     }
+    return {"crawl_args": crawl_args, "trans_args": trans_args}
 
-    success = pipeline.start_step_1_crawl_translate(body.story_name, crawl_args, trans_args)
+def _build_step2_args(body: Step2Schema) -> dict:
+    # Filter out None values so pipeline defaults apply
+    return {k: v for k, v in body.dict().items() if v is not None}
+
+@app.post("/api/pipeline/step1")
+def run_step1(body: Step1Schema):
+    # Check if any step is currently running for this story
+    from orchestrator.storage import slugify
+    slug = slugify(body.story_name)
+    task_key = f"{slug}_step1"
+    _reject_if_auto_running(slug)
+
+    if process_mgr.is_running(task_key):
+        raise HTTPException(status_code=400, detail="A crawl/translate process is already active for this story.")
+
+    step1_args = _build_step1_args(body)
+    success = pipeline.start_step_1_crawl_translate(
+        body.story_name, step1_args["crawl_args"], step1_args["trans_args"])
     if success:
         return {"status": "success", "task_key": task_key}
     raise HTTPException(status_code=500, detail="Failed to start pipeline Step 1.")
@@ -273,13 +290,11 @@ def run_step2(body: Step2Schema):
     slug = slugify(body.story_name)
     task_key = f"{slug}_step2"
     
+    _reject_if_auto_running(slug)
     if process_mgr.is_running(task_key):
         raise HTTPException(status_code=400, detail="A TTS process is already active for this story.")
 
-    # Convert schema to dict, filtering out None values so pipeline defaults apply
-    tts_args = {k: v for k, v in body.dict().items() if v is not None}
-
-    success = pipeline.start_step_2_tts(body.story_name, tts_args)
+    success = pipeline.start_step_2_tts(body.story_name, _build_step2_args(body))
     if success:
         return {"status": "success", "task_key": task_key}
     raise HTTPException(status_code=500, detail="Failed to start pipeline Step 2.")
@@ -290,6 +305,7 @@ def run_step3(body: Step3Schema):
     slug = slugify(body.story_name)
     task_key = f"{slug}_step3"
     
+    _reject_if_auto_running(slug)
     if process_mgr.is_running(task_key):
         raise HTTPException(status_code=400, detail="A video generation process is already active for this story.")
 
@@ -331,6 +347,48 @@ def stream_logs(task_key: str):
 def pipeline_task_status(task_key: str):
     """Cho frontend kiểm tra task khi EventSource tạm ngắt/kết thúc."""
     return process_mgr.get_task_status(task_key)
+
+# ---------------------- Chuỗi chạy tự động Bước 1→4 ----------------------
+
+class AutoRunSchema(BaseModel):
+    story_name: str
+    step1: Step1Schema
+    step2: Step2Schema
+    step3: Step3Schema
+
+@app.post("/api/pipeline/auto-run")
+def start_auto_run(body: AutoRunSchema):
+    ok, msg = auto_run_mgr.start(
+        body.story_name,
+        _build_step1_args(body.step1),
+        _build_step2_args(body.step2),
+        body.step3.dict(),
+    )
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"status": "success", "message": msg}
+
+@app.get("/api/pipeline/auto-run/{story_name}")
+def auto_run_status(story_name: str):
+    return auto_run_mgr.status(story_name)
+
+@app.post("/api/pipeline/auto-run/stop")
+def stop_auto_run(story_name: str):
+    if auto_run_mgr.stop(story_name):
+        return {"status": "success", "message": "Đã gửi yêu cầu dừng chuỗi tự động."}
+    raise HTTPException(status_code=404, detail="Không có chuỗi tự động nào đang chạy cho truyện này.")
+
+# ---------------------- Lưu/khôi phục toàn bộ cấu hình UI ----------------------
+
+@app.get("/api/ui-settings")
+def get_ui_settings():
+    return load_ui_settings()
+
+@app.post("/api/ui-settings")
+def update_ui_settings(settings: dict):
+    if save_ui_settings(settings):
+        return {"status": "success"}
+    raise HTTPException(status_code=500, detail="Không ghi được configs/ui_settings.json.")
 
 @app.post("/api/system/clear-cache")
 def clear_semantic_cache():
@@ -454,7 +512,8 @@ def run_step5(body: Step5Schema):
     from orchestrator.storage import slugify
     slug = slugify(body.story_name)
     task_key = f"{slug}_step5"
-    
+    _reject_if_auto_running(slug)
+
     if process_mgr.is_running(task_key):
         raise HTTPException(status_code=400, detail="Tiến trình Ghép Video đang chạy.")
         

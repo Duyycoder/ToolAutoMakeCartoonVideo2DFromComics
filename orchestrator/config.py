@@ -3,6 +3,7 @@ import json
 from typing import Dict, Any
 
 CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "configs", "global_config.json"))
+UI_SETTINGS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "configs", "ui_settings.json"))
 
 DEFAULT_GEMINI_ONLINE_MODEL = "gemini-2.0-flash"
 DEFAULT_GEMINI_PROXY_MODEL = "gemini-3-flash"
@@ -58,6 +59,26 @@ def save_global_config(config: Dict[str, Any]) -> bool:
         os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
         with open(CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
+        return True
+    except Exception:
+        return False
+
+def load_ui_settings() -> Dict[str, Any]:
+    """Trạng thái toàn bộ form trên webui do người dùng bấm 'Lưu cấu hình'."""
+    if not os.path.exists(UI_SETTINGS_PATH):
+        return {}
+    try:
+        with open(UI_SETTINGS_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+def save_ui_settings(data: Dict[str, Any]) -> bool:
+    try:
+        os.makedirs(os.path.dirname(UI_SETTINGS_PATH), exist_ok=True)
+        with open(UI_SETTINGS_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
         return True
     except Exception:
         return False

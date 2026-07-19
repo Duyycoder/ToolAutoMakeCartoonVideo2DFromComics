@@ -3,6 +3,7 @@ const API_BASE = "";
 
 // Global State
 let activeStoryName = "";
+let activeStorySlug = "";
 let currentLogsSse = null;
 let currentTaskKeys = {};
 let step4State = { preparedPath: null, natW: null, natH: null, crop: null };
@@ -24,12 +25,15 @@ const navItems = document.querySelectorAll(".nav-item");
 const tabPanels = document.querySelectorAll(".tab-panel");
 
 // Initialize application
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     initTabs();
-    loadStories();
-    loadGlobalConfig();
+    setupEventHandlers();   // gắn listener TRƯỚC để applyAllSettings dispatch 'change' có tác dụng
     fetchGpuInfo();
-    setupEventHandlers();
+    await loadStories();
+    await loadGlobalConfig();
+    // Cấu hình người dùng đã lưu phải áp SAU CÙNG để thắng các giá trị default
+    await loadAndApplySettings();
+    resumeAutoRunUi();
 });
 
 // Fetch GPU info from backend
@@ -122,6 +126,7 @@ async function selectStory(storyName) {
 
         elActiveStoryTitle.textContent = meta.story_name;
         elActiveStorySubtitle.textContent = `Thư mục lưu trữ: ${meta.story_dir} | Chương đã cào: ${meta.raw_chapters_count || 0}`;
+        activeStorySlug = meta.story_slug || "";
 
         // Update badge status
         updateStatusBadge(meta.status);
@@ -129,6 +134,7 @@ async function selectStory(storyName) {
         // Khôi phục trạng thái nút Bắt đầu/Dừng sau khi reload trang hoặc
         // đổi truyện: hỏi server xem bước nào đang thực sự chạy.
         restoreRunningTasks(meta.story_slug);
+        resumeAutoRunUi();
     } catch (e) {
         console.error("Lỗi khi chọn truyện:", e);
     }
@@ -184,6 +190,270 @@ async function waitTaskStopped(stepName, taskKey, tries = 25) {
         } catch (e) { /* thử lại ở vòng sau */ }
     }
     appendConsoleLog(stepName, "[SYSTEM] Tiến trình dừng chậm bất thường — hãy thử bấm Dừng lần nữa.", "log-warn");
+}
+
+// ==========================================================================
+// Payload builders — dùng chung cho nút chạy lẻ từng bước VÀ chuỗi Chạy tự động
+// ==========================================================================
+function buildStep1Payload() {
+    const engine = document.getElementById("s1Engine").value;
+    return {
+        story_name: activeStoryName,
+        source_site: document.getElementById("s1Source").value,
+        base_url: document.getElementById("s1BaseUrl")?.value || null,
+        story_id: document.getElementById("s1StoryId").value,
+        local_folder: document.getElementById("s1LocalFolder")?.value,
+        start_chapter_id: document.getElementById("s1StartChapterId").value || null,
+        max_chapters: parseInt(document.getElementById("s1NumChapters").value) || 1,
+        engine: engine,
+        ollama_model: document.getElementById("s1OllamaModel").value,
+        gemini_api_key: (engine === "gemini" || engine === "gemini_api")
+            ? (document.getElementById("s1GeminiKey").value || "") : "",
+        gemini_offline_base_url: document.getElementById("s1GeminiOfflineUrl")?.value || "",
+        gemini_offline_model: document.getElementById("s1GeminiOfflineModel")?.value || "",
+        genre: document.getElementById("s1Genre").value,
+        auto_extract: document.getElementById("s1AutoExtract").checked,
+        auto_translate: document.getElementById("s1AutoTranslate")?.checked,
+        continue_download: document.getElementById("s1ContinueDownload")?.checked,
+        glossary_extract_engine: document.getElementById("s1GlossaryEngine")?.value || "same_as_trans",
+        glossary_extract_ollama_model: document.getElementById("s1GlossaryOllamaModel")?.value || ""
+    };
+}
+
+function buildStep2Payload() {
+    return {
+        story_name: activeStoryName,
+        engine: document.getElementById("s2Engine").value,
+        voice: document.getElementById("s2Voice").value,
+        speed: parseFloat(document.getElementById("s2Speed").value),
+        model: document.getElementById("s2Model").value || null,
+        ref_audio: document.getElementById("s2RefAudio").value || null,
+        phonemize: document.getElementById("s2Phonemize").checked,
+        normalize: document.getElementById("s2Normalize").checked,
+        target_lufs: parseFloat(document.getElementById("s2TargetLufs").value),
+        fade_in: parseFloat(document.getElementById("s2FadeIn").value),
+        fade_out: parseFloat(document.getElementById("s2FadeOut").value),
+        silence_duration: parseFloat(document.getElementById("s2Silence").value),
+        device: document.getElementById("s2Device").value,
+        use_cache: document.getElementById("s2UseCache").checked,
+        cache_threshold: parseFloat(document.getElementById("s2CacheThreshold").value),
+        vieneu_mode: document.getElementById("s2VieneuMode").value,
+        vieneu_emotion: document.getElementById("s2VieneuEmotion").value,
+        temperature: parseFloat(document.getElementById("s2Temperature").value)
+    };
+}
+
+function buildStep3Payload() {
+    return {
+        story_name: activeStoryName,
+        genre: document.getElementById("s3Genre").value,
+        style: document.getElementById("s3Style").value,
+        checkpoint: document.getElementById("s3Checkpoint").value,
+        bgm_path: document.getElementById("s3Bgm").value,
+        bgm_volume: parseFloat(document.getElementById("s3BgmVolume").value),
+        enable_upscale: document.getElementById("s3Upscale").checked,
+        burn_subtitles: document.getElementById("s3Subtitles").checked,
+        use_semantic_split: document.getElementById("s3Semantic").checked,
+        extract_characters: document.getElementById("s3ExtractChars").checked,
+        enable_face_detailer: document.getElementById("s3FaceDetailer").checked,
+        render_mode: document.getElementById("s3RenderMode").value,
+        hardware_profile: document.getElementById("s3HardwareProfile").value,
+        device: document.getElementById("s3GpuDevice").value,
+        llm_engine: document.getElementById("s3LlmEngine").value,
+        llm_api_key: document.getElementById("s3GeminiKey").value || null,
+        llm_offline_base_url: document.getElementById("s3GeminiOfflineUrl").value || null,
+        llm_offline_model: (document.getElementById("s3LlmEngine").value === "ollama"
+            ? document.getElementById("s3OllamaModel").value
+            : document.getElementById("s3LlmModel").value) || null
+    };
+}
+
+// ==========================================================================
+// Lưu / khôi phục TOÀN BỘ cấu hình UI (mọi form + tab settings + truyện đang chọn)
+// ==========================================================================
+function collectAllSettings() {
+    const data = { fields: {}, radios: {}, story: elStorySelect.value || "" };
+    document.querySelectorAll(".tab-panel input[id], .tab-panel select[id], .tab-panel textarea[id]").forEach(el => {
+        if (el.type === "radio") return;               // radio lưu theo nhóm bên dưới
+        if (el.type === "checkbox") data.fields[el.id] = { c: el.checked };
+        else data.fields[el.id] = { v: el.value };
+    });
+    document.querySelectorAll(".tab-panel input[type=radio][name]").forEach(el => {
+        if (el.checked) data.radios[el.name] = el.value;
+    });
+    return data;
+}
+
+function applyAllSettings(saved) {
+    if (!saved || !saved.fields) return;
+    for (const [id, val] of Object.entries(saved.fields)) {
+        const el = document.getElementById(id);
+        if (!el) continue;                              // field đã bị xóa ở version mới
+        if (val.c !== undefined) {
+            el.checked = val.c;
+        } else if (val.v !== undefined) {
+            // Dropdown load async (vd model Ollama) chưa có option -> chèn tạm để
+            // giữ giá trị; loadOllamaModels() sẵn logic giữ "previous selection".
+            if (el.tagName === "SELECT" && val.v !== "" && ![...el.options].some(o => o.value === val.v)) {
+                const opt = document.createElement("option");
+                opt.value = val.v;
+                opt.textContent = val.v;
+                el.appendChild(opt);
+            }
+            el.value = val.v;
+        } else {
+            continue;
+        }
+        // Cho các handler ẩn/hiện nhóm phụ thuộc (engine -> key/model...) chạy đúng.
+        // Duyệt theo thứ tự DOM nên field bị handler ghi đè sẽ được áp lại sau đó.
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    for (const [name, v] of Object.entries(saved.radios || {})) {
+        const radio = document.querySelector(`input[type=radio][name="${name}"][value="${v}"]`);
+        if (radio && !radio.checked) {
+            radio.checked = true;
+            radio.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+    }
+    if (saved.story && [...elStorySelect.options].some(o => o.value === saved.story)) {
+        elStorySelect.value = saved.story;
+        selectStory(saved.story);
+    }
+}
+
+async function saveAllSettings() {
+    const btn = document.getElementById("btnSaveSettings");
+    try {
+        const res = await fetch(`${API_BASE}/api/ui-settings`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(collectAllSettings())
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (btn) {
+            const old = btn.textContent;
+            btn.textContent = "✓ Đã lưu!";
+            setTimeout(() => { btn.textContent = old; }, 1600);
+        }
+    } catch (e) {
+        alert("Không lưu được cấu hình: " + e.message);
+    }
+}
+
+async function loadAndApplySettings() {
+    try {
+        const res = await fetch(`${API_BASE}/api/ui-settings`, { cache: "no-store" });
+        if (!res.ok) return;
+        applyAllSettings(await res.json());
+    } catch (e) {
+        console.error("Không tải được cấu hình đã lưu:", e);
+    }
+}
+
+// ==========================================================================
+// Chạy tự động Bước 1→4 (backend chạy chuỗi; UI chỉ theo dõi qua polling)
+// ==========================================================================
+// "Bước 4: Ghép Video" trên sidebar là task nội bộ step5
+const INTERNAL_STEP_BY_DISPLAY = { 1: 1, 2: 2, 3: 3, 4: 5 };
+let autoRunPollTimer = null;
+let autoRunLastStep = null;
+
+function setAutoRunUi(running, text) {
+    const st = document.getElementById("autoRunStatus");
+    const btnRun = document.getElementById("btnAutoRun");
+    const btnStop = document.getElementById("btnStopAutoRun");
+    if (btnRun) btnRun.style.display = running ? "none" : "";
+    if (btnStop) btnStop.style.display = running ? "" : "none";
+    if (st) {
+        st.style.display = text ? "" : "none";
+        st.textContent = text || "";
+    }
+}
+
+async function startAutoRun() {
+    if (!activeStoryName) return alert("Vui lòng chọn truyện trước!");
+    if (!confirm(`Chạy tự động Bước 1→4 cho "${activeStoryName}" với cấu hình đang chọn?\n` +
+                 "Các bước sẽ nối tiếp nhau không cần canh máy (Bước 3 có thể chạy nhiều giờ).")) return;
+    const body = {
+        story_name: activeStoryName,
+        step1: buildStep1Payload(),
+        step2: buildStep2Payload(),
+        step3: buildStep3Payload()
+    };
+    try {
+        const res = await fetch(`${API_BASE}/api/pipeline/auto-run`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) return alert(`Không chạy được chuỗi tự động: ${data.detail}`);
+        autoRunLastStep = null;
+        setAutoRunUi(true, "⏳ Đang khởi động chuỗi tự động...");
+        pollAutoRun();
+    } catch (e) {
+        alert("Lỗi kết nối tới server: " + e);
+    }
+}
+
+async function stopAutoRun() {
+    if (!activeStoryName) return;
+    if (!confirm("Dừng chuỗi tự động? Bước đang chạy sẽ bị hủy.")) return;
+    try {
+        await fetch(`${API_BASE}/api/pipeline/auto-run/stop?story_name=${encodeURIComponent(activeStoryName)}`,
+                    { method: "POST" });
+    } catch (e) { /* poll bên dưới sẽ phản ánh trạng thái thật */ }
+    pollAutoRun();
+}
+
+// Chuyển tab + bám luồng log của bước chuỗi đang chạy
+function followAutoRunStep(displayStep) {
+    const internal = INTERNAL_STEP_BY_DISPLAY[displayStep];
+    if (!internal || !activeStorySlug) return;
+    const stepName = `step${internal}`;
+    const navBtn = document.querySelector(`.nav-item[data-tab="${stepName}"]`);
+    if (navBtn) navBtn.click();
+    toggleFormButtons(stepName, true);
+    // Chờ ngắn cho backend kịp tạo log queue của bước mới rồi mới nối SSE
+    const key = `${activeStorySlug}_step${internal}`;
+    setTimeout(() => streamLogs(stepName, key), 800);
+}
+
+async function pollAutoRun() {
+    clearTimeout(autoRunPollTimer);
+    if (!activeStoryName) { setAutoRunUi(false, null); return; }
+    try {
+        const res = await fetch(`${API_BASE}/api/pipeline/auto-run/${encodeURIComponent(activeStoryName)}`,
+                                { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const st = await res.json();
+        if (st.running) {
+            setAutoRunUi(true, `⏳ Tự động: Bước ${st.current_step}/${st.total_steps} — ${st.step_label}`);
+            // Đổi bước, hoặc SSE bị rớt -> bám lại luồng log
+            if (st.current_step !== autoRunLastStep || !currentLogsSse) {
+                autoRunLastStep = st.current_step;
+                followAutoRunStep(st.current_step);
+            }
+            autoRunPollTimer = setTimeout(pollAutoRun, 2000);
+            return;
+        }
+        autoRunLastStep = null;
+        if (st.finished) {
+            setAutoRunUi(false, st.error ? `❌ Chuỗi dừng: ${st.error}` : "✅ Đã hoàn thành Bước 1→4!");
+            loadStories();
+        } else {
+            setAutoRunUi(false, null);
+        }
+    } catch (e) {
+        // server chưa phản hồi -> thử lại
+        autoRunPollTimer = setTimeout(pollAutoRun, 3000);
+    }
+}
+
+// Gọi khi mở app / đổi truyện: nếu chuỗi đang chạy (vd sau reload) thì nối lại UI
+function resumeAutoRunUi() {
+    autoRunLastStep = null;
+    pollAutoRun();
 }
 
 function updateStatusBadge(status) {
@@ -435,27 +705,7 @@ function setupEventHandlers() {
         e.preventDefault();
         if (!activeStoryName) return alert("Vui lòng chọn truyện trước!");
         
-        const payload = {
-            story_name: activeStoryName,
-            source_site: document.getElementById("s1Source").value,
-            base_url: document.getElementById("s1BaseUrl")?.value || null,
-            story_id: document.getElementById("s1StoryId").value,
-            local_folder: document.getElementById("s1LocalFolder")?.value,
-            start_chapter_id: document.getElementById("s1StartChapterId").value || null,
-            max_chapters: parseInt(document.getElementById("s1NumChapters").value) || 1,
-            engine: elS1Engine.value,
-            ollama_model: document.getElementById("s1OllamaModel").value,
-            gemini_api_key: (elS1Engine.value === "gemini" || elS1Engine.value === "gemini_api")
-                ? (document.getElementById("s1GeminiKey").value || "") : "",
-            gemini_offline_base_url: document.getElementById("s1GeminiOfflineUrl")?.value || "",
-            gemini_offline_model: document.getElementById("s1GeminiOfflineModel")?.value || "",
-            genre: document.getElementById("s1Genre").value,
-            auto_extract: document.getElementById("s1AutoExtract").checked,
-            auto_translate: document.getElementById("s1AutoTranslate")?.checked,
-            continue_download: document.getElementById("s1ContinueDownload")?.checked,
-            glossary_extract_engine: document.getElementById("s1GlossaryEngine")?.value || "same_as_trans",
-            glossary_extract_ollama_model: document.getElementById("s1GlossaryOllamaModel")?.value || ""
-        };
+        const payload = buildStep1Payload();
 
         toggleFormButtons("step1", true);
         clearConsole("step1");
@@ -496,26 +746,7 @@ function setupEventHandlers() {
         e.preventDefault();
         if (!activeStoryName) return alert("Vui lòng chọn truyện trước!");
 
-        const payload = {
-            story_name: activeStoryName,
-            engine: document.getElementById("s2Engine").value,
-            voice: document.getElementById("s2Voice").value,
-            speed: parseFloat(document.getElementById("s2Speed").value),
-            model: document.getElementById("s2Model").value || null,
-            ref_audio: document.getElementById("s2RefAudio").value || null,
-            phonemize: document.getElementById("s2Phonemize").checked,
-            normalize: document.getElementById("s2Normalize").checked,
-            target_lufs: parseFloat(document.getElementById("s2TargetLufs").value),
-            fade_in: parseFloat(document.getElementById("s2FadeIn").value),
-            fade_out: parseFloat(document.getElementById("s2FadeOut").value),
-            silence_duration: parseFloat(document.getElementById("s2Silence").value),
-            device: document.getElementById("s2Device").value,
-            use_cache: document.getElementById("s2UseCache").checked,
-            cache_threshold: parseFloat(document.getElementById("s2CacheThreshold").value),
-            vieneu_mode: document.getElementById("s2VieneuMode").value,
-            vieneu_emotion: document.getElementById("s2VieneuEmotion").value,
-            temperature: parseFloat(document.getElementById("s2Temperature").value)
-        };
+        const payload = buildStep2Payload();
 
         toggleFormButtons("step2", true);
         clearConsole("step2");
@@ -532,28 +763,7 @@ function setupEventHandlers() {
         e.preventDefault();
         if (!activeStoryName) return alert("Vui lòng chọn truyện trước!");
 
-        const payload = {
-            story_name: activeStoryName,
-            genre: document.getElementById("s3Genre").value,
-            style: document.getElementById("s3Style").value,
-            checkpoint: document.getElementById("s3Checkpoint").value,
-            bgm_path: document.getElementById("s3Bgm").value,
-            bgm_volume: parseFloat(document.getElementById("s3BgmVolume").value),
-            enable_upscale: document.getElementById("s3Upscale").checked,
-            burn_subtitles: document.getElementById("s3Subtitles").checked,
-            use_semantic_split: document.getElementById("s3Semantic").checked,
-            extract_characters: document.getElementById("s3ExtractChars").checked,
-            enable_face_detailer: document.getElementById("s3FaceDetailer").checked,
-            render_mode: document.getElementById("s3RenderMode").value,
-            hardware_profile: document.getElementById("s3HardwareProfile").value,
-            device: document.getElementById("s3GpuDevice").value,
-            llm_engine: document.getElementById("s3LlmEngine").value,
-            llm_api_key: document.getElementById("s3GeminiKey").value || null,
-            llm_offline_base_url: document.getElementById("s3GeminiOfflineUrl").value || null,
-            llm_offline_model: (document.getElementById("s3LlmEngine").value === "ollama"
-                ? document.getElementById("s3OllamaModel").value
-                : document.getElementById("s3LlmModel").value) || null
-        };
+        const payload = buildStep3Payload();
 
         toggleFormButtons("step3", true);
         clearConsole("step3");
@@ -901,6 +1111,11 @@ function setupEventHandlers() {
     document.getElementById("btnStopStep5").addEventListener("click", () => {
         appendConsoleLog("step5", "[SYSTEM] Tiến trình ghép video chạy bằng thread không thể dừng cưỡng bức.", "log-warn");
     });
+
+    // Lưu toàn bộ cấu hình + chuỗi Chạy tự động 1→4 (nút trên top-header)
+    document.getElementById("btnSaveSettings")?.addEventListener("click", saveAllSettings);
+    document.getElementById("btnAutoRun")?.addEventListener("click", startAutoRun);
+    document.getElementById("btnStopAutoRun")?.addEventListener("click", stopAutoRun);
 }
 
 // Common function to send pipeline actions to the backend

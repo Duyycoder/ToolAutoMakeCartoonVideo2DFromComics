@@ -29,6 +29,7 @@ ENV/
 .env
 .env.*
 configs/global_config.json
+configs/ui_settings.json
 **/cookies.json
 **/api_keys.json
 *cookies*

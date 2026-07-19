@@ -99,8 +99,14 @@
                     <h1 id="activeStoryTitle">Chưa chọn truyện</h1>
                     <p id="activeStorySubtitle">Vui lòng chọn truyện ở thanh bên để bắt đầu quy trình dựng video</p>
                 </div>
-                <div class="status-indicator">
-                    Trạng thái: <span id="pipelineStatusBadge" class="badge badge-inactive">Offline</span>
+                <div class="header-actions" style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; justify-content:flex-end;">
+                    <span id="autoRunStatus" style="display:none; font-size:0.85rem; opacity:0.9; max-width:340px;"></span>
+                    <button id="btnSaveSettings" class="btn btn-secondary btn-sm" title="Lưu toàn bộ cấu hình đang chọn — lần mở sau tự áp dụng lại">💾 Lưu cấu hình</button>
+                    <button id="btnAutoRun" class="btn btn-primary btn-sm" title="Tự động chạy nối tiếp: Cào &amp; Dịch → Sinh Giọng → Dựng Hoạt Hình → Ghép Video">🚀 Chạy tự động 1→4</button>
+                    <button id="btnStopAutoRun" class="btn btn-danger btn-sm" style="display:none;">⛔ Dừng chuỗi</button>
+                    <div class="status-indicator">
+                        Trạng thái: <span id="pipelineStatusBadge" class="badge badge-inactive">Offline</span>
+                    </div>
                 </div>
             </header>
 
