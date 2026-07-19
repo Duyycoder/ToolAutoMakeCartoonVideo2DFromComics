@@ -52,6 +52,20 @@
                         <span class="nav-subtitle">Sinh ảnh, upscale & dựng video</span>
                     </div>
                 </button>
+                <button class="nav-item" data-tab="step5">
+                    <span class="nav-icon">🔗</span>
+                    <div class="nav-text">
+                        <span class="nav-title">Bước 4: Ghép Video</span>
+                        <span class="nav-subtitle">Hợp nhất các video chương</span>
+                    </div>
+                </button>
+                <button class="nav-item" data-tab="step4">
+                    <span class="nav-icon">🎬</span>
+                    <div class="nav-text">
+                        <span class="nav-title">Tự Động Tạo Phụ Đề</span>
+                        <span class="nav-subtitle">Dịch & ghép sub cho video lẻ</span>
+                    </div>
+                </button>
                 <button class="nav-item" data-tab="settings">
                     <span class="nav-icon">⚙️</span>
                     <div class="nav-text">
@@ -498,6 +512,14 @@
                                 </label>
                             </div>
                             <div class="form-group">
+                                <label for="s3RenderMode">Chế độ dựng ảnh (Render Mode)</label>
+                                <select id="s3RenderMode">
+                                    <option value="classic">Classic — 1 ảnh/cảnh (SD vẽ chung, ổn định)</option>
+                                    <option value="studio">Studio — render theo lớp: nền + nhân vật riêng rồi ghép (thử nghiệm)</option>
+                                </select>
+                                <small>Studio: nhân vật sinh riêng khung to (mặt đẹp hơn), tách nền chroma rồi ghép lên nền tái dùng theo bối cảnh. Cảnh đông người/tương tác tự lùi về classic.</small>
+                            </div>
+                            <div class="form-group">
                                 <label for="s3HardwareProfile">Cấu hình VRAM</label>
                                 <select id="s3HardwareProfile">
                                     <option value="auto">Tự động phát hiện (Auto)</option>
@@ -516,6 +538,270 @@
                     <div class="card glass-card log-panel">
                         <h3>🖥️ Log Tiến Trình</h3>
                         <div id="logConsole-step3" class="console-box"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tab-panel" id="tab-step4">
+                <div class="panel-grid">
+                    <div class="card glass-card">
+                        <h3>🎬 Tự Động Tạo Phụ Đề & Lồng Tiếng</h3>
+                        <form id="formStep4" class="form-grid">
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label>Nguồn Video</label>
+                                <div style="display: flex; gap: 20px; margin-top: 5px; margin-bottom: 10px;">
+                                    <label style="font-weight: normal; cursor: pointer;">
+                                        <input type="radio" name="s4VideoSource" value="local" checked> Đường dẫn cục bộ
+                                    </label>
+                                    <label style="font-weight: normal; cursor: pointer;">
+                                        <input type="radio" name="s4VideoSource" value="url"> Tải từ link video
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="groupS4Local" style="grid-column: 1 / -1;">
+                                <label for="s4LocalPath">Đường dẫn video cục bộ (.mp4)</label>
+                                <input type="text" id="s4LocalPath" placeholder="Ví dụ: storage/truyen/my_story/video/chap1.mp4">
+                            </div>
+
+                            <div class="form-group" id="groupS4Url" style="grid-column: 1 / -1; display: none;">
+                                <label for="s4Url">URL Link Video (TikTok, Douyin, Bilibili, YouTube)</label>
+                                <input type="text" id="s4Url" placeholder="Dán link video tại đây...">
+                                <div style="margin-top: 10px;">
+                                    <label for="s4Platform">Nền tảng</label>
+                                    <select id="s4Platform">
+                                        <option value="generic" selected>Tự động nhận diện / Khác</option>
+                                        <option value="bilibili">Bilibili</option>
+                                        <option value="tiktok">TikTok</option>
+                                        <option value="douyin">Douyin</option>
+                                        <option value="youtube">YouTube</option>
+                                    </select>
+                                </div>
+                                <div style="margin-top: 10px;">
+                                    <label for="s4CookiesFile">Đường dẫn file Cookies (.txt) cho URL này (Ghi đè mặc định)</label>
+                                    <input type="text" id="s4CookiesFile" placeholder="Sử dụng mặc định từ Cấu hình chung nếu để trống...">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="s4SourceLang">Ngôn ngữ gốc của Video</label>
+                                <select id="s4SourceLang">
+                                    <option value="English" selected>Tiếng Anh (English)</option>
+                                    <option value="Chinese">Tiếng Trung (Chinese)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="s4SubSource">Nguồn tạo phụ đề</label>
+                                <select id="s4SubSource">
+                                    <option value="whisper" selected>Phiên âm từ âm thanh (Whisper)</option>
+                                    <option value="ocr">Tách chữ cháy trên hình (OCR)</option>
+                                </select>
+                            </div>
+
+                            <!-- Preview & ROI selector area for OCR subtitles -->
+                            <div class="form-group" id="groupS4OcrPreview" style="grid-column: 1 / -1; display: none;">
+                                <label>Xem trước & Chọn vùng phụ đề (OCR ROI)</label>
+                                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                                    <button type="button" id="btnS4Prepare" class="btn btn-secondary btn-sm">Tải & Xem trước</button>
+                                </div>
+                                <div id="s4RoiSelectionArea" style="position:relative; display:none; max-width:100%; border:1px solid #444; border-radius:6px; overflow:hidden; margin-top:10px; cursor: crosshair;">
+                                    <img id="s4PreviewImg" style="display:block; max-width:100%; height:auto;" />
+                                </div>
+                                <span class="help-text">Kéo giữ chuột trên hình preview ở trên để vẽ khung chữ nhật bao lấy phụ đề.</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="s4BurnMethod">Phương pháp ghi phụ đề</label>
+                                <select id="s4BurnMethod">
+                                    <option value="ffmpeg" selected>FFmpeg native filter (Nhanh)</option>
+                                    <option value="moviepy">MoviePy filter (Tương thích tốt)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="groupS4CleanAudio">
+                                <label for="s4CleanAudio" style="font-weight: normal; cursor: pointer;">
+                                    <input type="checkbox" id="s4CleanAudio"> Lọc tách giọng nền (Demucs)
+                                </label>
+                            </div>
+
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label for="s4EnableVoiceover" style="font-weight: normal; cursor: pointer;">
+                                    <input type="checkbox" id="s4EnableVoiceover"> Bật lồng tiếng Việt (Voiceover)
+                                </label>
+                            </div>
+
+                            <!-- TTS Dubbing options -->
+                            <div class="form-group" id="groupS4Voiceover" style="grid-column: 1 / -1; display: none; background: rgba(0,0,0,0.15); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="s4TtsEngine">Bộ máy TTS (Engine)</label>
+                                        <select id="s4TtsEngine">
+                                            <option value="edge" selected>Edge-TTS (Online Microsoft)</option>
+                                            <option value="piper">Piper (Offline ONNX)</option>
+                                            <option value="clone">XTTSv2 (Local Voice Cloning)</option>
+                                            <option value="kokoro">Kokoro-Vietnamese (Offline)</option>
+                                            <option value="vieneu">VieNeu-TTS (Offline)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4TtsVoice">Giọng đọc / Mã giọng (Voice)</label>
+                                        <input type="text" id="s4TtsVoice" placeholder="vi-VN-NamMinhNeural" value="vi-VN-NamMinhNeural">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4DuckingRatio">Tỷ lệ giảm nhạc nền (Ducking %)</label>
+                                        <input type="number" id="s4DuckingRatio" value="90.0" min="0" max="100" step="5">
+                                    </div>
+                                    <div class="form-group" id="groupS4AutoClone" style="display: none;">
+                                        <label for="s4AutoClone" style="font-weight: normal; cursor: pointer; margin-top: 25px; display: block;">
+                                            <input type="checkbox" id="s4AutoClone"> Tự động clone (Auto Clone)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Subtitle Customization Styling section -->
+                            <div class="form-group" style="grid-column: 1 / -1; margin-top: 15px;">
+                                <h4>🎨 Tùy Chỉnh Kiểu Phụ Đề</h4>
+                            </div>
+                            <div class="form-group" style="grid-column: 1 / -1; background: rgba(0,0,0,0.15); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label for="s4FontName">Phông chữ (Font)</label>
+                                        <select id="s4FontName">
+                                            <option value="Montserrat-Bold.ttf" selected>Montserrat Bold</option>
+                                            <option value="Montserrat-Regular.ttf">Montserrat Regular</option>
+                                            <option value="BeVietnamPro-Bold.ttf">BeVietnam Pro Bold</option>
+                                            <option value="BeVietnamPro-SemiBold.ttf">BeVietnam Pro SemiBold</option>
+                                            <option value="BeVietnamPro-Regular.ttf">BeVietnam Pro Regular</option>
+                                            <option value="Arial-Bold.ttf">Arial Bold</option>
+                                            <option value="Arial-Regular.ttf">Arial Regular</option>
+                                            <option value="Charm-Bold.ttf">Charm Bold</option>
+                                            <option value="Charm-Regular.ttf">Charm Regular</option>
+                                            <option value="STHeitiMedium.ttc">STHeiti Medium</option>
+                                            <option value="MicrosoftYaHeiBold.ttc">Microsoft YaHei Bold</option>
+                                            <option value="UTM Kabel KT.ttf">UTM Kabel KT</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4FontSize">Kích thước chữ (Font Size)</label>
+                                        <input type="number" id="s4FontSize" value="45" min="10" max="150" step="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4TextColor">Màu chữ (Text Color)</label>
+                                        <input type="color" id="s4TextColor" value="#ffffff">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4StrokeColor">Màu viền (Stroke Color)</label>
+                                        <input type="color" id="s4StrokeColor" value="#000000">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4StrokeWidth">Độ dày viền (Stroke Width)</label>
+                                        <input type="number" id="s4StrokeWidth" value="1.5" min="0" max="10" step="0.5">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4BgStyle">Kiểu nền (Background Style)</label>
+                                        <select id="s4BgStyle">
+                                            <option value="None" selected>Không nền (None)</option>
+                                            <option value="Box">Có nền hộp (Box)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="groupS4BgColor" style="display: none;">
+                                        <label for="s4BgColor">Màu nền (Background Color)</label>
+                                        <input type="color" id="s4BgColor" value="#000000">
+                                    </div>
+                                    <div class="form-group" id="groupS4BgAlpha" style="display: none;">
+                                        <label for="s4BgAlpha">Độ mờ nền (Opacity 0-255)</label>
+                                        <input type="number" id="s4BgAlpha" value="140" min="0" max="255" step="10">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="s4SubPosition">Vị trí phụ đề (Position)</label>
+                                        <select id="s4SubPosition">
+                                            <option value="bottom" selected>Dưới (Bottom)</option>
+                                            <option value="top">Trên (Top)</option>
+                                            <option value="center">Giữa (Center)</option>
+                                            <option value="custom">Tùy chọn (Custom Y %)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="groupS4CustomPosition" style="display: none;">
+                                        <label for="s4CustomPosition">Vị trí Y (%)</label>
+                                        <input type="number" id="s4CustomPosition" value="70.0" min="0" max="100" step="5">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Translation LLM settings -->
+                            <div class="form-group" style="grid-column: 1 / -1; margin-top: 10px;">
+                                <h4>🤖 Cấu Hình API Dịch Phụ Đề</h4>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="s4LlmEngine">Engine LLM Dịch Phụ Đề</label>
+                                <select id="s4LlmEngine">
+                                    <option value="gemini_api" selected>Gemini Offline (Local Server / Free API)</option>
+                                    <option value="gemini">Gemini Online (Yêu cầu API Key)</option>
+                                    <option value="ollama">Ollama (Local)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="groupS4GeminiKey" style="display:none;">
+                                <label for="s4GeminiKey">Gemini API Key</label>
+                                <input type="password" id="s4GeminiKey" placeholder="sk-gemini-...">
+                            </div>
+                            <div class="form-group" id="groupS4GeminiOfflineUrl" style="display:none;">
+                                <label for="s4GeminiOfflineUrl">Base URL (API cục bộ)</label>
+                                <input type="text" id="s4GeminiOfflineUrl" placeholder="http://localhost:7860/v1">
+                            </div>
+                            <div class="form-group" id="groupS4OllamaModel" style="display:none;">
+                                <label for="s4OllamaModel">Model Ollama</label>
+                                <select id="s4OllamaModel">
+                                    <option value="qwen2.5:3b-instruct" selected>qwen2.5:3b-instruct</option>
+                                </select>
+                                <small id="s4OllamaStatus" style="display:block; margin-top:4px; opacity:0.75;"></small>
+                            </div>
+                            <div class="form-group" id="groupS4LlmModel" style="display:none;">
+                                <label for="s4LlmModel">Model LLM (Ghi đè mặc định)</label>
+                                <input type="text" id="s4LlmModel" placeholder="gemini-3-flash">
+                            </div>
+
+                            <div class="form-group w-100" style="grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 15px;">
+                                <button type="submit" id="btnStartStep4" class="btn btn-primary w-100">Bắt đầu tạo phụ đề</button>
+                                <button type="button" id="btnStopStep4" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="card glass-card log-panel">
+                        <h3>🖥️ Log Tiến Trình</h3>
+                        <div id="logConsole-step4" class="console-box"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tab-panel" id="tab-step5">
+                <div class="panel-grid">
+                    <div class="card glass-card">
+                        <h3>🔗 Bước 4: Ghép Video (Hợp Nhất Chương)</h3>
+                        <p class="help-text" style="margin-bottom: 15px;">Chọn các file video chương vừa được tạo từ truyện đã chọn để ghép lại thành video dài hoàn chỉnh.</p>
+                        
+                        <form id="formStep5" class="form-grid">
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label>Danh sách video chương phát hiện được:</label>
+                                <div id="s5VideoListContainer" style="border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; max-height: 250px; overflow-y: auto; margin-top: 8px; margin-bottom: 10px;">
+                                    <p class="help-text" style="text-align:center;">Vui lòng chọn truyện ở thanh bên và bấm "Tải danh sách video".</p>
+                                </div>
+                                <button type="button" id="btnS5LoadVideos" class="btn btn-secondary btn-sm" style="margin-bottom: 15px;">Tải danh sách video</button>
+                            </div>
+
+                            <div class="form-group w-100" style="grid-column: 1 / -1; display: flex; gap: 10px;">
+                                <button type="submit" id="btnStartStep5" class="btn btn-primary w-100" disabled>Ghép các video đã chọn</button>
+                                <button type="button" id="btnStopStep5" class="btn btn-danger w-100" style="display:none;">Dừng</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="card glass-card log-panel">
+                        <h3>🖥️ Log Ghép Video</h3>
+                        <div id="logConsole-step5" class="console-box"></div>
                     </div>
                 </div>
             </section>
@@ -617,6 +903,10 @@
                             <div class="form-group">
                                 <label for="cfgVideoLlmModel">Step 3 LLM Model Mặc định</label>
                                 <input type="text" id="cfgVideoLlmModel" value="gemini-3-flash">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgDownloaderCookies">Đường dẫn file Cookies (.txt) cho Downloader</label>
+                                <input type="text" id="cfgDownloaderCookies" placeholder="Ví dụ: configs/cookies_iqiyi.txt">
                             </div>
                         </div>
                         

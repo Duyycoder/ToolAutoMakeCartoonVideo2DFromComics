@@ -28,10 +28,26 @@ class StubProcess:
     def __init__(self):
         self.captured_cmd = None
         self.log_queues = {}
+        self.completed_exit_codes = {}
+        self.manual_running_tasks = set()
 
     def start_process(self, task_key, cmd, cwd, env_override=None, on_completed=None, **kw):
         self.captured_cmd = cmd
+        self.manual_running_tasks.discard(task_key)
+        self.completed_exit_codes.pop(task_key, None)
         return True
+
+    def register_manual_task(self, task_key, log_queue):
+        if task_key in self.manual_running_tasks:
+            return False
+        self.log_queues[task_key] = log_queue
+        self.manual_running_tasks.add(task_key)
+        self.completed_exit_codes.pop(task_key, None)
+        return True
+
+    def mark_completed(self, task_key, exit_code):
+        self.manual_running_tasks.discard(task_key)
+        self.completed_exit_codes[task_key] = int(exit_code)
 
 
 def arg_of(cmd, flag):
@@ -60,12 +76,19 @@ def pipe(monkeypatch):
 
 def test_step3_gemini_api_offline_mac_dinh(pipe):
     p, proc, set_config = pipe
-    set_config({"crawler": {"gemini_offline_base_url": "http://localhost:7860/v1"}})
+    set_config({"crawler": {"gemini_offline_base_url": "http://localhost:7860/v1", "gemini_offline_key": "my-proxy-key"}})
     p.start_step_3_video("Test", {"llm_engine": "gemini_api"})
     cmd = proc.captured_cmd
     assert arg_of(cmd, "--llm-base-url") == "http://localhost:7860/v1"
     assert arg_of(cmd, "--llm-model") == "gemini-3-flash"
-    assert arg_of(cmd, "--llm-api-key").startswith("sk-gemini-")
+    assert arg_of(cmd, "--llm-api-key") == "my-proxy-key"
+
+def test_step3_gemini_api_offline_thieu_key_phai_bao_loi_som(pipe):
+    p, proc, set_config = pipe
+    set_config({})
+    with pytest.raises(ValueError):
+        p.start_step_3_video("Test", {"llm_engine": "gemini_api"})
+    assert proc.captured_cmd is None
 
 
 def test_step3_ollama_doc_base_url_tu_cau_hinh_chung(pipe):

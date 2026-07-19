@@ -11,7 +11,7 @@ Hệ thống gồm 3 tầng, giao tiếp với nhau qua tiến trình con (subpr
 ```
 ToolAutoMakeCartoonVideo2DFromComics/   (repo tổng)
 ├── orchestrator/     # FastAPI :8100 — điều phối pipeline, máy trạng thái, quản lý tiến trình
-│                     # (venv siêu nhẹ: fastapi + uvicorn + httpx, KHÔNG import torch)
+│                     # (dùng chung AIVoice/.venv, KHÔNG import torch; các bước AI nặng chạy subprocess và tự nhả VRAM)
 ├── webui/            # Giao diện web 1 trang (HTML/CSS/JS thuần + SSE cập nhật tiến độ)
 ├── configs/          # Cấu hình toàn cục (config.example.json — copy thành global_config.json)
 ├── AIVoice/          # [submodule] TTS đa engine (edge/piper/xtts/kokoro/vieneu) + MediaComposer (sinh video)
@@ -49,7 +49,7 @@ git submodule update --init --recursive
    ```
    (`global_config.json` đã bị `.gitignore` loại trừ — không bao giờ commit key thật.)
 2. Chạy `setup.bat` — tạo venv tổng + gọi setup của 2 dự án con (tự nhận GPU, tải model).
-3. Chạy `run.bat` — khởi động orchestrator :8100, tự bật Gemini-API proxy, mở trình duyệt.
+3. Chạy `run.bat` — mở **cửa sổ ứng dụng desktop** (WebView2 qua pywebview), bên trong tự khởi động orchestrator :8100 và Gemini-API proxy **chạy ẩn, không hiện console**; log ghi vào `logs/app.log` và `logs/gemini_api.log`. Đóng cửa sổ app sẽ tự tắt sạch mọi tiến trình con. Cần xem log trực tiếp thì chạy `run.bat debug`; máy thiếu pywebview/WebView2 sẽ tự fallback mở trình duyệt.
 
 ## Chế độ trình diễn "sạch bản quyền" (khuyến nghị cho đồ án)
 
@@ -64,6 +64,18 @@ Toàn bộ pipeline có thể chạy **hoàn toàn cục bộ, không dùng dị
 | 3. Sinh ảnh | **Stable Diffusion local** (checkpoint mã nguồn mở, vd. Anything V5) | Chạy trên GPU cá nhân |
 
 > Khi viết báo cáo: nhấn mạnh chuỗi xử lý trên để chứng minh hệ thống không phụ thuộc dịch vụ thương mại và không phân phối nội dung có bản quyền.
+
+## Đóng gói bộ cài `setup.exe` (Inno Setup)
+
+Thư mục [installer/](installer/) chứa script đóng gói ứng dụng thành bộ cài Windows:
+
+```bash
+installer\build_installer.bat   # cần Inno Setup 6 (winget install -e --id JRSoftware.InnoSetup)
+```
+
+- Kết quả: `installer/Output/AutoCartoonVideoMaker-Setup-<version>.exe` (~150 MB, chỉ chứa **mã nguồn** + tài nguyên đi kèm repo — không chứa venv/model/bí mật).
+- Máy đích **không cần cài sẵn Python hay Git**: bộ cài chép mã nguồn vào `%LocalAppData%\Programs\AutoCartoonVideoMaker`, tạo sẵn `global_config.json` từ file mẫu, tạo shortcut Desktop/Start Menu, rồi chạy `setup.bat` (tự tải Python 3.11 + thư viện + model AI — cần Internet, 30–60 phút).
+- Gỡ cài đặt xóa toàn bộ trừ thư mục `storage/` (truyện & video người dùng đã tạo).
 
 ## Kiểm thử & CI/CD
 

@@ -152,7 +152,7 @@ echo.
 
 :: 3. Setup Orchestrator extra dependencies in AIVoice .venv
 echo [INFO] Installing Orchestrator dependencies...
-"AIVoice\.venv\Scripts\python.exe" -m pip install fastapi uvicorn sse-starlette pydantic requests
+"AIVoice\.venv\Scripts\python.exe" -m pip install -r orchestrator\requirements.txt
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to install Orchestrator dependencies.
     pause

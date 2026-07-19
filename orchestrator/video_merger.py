@@ -2,9 +2,17 @@ import os
 import subprocess
 import glob
 import sys
-import datetime
 
-def merge_videos(video_dir: str, output_file: str) -> bool:
+def _select_files(mp4_files: list[str], only_files: list[str] | None) -> list[str]:
+    # Filter out files that might already be the output file or other merged files
+    filtered = [f for f in mp4_files if not os.path.basename(f).startswith("TongHop_")]
+    if only_files:
+        # CHỐNG PATH TRAVERSAL: chỉ nhận basename thuần, phải nằm trong danh sách quét được
+        wanted = {name for name in only_files if os.path.basename(name) == name}
+        filtered = [f for f in filtered if os.path.basename(f) in wanted]
+    return filtered
+
+def merge_videos(video_dir: str, output_file: str, only_files: list[str] | None = None) -> bool:
     """Merges all mp4 files in video_dir into output_file using FFmpeg concat stream copy."""
     try:
         # Import imageio_ffmpeg from AIVoice virtual environment
@@ -16,9 +24,8 @@ def merge_videos(video_dir: str, output_file: str) -> bool:
         return False
 
     mp4_files = sorted(glob.glob(os.path.join(video_dir, "*.mp4")))
-    # Filter out files that might already be the output file or other merged files
-    mp4_files = [f for f in mp4_files if not os.path.basename(f).startswith("TongHop_")]
-    
+    mp4_files = _select_files(mp4_files, only_files)
+        
     if not mp4_files:
         print(f"[Warning] No MP4 files found in {video_dir} to merge.")
         return False
@@ -45,11 +52,30 @@ def merge_videos(video_dir: str, output_file: str) -> bool:
         ]
         
         # Run ffmpeg
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         if result.returncode != 0:
-            print(f"[Error] FFmpeg failed with exit code {result.returncode}")
-            print(result.stderr)
-            return False
+            print(f"[Error] FFmpeg concat -c copy failed with exit code {result.returncode}. Attempting fallback re-encoding...")
+            # Fallback re-encode đúng 1 tầng
+            cmd_fallback = [
+                ffmpeg_exe,
+                "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", list_file,
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "20",
+                "-c:a", "aac",
+                output_file
+            ]
+            result_fallback = subprocess.run(cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            if result_fallback.returncode != 0:
+                print("[Error] Fallback re-encoding also failed.")
+                print(result_fallback.stderr)
+                print("[SYSTEM_MSG] Các video khác độ phân giải/định dạng — hãy chọn các video cùng nguồn (cùng được tạo từ Bước 3).")
+                return False
             
         print(f"[Success] Successfully merged videos to {output_file}")
         return True
@@ -60,7 +86,7 @@ def merge_videos(video_dir: str, output_file: str) -> bool:
         if os.path.exists(list_file):
             try:
                 os.remove(list_file)
-            except:
+            except OSError:
                 pass
 
 if __name__ == "__main__":
