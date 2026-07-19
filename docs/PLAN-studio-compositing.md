@@ -91,6 +91,33 @@ tương tác fallback classic, hai cảnh cùng location, rồi chạy Pass B d�
 - Không gửi credential GitHub qua URL proxy. Dùng SSH hoặc URL GitHub trực tiếp và
   quyền Workflows write khi commit có `.github/workflows/*`.
 
+## 6.5 Quality boost — nhánh `feat/studio-quality-boost` (2026-07-19)
+
+Vá đúng nút thắt chất lượng đã quan sát trên GPU thật (RTX 3060 6GB):
+
+- **Matte engine mới `rembg` (isnet-anime) làm mặc định.** Root cause anh nhan vat
+  xấu/khuyết thiếu: SD1.5 KHÔNG vẽ được nền chroma phẳng đúng màu → chroma-key giữ
+  nguyên nền (coverage=1.0) hoặc ăn vào nhân vật → fallback GrabCut rect thô/​classic
+  chậm. `RembgMatter` (matting.py) segment theo hình dáng nhân vật anime, cắt sạch
+  tóc/tay/viền và tự bỏ mảnh nền rời. ~0.9s/ảnh CPU (session cache). Chroma/GrabCut
+  tụt xuống làm lưới an toàn. Bật/tắt qua `studio_matte_engine = "rembg" | "chroma"`.
+- **Nền sinh nhân vật đổi sang xám trung tính `#9CA3AF`** (thay green #00B140) để
+  không còn ám màu green spill lên áo trắng — rembg không cần nền chroma.
+- **Negative nhân vật** thêm chống ruy-băng/vải bay, hiệu ứng lơ lửng, và
+  reference-sheet/text/watermark (SD anime hay tự thêm khi nền trống).
+- **Ít cảnh hơn cho nhanh:** semantic splitter đổi mục tiêu 15-20 → **10-14 cảnh**,
+  mỗi cảnh 30-50s.
+- **Bằng chứng GPU:** `run_batch` 4 cảnh / 2 location / 1 nhân vật = 63.5s, bg-cache
+  tái dùng đúng, mỗi cảnh matte rembg + composite sạch. Frame kể-truyện thật ở
+  `storage/quicktest/batch/scene_00X.png`. Script dò nhanh:
+  `scripts/studio_quicktest.py` (1 nền+1 nhân vật, so 4 matte) và
+  `scripts/studio_batch_smoke.py` (run_batch nhiều cảnh).
+- **Còn hở:** đồng nhất nhân vật vẫn dựa IP-Adapter + bootstrap ref (chỉ hiệu lực
+  khi context.json đã lưu); vài frame còn fringe mép mờ nhẹ.
+- **Dep mới:** `rembg>=2.0.77`, `pymatting>=1.1.15` (đã thêm requirements.txt).
+  Config keys mới: `studio_matte_engine`, `studio_matte_model`; đổi mặc định
+  `studio_matte_bg_color` khi dùng rembg nên đặt xám.
+
 ## 6. Definition of Done trước merge
 
 - [x] Unit test/lint/compile cục bộ xanh ở cả hai tầng.
