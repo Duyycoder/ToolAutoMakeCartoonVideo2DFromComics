@@ -1180,16 +1180,27 @@ function clearConsole(stepName) {
     if (consoleBox) consoleBox.innerHTML = "";
 }
 
+// Giới hạn số dòng log giữ trong DOM. Render 1 chương có thể phun hàng chục nghìn
+// dòng (tiến trình diffusion mỗi cảnh); nếu không cắt bớt, WebView2 phình bộ nhớ
+// tới mức "Out of Memory" và sập trang. Giữ ~4000 span cuối là quá đủ để theo dõi.
+const MAX_CONSOLE_LINES = 4000;
+
 // Output formatted SSE logs to console
 function appendConsoleLog(stepName, text, className = "") {
     const consoleBox = document.getElementById(`logConsole-${stepName}`);
     if (!consoleBox) return;
-    
+
     const span = document.createElement("span");
     if (className) span.className = className;
     span.textContent = text;
     consoleBox.appendChild(span);
-    
+
+    // Cắt bớt các dòng cũ nhất khi vượt trần (chống rò rỉ bộ nhớ renderer).
+    let overflow = consoleBox.childElementCount - MAX_CONSOLE_LINES;
+    while (overflow-- > 0 && consoleBox.firstChild) {
+        consoleBox.removeChild(consoleBox.firstChild);
+    }
+
     // Auto scroll to bottom
     consoleBox.scrollTop = consoleBox.scrollHeight;
 }
