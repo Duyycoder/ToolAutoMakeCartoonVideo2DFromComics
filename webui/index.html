@@ -423,10 +423,13 @@
                             <div class="form-group">
                                 <label for="s3Style">Phong cách hình ảnh (Style)</label>
                                 <select id="s3Style">
-                                    <option value="flat_anime" selected>Anime 2D Flat (Lineart)</option>
+                                    <option value="thuy_mac" selected>Thủy Mặc (Mực tàu — có LoRA riêng, khuyên dùng)</option>
+                                    <option value="flat_anime">Anime 2D Flat (Lineart)</option>
                                     <option value="anime_2d">Anime 2D Truyền Thống</option>
                                     <option value="xianxia">Xianxia / Cổ Trang Trung Hoa</option>
-                                    <option value="watercolor">Watercolor / Tranh Thủy Mặc</option>
+                                    <option value="storyboard">Storyboard Flat Pastel</option>
+                                    <option value="storyboard_min">Storyboard Tối Giản</option>
+                                    <option value="watercolor">Watercolor (Màu nước loang)</option>
                                     <option value="comic">Comic / Truyện Tranh Mỹ</option>
                                     <option value="manga">Manga (Trắng Đen)</option>
                                     <option value="chibi">Chibi (Dễ thương)</option>
@@ -878,9 +881,15 @@
                             <div class="form-group">
                                 <label for="cfgVideoStyle">Style Mặc định</label>
                                 <select id="cfgVideoStyle">
-                                    <option value="anime_2d_flat">Anime 2D Flat</option>
-                                    <option value="xianxia_cultivation">Xianxia</option>
-                                    <option value="watercolor_storytelling">Watercolor</option>
+                                    <!-- value PHẢI trùng tên file trong resource/image_presets/ -->
+                                    <option value="thuy_mac" selected>Thủy Mặc (có LoRA riêng)</option>
+                                    <option value="flat_anime">Anime 2D Flat</option>
+                                    <option value="anime_2d">Anime 2D Truyền Thống</option>
+                                    <option value="xianxia">Xianxia / Cổ Trang</option>
+                                    <option value="storyboard">Storyboard Flat Pastel</option>
+                                    <option value="watercolor">Watercolor</option>
+                                    <option value="manga">Manga (Trắng Đen)</option>
+                                    <option value="comic">Comic Mỹ</option>
                                 </select>
                             </div>
                             <div class="form-group">

@@ -1569,7 +1569,7 @@ async function loadGlobalConfig() {
         document.getElementById("cfgTtsVieneuMode").value = config.tts?.vieneu_mode || "v3turbo";
         document.getElementById("cfgTtsVieneuVoice").value = config.tts?.vieneu_voice || "Ngọc Lan";
         
-        document.getElementById("cfgVideoStyle").value = config.video?.default_style || "anime_2d_flat";
+        document.getElementById("cfgVideoStyle").value = config.video?.default_style || "thuy_mac";
         document.getElementById("cfgVideoGpu").checked = config.video?.use_gpu !== false;
         document.getElementById("cfgVideoCheckpoint").value = config.video?.default_checkpoint || "anything-v5";
         document.getElementById("cfgVideoBgmVolume").value = config.video?.bgm_volume !== undefined ? config.video.bgm_volume : 0.15;
@@ -1605,7 +1605,7 @@ async function loadGlobalConfig() {
 
         // Load defaults into Step 3 forms (if not already custom selected)
         const s3Style = document.getElementById("s3Style");
-        if (s3Style) s3Style.value = config.video?.default_style || "anime_2d_flat";
+        if (s3Style) s3Style.value = config.video?.default_style || "thuy_mac";
 
         const s3Checkpoint = document.getElementById("s3Checkpoint");
         if (s3Checkpoint) s3Checkpoint.value = config.video?.default_checkpoint || "anything-v5";
