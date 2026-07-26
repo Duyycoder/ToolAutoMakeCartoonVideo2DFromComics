@@ -28,7 +28,11 @@ app.add_middleware(
 )
 
 # Initialize singletons
-storage_mgr = StorageManager(base_storage_dir="storage")
+# Thư mục dữ liệu (nặng) cấu hình được: người dùng có thể trỏ sang ổ/đường dẫn khác
+# qua khóa "storage_dir" trong global_config.json (mặc định: ./storage).
+_cfg = load_global_config()
+_storage_dir = (_cfg.get("storage_dir") or "storage").strip() or "storage"
+storage_mgr = StorageManager(base_storage_dir=_storage_dir)
 process_mgr = ProcessManager()
 pipeline = NovelPipeline(storage_mgr, process_mgr)
 auto_run_mgr = AutoRunManager(storage_mgr, process_mgr, pipeline)
@@ -163,6 +167,26 @@ class PrepareSchema(BaseModel):
 @app.get("/api/config")
 def get_config():
     return load_global_config()
+
+@app.get("/api/stats")
+def get_stats():
+    """Thống kê tổng hợp từ SQLite (phục vụ trang Dashboard)."""
+    from orchestrator import db
+    result = db.stats(storage_mgr.db_path)
+    result["stories"] = db.list_stories(storage_mgr.db_path)
+    result["storage_dir"] = storage_mgr.base_dir
+    return result
+
+@app.post("/api/maintenance/cleanup-tasks")
+def cleanup_tasks_api(dry_run: bool = True, days: float = 0):
+    """Dọn dẹp thư mục làm việc tạm (bảo vệ contexts). dry_run=true chỉ xem trước."""
+    return storage_mgr.cleanup_tasks(keep_days=days, dry_run=dry_run)
+
+@app.post("/api/maintenance/rebuild-db")
+def rebuild_db_api():
+    """Đồng bộ lại SQLite từ các story.json trên đĩa."""
+    n = storage_mgr.rebuild_db()
+    return {"synced": n}
 
 @app.get("/api/system/gpu-info")
 def get_gpu_info():

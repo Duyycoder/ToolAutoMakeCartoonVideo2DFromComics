@@ -1737,3 +1737,56 @@ function updateStep5ButtonState() {
         btn.disabled = checkboxes.length < 2;
     }
 }
+
+// ===== Dashboard / Thống kê (A4) =====
+function _statEsc(t) {
+    return (t == null ? "" : String(t)).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+async function loadStats() {
+    try {
+        const r = await fetch(`${API_BASE}/api/stats`, { cache: "no-store" });
+        const d = await r.json();
+        const dirEl = document.getElementById("statsStorageDir");
+        if (dirEl) dirEl.textContent = d.storage_dir || "—";
+        const cards = [
+            ["Bộ truyện", d.total_stories], ["Chương", d.total_chapters],
+            ["Video hoàn tất", d.videos_done], ["Job lỗi", d.jobs_failed],
+        ];
+        document.getElementById("statsCards").innerHTML = cards.map(([lbl, val]) =>
+            `<div class="stat-card"><div class="stat-value">${val ?? 0}</div><div class="stat-label">${lbl}</div></div>`).join("");
+        const rows = (d.stories || []).map(s =>
+            `<tr><td>${_statEsc(s.name || s.slug)}</td><td>${_statEsc(s.status || "")}</td><td>${s.chapter_count ?? 0}</td><td>${_statEsc((s.updated_at || "").slice(0, 16).replace("T", " "))}</td></tr>`).join("");
+        document.getElementById("statsStoriesBody").innerHTML = rows ||
+            `<tr><td colspan="4" style="color:var(--text-muted)">Chưa có dữ liệu</td></tr>`;
+    } catch (e) {
+        document.getElementById("statsCards").innerHTML = `<div style="color:var(--danger)">Lỗi tải thống kê: ${e}</div>`;
+    }
+}
+async function previewCleanup() {
+    const el = document.getElementById("cleanupInfo");
+    el.textContent = "Đang kiểm tra...";
+    try {
+        const r = await fetch(`${API_BASE}/api/maintenance/cleanup-tasks?dry_run=true`, { method: "POST" });
+        const d = await r.json();
+        el.innerHTML = `Có <strong>${d.count}</strong> thư mục tạm, sẽ giải phóng ~<strong>${d.freed_mb} MB</strong>. Tri thức nhân vật/LoRA được giữ nguyên.`;
+    } catch (e) { el.textContent = "Lỗi: " + e; }
+}
+async function doCleanup() {
+    if (!confirm("Xóa các thư mục làm việc tạm (khung ảnh trung gian)?\nTri thức nhân vật/LoRA được giữ nguyên. Thao tác không hoàn tác.")) return;
+    const el = document.getElementById("cleanupInfo");
+    el.textContent = "Đang dọn dẹp...";
+    try {
+        const r = await fetch(`${API_BASE}/api/maintenance/cleanup-tasks?dry_run=false`, { method: "POST" });
+        const d = await r.json();
+        el.innerHTML = `✅ Đã xóa <strong>${d.count}</strong> thư mục, giải phóng ~<strong>${d.freed_mb} MB</strong>.`;
+    } catch (e) { el.textContent = "Lỗi: " + e; }
+}
+async function rebuildStatsDb() {
+    try {
+        const r = await fetch(`${API_BASE}/api/maintenance/rebuild-db`, { method: "POST" });
+        const d = await r.json();
+        alert(`Đã đồng bộ ${d.synced} truyện vào CSDL.`);
+        loadStats();
+    } catch (e) { alert("Lỗi: " + e); }
+}
+document.querySelector('.nav-item[data-tab="stats"]')?.addEventListener("click", loadStats);

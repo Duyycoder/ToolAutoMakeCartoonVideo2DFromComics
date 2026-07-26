@@ -73,6 +73,13 @@
                         <span class="nav-subtitle">Quản lý API Key & Mặc định</span>
                     </div>
                 </button>
+                <button class="nav-item" data-tab="stats">
+                    <span class="nav-icon">📊</span>
+                    <div class="nav-text">
+                        <span class="nav-title">Thống Kê</span>
+                        <span class="nav-subtitle">Dashboard & Dọn dẹp</span>
+                    </div>
+                </button>
             </nav>
         </aside>
 
@@ -941,6 +948,31 @@
                             <button type="submit" class="btn btn-primary w-100">💾 Lưu Cấu Hình</button>
                         </div>
                     </form>
+                </div>
+            </section>
+            <section class="tab-panel" id="tab-stats">
+                <div class="card glass-card">
+                    <h3>📊 Thống Kê Hệ Thống</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Số liệu tổng hợp từ cơ sở dữ liệu SQLite. Thư mục dữ liệu: <code id="statsStorageDir">—</code></p>
+                    <div id="statsCards" class="stats-cards"></div>
+                </div>
+                <div class="card glass-card" style="margin-top: 16px;">
+                    <h3>🧹 Dọn Dẹp Dữ Liệu Tạm</h3>
+                    <p id="cleanupInfo" style="color: var(--text-secondary);">Xóa các thư mục làm việc trung gian (khung ảnh) — <strong>giữ nguyên</strong> tri thức nhân vật/LoRA. Nhấn "Xem trước" trước khi dọn.</p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
+                        <button class="btn btn-secondary" onclick="previewCleanup()">🔍 Xem trước</button>
+                        <button class="btn btn-danger" onclick="doCleanup()">🗑️ Dọn dẹp thật</button>
+                        <button class="btn btn-secondary" onclick="rebuildStatsDb()">🔄 Đồng bộ lại CSDL</button>
+                    </div>
+                </div>
+                <div class="card glass-card" style="margin-top: 16px;">
+                    <h3>📚 Danh Sách Truyện (từ CSDL)</h3>
+                    <div style="overflow-x: auto;">
+                        <table class="stats-table">
+                            <thead><tr><th>Truyện</th><th>Trạng thái</th><th>Số chương</th><th>Cập nhật</th></tr></thead>
+                            <tbody id="statsStoriesBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
         </main>
