@@ -49,6 +49,8 @@ class StubProcess:
         self.manual_running_tasks.discard(task_key)
         self.completed_exit_codes[task_key] = int(exit_code)
 
+    # --- Bổ sung để khớp interface ProcessManager (được gọi từ luồng nền
+    #     _copy_local -> on_crawl_completed); thiếu sẽ ném AttributeError trong thread.
     def was_user_stopped(self, task_key):
         return False
 
