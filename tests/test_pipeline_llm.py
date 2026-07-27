@@ -49,6 +49,16 @@ class StubProcess:
         self.manual_running_tasks.discard(task_key)
         self.completed_exit_codes[task_key] = int(exit_code)
 
+    def was_user_stopped(self, task_key):
+        return False
+
+    def is_running(self, task_key):
+        return task_key in self.manual_running_tasks
+
+    def stop_process(self, task_key):
+        self.manual_running_tasks.discard(task_key)
+        return True
+
 
 def arg_of(cmd, flag):
     """Lay gia tri ngay sau mot co CLI trong lenh da bat duoc."""

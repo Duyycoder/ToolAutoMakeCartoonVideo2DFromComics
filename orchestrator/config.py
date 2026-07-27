@@ -25,23 +25,78 @@ def load_global_config() -> Dict[str, Any]:
                 "gemini_offline_key": "",
                 "ollama_base_url": "http://localhost:11434/v1"
             },
+            # Bước 1 — mặc định dịch/sáng tác (dùng chung cho toàn dự án)
+            "translate": {
+                "default_engine": "gemini_api",
+                "ollama_model": "qwen2.5:7b-instruct",
+                "gemini_offline_model": "gemini-2.5-flash",
+                "genre": "tien_hiep",
+                "auto_translate": True,
+                "auto_extract": True,
+                "glossary_extract_engine": "gemini",
+                "glossary_extract_ollama_model": ""
+            },
             "tts": {
                 "default_engine": "edge",
                 "default_voice": "vi-VN-NamMinhNeural",
                 "kokoro_voice": "thuc_trinh",
                 "vieneu_mode": "v3turbo",
                 "vieneu_voice": "Ngọc Lan",
+                "vieneu_emotion": "",
                 "normalize": True,
                 "target_lufs": -14.0,
-                "speed": 1.0
+                "speed": 1.0,
+                "fade_in": 0.1,
+                "fade_out": 0.1,
+                "silence_duration": 0.3,
+                "device": "auto",
+                "use_cache": False,
+                "cache_threshold": 0.95,
+                "temperature": 0.3
             },
             "video": {
                 "default_style": "anime_2d_flat",
                 "use_gpu": True,
                 "default_checkpoint": "anything-v5",
+                "bgm_path": "",
                 "bgm_volume": 0.15,
                 "default_llm_engine": "gemini_api",
-                "default_llm_model": DEFAULT_GEMINI_PROXY_MODEL
+                "default_llm_model": DEFAULT_GEMINI_PROXY_MODEL,
+                "downloader_cookies": "",
+                "genre": "tien_hiep",
+                "enable_upscale": True,
+                "burn_subtitles": False,
+                "use_semantic_split": True,
+                "extract_characters": True,
+                "enable_face_detailer": False,
+                "render_mode": "studio",
+                "hardware_profile": "auto",
+                "device": "auto"
+            },
+            # Bước 4 — autosub/lồng tiếng (bao gồm thư mục đầu ra tùy chọn)
+            "autosub": {
+                "output_dir": "",
+                "source_lang": "English",
+                "sub_source": "whisper",
+                "burn_method": "ffmpeg",
+                "clean_audio": False,
+                "enable_voiceover": False,
+                "tts_engine": "edge",
+                "tts_voice": "vi-VN-NamMinhNeural",
+                "auto_clone": False,
+                "ducking_ratio": 90.0,
+                "llm_engine": "gemini_api",
+                "llm_model": "gemini-3-flash",
+                "font_name": "",
+                "font_size": 45,
+                "text_color": "#ffffff",
+                "stroke_color": "#000000",
+                "stroke_width": 1.5,
+                "bg_style": "",
+                "bg_color": "#000000",
+                "bg_alpha": 140,
+                "sub_position": "",
+                "custom_position": 70.0
             }
         }
         save_global_config(default_cfg)

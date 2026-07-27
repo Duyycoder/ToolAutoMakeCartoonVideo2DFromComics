@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 # Add parent directory to sys.path to resolve orchestrator package imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -45,11 +45,17 @@ def _reject_if_auto_running(slug: str):
 
 # Pydantic Schemas
 class GlobalConfigSchema(BaseModel):
+    # extra="allow" để giữ nguyên các mục cấu hình mới (translate, autosub, ...)
+    # mà không cần khai báo cứng từng khóa — hợp với việc Cấu Hình Chung mirror
+    # toàn bộ tham số của mọi bước.
+    model_config = ConfigDict(extra="allow")
     api_keys: dict
     storage_dir: str
     crawler: dict
     tts: dict
     video: dict
+    translate: Optional[dict] = None
+    autosub: Optional[dict] = None
     orchestrator_port: Optional[int] = None
 
 class CreateStorySchema(BaseModel):
@@ -72,6 +78,7 @@ class Step1Schema(BaseModel):
     auto_extract: bool = False
     auto_translate: bool = True
     continue_download: bool = False
+    topic: Optional[str] = None  # nguồn "ai_write": chủ đề/ý tưởng để LLM sáng tác
     glossary_extract_engine: Optional[str] = "gemini"
     glossary_extract_ollama_model: Optional[str] = ""
 
@@ -151,6 +158,7 @@ class Step4Schema(BaseModel):
     sub_position: Optional[str] = None
     custom_position: Optional[float] = None
     cookies_file: Optional[str] = None
+    output_dir: Optional[str] = None  # thư mục đầu ra (video tải về + video đã sub)
 
 class Step5Schema(BaseModel):
     story_name: str
@@ -270,6 +278,7 @@ def _build_step1_args(body: Step1Schema) -> dict:
         "start_chapter_id": body.start_chapter_id,
         "num_chapters": body.max_chapters,
         "local_folder": body.local_folder,
+        "topic": body.topic,  # nguồn "ai_write": chủ đề để LLM sáng tác
         "continue_download": body.continue_download
     }
     trans_args = {
@@ -300,6 +309,12 @@ def run_step1(body: Step1Schema):
 
     if process_mgr.is_running(task_key):
         raise HTTPException(status_code=400, detail="A crawl/translate process is already active for this story.")
+
+    # Nguồn "Sáng tác bằng AI": xác thực chủ đề sớm cho thông báo rõ ràng; việc
+    # sinh truyện bằng LLM do pipeline.start_step_1_crawl_translate định tuyến
+    # (dùng chung một lối với chuỗi auto-run).
+    if body.source_site == "ai_write" and not (body.topic or "").strip():
+        raise HTTPException(status_code=400, detail="Vui lòng nhập chủ đề/ý tưởng để AI sáng tác truyện.")
 
     step1_args = _build_step1_args(body)
     success = pipeline.start_step_1_crawl_translate(

@@ -3,6 +3,33 @@ import datetime
 from orchestrator.storage import StorageManager
 from orchestrator.process_manager import ProcessManager
 
+
+def _resolve_ai_write_args(crawl_args: dict, trans_args: dict) -> dict:
+    """Suy ra tham số LLM cho nguồn 'ai_write' từ crawl/trans args.
+
+    Dùng chung cho endpoint Bước 1 lẻ và chuỗi auto-run để chỉ có MỘT nơi quyết
+    định engine/base_url/model — tránh lệch hành vi giữa hai lối chạy.
+    """
+    from .config import load_global_config
+    g = load_global_config()
+    engine = (trans_args.get("engine") or "").lower()
+    if engine == "ollama":
+        base_url = g.get("crawler", {}).get("ollama_base_url", "http://localhost:11434/v1")
+        model = trans_args.get("ollama_model") or "qwen2.5:7b-instruct"
+        api_key = ""
+    else:
+        base_url = trans_args.get("gemini_offline_base_url") or g.get("crawler", {}).get(
+            "gemini_offline_base_url", "http://localhost:7860/v1")
+        model = trans_args.get("gemini_offline_model") or "gemini-2.5-flash"
+        api_key = trans_args.get("gemini_api_key") or g.get("api_keys", {}).get("gemini", "")
+    return {
+        "base_url": base_url, "model": model, "api_key": api_key,
+        "topic": (crawl_args.get("topic") or "").strip(),
+        "num_chapters": crawl_args.get("num_chapters") or 1,
+        "genre": trans_args.get("genre") or "",
+    }
+
+
 class NovelPipeline:
     def __init__(self, storage_mgr: StorageManager, process_mgr: ProcessManager):
         self.storage_mgr = storage_mgr
@@ -25,9 +52,17 @@ class NovelPipeline:
             resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
             resolved_model = llm_offline_model or DEFAULT_OLLAMA_MODEL
         else:  # gemini_api (Local Gemini proxy)
-            resolved_key = llm_api_key or g_config.get("crawler", {}).get("gemini_offline_key", "")
+            # UI Cấu Hình Chung chỉ có MỘT ô "Gemini API Key" (lưu vào api_keys.gemini);
+            # crawler.gemini_offline_key không có ô nào để nhập. Vì vậy fallback sang
+            # api_keys.gemini để proxy dùng được key user đã lưu 1 lần — nếu không,
+            # chuỗi tự động luôn dừng ở Bước 3 dù user đã nhập key ở Cấu Hình Chung.
+            resolved_key = (
+                llm_api_key
+                or g_config.get("crawler", {}).get("gemini_offline_key", "")
+                or g_config.get("api_keys", {}).get("gemini", "")
+            )
             if not resolved_key:
-                raise ValueError("Đã chọn Gemini Proxy nhưng chưa cấu hình key. Nhập key ở giao diện hoặc config crawler.gemini_offline_key")
+                raise ValueError("Đã chọn Gemini Proxy nhưng chưa cấu hình key. Nhập key ở ô 'Gemini API Key' (Bước 3 hoặc Cấu Hình Chung).")
             resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("gemini_offline_base_url") or "http://localhost:7860/v1"
             resolved_model = llm_offline_model or DEFAULT_GEMINI_PROXY_MODEL
             
@@ -74,6 +109,12 @@ class NovelPipeline:
         story_meta = self.storage_mgr.read_story_meta(story_name)
         if not story_meta:
             return False
+
+        # Nguồn "Sáng tác bằng AI" đi cùng entry point này để cả endpoint lẻ lẫn
+        # chuỗi auto-run đều chạy đúng (sinh truyện bằng LLM thay vì cào/dịch).
+        if crawl_args.get("source") == "ai_write":
+            return self.start_ai_write(
+                story_name, _resolve_ai_write_args(crawl_args, trans_args))
 
         story_dir = self.storage_mgr.get_story_dir(story_name)
         raw_dir = os.path.join(story_dir, "raw")
@@ -216,21 +257,90 @@ class NovelPipeline:
                 return False
 
             def _copy_local():
+                # Gọi on_crawl_completed đúng MỘT lần: tách phần copy (có thể lỗi)
+                # khỏi callback hoàn tất để callback không bị chạy lại khi nó ném lỗi.
                 local_dir = crawl_args.get("local_folder")
+                exit_code = 1
                 try:
                     if local_dir and os.path.exists(local_dir):
+                        copied = 0
                         for item in os.listdir(local_dir):
                             if item.endswith(".md") or item.endswith(".txt"):
                                 shutil.copy2(os.path.join(local_dir, item), os.path.join(raw_dir, item))
-                        on_crawl_completed(0)
+                                copied += 1
+                        if copied:
+                            exit_code = 0
+                        else:
+                            local_queue.put(
+                                "[Pipeline] Không tìm thấy file .md/.txt trong thư mục cục bộ.\n")
                     else:
-                        on_crawl_completed(1)
+                        local_queue.put(
+                            "[Pipeline] Thư mục cục bộ không tồn tại.\n")
                 except Exception as e:
                     local_queue.put(
                         f"[Pipeline] Lỗi khi copy thư mục cục bộ: {e}\n")
-                    on_crawl_completed(1)
+                    exit_code = 1
+                on_crawl_completed(exit_code)
             threading.Thread(target=_copy_local, daemon=True).start()
             return True
+
+    def start_ai_write(self, story_name: str, ai_args: dict) -> bool:
+        """Sáng tác truyện bằng LLM cục bộ (nguồn 'ai_write').
+
+        Chạy bằng thread (tác vụ I/O gọi LLM, không dùng GPU) qua cơ chế manual task.
+        Nội dung sinh ra là tiếng Việt nên bỏ qua bước dịch → chuyển thẳng sang bước TTS.
+        """
+        import threading
+        import queue as _queue
+
+        story_meta = self.storage_mgr.read_story_meta(story_name)
+        if not story_meta:
+            return False
+        story_dir = self.storage_mgr.get_story_dir(story_name)
+        raw_dir = os.path.join(story_dir, "raw")
+        os.makedirs(raw_dir, exist_ok=True)
+        task_key = f"{story_meta['story_slug']}_step1"
+
+        q = _queue.Queue()
+        if not self.process_mgr.register_manual_task(task_key, q):
+            return False
+
+        story_meta["status"] = "WRITING"
+        story_meta["updated_at"] = datetime.datetime.now().isoformat()
+        self.storage_mgr.write_story_meta(story_name, story_meta)
+
+        def _run():
+            from orchestrator import story_writer
+            try:
+                q.put("[Pipeline] Bắt đầu sáng tác truyện bằng LLM cục bộ...\n")
+                n = story_writer.generate_story(
+                    base_url=ai_args["base_url"], model=ai_args["model"],
+                    api_key=ai_args.get("api_key", ""), topic=ai_args["topic"],
+                    num_chapters=int(ai_args.get("num_chapters", 1) or 1),
+                    out_dir=raw_dir, genre=ai_args.get("genre", ""),
+                    progress=lambda m: q.put(m + "\n"),
+                )
+                meta = self.storage_mgr.read_story_meta(story_name)
+                if meta:
+                    meta["status"] = "TRANSLATED"  # nội dung đã là tiếng Việt
+                    meta["pipeline_step"] = 2
+                    meta["updated_at"] = datetime.datetime.now().isoformat()
+                    self.storage_mgr.write_story_meta(story_name, meta)
+                q.put(f"[Pipeline] Đã sáng tác {n} chương (tiếng Việt).\n")
+                self.process_mgr.mark_completed(task_key, 0)
+            except Exception as e:
+                meta = self.storage_mgr.read_story_meta(story_name)
+                if meta:
+                    meta["status"] = "WRITE_FAILED"
+                    meta["updated_at"] = datetime.datetime.now().isoformat()
+                    self.storage_mgr.write_story_meta(story_name, meta)
+                q.put(f"[ERROR] Sáng tác thất bại: {e}\n")
+                self.process_mgr.mark_completed(task_key, 1)
+            finally:
+                q.put(None)
+
+        threading.Thread(target=_run, daemon=True).start()
+        return True
 
     def start_step_2_tts(self, story_name: str, tts_args: dict) -> bool:
         """Runs tts adapter on translated chapters."""
@@ -452,20 +562,24 @@ class NovelPipeline:
             if not story_meta:
                 return False
             slug = story_meta['story_slug']
-            output_dir = os.path.join(self.storage_mgr.get_story_dir(story_name), "video")
+            default_output_dir = os.path.join(self.storage_mgr.get_story_dir(story_name), "video")
             task_key = f"{slug}_step4"
         else:
-            output_dir = os.path.join(self.storage_mgr.tasks_dir, f"autosub_{task_id}")
+            default_output_dir = os.path.join(self.storage_mgr.tasks_dir, f"autosub_{task_id}")
             task_key = f"autosub_{task_id}_step4"
-            
-        os.makedirs(output_dir, exist_ok=True)
-        
+
         python_exe = os.path.abspath("AIVoice/.venv/Scripts/python.exe")
         adapter_path = os.path.abspath("AIVoice/apps/MediaComposer/adapter_autosub_cli.py")
-        
+
         from orchestrator.config import load_global_config
         g_config = load_global_config()
         video_cfg = g_config.get("video", {})
+        autosub_cfg = g_config.get("autosub", {})
+
+        # Thư mục đầu ra: ưu tiên yêu cầu -> Cấu Hình Chung -> mặc định (video truyện / tác vụ tạm).
+        # Video tải về (tạm) và video đã gắn sub đều nằm ở đây (adapter dùng chung --output-dir).
+        output_dir = (autosub_args.get("output_dir") or autosub_cfg.get("output_dir") or "").strip() or default_output_dir
+        os.makedirs(output_dir, exist_ok=True)
         ocr_use_gpu = autosub_args.get("ocr_use_gpu")
         if ocr_use_gpu is None:
             ocr_use_gpu = video_cfg.get("ocr_use_gpu", True)
