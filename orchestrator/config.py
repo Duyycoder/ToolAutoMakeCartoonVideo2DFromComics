@@ -100,7 +100,7 @@ def load_global_config() -> Dict[str, Any]:
             },
             "chatbot": {
                 "enabled": True,
-                "model": "qwen2.5:3b-instruct",
+                "model": "qwen2.5:3b",
                 "share_model_with_step3": False,
                 "base_url": "",
                 "temperature": 0.4,
@@ -131,7 +131,7 @@ def load_global_config() -> Dict[str, Any]:
             if "chatbot" not in cfg:
                 cfg["chatbot"] = {
                     "enabled": True,
-                    "model": "qwen2.5:3b-instruct",
+                    "model": "qwen2.5:3b",
                     "share_model_with_step3": False,
                     "base_url": "",
                     "temperature": 0.4,

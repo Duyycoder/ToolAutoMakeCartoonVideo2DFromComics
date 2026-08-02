@@ -101,7 +101,7 @@ async def _ask_llm(mgr: ChatManager, cfg: dict, question: str, min_score: float)
     parts = []
     async for chunk in chat_stream_ollama(
         base_url=cfg.get("base_url") or "http://localhost:11434",
-        model=cfg.get("model", "qwen2.5:3b-instruct"),
+        model=cfg.get("model", "qwen2.5:3b"),
         messages=messages,
         temperature=cfg.get("temperature", 0.4),
         num_ctx=cfg.get("num_ctx", 8192),
@@ -168,7 +168,7 @@ def main():
     cfg = dict(load_global_config().get("chatbot", {}))
     if args.model:
         cfg["model"] = args.model
-    min_score = cfg.get("kb_min_score", 0.50)
+    min_score = cfg.get("kb_min_score", 0.65)
     mgr = ChatManager(None, None, None, kb_dir=KB_DIR)
     items = load_questions()
 

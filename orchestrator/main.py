@@ -644,7 +644,7 @@ def get_chat_health():
     if root.endswith("/v1"):
         root = root[:-3]
 
-    want_model = cfg.get("model", "qwen2.5:3b-instruct")
+    want_model = cfg.get("model", "qwen2.5:3b")
     ollama_online = False
     model_loaded = False   # đã nạp sẵn trong VRAM (/api/ps)
     model_installed = False  # đã pull về đĩa (/api/tags)
@@ -789,7 +789,7 @@ async def post_chat(body: ChatRequestSchema, request: Request):
         messages.append({"role": "user", "content": body.message})
 
         base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
-        model = cfg.get("model", "qwen2.5:3b-instruct")
+        model = cfg.get("model", "qwen2.5:3b")
         num_ctx = cfg.get("num_ctx", 8192)
 
         async def generate_chat():
@@ -860,7 +860,7 @@ async def prewarm_chat_model():
     root = base_url.rstrip("/")
     if root.endswith("/v1"):
         root = root[:-3]
-    model = cfg.get("model", "qwen2.5:3b-instruct")
+    model = cfg.get("model", "qwen2.5:3b")
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:

@@ -9,7 +9,7 @@
 
 ## Ollama Ngoại Tuyến (Badge Xám / Offline)
 - **Nguyên nhân:** Dịch vụ Ollama chưa được bật hoặc chưa cài đặt.
-- **Cách khắc phục:** Mở Terminal và gõ `ollama serve`. Nếu chưa cài, tải Ollama từ trang chủ và chạy `ollama pull qwen2.5:3b-instruct`.
+- **Cách khắc phục:** Mở Terminal và gõ `ollama serve`. Nếu chưa cài, tải Ollama từ trang chủ và chạy `ollama pull qwen2.5:3b`.
 
 ## Video sinh ra không có tiếng
 - **Nguyên nhân:** Bước 2 chưa được chạy hoặc bị lỗi không tạo ra file `.wav` trong `storage/stories/<slug>/audio/`.

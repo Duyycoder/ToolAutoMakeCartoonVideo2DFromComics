@@ -8,7 +8,7 @@ Nằm tại tab **Cấu Hình Chung** trên WebUI (lưu vào `configs/config.jso
 ## Cấu hình Trợ lý AI (Chatbot)
 Khối `chatbot` điều khiển trợ lý hội thoại nổi trên WebUI:
 - `enabled`: Bật/tắt trợ lý AI (mặc định `true`).
-- `model`: Tên model Ollama cho trợ lý (khuyên dùng `qwen2.5:3b-instruct`).
+- `model`: Tên model Ollama cho trợ lý (khuyên dùng `qwen2.5:3b`).
 - `share_model_with_step3`: Dùng chung model với Bước 3 nếu Bước 3 chọn engine Ollama.
 - `block_when_busy`: Cảnh báo / chặn khi GPU đang chạy tác vụ nặng (`heavy`).
 - `auto_unload_before_pipeline`: Tự nhả trợ lý khỏi VRAM khi pipeline khởi động.

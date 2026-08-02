@@ -30,7 +30,7 @@
   },
   "chatbot": {
     "enabled": true,
-    "model": "qwen2.5:3b-instruct",
+    "model": "qwen2.5:3b",
     "share_model_with_step3": false,
     "base_url": "",
     "temperature": 0.4,
