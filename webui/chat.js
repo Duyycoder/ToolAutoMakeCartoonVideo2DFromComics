@@ -346,11 +346,20 @@
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop();
+        let lines;
+        if (done) {
+          // Dòng cuối có thể KHÔNG kết thúc bằng "\n". Nếu bỏ qua phần còn lại
+          // trong buffer thì một phản hồi gói gọn trong đúng một dòng sẽ bị mất
+          // trắng và widget đứng mãi ở dấu "..." — đúng lỗi đã xảy ra với nhánh
+          // lệnh agent. Luôn xả nốt buffer trước khi thoát.
+          lines = buffer.trim() ? [buffer] : [];
+          buffer = "";
+        } else {
+          buffer += decoder.decode(value, { stream: true });
+          lines = buffer.split("\n");
+          buffer = lines.pop();
+        }
 
         for (const line of lines) {
           if (!line.trim()) continue;
@@ -387,6 +396,8 @@
             console.warn("[Chatbot] Bỏ qua dòng stream không đọc được:", e.message, line);
           }
         }
+
+        if (done) break;
       }
     } catch (err) {
       if (err.name === "AbortError") {

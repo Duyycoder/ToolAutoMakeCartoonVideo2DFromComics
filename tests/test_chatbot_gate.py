@@ -5,6 +5,7 @@ Các test ở đây khoá lại ba khiếm khuyết đã từng xảy ra:
   2. Một từ trùng ngẫu nhiên đủ để nhận cả đoạn KB.
   3. Danh sách stopword bị nhồi từ nội dung của chính bộ eval (overfit phép đo).
 """
+import json
 import os
 
 from orchestrator.chatbot import ChatManager, VIETNAMESE_STOPWORDS
@@ -84,6 +85,32 @@ def test_health_khong_duoc_hardcode_model_installed():
     src = inspect.getsource(main_mod.get_chat_health)
     assert '"model_installed": True' not in src
     assert "/api/tags" in src, "Phải truy vấn /api/tags để biết model đã pull chưa"
+
+
+def test_moi_phan_hoi_chat_deu_la_ndjson_ket_thuc_bang_newline():
+    """Hợp đồng stream: mọi nhánh /api/chat phải trả NDJSON và có newline cuối.
+
+    Nhánh lệnh agent từng trả JSONResponse thuần không newline. Client tách stream
+    theo "\\n" rồi giữ dòng cuối chưa hoàn chỉnh trong buffer, nên gói JSON duy
+    nhất đó không bao giờ được xử lý — widget đứng mãi ở dấu "...".
+    """
+    from fastapi.testclient import TestClient
+
+    from orchestrator.main import app
+
+    client = TestClient(app)
+    for msg in [
+        "Chuyển sang truyện HVL",   # L2 select_story
+        "cào 20 chương truyện hiện tại",  # L3 run_step
+        "danh sách truyện",          # L1 agent_query
+    ]:
+        r = client.post("/api/chat", json={"session_id": "t-ndjson", "message": msg})
+        assert r.status_code == 200, msg
+        assert "ndjson" in r.headers.get("content-type", ""), msg
+        assert r.text.endswith("\n"), f"Thiếu newline cuối cho: {msg}"
+        for line in r.text.splitlines():
+            if line.strip():
+                json.loads(line)  # mỗi dòng phải là JSON hợp lệ
 
 
 def test_cong_nguong_dung_chung_nguong_voi_cau_hinh():

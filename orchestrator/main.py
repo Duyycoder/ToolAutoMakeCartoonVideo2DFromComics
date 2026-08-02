@@ -726,11 +726,23 @@ async def post_chat(body: ChatRequestSchema, request: Request):
         if action != "chat":
             if action in ["run_step", "select_story"]:
                 chat_mgr.single_chat_lock.release()
-                return JSONResponse(content={
-                    "agent_action": action,
-                    "args": action_args,
-                    "message": f"Yêu cầu thực thi lệnh {action}"
-                })
+
+                # PHẢI trả NDJSON có newline cuối như mọi nhánh khác.
+                # Trước đây nhánh này trả JSONResponse thuần (application/json,
+                # không newline). Client tách stream theo "\n" rồi lop() dòng cuối
+                # chưa hoàn chỉnh vào buffer, nên gói JSON duy nhất không bao giờ
+                # được xử lý — widget đứng mãi ở dấu "..." khi người dùng gõ lệnh.
+                async def generate_agent_action():
+                    yield json.dumps({
+                        "agent_action": action,
+                        "args": action_args,
+                        "message": f"Yêu cầu thực thi lệnh {action}",
+                        "done": True,
+                    }) + "\n"
+
+                return StreamingResponse(
+                    generate_agent_action(), media_type="application/x-ndjson"
+                )
             elif action in ["list_stories", "story_report", "system_status"]:
                 res = chat_mgr.agent_query(action, action_args)
                 chat_mgr.single_chat_lock.release()
