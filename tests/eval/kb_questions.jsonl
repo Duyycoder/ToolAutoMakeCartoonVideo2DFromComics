@@ -18,7 +18,7 @@
 {"q": "Cổng mặc định của Ollama là bao nhiêu?", "type": "qa", "must_include": ["11434"]}
 {"q": "Cổng mặc định của Local Gemini Proxy là bao nhiêu?", "must_include": ["7860"]}
 {"q": "Nếu video ra không có tiếng thì kiểm tra bước nào?", "type": "qa", "must_include": ["bước 2"]}
-{"q": "Chế độ render classic có tác dụng gì?", "type": "qa", "must_include": ["truyền thống", "nối tiếp"]}
+{"q": "Chế độ render classic có tác dụng gì?", "type": "qa", "must_include": ["truyền thống", "nối tiếp", "sinh ảnh"]}
 {"q": "Cờ auto_unload_before_pipeline dùng để làm gì?", "type": "qa", "must_include": ["giải phóng", "vram"]}
 {"q": "Trợ lý AI bận thì hiện badge màu gì?", "type": "qa", "must_include": ["vàng"]}
 {"q": "Trợ lý AI sẵn sàng thì hiện badge màu gì?", "type": "qa", "must_include": ["xanh"]}

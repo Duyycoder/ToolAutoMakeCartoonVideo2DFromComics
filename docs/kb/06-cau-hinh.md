@@ -24,4 +24,6 @@ Màu sắc của badge trên nút widget trợ lý:
 - Màu xám: Trợ lý ngoại tuyến (Offline / Ollama offline).
 
 ## Phạm vi hỗ trợ của Trợ Lý
-Trợ lý không hỗ trợ tự động viết code Python hay tự đăng video lên Youtube (tài liệu không đề cập).
+Trợ lý chỉ trả lời hai nhóm nội dung: cách vận hành công cụ này, và dữ liệu truyện
+đang có trong thư mục `storage`. Ngoài hai nhóm đó, trợ lý trả lời "tài liệu hiện
+có không đề cập" thay vì suy đoán.

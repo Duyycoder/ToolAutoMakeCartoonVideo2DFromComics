@@ -24,12 +24,18 @@ def remove_vietnamese_diacritics(text: str) -> str:
     return text.lower()
 
 
+# CHỈ chứa hư từ tiếng Việt thật (từ nối, đại từ, từ để hỏi).
+#
+# KHÔNG được thêm từ nội dung của các câu hỏi trong bộ eval vào đây. Bản trước
+# có "thoi", "tiet", "pho", "bo", "nop", "tien", "dien", "thoai", "nau", "xe" —
+# đúng bằng các từ khoá của 8 câu hỏi ngoài phạm vi trong kb_questions.jsonl.
+# Đó là overfit bộ đo: nó không giúp từ chối tốt hơn trong thực tế, mà còn cắt
+# mất từ nội dung hợp lệ ("thời gian", "công cụ", "cách", "viết").
 VIETNAMESE_STOPWORDS = {
     "dung", "de", "lam", "gi", "la", "co", "may", "o", "nao", "khong", "thi",
     "bao", "nhieu", "tai", "sao", "giup", "em", "ban", "toi", "nhu", "the",
     "duoc", "va", "cho", "tren", "khi", "voi", "nen", "ra", "chua",
-    "du", "thoi", "tiet", "hom", "nay", "cach", "viet", "cong", "thuc", "nau",
-    "pho", "bo", "nop", "tien", "dien", "thoai", "sua", "xe"
+    "hom", "nay", "mot", "cua", "cac", "nhung", "hay", "phai", "se", "da",
 }
 
 
@@ -93,7 +99,7 @@ class ChatManager:
         active_tab: str = "",
         sticky_kb: Optional[List[dict]] = None,
         token_budget: int = 3000,
-        min_score: float = 0.25
+        min_score: float = 0.65
     ) -> Tuple[List[dict], float]:
         """Chấm điểm từ khoá không dấu, chọn các đoạn KB phù hợp ngân sách token.
 
@@ -124,7 +130,6 @@ class ChatManager:
         for sec in self.kb_sections:
             score = 0.0
             matched_words = 0
-            header_matched = False
             norm_txt = sec["norm_text"]
             norm_header = remove_vietnamese_diacritics(sec["header"])
 
@@ -135,15 +140,24 @@ class ChatManager:
                     word_matched = True
                 if re.search(r"\b" + re.escape(w) + r"\b", norm_header):
                     score += 1.5
-                    header_matched = True
                     word_matched = True
 
                 if word_matched:
                     matched_words += 1
 
-            # Tỷ lệ khớp từ khoá tối thiểu 40% (trừ khi khớp tiêu đề header)
+            # Hai điều kiện cần, KHÔNG có đường thoát qua header.
+            #
+            # Trước đây cờ header_matched vô hiệu hoá hoàn toàn guard tỷ lệ khớp:
+            # chỉ cần một từ phổ thông ("ứng dụng", "tự động", "video") trùng tiêu đề
+            # là đoạn KB được nhận, nên câu hoàn toàn ngoài phạm vi vẫn lọt cổng
+            # ngưỡng. Khớp tiêu đề giờ chỉ còn cộng trọng số vào score (+1.5/từ),
+            # không còn quyền bỏ qua guard.
             match_ratio = matched_words / max(len(words), 1)
-            if match_ratio < 0.4 and not header_matched:
+            if match_ratio < 0.4:
+                score = 0.0
+            # Một từ khớp lẻ là trùng ngẫu nhiên, không phải liên quan chủ đề.
+            # Câu chỉ có đúng 1 từ nội dung thì vẫn chấp nhận khớp 1 từ.
+            elif matched_words < 2 and len(words) >= 2:
                 score = 0.0
 
             if tab_target_file and sec["file"] == tab_target_file:

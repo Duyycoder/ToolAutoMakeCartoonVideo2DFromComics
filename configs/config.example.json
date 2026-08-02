@@ -40,7 +40,7 @@
     "num_ctx": 8192,
     "max_history_turns": 12,
     "kb_token_budget": 3000,
-    "kb_min_score": 0.25,
+    "kb_min_score": 0.65,
     "kb_sticky_per_session": true,
     "keep_alive": "5m",
     "prewarm_on_open": true,

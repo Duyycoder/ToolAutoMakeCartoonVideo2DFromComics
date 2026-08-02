@@ -644,25 +644,40 @@ def get_chat_health():
     if root.endswith("/v1"):
         root = root[:-3]
 
+    want_model = cfg.get("model", "qwen2.5:3b-instruct")
     ollama_online = False
-    model_loaded = False
+    model_loaded = False   # đã nạp sẵn trong VRAM (/api/ps)
+    model_installed = False  # đã pull về đĩa (/api/tags)
+
+    def _same_tag(a: str, b: str) -> bool:
+        """Ollama coi 'foo' và 'foo:latest' là một."""
+        norm = lambda s: s if ":" in s else f"{s}:latest"  # noqa: E731
+        return norm(a) == norm(b)
+
     try:
         with httpx.Client(timeout=2.0) as client:
             r = client.get(f"{root}/api/ps")
             if r.status_code == 200:
                 ollama_online = True
-                ps_data = r.json()
-                models = [m.get("name") for m in ps_data.get("models", [])]
-                if cfg.get("model") in models:
-                    model_loaded = True
+                names = [m.get("name", "") for m in r.json().get("models", [])]
+                model_loaded = any(_same_tag(want_model, n) for n in names)
+
+            # model_installed phải HỎI THẬT /api/tags. Trước đây giá trị này bị
+            # hardcode True, nên khi model chưa pull thì badge vẫn xanh và người
+            # dùng chỉ phát hiện ra khi câu hỏi đầu tiên trả về 404.
+            rt = client.get(f"{root}/api/tags")
+            if rt.status_code == 200:
+                ollama_online = True
+                installed = [m.get("name", "") for m in rt.json().get("models", [])]
+                model_installed = any(_same_tag(want_model, n) for n in installed)
     except Exception:
         pass
 
     gpu_weight, busy_tasks = chat_mgr.get_gpu_weight()
     return {
         "ollama_online": ollama_online,
-        "model": cfg.get("model", "qwen2.5:3b-instruct"),
-        "model_installed": True,
+        "model": want_model,
+        "model_installed": model_installed,
         "model_loaded": model_loaded,
         "busy": gpu_weight != "none",
         "busy_tasks": busy_tasks,
@@ -743,12 +758,12 @@ async def post_chat(body: ChatRequestSchema, request: Request):
             active_tab=body.active_tab or "",
             sticky_kb=session.get("sticky_kb") if cfg.get("kb_sticky_per_session", True) else None,
             token_budget=cfg.get("kb_token_budget", 3000),
-            min_score=cfg.get("kb_min_score", 0.25)
+            min_score=cfg.get("kb_min_score", 0.65)
         )
         if cfg.get("kb_sticky_per_session", True) and kb_sections:
             session["sticky_kb"] = kb_sections
 
-        min_score = cfg.get("kb_min_score", 0.25)
+        min_score = cfg.get("kb_min_score", 0.65)
         if max_score < min_score and "truyện" not in body.message.lower() and "story" not in body.message.lower():
             chat_mgr.single_chat_lock.release()
             refusal_text = (
