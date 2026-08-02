@@ -10,7 +10,7 @@ import os
 from orchestrator.chatbot import ChatManager, VIETNAMESE_STOPWORDS
 
 KB_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "docs", "kb"))
-MIN_SCORE = 0.65
+MIN_SCORE = 0.50
 
 
 def _mgr():

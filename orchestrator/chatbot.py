@@ -99,7 +99,7 @@ class ChatManager:
         active_tab: str = "",
         sticky_kb: Optional[List[dict]] = None,
         token_budget: int = 3000,
-        min_score: float = 0.65
+        min_score: float = 0.50
     ) -> Tuple[List[dict], float]:
         """Chấm điểm từ khoá không dấu, chọn các đoạn KB phù hợp ngân sách token.
 
@@ -182,15 +182,34 @@ class ChatManager:
             if sticky_ids.intersection(top_candidate_ids):
                 return sticky_kb, max_score
 
+        # Chọn theo hai lượt để không cho MỘT file nuốt hết ngân sách token.
+        #
+        # `08-tham-so-thuc-te.md` được sinh tự động và rất dài, lại dày đặc từ vựng
+        # cấu hình, nên nếu xếp thuần theo điểm thì các đoạn của nó chiếm sạch 3000
+        # token và đẩy phần giải thích trong `06-cau-hinh.md` ra ngoài — câu hỏi
+        # "đổi API key ở đâu" lấy được bảng tham số nhưng mất câu trả lời.
+        # Lượt 1 lấy tối đa 2 đoạn mỗi file để phủ nhiều nguồn, lượt 2 mới lấp nốt.
         selected = []
         curr_tokens = 0
-        for sc, sec in scored_sections:
+        per_file = {}
+
+        def _take(sec) -> bool:
+            nonlocal curr_tokens
             sec_tokens = max(len(sec["content"]) // 2, 1)
-            if curr_tokens + sec_tokens > token_budget:
-                if selected:
-                    break
+            if curr_tokens + sec_tokens > token_budget and selected:
+                return False
             selected.append(sec)
             curr_tokens += sec_tokens
+            per_file[sec["file"]] = per_file.get(sec["file"], 0) + 1
+            return True
+
+        for _sc, sec in scored_sections:
+            if per_file.get(sec["file"], 0) < 2:
+                _take(sec)
+
+        for _sc, sec in scored_sections:
+            if sec not in selected:
+                _take(sec)
 
         return selected, max_score
 
@@ -218,6 +237,16 @@ class ChatManager:
             "sources": sources
         }
 
+    @staticmethod
+    def _read_excerpt(path: Optional[str], limit: int = 500) -> str:
+        if not path or not os.path.exists(path):
+            return ""
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read(limit).strip()
+        except Exception:
+            return ""
+
     def build_story_context(self, story_name: str) -> str:
         """Xây dựng khối ngữ cảnh ngắn gọn cho truyện (Vai B)."""
         if not story_name:
@@ -227,33 +256,20 @@ class ChatManager:
             return ""
 
         slug = meta.get("story_slug", story_name)
-        raw_dir = self.storage_mgr.get_story_path(story_name, "raw")
-        raw_files = sorted([f for f in os.listdir(raw_dir) if f.endswith(".md")]) if os.path.exists(raw_dir) else []
-        
-        audio_dir = self.storage_mgr.get_story_path(story_name, "audio")
-        audio_count = len([f for f in os.listdir(audio_dir) if f.endswith(".wav")]) if os.path.exists(audio_dir) else 0
-
-        video_dir = self.storage_mgr.get_story_path(story_name, "video")
-        video_count = len([f for f in os.listdir(video_dir) if f.endswith(".mp4")]) if os.path.exists(video_dir) else 0
+        chapters = self.storage_mgr.scan_chapters(story_name)
+        audio_count = sum(1 for c in chapters if c.get("wav_path"))
+        video_count = sum(1 for c in chapters if c.get("mp4_path"))
 
         first_excerpt = ""
         last_excerpt = ""
-        if raw_files:
-            try:
-                with open(os.path.join(raw_dir, raw_files[0]), "r", encoding="utf-8") as f:
-                    first_excerpt = f.read(500).strip()
-            except Exception:
-                pass
-            if len(raw_files) > 1:
-                try:
-                    with open(os.path.join(raw_dir, raw_files[-1]), "r", encoding="utf-8") as f:
-                        last_excerpt = f.read(500).strip()
-                except Exception:
-                    pass
+        if chapters:
+            first_excerpt = self._read_excerpt(chapters[0].get("md_path"))
+            if len(chapters) > 1:
+                last_excerpt = self._read_excerpt(chapters[-1].get("md_path"))
 
         lines = [
             f"Truyện: {meta.get('title', story_name)} (slug: {slug})",
-            f"Trạng thái: {meta.get('status', 'UNKNOWN')} | Thể loại: {meta.get('genre', 'chua_ro')} | Số chương: {len(raw_files)}",
+            f"Trạng thái: {meta.get('status', 'UNKNOWN')} | Thể loại: {meta.get('genre', 'chua_ro')} | Số chương: {len(chapters)}",
             f"Đã có TTS: {audio_count} | Đã có video: {video_count}",
             "<noidungtruyen>"
         ]
@@ -377,13 +393,10 @@ class ChatManager:
             if not meta:
                 return {"type": "error", "message": f"Không tìm thấy thông tin truyện '{story_name}'"}
 
-            raw_dir = self.storage_mgr.get_story_path(story_name, "raw")
-            audio_dir = self.storage_mgr.get_story_path(story_name, "audio")
-            video_dir = self.storage_mgr.get_story_path(story_name, "video")
-
-            chaps = len([f for f in os.listdir(raw_dir) if f.endswith(".md")]) if os.path.exists(raw_dir) else 0
-            audios = len([f for f in os.listdir(audio_dir) if f.endswith(".wav")]) if os.path.exists(audio_dir) else 0
-            videos = len([f for f in os.listdir(video_dir) if f.endswith(".mp4")]) if os.path.exists(video_dir) else 0
+            chapters = self.storage_mgr.scan_chapters(story_name)
+            chaps = len(chapters)
+            audios = sum(1 for c in chapters if c.get("wav_path"))
+            videos = sum(1 for c in chapters if c.get("mp4_path"))
 
             return {
                 "type": "story_report",

@@ -195,6 +195,15 @@ class StorageManager:
             })
         return chapters
 
+    def scan_chapters(self, story_name: str) -> List[Dict[str, Any]]:
+        """Danh sách chương kèm trạng thái md/wav/mp4 — nguồn sự thật dùng chung.
+
+        Trợ lý AI cần đúng số liệu này. Không được tự đếm file theo thư mục đoán
+        trước: chương có thể nằm ở `translated/` hoặc `raw/`, và file .wav nằm
+        CẠNH file .md chứ không có thư mục `audio/` riêng.
+        """
+        return self._scan_chapters(story_name)
+
     def _mirror_to_db(self, story_name: str, meta: Dict[str, Any]) -> None:
         slug = meta.get("story_slug") or slugify(story_name)
         meta = dict(meta)
