@@ -97,6 +97,29 @@ def load_global_config() -> Dict[str, Any]:
                 "bg_alpha": 140,
                 "sub_position": "",
                 "custom_position": 70.0
+            },
+            "chatbot": {
+                "enabled": True,
+                "model": "qwen2.5:3b-instruct",
+                "share_model_with_step3": False,
+                "base_url": "",
+                "temperature": 0.4,
+                "top_p": 0.9,
+                "repeat_penalty": 1.05,
+                "num_predict": 512,
+                "num_ctx": 8192,
+                "max_history_turns": 12,
+                "kb_token_budget": 3000,
+                "kb_min_score": 0.25,
+                "kb_sticky_per_session": True,
+                "keep_alive": "5m",
+                "prewarm_on_open": True,
+                "idle_unload_minutes": 10,
+                "auto_unload_before_pipeline": True,
+                "block_when_busy": True,
+                "autostart_ollama": True,
+                "max_sessions": 20,
+                "session_ttl_minutes": 120
             }
         }
         save_global_config(default_cfg)
@@ -104,7 +127,32 @@ def load_global_config() -> Dict[str, Any]:
         
     try:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+            cfg = json.load(f)
+            if "chatbot" not in cfg:
+                cfg["chatbot"] = {
+                    "enabled": True,
+                    "model": "qwen2.5:3b-instruct",
+                    "share_model_with_step3": False,
+                    "base_url": "",
+                    "temperature": 0.4,
+                    "top_p": 0.9,
+                    "repeat_penalty": 1.05,
+                    "num_predict": 512,
+                    "num_ctx": 8192,
+                    "max_history_turns": 12,
+                    "kb_token_budget": 3000,
+                    "kb_min_score": 0.25,
+                    "kb_sticky_per_session": True,
+                    "keep_alive": "5m",
+                    "prewarm_on_open": True,
+                    "idle_unload_minutes": 10,
+                    "auto_unload_before_pipeline": True,
+                    "block_when_busy": True,
+                    "autostart_ollama": True,
+                    "max_sessions": 20,
+                    "session_ttl_minutes": 120
+                }
+            return cfg
     except Exception:
         return {}
 

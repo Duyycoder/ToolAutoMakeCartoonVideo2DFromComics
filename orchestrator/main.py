@@ -1,20 +1,27 @@
 import os
 import sys
+import json
+import logging
 from typing import Optional
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+import httpx
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
+logger = logging.getLogger(__name__)
+
 # Add parent directory to sys.path to resolve orchestrator package imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from orchestrator.config import load_global_config, save_global_config, load_ui_settings, save_ui_settings
-from orchestrator.storage import StorageManager
-from orchestrator.process_manager import ProcessManager
-from orchestrator.pipeline import NovelPipeline
-from orchestrator.auto_run import AutoRunManager
+from orchestrator.config import load_global_config, save_global_config, load_ui_settings, save_ui_settings  # noqa: E402
+from orchestrator.storage import StorageManager  # noqa: E402
+from orchestrator.process_manager import ProcessManager  # noqa: E402
+from orchestrator.pipeline import NovelPipeline  # noqa: E402
+from orchestrator.auto_run import AutoRunManager  # noqa: E402
+from orchestrator.chatbot import ChatManager  # noqa: E402
+from orchestrator.llm import chat_stream_ollama, unload_ollama  # noqa: E402
 
 app = FastAPI(title="AutoCartoon Novel-to-Video Maker Orchestrator")
 
@@ -36,6 +43,7 @@ storage_mgr = StorageManager(base_storage_dir=_storage_dir)
 process_mgr = ProcessManager()
 pipeline = NovelPipeline(storage_mgr, process_mgr)
 auto_run_mgr = AutoRunManager(storage_mgr, process_mgr, pipeline)
+chat_mgr = ChatManager(storage_mgr, process_mgr, auto_run_mgr)
 
 def _reject_if_auto_running(slug: str):
     """Các endpoint chạy bước lẻ không được chen vào khi chuỗi tự động đang chạy."""
@@ -56,7 +64,20 @@ class GlobalConfigSchema(BaseModel):
     video: dict
     translate: Optional[dict] = None
     autosub: Optional[dict] = None
+    chatbot: Optional[dict] = None
     orchestrator_port: Optional[int] = None
+
+class ChatRequestSchema(BaseModel):
+    session_id: str
+    message: str
+    story_name: Optional[str] = ""
+    active_tab: Optional[str] = ""
+    mode: Optional[str] = "auto"
+    force: Optional[bool] = False
+
+class AgentQuerySchema(BaseModel):
+    action: str
+    args: Optional[dict] = None
 
 class CreateStorySchema(BaseModel):
     story_name: str
@@ -613,6 +634,230 @@ def stop_task(task_key: str):
         return {"status": "success", "message": f"Successfully stopped task '{task_key}'."}
         
     raise HTTPException(status_code=404, detail=f"No active running task found for key '{task_key}'.")
+
+# ------------------------------------------------------------------ Chatbot API
+@app.get("/api/chat/health")
+def get_chat_health():
+    cfg = load_global_config().get("chatbot", {})
+    base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
+    root = base_url.rstrip("/")
+    if root.endswith("/v1"):
+        root = root[:-3]
+
+    ollama_online = False
+    model_loaded = False
+    try:
+        with httpx.Client(timeout=2.0) as client:
+            r = client.get(f"{root}/api/ps")
+            if r.status_code == 200:
+                ollama_online = True
+                ps_data = r.json()
+                models = [m.get("name") for m in ps_data.get("models", [])]
+                if cfg.get("model") in models:
+                    model_loaded = True
+    except Exception:
+        pass
+
+    gpu_weight, busy_tasks = chat_mgr.get_gpu_weight()
+    return {
+        "ollama_online": ollama_online,
+        "model": cfg.get("model", "qwen2.5:3b-instruct"),
+        "model_installed": True,
+        "model_loaded": model_loaded,
+        "busy": gpu_weight != "none",
+        "busy_tasks": busy_tasks,
+        "gpu_weight": gpu_weight,
+        "lookup_only": gpu_weight == "heavy"
+    }
+
+@app.get("/api/system/busy")
+def get_system_busy():
+    gpu_weight, tasks = chat_mgr.get_gpu_weight()
+    chains = auto_run_mgr.list_running_chains()
+    return {
+        "running": len(tasks) > 0,
+        "tasks": tasks,
+        "chains": chains,
+        "gpu_weight": gpu_weight
+    }
+
+@app.post("/api/chat")
+async def post_chat(body: ChatRequestSchema, request: Request):
+    cfg = load_global_config().get("chatbot", {})
+    if not cfg.get("enabled", True):
+        raise HTTPException(status_code=503, detail="Trợ lý AI đang bị tắt trong Cấu Hình Chung.")
+
+    acquired = chat_mgr.single_chat_lock.acquire(blocking=False)
+    if not acquired:
+        raise HTTPException(status_code=429, detail="Trợ lý đang trả lời câu trước.")
+
+    try:
+        gpu_weight, busy_tasks = chat_mgr.get_gpu_weight()
+        block_when_busy = cfg.get("block_when_busy", True)
+
+        if block_when_busy and gpu_weight == "heavy" and not body.force and body.mode != "lookup":
+            chat_mgr.single_chat_lock.release()
+            lookup_ans = chat_mgr.lookup_only(body.message, body.active_tab or "")
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "detail": "Pipeline GPU bận",
+                    "busy_tasks": busy_tasks,
+                    "lookup_answer": lookup_ans
+                }
+            )
+
+        action, action_args = chat_mgr.route_intent(body.message, body.story_name or "")
+        if action != "chat":
+            if action in ["run_step", "select_story"]:
+                chat_mgr.single_chat_lock.release()
+                return JSONResponse(content={
+                    "agent_action": action,
+                    "args": action_args,
+                    "message": f"Yêu cầu thực thi lệnh {action}"
+                })
+            elif action in ["list_stories", "story_report", "system_status"]:
+                res = chat_mgr.agent_query(action, action_args)
+                chat_mgr.single_chat_lock.release()
+                async def generate_agent_l1():
+                    yield json.dumps({"delta": "Dưới đây là thông tin bạn yêu cầu:\n"}) + "\n"
+                    yield json.dumps({"agent_result": res, "done": True, "prompt_tokens": 0, "truncated": False}) + "\n"
+                return StreamingResponse(generate_agent_l1(), media_type="application/x-ndjson")
+
+        if body.mode == "lookup" or (gpu_weight == "heavy" and not body.force):
+            lookup_ans = chat_mgr.lookup_only(body.message, body.active_tab or "")
+            chat_mgr.single_chat_lock.release()
+            async def generate_lookup():
+                yield json.dumps({"delta": lookup_ans["answer"]}) + "\n"
+                yield json.dumps({"done": True, "prompt_tokens": 0, "truncated": False, "mode": "lookup", "sources": lookup_ans["sources"]}) + "\n"
+            return StreamingResponse(generate_lookup(), media_type="application/x-ndjson")
+
+        session = chat_mgr.get_or_create_session(
+            body.session_id,
+            max_sessions=cfg.get("max_sessions", 20),
+            ttl_minutes=cfg.get("session_ttl_minutes", 120)
+        )
+
+        kb_sections, max_score = chat_mgr.select_kb(
+            query=body.message,
+            active_tab=body.active_tab or "",
+            sticky_kb=session.get("sticky_kb") if cfg.get("kb_sticky_per_session", True) else None,
+            token_budget=cfg.get("kb_token_budget", 3000),
+            min_score=cfg.get("kb_min_score", 0.25)
+        )
+        if cfg.get("kb_sticky_per_session", True) and kb_sections:
+            session["sticky_kb"] = kb_sections
+
+        min_score = cfg.get("kb_min_score", 0.25)
+        if max_score < min_score and "truyện" not in body.message.lower() and "story" not in body.message.lower():
+            chat_mgr.single_chat_lock.release()
+            refusal_text = (
+                "Tài liệu hiện có không đề cập nội dung này.\n\n"
+                "📌 **Các mục bạn có thể tham khảo:**\n"
+                "- `00-tong-quan.md`: Quy trình 5 bước\n"
+                "- `06-cau-hinh.md`: Cấu hình chung\n"
+                "- `07-su-co-thuong-gap.md`: FAQ giải quyết lỗi\n"
+            )
+            async def generate_gate_refusal():
+                yield json.dumps({"delta": refusal_text}) + "\n"
+                yield json.dumps({"done": True, "prompt_tokens": 0, "truncated": False, "gate_refusal": True}) + "\n"
+            return StreamingResponse(generate_gate_refusal(), media_type="application/x-ndjson")
+
+        story_ctx = chat_mgr.build_story_context(body.story_name or "")
+        system_prompt = chat_mgr.build_system_prompt(kb_sections, story_ctx)
+
+        messages = [{"role": "system", "content": system_prompt}]
+        history = session.get("messages", [])
+        max_turns = cfg.get("max_history_turns", 12)
+        recent_history = history[-(max_turns * 2):]
+        messages.extend(recent_history)
+        messages.append({"role": "user", "content": body.message})
+
+        base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
+        model = cfg.get("model", "qwen2.5:3b-instruct")
+        num_ctx = cfg.get("num_ctx", 8192)
+
+        async def generate_chat():
+            full_response = ""
+            try:
+                async for chunk in chat_stream_ollama(
+                    base_url=base_url,
+                    model=model,
+                    messages=messages,
+                    temperature=cfg.get("temperature", 0.4),
+                    top_p=cfg.get("top_p", 0.9),
+                    repeat_penalty=cfg.get("repeat_penalty", 1.05),
+                    num_predict=cfg.get("num_predict", 512),
+                    num_ctx=num_ctx,
+                ):
+                    if await request.is_disconnected():
+                        logger.info("[Chatbot] Client ngắt kết nối giữa stream.")
+                        break
+
+                    if "delta" in chunk:
+                        full_response += chunk["delta"]
+                    yield json.dumps(chunk) + "\n"
+
+                if full_response:
+                    session["messages"].append({"role": "user", "content": body.message})
+                    session["messages"].append({"role": "assistant", "content": full_response})
+            except Exception as ex:
+                logger.error(f"[Chatbot] Lỗi stream chat: {ex}")
+                yield json.dumps({"error": str(ex)}) + "\n"
+            finally:
+                chat_mgr.single_chat_lock.release()
+
+        return StreamingResponse(generate_chat(), media_type="application/x-ndjson")
+
+    except HTTPException:
+        chat_mgr.single_chat_lock.release()
+        raise
+    except Exception as e:
+        chat_mgr.single_chat_lock.release()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/chat/unload")
+def unload_chat_endpoint():
+    cfg = load_global_config().get("chatbot", {})
+    base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
+    model = cfg.get("model", "")
+    ok = unload_ollama(base_url, model)
+    return {"status": "success" if ok else "failed"}
+
+@app.delete("/api/chat/sessions/{session_id}")
+def delete_chat_session_endpoint(session_id: str):
+    if session_id in chat_mgr.sessions:
+        del chat_mgr.sessions[session_id]
+        return {"status": "success"}
+    return {"status": "not_found"}
+
+@app.post("/api/chat/prewarm")
+async def prewarm_chat_model():
+    cfg = load_global_config().get("chatbot", {})
+    if not cfg.get("prewarm_on_open", True):
+        return {"status": "disabled"}
+
+    gpu_weight, _ = chat_mgr.get_gpu_weight()
+    if gpu_weight == "heavy":
+        return {"status": "busy_skipped"}
+
+    base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
+    root = base_url.rstrip("/")
+    if root.endswith("/v1"):
+        root = root[:-3]
+    model = cfg.get("model", "qwen2.5:3b-instruct")
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            await client.post(f"{root}/api/generate", json={"model": model, "keep_alive": "5m"})
+            return {"status": "prewarmed", "model": model}
+    except Exception as e:
+        logger.warning(f"[Chatbot] Prewarm failed: {e}")
+        return {"status": "failed", "error": str(e)}
+
+@app.post("/api/agent/query")
+def agent_query_endpoint(body: AgentQuerySchema):
+    return chat_mgr.agent_query(body.action, body.args or {})
 
 # Serve Web UI assets directly
 webui_dir = os.path.abspath("webui")

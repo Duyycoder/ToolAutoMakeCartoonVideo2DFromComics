@@ -6,6 +6,7 @@
     <title>AutoCartoon Video Maker - AI Comic Video Creator</title>
     <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;🎬&lt;/text&gt;&lt;/svg&gt;">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="chat.css">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1168,6 +1169,35 @@
                         </div>
                         
                         <div class="settings-section">
+                            <h4>🤖 Trợ Lý AI (Chatbot)</h4>
+                            <div class="form-group">
+                                <label for="cfgChatbotEnabled">Trạng thái Trợ Lý AI</label>
+                                <select id="cfgChatbotEnabled" data-cfg="chatbot.enabled">
+                                    <option value="true">Bật trợ lý</option>
+                                    <option value="false">Tắt trợ lý</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgChatbotModel">Model Ollama cho Trợ Lý</label>
+                                <input type="text" id="cfgChatbotModel" data-cfg="chatbot.model" value="qwen2.5:3b-instruct">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgChatbotBlockBusy">Chặn chat khi GPU bận</label>
+                                <select id="cfgChatbotBlockBusy" data-cfg="chatbot.block_when_busy">
+                                    <option value="true">Có (Cảnh báo 409 + Tra cứu 0-VRAM)</option>
+                                    <option value="false">Không (Cho phép chạy đè)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgChatbotAutoUnload">Tự nhả VRAM trước khi chạy Pipeline</label>
+                                <select id="cfgChatbotAutoUnload" data-cfg="chatbot.auto_unload_before_pipeline">
+                                    <option value="true">Có (Tự động unload Ollama)</option>
+                                    <option value="false">Không</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
                             <h4>📂 Lưu Trữ &amp; Khác</h4>
                             <div class="form-group">
                                 <label for="cfgStorageDir">Thư mục Storage lưu trữ</label>
@@ -1209,6 +1239,8 @@
         </main>
     </div>
     
+    <div id="chatWidget"></div>
     <script src="app.js"></script>
+    <script src="chat.js"></script>
 </body>
 </html>

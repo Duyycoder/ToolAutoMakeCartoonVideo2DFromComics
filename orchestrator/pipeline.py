@@ -36,37 +36,8 @@ class NovelPipeline:
         self.process_mgr = process_mgr
 
     def _resolve_llm(self, llm_engine: str, args: dict, g_config: dict, default_model: str) -> tuple[str, str, str]:
-        from .config import DEFAULT_GEMINI_ONLINE_MODEL, DEFAULT_GEMINI_PROXY_MODEL, DEFAULT_OLLAMA_MODEL
-        llm_api_key = args.get("llm_api_key")
-        llm_offline_base_url = args.get("llm_offline_base_url")
-        llm_offline_model = args.get("llm_offline_model") or default_model
-
-        if llm_engine == "gemini":  # Gemini Online
-            resolved_key = llm_api_key or g_config.get("api_keys", {}).get("gemini", "")
-            if not resolved_key:
-                raise ValueError("Đã chọn Gemini Online nhưng chưa có API Key. Nhập key ở giao diện hoặc lưu vào Cấu Hình Chung (api_keys.gemini).")
-            resolved_base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
-            resolved_model = llm_offline_model or DEFAULT_GEMINI_ONLINE_MODEL
-        elif llm_engine == "ollama":  # Ollama (Local)
-            resolved_key = "ollama"
-            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
-            resolved_model = llm_offline_model or DEFAULT_OLLAMA_MODEL
-        else:  # gemini_api (Local Gemini proxy)
-            # UI Cấu Hình Chung chỉ có MỘT ô "Gemini API Key" (lưu vào api_keys.gemini);
-            # crawler.gemini_offline_key không có ô nào để nhập. Vì vậy fallback sang
-            # api_keys.gemini để proxy dùng được key user đã lưu 1 lần — nếu không,
-            # chuỗi tự động luôn dừng ở Bước 3 dù user đã nhập key ở Cấu Hình Chung.
-            resolved_key = (
-                llm_api_key
-                or g_config.get("crawler", {}).get("gemini_offline_key", "")
-                or g_config.get("api_keys", {}).get("gemini", "")
-            )
-            if not resolved_key:
-                raise ValueError("Đã chọn Gemini Proxy nhưng chưa cấu hình key. Nhập key ở ô 'Gemini API Key' (Bước 3 hoặc Cấu Hình Chung).")
-            resolved_base_url = llm_offline_base_url or g_config.get("crawler", {}).get("gemini_offline_base_url") or "http://localhost:7860/v1"
-            resolved_model = llm_offline_model or DEFAULT_GEMINI_PROXY_MODEL
-            
-        return resolved_key, resolved_base_url, resolved_model
+        from .llm import resolve_llm
+        return resolve_llm(llm_engine, args, g_config, default_model)
 
     def _finalize_video_task(self, story_name: str, video_output_dir: str,
                              task_key: str, exit_code: int) -> bool:

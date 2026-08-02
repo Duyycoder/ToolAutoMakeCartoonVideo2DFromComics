@@ -1120,6 +1120,10 @@ function setupEventHandlers() {
 // Common function to send pipeline actions to the backend
 async function postPipelineAction(stepName, payload) {
     try {
+        try {
+            await fetch(`${API_BASE}/api/chat/unload`, { method: "POST" });
+        } catch (_) {}
+
         const response = await fetch(`${API_BASE}/api/pipeline/${stepName}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

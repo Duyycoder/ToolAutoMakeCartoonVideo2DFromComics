@@ -8,23 +8,13 @@ tác phẩm của người khác. Chạy cục bộ, không phụ thuộc dịch
 """
 import os
 import re
-import httpx
 from typing import Callable, Optional
 
 
 def _chat(base_url: str, model: str, api_key: str, messages: list,
           temperature: float = 0.85, timeout: float = 300.0) -> str:
-    """Gọi {base_url}/chat/completions và trả về nội dung phản hồi."""
-    url = base_url.rstrip("/") + "/chat/completions"
-    headers = {"Content-Type": "application/json"}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-    payload = {"model": model, "messages": messages, "temperature": temperature}
-    with httpx.Client(timeout=timeout) as client:
-        r = client.post(url, headers=headers, json=payload)
-        r.raise_for_status()
-        data = r.json()
-    return data["choices"][0]["message"]["content"].strip()
+    from .llm import chat
+    return chat(base_url, model, api_key, messages, temperature=temperature, timeout=timeout)
 
 
 def _title_from(text: str, idx: int) -> str:

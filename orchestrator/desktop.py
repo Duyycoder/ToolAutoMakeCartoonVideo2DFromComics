@@ -78,6 +78,26 @@ def _start_gemini_proxy():
         log_file.close()  # child da giu handle rieng
 
 
+def _start_ollama():
+    """Khoi dong Ollama serve an neu cong 11434 chua mo."""
+    if _port_open(11434):
+        print("[INFO] Ollama da chay san tren cong 11434.")
+        return None
+    try:
+        proc = subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            creationflags=NO_WINDOW,
+        )
+        print(f"[INFO] Da khoi dong Ollama serve (PID {proc.pid}).")
+        return proc
+    except Exception as e:
+        print(f"[WARN] Khong khoi dong duoc Ollama serve: {e}")
+        return None
+
+
 def _start_server():
     import uvicorn
 
