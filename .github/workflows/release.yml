@@ -70,7 +70,7 @@ jobs:
             -x "*/.git" "*/.git/*" "*__pycache__*" "*.pyc"
 
       - name: Tao GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ToolAutoMakeCartoonVideo2DFromComics-*.zip
           generate_release_notes: true
