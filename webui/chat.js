@@ -354,7 +354,7 @@
 
         for (const line of lines) {
           if (!line.trim()) continue;
-          try:
+          try {
             const chunk = JSON.parse(line);
 
             if (chunk.agent_action) {
@@ -381,7 +381,11 @@
               truncBanner.textContent = "⚠️ Ngữ cảnh quá dài, câu trả lời có thể thiếu.";
               assistantMsgDiv.insertBefore(truncBanner, assistantMsgDiv.firstChild);
             }
-          } catch (e) {}
+          } catch (e) {
+            // Dòng NDJSON có thể bị cắt giữa chừng — bỏ qua là đúng.
+            // Nhưng nuốt im lặng MỌI lỗi sẽ giấu luôn bug render, nên vẫn log.
+            console.warn("[Chatbot] Bỏ qua dòng stream không đọc được:", e.message, line);
+          }
         }
       }
     } catch (err) {
