@@ -42,6 +42,8 @@
     "kb_token_budget": 3000,
     "kb_min_score": 0.65,
     "kb_sticky_per_session": true,
+    "cache_repeat_questions": true,
+    "reasoning_pass": true,
     "keep_alive": "5m",
     "prewarm_on_open": true,
     "idle_unload_minutes": 10,

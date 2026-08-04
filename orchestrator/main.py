@@ -819,6 +819,53 @@ async def post_chat(body: ChatRequestSchema, request: Request):
             return StreamingResponse(generate_gate_refusal(), media_type="application/x-ndjson")
 
         story_ctx = chat_mgr.build_story_context(body.story_name or "")
+
+        # Cache câu lặp — CHỈ cho câu hỏi vận hành thuần (vai A). Câu có ngữ cảnh
+        # truyện không được cache: số chương/audio/video đổi liên tục nên trả lời
+        # cũ sẽ sai. Câu tiếp nối trong hội thoại cũng không, vì nghĩa của nó phụ
+        # thuộc các lượt trước.
+        model_now = cfg.get("model", "qwen2.5:3b")
+        cacheable = (
+            cfg.get("cache_repeat_questions", True)
+            and not story_ctx
+            and not session.get("messages")
+        )
+        if cacheable:
+            hit = chat_mgr.cache_get(body.message, model_now)
+            if hit:
+                chat_mgr.single_chat_lock.release()
+
+                async def generate_cached():
+                    yield json.dumps({"delta": hit}) + "\n"
+                    yield json.dumps({
+                        "done": True, "prompt_tokens": 0,
+                        "truncated": False, "from_cache": True,
+                    }) + "\n"
+
+                return StreamingResponse(generate_cached(), media_type="application/x-ndjson")
+
+        base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
+        num_ctx = cfg.get("num_ctx", 8192)
+
+        # Lượt suy nghĩ: chỉ chạy khi truy xuất tỏ ra không chắc (mảnh rải trên
+        # nhiều file). Cho model chọn mảnh dựa trên TIÊU ĐỀ trước, rồi mới nạp
+        # nội dung của mảnh đã chọn — prompt ngắn nên lượt này rẻ.
+        if cfg.get("reasoning_pass", True) and chat_mgr.needs_reasoning(kb_sections):
+            try:
+                picked_reply = ""
+                async for ch in chat_stream_ollama(
+                    base_url=base_url, model=model_now,
+                    messages=chat_mgr.build_reasoning_prompt(body.message, kb_sections),
+                    temperature=0.1, num_predict=24, num_ctx=num_ctx,
+                ):
+                    picked_reply += ch.get("delta", "")
+                before = len(kb_sections)
+                kb_sections = chat_mgr.apply_reasoning(kb_sections, picked_reply)
+                logger.info(f"[Chatbot] Lượt suy nghĩ: {before} mảnh -> {len(kb_sections)}.")
+            except Exception as e:
+                # Chọn hỏng thì dùng nguyên danh sách truy xuất, không chặn câu trả lời.
+                logger.warning(f"[Chatbot] Lượt suy nghĩ lỗi, bỏ qua: {e}")
+
         system_prompt = chat_mgr.build_system_prompt(kb_sections, story_ctx)
 
         messages = [{"role": "system", "content": system_prompt}]
@@ -828,9 +875,7 @@ async def post_chat(body: ChatRequestSchema, request: Request):
         messages.extend(recent_history)
         messages.append({"role": "user", "content": body.message})
 
-        base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
-        model = cfg.get("model", "qwen2.5:3b")
-        num_ctx = cfg.get("num_ctx", 8192)
+        model = model_now
 
         async def generate_chat():
             full_response = ""
@@ -879,6 +924,8 @@ async def post_chat(body: ChatRequestSchema, request: Request):
                     yield json.dumps(chunk) + "\n"
 
                 if full_response:
+                    if cacheable:
+                        chat_mgr.cache_put(body.message, model_now, full_response)
                     session["messages"].append({"role": "user", "content": body.message})
                     session["messages"].append({"role": "assistant", "content": full_response})
             except Exception as ex:

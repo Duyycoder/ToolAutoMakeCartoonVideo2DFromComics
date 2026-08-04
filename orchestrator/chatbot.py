@@ -89,6 +89,9 @@ def vram_tier(total_mb: int) -> str:
 
 
 class ChatManager:
+    CACHE_TTL_SECONDS = 3600
+    CACHE_MAX = 200
+
     def __init__(self, storage_mgr, process_mgr, auto_run_mgr, kb_dir: Optional[str] = None):
         self.storage_mgr = storage_mgr
         self.process_mgr = process_mgr
@@ -102,6 +105,9 @@ class ChatManager:
 
         self.sessions: Dict[str, dict] = {}  # session_id -> {messages, last_active, sticky_kb}
         self.single_chat_lock = threading.Lock()
+        # Cache câu hỏi lặp — chỉ dùng cho vai A (hướng dẫn). KHÔNG cache câu có
+        # ngữ cảnh truyện: số chương/video đổi liên tục nên trả lời cũ sẽ sai.
+        self._answer_cache: Dict[str, dict] = {}
         self.kb_sections: List[dict] = []
         self.index_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "storage", "kb_index.db")
@@ -148,6 +154,72 @@ class ChatManager:
 
     def _weight(self, word: str) -> float:
         return max(self._idf.get(word, self._idf_default), 0.0)
+
+    # ------------------------------------------------------------ Cache trả lời
+    def _cache_key(self, question: str, model: str) -> str:
+        """Khoá cache gồm cả model và mtime của KB.
+
+        Thiếu hai thứ đó thì đổi model hoặc sửa tài liệu xong vẫn nhận lại câu trả
+        lời cũ — kiểu lỗi rất khó truy vì mọi thứ khác đều đúng.
+        """
+        norm = re.sub(r"\s+", " ", remove_vietnamese_diacritics(question)).strip()
+        return f"{model}|{kb_index.kb_mtime(self.kb_dir):.0f}|{norm}"
+
+    def cache_get(self, question: str, model: str) -> Optional[str]:
+        entry = self._answer_cache.get(self._cache_key(question, model))
+        if not entry:
+            return None
+        if time.time() - entry["at"] > self.CACHE_TTL_SECONDS:
+            return None
+        return entry["answer"]
+
+    def cache_put(self, question: str, model: str, answer: str) -> None:
+        if not answer.strip():
+            return
+        if len(self._answer_cache) >= self.CACHE_MAX:
+            oldest = min(self._answer_cache, key=lambda k: self._answer_cache[k]["at"])
+            self._answer_cache.pop(oldest, None)
+        self._answer_cache[self._cache_key(question, model)] = {
+            "answer": answer, "at": time.time(),
+        }
+
+    # -------------------------------------------------- Lượt suy nghĩ (có điều kiện)
+    @staticmethod
+    def needs_reasoning(sections: List[dict], min_files: int = 3) -> bool:
+        """Có nên chạy lượt chọn mảnh trước khi trả lời không.
+
+        KHÔNG hỏi model "bạn có cần suy nghĩ không" — model 3B trả lời câu đó
+        không đáng tin, mà lại tốn đúng một lượt gọi ở chỗ định tiết kiệm. Dùng
+        tín hiệu MIỄN PHÍ từ truy xuất: các mảnh rải trên nhiều file khác nhau
+        nghĩa là truy xuất không chắc chắn về chủ đề.
+
+        Ca thật: "Bước 1 báo không kết nối được" lôi cả mảnh TTS lẫn mảnh lỗi
+        kết nối lên, và mảnh TTS đứng đầu — trả lời sai trọng tâm.
+        """
+        return len({s.get("file") for s in sections}) >= min_files
+
+    @staticmethod
+    def build_reasoning_prompt(question: str, sections: List[dict]) -> List[dict]:
+        """Prompt chọn mảnh: chỉ đưa TIÊU ĐỀ, không đưa nội dung — nên rất rẻ."""
+        lines = [f"{i + 1}. {s.get('path') or s.get('header')}" for i, s in enumerate(sections)]
+        user = (
+            f"Câu hỏi: {question}\n\n"
+            "Danh sách mục tài liệu:\n" + "\n".join(lines) + "\n\n"
+            "Những mục nào THỰC SỰ cần để trả lời câu hỏi trên? "
+            "Chỉ trả lời bằng các số, cách nhau bởi dấu phẩy. Tối đa 3 số. "
+            "Không giải thích."
+        )
+        return [
+            {"role": "system", "content": "Bạn là bộ chọn tài liệu. Chỉ trả về các con số."},
+            {"role": "user", "content": user},
+        ]
+
+    @staticmethod
+    def apply_reasoning(sections: List[dict], reply: str) -> List[dict]:
+        """Lọc mảnh theo số model chọn. Chọn hỏng thì giữ nguyên danh sách cũ."""
+        idx = [int(n) for n in re.findall(r"\d+", reply or "")]
+        picked = [sections[i - 1] for i in idx if 1 <= i <= len(sections)]
+        return picked[:3] or sections
 
     def _ensure_index(self):
         """Dựng lại chỉ mục FTS5 khi thiếu hoặc khi file KB mới hơn chỉ mục."""
