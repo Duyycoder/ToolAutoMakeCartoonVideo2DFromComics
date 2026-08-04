@@ -1,0 +1,19 @@
+# File .bat phai giu CRLF NGAY TRONG BLOB cua git, khong chi o thu muc lam viec.
+#
+# Ly do 1: cmd.exe chay sai file .bat chi co LF (nuot ky tu dau dong, hong
+#          cac khoi if/goto nhieu dong).
+# Ly do 2: may khac clone ve co the KHONG bat core.autocrlf=true; luc do git
+#          tra dung blob LF ra dia -> file .bat hong ngay tu dau.
+# Ly do 3: nguoi dung tai CAP-NHAT.bat truc tiep qua raw.githubusercontent.com,
+#          raw tra ve dung blob va bo qua moi cau hinh core.autocrlf cua may.
+#
+# Danh dau -text = git khong bao gio doi dau dong cua nhom file nay.
+*.bat -text
+
+# Cac file van ban khac cu de git tu chuan hoa nhu binh thuong.
+*.py   text
+*.md   text
+*.json text
+*.html text
+*.css  text
+*.js   text
