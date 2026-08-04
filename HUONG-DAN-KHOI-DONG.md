@@ -27,6 +27,12 @@ git clone --recursive https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFro
 
 > ⚠️ Nhớ giữ chữ `--recursive`. Thiếu nó là tải thiếu, phần mềm sẽ không chạy.
 
+**Nếu tải rất chậm hoặc báo lỗi mạng**, dùng đường dẫn qua máy chủ trung gian thay cho lệnh trên:
+
+```
+git clone --recursive https://ghfast.top/https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git
+```
+
 ---
 
 ## Bước 3 — Mở phần mềm
