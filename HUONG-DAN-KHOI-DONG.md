@@ -65,6 +65,14 @@ curl -L -o CAP-NHAT.bat https://ghfast.top/https://raw.githubusercontent.com/Duy
 
 Xong thì trong thư mục dự án sẽ có thêm file mới tên **`CAP-NHAT.bat`**. Đóng cửa sổ đen lại.
 
+> 💡 **Cách khác, không cần tải file:** dán thẳng dòng dưới đây vào cửa sổ đen rồi bấm Enter. Nó cập nhật ngay, và xong xuôi thì `CAP-NHAT.bat` cũng tự có sẵn trong thư mục cho những lần sau:
+>
+> ```
+> git fetch origin && git checkout main && git reset --hard origin/main && git submodule sync --recursive && git submodule update --init --recursive --force
+> ```
+>
+> Dùng cách này thì **bỏ qua Bước 4**, chỉ cần nháy đúp `run.bat`.
+
 ---
 
 ## Bước 4 — Nháy đúp `CAP-NHAT.bat`
