@@ -78,6 +78,36 @@ installer\build_installer.bat   # cần Inno Setup 6 (winget install -e --id JRS
 - Máy đích **không cần cài sẵn Python hay Git**: bộ cài chép mã nguồn vào `%LocalAppData%\Programs\AutoCartoonVideoMaker`, tạo sẵn `global_config.json` từ file mẫu, tạo shortcut Desktop/Start Menu, rồi chạy `setup.bat` (tự tải Python 3.11 + thư viện + model AI — cần Internet, 30–60 phút).
 - Gỡ cài đặt xóa toàn bộ trừ thư mục `storage/` (truyện & video người dùng đã tạo).
 
+## Trợ lý AI cục bộ (chatbot)
+
+Widget 🤖 nổi ở góc phải dưới mọi màn hình, chạy bằng **Ollama** trên máy — không gửi dữ liệu đi đâu.
+
+- **Hướng dẫn sử dụng:** trả lời từ bộ tài liệu trong [docs/kb/](docs/kb/), luôn kèm dòng `Nguồn:` để kiểm chứng. Không tìm thấy trong tài liệu thì nói thẳng thay vì đoán.
+- **Tư vấn & truy vấn truyện:** "truyện này có bao nhiêu chương / audio / video", "danh sách truyện" — đọc thẳng từ `storage/`.
+- **Chọn model ngay trên widget:** nhóm sẵn theo máy 6GB và 8GB VRAM, kèm mức chiếm VRAM thật; tự phát hiện GPU và gợi ý model phù hợp.
+- **Không tranh GPU với Bước 3:** đang dựng video thì trợ lý chuyển sang chế độ tra cứu tài liệu (0 VRAM), hoặc cho bạn chọn dừng một trong hai.
+
+Yêu cầu: cài [Ollama](https://ollama.com) và tải model — ứng dụng tự bật `ollama serve` nếu chưa chạy.
+
+```bash
+ollama pull qwen2.5:3b
+```
+
+Tài liệu KB có hai phần **sinh tự động từ mã nguồn**, chạy lại sau khi đổi giao diện để tài liệu luôn khớp thực tế:
+
+```bash
+AIVoice\.venv\Scripts\python.exe scripts/gen_kb_from_project.py
+AIVoice\.venv\Scripts\python.exe scripts/gen_kb_faq.py
+```
+
+Đo chất lượng trả lời (`--mode llm` cần Ollama đang chạy):
+
+```bash
+AIVoice\.venv\Scripts\python.exe scripts/eval_chatbot.py --mode llm
+```
+
+Thiết kế chi tiết: [docs/PLAN-chatbot-assistant.md](docs/PLAN-chatbot-assistant.md), [docs/PLAN-chatbot-rag-v2.md](docs/PLAN-chatbot-rag-v2.md).
+
 ## Kiểm thử & CI/CD
 
 - **Unit tests** (`tests/`): kiểm tra logic resolve engine LLM Bước 3 (Gemini local/online, Ollama, validation thiếu API key) và fallback cấu hình TTS Bước 2 — chạy bằng `pip install pytest && pytest -v`, không cần GPU/model.

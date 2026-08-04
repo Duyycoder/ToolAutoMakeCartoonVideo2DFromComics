@@ -540,3 +540,17 @@ input:focus {
 .stats-table th, .stats-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--glass-border); }
 .stats-table th { color: var(--text-secondary); font-weight: 600; }
 .stats-table td { color: var(--text-primary); }
+
+/* Ghi chú nhỏ trong tab Cấu Hình Chung */
+.settings-hint {
+    margin: 4px 0 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+.settings-section output {
+    color: var(--primary);
+    font-weight: 600;
+    margin-left: 6px;
+}
+.settings-section input[type="range"] { width: 100%; accent-color: var(--primary); }

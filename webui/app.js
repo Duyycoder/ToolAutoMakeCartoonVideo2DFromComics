@@ -1643,6 +1643,43 @@ function seedS2VoiceFromConfig() {
     }
 }
 
+// Thanh trượt tham số sinh ảnh: hiện số bên cạnh nhãn, và quy tỷ lệ ảnh về
+// cặp rộng×cao mà MediaComposer thực sự đọc (image_width/image_height).
+function initSdTuning() {
+    const pairs = [
+        ["cfgSdSteps", "outSdSteps", 0],
+        ["cfgSdGuidance", "outSdGuidance", 2],
+        ["cfgSdIpScale", "outSdIpScale", 2],
+        ["cfgSdFdSteps", "outSdFdSteps", 0],
+        ["cfgSdFdStrength", "outSdFdStrength", 2],
+        ["cfgSdStudioSteps", "outSdStudioSteps", 0],
+        ["cfgSdStudioGuidance", "outSdStudioGuidance", 2],
+    ];
+    pairs.forEach(([inId, outId, digits]) => {
+        const input = document.getElementById(inId);
+        const out = document.getElementById(outId);
+        if (!input || !out) return;
+        const show = () => { out.textContent = Number(input.value).toFixed(digits); };
+        input.removeEventListener("input", input._sdShow || (() => {}));
+        input._sdShow = show;
+        input.addEventListener("input", show);
+        show();
+    });
+
+    const aspect = document.getElementById("cfgSdAspect");
+    const w = document.getElementById("cfgSdImgW");
+    const h = document.getElementById("cfgSdImgH");
+    if (!aspect || !w || !h) return;
+    // Đồng bộ ngược: dựng lại lựa chọn từ cặp số đã lưu trong cấu hình.
+    const current = `${w.value}x${h.value}`;
+    if ([...aspect.options].some(o => o.value === current)) aspect.value = current;
+    aspect.onchange = () => {
+        const [nw, nh] = aspect.value.split("x");
+        w.value = nw;
+        h.value = nh;
+    };
+}
+
 async function loadGlobalConfig() {
     try {
         const response = await fetch(`${API_BASE}/api/config`);
@@ -1657,6 +1694,7 @@ async function loadGlobalConfig() {
 
         // 2) Gieo MẶC ĐỊNH vào field của từng bước
         applyConfigDefaultsToSteps();
+        initSdTuning();
 
         // 3) Gieo chuyên biệt cho khóa API/URL Bước 1 (chỉ khi field còn trống,
         //    tránh ghi đè key người dùng đã nhập riêng cho bước này).

@@ -426,6 +426,16 @@ class NovelPipeline:
         if not story_meta:
             return False
 
+        # Áp tham số sinh ảnh từ Cấu Hình Chung xuống config.toml của MediaComposer
+        # TRƯỚC khi spawn tiến trình con — tiến trình đọc config lúc khởi động, ghi
+        # sau đó là không kịp. Best-effort: lỗi thì vẫn chạy với cấu hình cũ.
+        try:
+            from orchestrator import mediacomposer_config
+            from orchestrator.config import load_global_config as _load_cfg
+            mediacomposer_config.apply_sd_params(_load_cfg().get("video", {}))
+        except Exception as e:
+            print(f"[WARN] Không áp được tham số sinh ảnh: {e}")
+
         story_dir = self.storage_mgr.get_story_dir(story_name)
         raw_dir = os.path.join(story_dir, "raw")
         translated_dir = os.path.join(story_dir, "translated")
