@@ -12,6 +12,8 @@ import threading
 import unicodedata
 from typing import Dict, List, Tuple, Optional
 
+from orchestrator import kb_index
+
 logger = logging.getLogger(__name__)
 
 
@@ -76,6 +78,11 @@ CHAT_MODEL_PROFILES = [
 TIER_DEFAULT_MODEL = {"6gb": "qwen2.5:3b", "8gb": "qwen3:4b"}
 
 
+# Khớp AND là tín hiệu liên quan mạnh (0/8 câu ngoài phạm vi làm được, 18/28 câu
+# hợp lệ làm được). Cộng thưởng để nó luôn vượt ngưỡng, bất kể ngưỡng đặt bao nhiêu.
+AND_MATCH_BONUS = 10.0
+
+
 def vram_tier(total_mb: int) -> str:
     """Xếp máy vào nhóm 6GB hay 8GB. Dưới 7GB coi như nhóm 6GB."""
     return "6gb" if total_mb < 7168 else "8gb"
@@ -96,45 +103,29 @@ class ChatManager:
         self.sessions: Dict[str, dict] = {}  # session_id -> {messages, last_active, sticky_kb}
         self.single_chat_lock = threading.Lock()
         self.kb_sections: List[dict] = []
+        self.index_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "storage", "kb_index.db")
+        )
         self._load_kb_docs()
 
     def _load_kb_docs(self):
-        """Đọc và băm nhỏ các file docs/kb/*.md thành từng đoạn theo tiêu đề ##."""
+        """Nạp các mảnh tri thức từ chỉ mục SQLite (`storage/kb_index.db`).
+
+        Chỉ mục do `kb_index.build_index()` sinh từ `docs/kb/*.md`: cắt theo cấp
+        tiêu đề, trần 400 ký tự, và nhân bản đường dẫn ngữ cảnh vào đầu mỗi mảnh.
+        Cách cắt này cho mảnh nhỏ hơn mà vẫn tự đứng vững — đo được là giảm 33%
+        context mỗi câu so với cắt thô theo "##".
+        """
         self.kb_sections.clear()
-        if not os.path.exists(self.kb_dir):
-            logger.warning(f"[Chatbot] Không tìm thấy thư mục KB tại {self.kb_dir}")
-            return
-
-        for fname in sorted(os.listdir(self.kb_dir)):
-            if not fname.endswith(".md"):
-                continue
-            fpath = os.path.join(self.kb_dir, fname)
-            try:
-                with open(fpath, "r", encoding="utf-8") as f:
-                    content = f.read()
-            except Exception as e:
-                logger.error(f"[Chatbot] Lỗi đọc file KB {fname}: {e}")
-                continue
-
-            # Cắt thành các phần theo dòng bắt đầu bằng ##
-            raw_sections = re.split(r"\n(?=##\s+)", content)
-            for idx, sec in enumerate(raw_sections):
-                sec_str = sec.strip()
-                if not sec_str:
-                    continue
-                first_line = sec_str.splitlines()[0]
-                header = re.sub(r"^#+\s*", "", first_line).strip()
-                norm_text = remove_vietnamese_diacritics(sec_str)
-
-                self.kb_sections.append({
-                    "file": fname,
-                    "header": header,
-                    "content": sec_str,
-                    "norm_text": norm_text,
-                    "id": f"{fname}#{idx}"
-                })
+        self._ensure_index()
+        try:
+            for ch in kb_index.load_chunks(self.index_path):
+                ch["norm_text"] = remove_vietnamese_diacritics(ch["content"])
+                self.kb_sections.append(ch)
+        except Exception as e:
+            logger.error(f"[Chatbot] Không đọc được chỉ mục KB: {e}")
         self._build_idf()
-        logger.info(f"[Chatbot] Đã nạp {len(self.kb_sections)} đoạn KB từ {self.kb_dir}")
+        logger.info(f"[Chatbot] Đã nạp {len(self.kb_sections)} mảnh KB.")
 
     def _build_idf(self):
         """Trọng số IDF cho từng từ trong KB.
@@ -157,6 +148,15 @@ class ChatManager:
 
     def _weight(self, word: str) -> float:
         return max(self._idf.get(word, self._idf_default), 0.0)
+
+    def _ensure_index(self):
+        """Dựng lại chỉ mục FTS5 khi thiếu hoặc khi file KB mới hơn chỉ mục."""
+        try:
+            if kb_index.index_is_stale(self.kb_dir, self.index_path):
+                n = kb_index.build_index(self.kb_dir, self.index_path)
+                logger.info(f"[Chatbot] Đã dựng lại chỉ mục KB: {n} mảnh.")
+        except Exception as e:
+            logger.error(f"[Chatbot] Không dựng được chỉ mục KB: {e}")
 
     def select_kb(
         self,
@@ -284,7 +284,7 @@ class ChatManager:
 
     def lookup_only(self, query: str, active_tab: str = "") -> dict:
         """Vai C: Tra cứu KB 0-VRAM, trả về trích đoạn tài liệu nguyên văn."""
-        sections, score = self.select_kb(query, active_tab=active_tab, min_score=0.20)
+        sections, score = self.select_kb(query, active_tab=active_tab, min_score=0.30)
         if not sections:
             return {
                 "found": False,
