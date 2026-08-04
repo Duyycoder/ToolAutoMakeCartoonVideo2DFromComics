@@ -17,9 +17,16 @@ Số hiệu hiển thị cho người dùng KHÔNG trùng tên hàm trong mã ng
 | Tự Động Tạo Phụ Đề | `step4` |
 | Cấu Hình Chung | `settings` |
 
+## Các tuỳ chọn bật/tắt — Bước 1: Nguồn & Dịch
+
+Những ô tích có trên màn hình Bước 1: Nguồn & Dịch:
+- **Tự động dịch sang Tiếng Việt (Sẽ ghi đè/xóa bản gốc)**
+- **Tiếp tục tải (tự động nối tiếp từ chương đã lưu)**
+- **Tự động quét & học từ điển (Glossary)**
+
 ## Nguồn truyện — Bước 1: Nguồn & Dịch
 
-Tham số `s1Source` ở Bước 1: Nguồn & Dịch. Các giá trị hợp lệ:
+Ô chọn **Nguồn truyện** ở mục Bước 1: Nguồn & Dịch. Các giá trị hợp lệ:
 - `local`: 📁 Thư mục cục bộ (.md / .txt)
 - `ai_write`: ✍️ Sáng tác bằng AI (LLM cục bộ)
 - `69shuba`: Web: 69shu (Tiếng Trung)
@@ -28,26 +35,26 @@ Tham số `s1Source` ở Bước 1: Nguồn & Dịch. Các giá trị hợp lệ
 
 ## Thể loại truyện (cho dịch thuật) — Bước 1: Nguồn & Dịch
 
-Tham số `s1Genre` ở Bước 1: Nguồn & Dịch. Các giá trị hợp lệ:
+Ô chọn **Thể loại truyện (cho dịch thuật)** ở mục Bước 1: Nguồn & Dịch. Các giá trị hợp lệ:
 - `tien_hiep`: Tiên Hiệp / Huyền Huyễn
 - `ngon_tinh`: Ngôn Tình / Đô Thị
 - `khoa_huyen`: Khoa Huyễn / Võng Du
 
 ## Bộ máy dịch (Translator) — Bước 1: Nguồn & Dịch
 
-Tham số `s1Engine` ở Bước 1: Nguồn & Dịch. Các giá trị hợp lệ:
+Ô chọn **Bộ máy dịch (Translator)** ở mục Bước 1: Nguồn & Dịch. Các giá trị hợp lệ:
 - `gemini_api`: Gemini Offline (Local Server / Free API)
 - `gemini`: Gemini Online (Yêu cầu API Key)
 - `ollama`: Ollama Local (Mô hình Offline)
 
 ## Model Ollama — Bước 1: Nguồn & Dịch
 
-Tham số `s1OllamaModel` ở Bước 1: Nguồn & Dịch. Các giá trị hợp lệ:
+Ô chọn **Model Ollama** ở mục Bước 1: Nguồn & Dịch. Các giá trị hợp lệ:
 - `qwen2.5:7b-instruct`: qwen2.5:7b-instruct
 
 ## Engine trích xuất từ điển — Bước 1: Nguồn & Dịch
 
-Tham số `s1GlossaryEngine` ở Bước 1: Nguồn & Dịch. Các giá trị hợp lệ:
+Ô chọn **Engine trích xuất từ điển** ở mục Bước 1: Nguồn & Dịch. Các giá trị hợp lệ:
 - `gemini`: Gemini API (Online)
 - `ollama`: Ollama (Offline Local)
 - `gemini_api`: Gemini API (Offline/Local)
@@ -55,7 +62,7 @@ Tham số `s1GlossaryEngine` ở Bước 1: Nguồn & Dịch. Các giá trị h�
 
 ## Cấu hình mẫu (Preset) — Bước 2: Sinh Giọng
 
-Tham số `s2Preset` ở Bước 2: Sinh Giọng. Các giá trị hợp lệ:
+Ô chọn **Cấu hình mẫu (Preset)** ở mục Bước 2: Sinh Giọng. Các giá trị hợp lệ:
 - `default`: Mặc định (Edge-TTS NamMinh)
 - `fast`: Đọc Nhanh (Edge-TTS NamMinh 1.15x)
 - `female_reading`: Giọng Nữ (Edge-TTS HoaiMy)
@@ -66,7 +73,7 @@ Tham số `s2Preset` ở Bước 2: Sinh Giọng. Các giá trị hợp lệ:
 
 ## Bộ máy TTS (Engine) — Bước 2: Sinh Giọng
 
-Tham số `s2Engine` ở Bước 2: Sinh Giọng. Các giá trị hợp lệ:
+Ô chọn **Bộ máy TTS (Engine)** ở mục Bước 2: Sinh Giọng. Các giá trị hợp lệ:
 - `edge`: Edge-TTS (Online Microsoft)
 - `piper`: Piper (Offline ONNX)
 - `clone`: XTTSv2 (Local Voice Cloning)
@@ -75,19 +82,19 @@ Tham số `s2Engine` ở Bước 2: Sinh Giọng. Các giá trị hợp lệ:
 
 ## Giọng đọc / Mã ngôn ngữ — Bước 2: Sinh Giọng
 
-Tham số `s2Voice` ở Bước 2: Sinh Giọng. Các giá trị hợp lệ:
+Ô chọn **Giọng đọc / Mã ngôn ngữ** ở mục Bước 2: Sinh Giọng. Các giá trị hợp lệ:
 - `vi-VN-NamMinhNeural`: vi-VN-NamMinhNeural (Nam)
 - `vi-VN-HoaiMyNeural`: vi-VN-HoaiMyNeural (Nữ)
 
 ## Chế độ VieNeu-TTS (Mode) — Bước 2: Sinh Giọng
 
-Tham số `s2VieneuMode` ở Bước 2: Sinh Giọng. Các giá trị hợp lệ:
+Ô chọn **Chế độ VieNeu-TTS (Mode)** ở mục Bước 2: Sinh Giọng. Các giá trị hợp lệ:
 - `v3turbo`: v3turbo (ONNX - Siêu tốc CPU)
 - `standard`: standard (PyTorch - Chất lượng cao)
 
 ## Ngữ điệu / Biểu cảm (Emotion) — Bước 2: Sinh Giọng
 
-Tham số `s2VieneuEmotion` ở Bước 2: Sinh Giọng. Các giá trị hợp lệ:
+Ô chọn **Ngữ điệu / Biểu cảm (Emotion)** ở mục Bước 2: Sinh Giọng. Các giá trị hợp lệ:
 - `natural`: Tự nhiên (Natural)
 - `happy`: Vui vẻ (Happy)
 - `sad`: Buồn (Sad)
@@ -96,20 +103,29 @@ Tham số `s2VieneuEmotion` ở Bước 2: Sinh Giọng. Các giá trị hợp l
 
 ## Thiết Bị Xử Lý (Device) — Bước 2: Sinh Giọng
 
-Tham số `s2Device` ở Bước 2: Sinh Giọng. Các giá trị hợp lệ:
+Ô chọn **Thiết Bị Xử Lý (Device)** ở mục Bước 2: Sinh Giọng. Các giá trị hợp lệ:
 - `cuda`: GPU (CUDA)
 - `cpu`: CPU
 
+## Các tuỳ chọn bật/tắt — Bước 3: Dựng Hoạt Hình
+
+Những ô tích có trên màn hình Bước 3: Dựng Hoạt Hình:
+- **Upscale ảnh 4x bằng RealESRGAN (GPU)**
+- **Tự động tạo và thiêu phụ đề (Burn SRT) (Tắt mặc định — bật sẽ chạy Whisper, tốn ~2-3GB VRAM + ~60s/chương)**
+- **Tách cảnh bằng LLM thông minh**
+- **Tự động nhận diện nhân vật bằng LLM (Chỉ chạy 1 lần)**
+- **Bật Phẫu thuật khuôn mặt (Face Detailer) (Tắt mặc định — bật sẽ chậm ~2× và tốn thêm VRAM)**
+
 ## Thể loại truyện (Làm context cho AI) — Bước 3: Dựng Hoạt Hình
 
-Tham số `s3Genre` ở Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
+Ô chọn **Thể loại truyện (Làm context cho AI)** ở mục Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
 - `tien_hiep`: Tiên Hiệp / Cổ Trang
 - `ngon_tinh`: Ngôn Tình / Đô Thị
 - `khoa_huyen`: Khoa Huyễn / Viễn Tưởng
 
 ## Thiết bị xử lý Video (GPU) — Bước 3: Dựng Hoạt Hình
 
-Tham số `s3GpuDevice` ở Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
+Ô chọn **Thiết bị xử lý Video (GPU)** ở mục Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
 - `auto`: Tự động nhận diện
 - `cuda:0`: NVIDIA GPU 0
 - `cuda:1`: NVIDIA GPU 1
@@ -117,7 +133,7 @@ Tham số `s3GpuDevice` ở Bước 3: Dựng Hoạt Hình. Các giá trị hợ
 
 ## Phong cách hình ảnh (Style) — Bước 3: Dựng Hoạt Hình
 
-Tham số `s3Style` ở Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
+Ô chọn **Phong cách hình ảnh (Style)** ở mục Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
 - `thuy_mac`: Thủy Mặc (Mực tàu — có LoRA riêng, khuyên dùng)
 - `flat_anime`: Anime 2D Flat (Lineart)
 - `anime_2d`: Anime 2D Truyền Thống
@@ -136,7 +152,7 @@ Tham số `s3Style` ở Bước 3: Dựng Hoạt Hình. Các giá trị hợp l�
 
 ## Mô hình SD Checkpoint — Bước 3: Dựng Hoạt Hình
 
-Tham số `s3Checkpoint` ở Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
+Ô chọn **Mô hình SD Checkpoint** ở mục Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
 - `anything-v5`: Anything V5 (Anime)
 - `dreamshaper-8`: DreamShaper 8 (Semi-Realistic)
 - `majicmix-realistic`: MajicMix Realistic
@@ -146,32 +162,39 @@ Tham số `s3Checkpoint` ở Bước 3: Dựng Hoạt Hình. Các giá trị h�
 
 ## Engine LLM Kịch bản & Prompt — Bước 3: Dựng Hoạt Hình
 
-Tham số `s3LlmEngine` ở Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
+Ô chọn **Engine LLM Kịch bản & Prompt** ở mục Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
 - `gemini_api`: Gemini Offline (Local Server / Free API)
 - `gemini`: Gemini Online (Yêu cầu API Key)
 - `ollama`: Ollama (Local)
 
 ## Model Ollama — Bước 3: Dựng Hoạt Hình
 
-Tham số `s3OllamaModel` ở Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
+Ô chọn **Model Ollama** ở mục Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
 - `qwen2.5:3b-instruct`: qwen2.5:3b-instruct
 
 ## Chế độ dựng ảnh (Render Mode) — Bước 3: Dựng Hoạt Hình
 
-Tham số `s3RenderMode` ở Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
+Ô chọn **Chế độ dựng ảnh (Render Mode)** ở mục Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
 - `classic`: Classic — 1 ảnh/cảnh (SD vẽ chung, ổn định)
 - `studio`: Studio — render theo lớp: nền + nhân vật riêng rồi ghép (thử nghiệm)
 
 ## Cấu hình VRAM — Bước 3: Dựng Hoạt Hình
 
-Tham số `s3HardwareProfile` ở Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
+Ô chọn **Cấu hình VRAM** ở mục Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
 - `auto`: Tự động phát hiện (Auto)
 - `cuda_low`: Tiết kiệm VRAM (6GB) - Chậm
 - `cuda_high`: Tối đa tốc độ (8GB+) - Nhanh nhưng dễ sập
 
+## Các tuỳ chọn bật/tắt — Tự Động Tạo Phụ Đề
+
+Những ô tích có trên màn hình Tự Động Tạo Phụ Đề:
+- **Lọc tách giọng nền (Demucs)**
+- **Bật lồng tiếng Việt (Voiceover)**
+- **Tự động clone (Auto Clone)**
+
 ## Nền tảng — Tự Động Tạo Phụ Đề
 
-Tham số `s4Platform` ở Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
+Ô chọn **Nền tảng** ở mục Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
 - `generic`: Tự động nhận diện / Khác
 - `bilibili`: Bilibili
 - `tiktok`: TikTok
@@ -180,25 +203,25 @@ Tham số `s4Platform` ở Tự Động Tạo Phụ Đề. Các giá trị hợp
 
 ## Ngôn ngữ gốc của Video — Tự Động Tạo Phụ Đề
 
-Tham số `s4SourceLang` ở Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
+Ô chọn **Ngôn ngữ gốc của Video** ở mục Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
 - `English`: Tiếng Anh (English)
 - `Chinese`: Tiếng Trung (Chinese)
 
 ## Nguồn tạo phụ đề — Tự Động Tạo Phụ Đề
 
-Tham số `s4SubSource` ở Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
+Ô chọn **Nguồn tạo phụ đề** ở mục Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
 - `whisper`: Phiên âm từ âm thanh (Whisper)
 - `ocr`: Tách chữ cháy trên hình (OCR)
 
 ## Phương pháp ghi phụ đề — Tự Động Tạo Phụ Đề
 
-Tham số `s4BurnMethod` ở Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
+Ô chọn **Phương pháp ghi phụ đề** ở mục Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
 - `ffmpeg`: FFmpeg native filter (Nhanh)
 - `moviepy`: MoviePy filter (Tương thích tốt)
 
 ## Bộ máy TTS (Engine) — Tự Động Tạo Phụ Đề
 
-Tham số `s4TtsEngine` ở Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
+Ô chọn **Bộ máy TTS (Engine)** ở mục Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
 - `edge`: Edge-TTS (Online Microsoft)
 - `piper`: Piper (Offline ONNX)
 - `clone`: XTTSv2 (Local Voice Cloning)
@@ -207,7 +230,7 @@ Tham số `s4TtsEngine` ở Tự Động Tạo Phụ Đề. Các giá trị hợ
 
 ## Phông chữ (Font) — Tự Động Tạo Phụ Đề
 
-Tham số `s4FontName` ở Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
+Ô chọn **Phông chữ (Font)** ở mục Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
 - `Montserrat-Bold.ttf`: Montserrat Bold
 - `Montserrat-Regular.ttf`: Montserrat Regular
 - `BeVietnamPro-Bold.ttf`: BeVietnam Pro Bold
@@ -223,13 +246,13 @@ Tham số `s4FontName` ở Tự Động Tạo Phụ Đề. Các giá trị hợp
 
 ## Kiểu nền (Background Style) — Tự Động Tạo Phụ Đề
 
-Tham số `s4BgStyle` ở Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
+Ô chọn **Kiểu nền (Background Style)** ở mục Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
 - `None`: Không nền (None)
 - `Box`: Có nền hộp (Box)
 
 ## Vị trí phụ đề (Position) — Tự Động Tạo Phụ Đề
 
-Tham số `s4SubPosition` ở Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
+Ô chọn **Vị trí phụ đề (Position)** ở mục Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
 - `bottom`: Dưới (Bottom)
 - `top`: Trên (Top)
 - `center`: Giữa (Center)
@@ -237,19 +260,25 @@ Tham số `s4SubPosition` ở Tự Động Tạo Phụ Đề. Các giá trị h�
 
 ## Engine LLM Dịch Phụ Đề — Tự Động Tạo Phụ Đề
 
-Tham số `s4LlmEngine` ở Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
+Ô chọn **Engine LLM Dịch Phụ Đề** ở mục Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
 - `gemini_api`: Gemini Offline (Local Server / Free API)
 - `gemini`: Gemini Online (Yêu cầu API Key)
 - `ollama`: Ollama (Local)
 
 ## Model Ollama — Tự Động Tạo Phụ Đề
 
-Tham số `s4OllamaModel` ở Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
+Ô chọn **Model Ollama** ở mục Tự Động Tạo Phụ Đề. Các giá trị hợp lệ:
 - `qwen2.5:3b-instruct`: qwen2.5:3b-instruct
+
+## Các tuỳ chọn bật/tắt — Cấu Hình Chung
+
+Những ô tích có trên màn hình Cấu Hình Chung:
+- **Chuẩn hóa âm lượng (-14 LUFS)**
+- **Sử dụng GPU cho Video**
 
 ## TTS Engine Mặc định — Cấu Hình Chung
 
-Tham số `cfgTtsEngine` ở Cấu Hình Chung. Các giá trị hợp lệ:
+Ô chọn **TTS Engine Mặc định** ở mục Cấu Hình Chung. Các giá trị hợp lệ:
 - `edge`: Edge-TTS
 - `piper`: Piper
 - `clone`: XTTSv2
@@ -258,7 +287,7 @@ Tham số `cfgTtsEngine` ở Cấu Hình Chung. Các giá trị hợp lệ:
 
 ## Style Mặc định — Cấu Hình Chung
 
-Tham số `cfgVideoStyle` ở Cấu Hình Chung. Các giá trị hợp lệ:
+Ô chọn **Style Mặc định** ở mục Cấu Hình Chung. Các giá trị hợp lệ:
 - `thuy_mac`: Thủy Mặc (có LoRA riêng)
 - `flat_anime`: Anime 2D Flat
 - `anime_2d`: Anime 2D Truyền Thống
@@ -270,26 +299,36 @@ Tham số `cfgVideoStyle` ở Cấu Hình Chung. Các giá trị hợp lệ:
 
 ## Step 3 LLM Engine Mặc định — Cấu Hình Chung
 
-Tham số `cfgVideoLlmEngine` ở Cấu Hình Chung. Các giá trị hợp lệ:
+Ô chọn **Step 3 LLM Engine Mặc định** ở mục Cấu Hình Chung. Các giá trị hợp lệ:
 - `gemini_api`: Gemini Offline (Local)
 - `gemini`: Gemini Online (AI Studio)
 - `ollama`: Ollama (Local)
 
+## Tỷ lệ ảnh (Aspect Ratio) — Cấu Hình Chung
+
+Ô chọn **Tỷ lệ ảnh (Aspect Ratio)** ở mục Cấu Hình Chung. Các giá trị hợp lệ:
+- `768x432`: 16:9 (Landscape)
+- `432x768`: 9:16 (Portrait)
+- `640x640`: 1:1 (Square)
+- `704x528`: 4:3 (Ngang Cổ Điển)
+- `528x704`: 3:4 (Dọc Cổ Điển)
+- `768x328`: 21:9 (Cinematic)
+
 ## Trạng thái Trợ Lý AI — Cấu Hình Chung
 
-Tham số `cfgChatbotEnabled` ở Cấu Hình Chung. Các giá trị hợp lệ:
+Ô chọn **Trạng thái Trợ Lý AI** ở mục Cấu Hình Chung. Các giá trị hợp lệ:
 - `true`: Bật trợ lý
 - `false`: Tắt trợ lý
 
 ## Chặn chat khi GPU bận — Cấu Hình Chung
 
-Tham số `cfgChatbotBlockBusy` ở Cấu Hình Chung. Các giá trị hợp lệ:
+Ô chọn **Chặn chat khi GPU bận** ở mục Cấu Hình Chung. Các giá trị hợp lệ:
 - `true`: Có (Cảnh báo 409 + Tra cứu 0-VRAM)
 - `false`: Không (Cho phép chạy đè)
 
 ## Tự nhả VRAM trước khi chạy Pipeline — Cấu Hình Chung
 
-Tham số `cfgChatbotAutoUnload` ở Cấu Hình Chung. Các giá trị hợp lệ:
+Ô chọn **Tự nhả VRAM trước khi chạy Pipeline** ở mục Cấu Hình Chung. Các giá trị hợp lệ:
 - `true`: Có (Tự động unload Ollama)
 - `false`: Không
 
@@ -328,6 +367,18 @@ Tham số `cfgChatbotAutoUnload` ở Cấu Hình Chung. Các giá trị hợp l�
 - `use_semantic_split` = True
 - `extract_characters` = True
 - `enable_face_detailer` = False
+- `sd_steps` = 8
+- `sd_guidance` = 5.0
+- `sd_image_width` = 768
+- `sd_image_height` = 432
+- `sd_output_width` = 1920
+- `sd_output_height` = 1080
+- `sd_video_fps` = 24
+- `sd_face_detailer_steps` = 14
+- `sd_face_detailer_strength` = 0.45
+- `sd_ip_adapter_scale` = 0.6
+- `sd_studio_render_steps` = 0
+- `sd_studio_render_guidance` = 0.0
 - `render_mode` = "studio"
 - `hardware_profile` = "auto"
 - `device` = "auto"
@@ -354,8 +405,10 @@ Tham số `cfgChatbotAutoUnload` ở Cấu Hình Chung. Các giá trị hợp l�
 - `num_ctx` = 8192
 - `max_history_turns` = 12
 - `kb_token_budget` = 3000
-- `kb_min_score` = 0.60
+- `kb_min_score` = 0.65
 - `kb_sticky_per_session` = True
+- `cache_repeat_questions` = True
+- `reasoning_pass` = True
 - `keep_alive` = "5m"
 - `prewarm_on_open` = True
 - `idle_unload_minutes` = 10

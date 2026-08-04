@@ -66,6 +66,24 @@ def labels_for(html: str) -> dict:
     return out
 
 
+def checkboxes_in(body: str) -> list:
+    """Các ô tích trong một panel, kèm nhãn hiển thị.
+
+    Bản đầu chỉ quét <select> nên toàn bộ ô tích vắng mặt khỏi KB — hỏi "có nên
+    bật Lọc tách giọng nền (Demucs) không?" thì trợ lý trả lời "tài liệu không đề
+    cập", dù đó là một ô có thật ngay trên màn hình.
+    """
+    rows = []
+    for label_html in re.findall(r"<label[^>]*>(.*?)</label>", body, re.S):
+        m = re.search(r'<input[^>]*type="checkbox"[^>]*id="([^"]+)"', label_html)
+        if not m:
+            continue
+        text = strip_tags(label_html)
+        if text:
+            rows.append((m.group(1), text))
+    return rows
+
+
 def selects_in(body: str, label_map: dict) -> list:
     rows = []
     for sid, inner in re.findall(r'<select[^>]*id="([^"]+)"[^>]*>(.*?)</select>', body, re.S):
@@ -125,6 +143,17 @@ def main():
     for tab in PANEL_ORDER:
         if tab not in pans:
             continue
+
+        boxes = checkboxes_in(pans[tab])
+        if boxes:
+            step_name = navs.get(tab, tab)
+            lines.append(f"## Các tuỳ chọn bật/tắt — {step_name}")
+            lines.append("")
+            lines.append(f"Những ô tích có trên màn hình {step_name}:")
+            for _cid, text in boxes:
+                lines.append(f"- **{text}**")
+            lines.append("")
+
         rows = selects_in(pans[tab], label_map)
         if not rows:
             continue
@@ -140,7 +169,10 @@ def main():
             title = label or sid
             lines.append(f"## {title} — {step}")
             lines.append("")
-            lines.append(f"Tham số `{sid}` ở {step}. Các giá trị hợp lệ:")
+            # KHÔNG in id nội bộ (`s4SubSource`...) vào câu mô tả. Model đọc nó
+            # như tên nút và hướng dẫn người dùng "bấm vào nút s4SubSource" —
+            # một thứ không tồn tại trên màn hình. Chỉ dùng nhãn hiển thị.
+            lines.append(f'Ô chọn **{title}** ở mục {step}. Các giá trị hợp lệ:')
             for val, text in opts:
                 lines.append(f"- `{val}`: {text}")
             lines.append("")
