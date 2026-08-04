@@ -58,15 +58,15 @@ CHAT_MODEL_PROFILES = [
     },
     {
         "name": "qwen3:4b", "vram_gb": 3.4, "tiers": ["8gb"],
-        "note": "Trả lời mạch lạc hơn 3b. Máy 6GB chạy được nhưng phải đóng trợ lý khi dựng video.",
+        "note": "Dòng qwen3 có suy luận nội bộ; đã tắt chế độ nghĩ nhưng câu trả lời đôi lúc lẫn tiếng Anh. Ưu tiên qwen2.5.",
     },
     {
         "name": "qwen2.5:7b-instruct", "vram_gb": 5.5, "tiers": ["8gb"],
-        "note": "Tiếng Việt tốt nhất nhóm này. Chỉ dùng khi không chạy pipeline.",
+        "note": "Tiếng Việt tốt nhất nhóm này — khuyến nghị cho máy 8GB. Chỉ dùng khi không chạy pipeline.",
     },
     {
         "name": "qwen3:8b", "vram_gb": 6.0, "tiers": ["8gb"],
-        "note": "Nặng, chiếm gần hết GPU 8GB. Dùng khi cần câu trả lời dài.",
+        "note": "Nặng, chiếm gần hết GPU 8GB. Cùng nhược điểm suy luận nội bộ như qwen3:4b.",
     },
     {
         "name": "llama3.1:latest", "vram_gb": 5.6, "tiers": ["8gb"],
@@ -75,7 +75,7 @@ CHAT_MODEL_PROFILES = [
 ]
 
 # Model khuyến nghị mặc định theo dung lượng VRAM phát hiện được.
-TIER_DEFAULT_MODEL = {"6gb": "qwen2.5:3b", "8gb": "qwen3:4b"}
+TIER_DEFAULT_MODEL = {"6gb": "qwen2.5:3b", "8gb": "qwen2.5:7b-instruct"}
 
 
 # Khớp AND là tín hiệu liên quan mạnh (0/8 câu ngoài phạm vi làm được, 18/28 câu

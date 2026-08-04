@@ -1576,7 +1576,10 @@ function cfgSetByPath(obj, path, val) {
 }
 function cfgReadField(el) {
     if (el.type === "checkbox") return el.checked;
-    if (el.type === "number") {
+    // range luôn là số; hidden mang data-num cũng vậy (cặp rộng×cao của tỷ lệ ảnh).
+    // Không ép kiểu ở đây thì cấu hình lưu ra "22" thay vì 22, và các nơi đọc
+    // config bằng Python sẽ nhận str ở chỗ chờ int/float.
+    if (el.type === "number" || el.type === "range" || el.dataset.num !== undefined) {
         if (el.value === "") return null;
         const n = parseFloat(el.value);
         return isNaN(n) ? el.value : n;

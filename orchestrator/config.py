@@ -9,6 +9,23 @@ DEFAULT_GEMINI_ONLINE_MODEL = "gemini-2.0-flash"
 DEFAULT_GEMINI_PROXY_MODEL = "gemini-3-flash"
 DEFAULT_OLLAMA_MODEL = "qwen2.5:3b-instruct"
 
+# Tham số sinh ảnh cho Bước 3 — ghi xuống [storytelling] của MediaComposer
+# trước mỗi lần chạy (xem orchestrator/mediacomposer_config.py).
+SD_TUNING_DEFAULTS = {
+    "sd_steps": 8,
+    "sd_guidance": 5.0,
+    "sd_image_width": 768,
+    "sd_image_height": 432,
+    "sd_output_width": 1920,
+    "sd_output_height": 1080,
+    "sd_video_fps": 24,
+    "sd_face_detailer_steps": 14,
+    "sd_face_detailer_strength": 0.45,
+    "sd_ip_adapter_scale": 0.6,
+    "sd_studio_render_steps": 0,
+    "sd_studio_render_guidance": 0.0,
+}
+
 def load_global_config() -> Dict[str, Any]:
     """Loads the global configuration, creating defaults if missing."""
     if not os.path.exists(CONFIG_PATH):
@@ -168,6 +185,13 @@ def load_global_config() -> Dict[str, Any]:
                     "max_sessions": 20,
                     "session_ttl_minutes": 120
                 }
+            # Máy đã dùng từ trước có sẵn global_config.json nên KHÔNG đi qua
+            # nhánh tạo mặc định ở trên. Thiếu bước này thì các thanh trượt tham
+            # số sinh ảnh mở ra trống trơn và trượt về giữa thang, không phải giá
+            # trị khuyến nghị.
+            video_cfg = cfg.setdefault("video", {})
+            for key, value in SD_TUNING_DEFAULTS.items():
+                video_cfg.setdefault(key, value)
             return cfg
     except Exception:
         return {}

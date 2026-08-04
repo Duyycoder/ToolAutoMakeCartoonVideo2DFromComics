@@ -99,3 +99,57 @@ def test_ap_dung_lua_chon_va_fallback_khi_hong():
     assert ChatManager.apply_reasoning(secs, "99") == secs
     # Không bao giờ nạp quá 3 mảnh.
     assert len(ChatManager.apply_reasoning(secs, "1,2,3,4,5")) == 3
+
+
+# ------------------------------------------------- model có suy luận nội bộ
+def test_model_thinking_bi_tat_che_do_nghi():
+    """qwen3 sinh khối `thinking` trước `content`.
+
+    Với num_predict 512, khối đó ăn sạch hạn mức và `content` về RỖNG — trợ lý im
+    lặng hoàn toàn. Payload gửi qwen3 bắt buộc phải có `think: false`.
+    """
+    import asyncio
+    from unittest.mock import MagicMock, patch
+
+    from orchestrator import llm
+
+    sent = {}
+
+    class _Resp:
+        def raise_for_status(self):
+            pass
+
+        async def aiter_lines(self):
+            yield '{"message":{"content":"ok"},"done":true,"prompt_eval_count":10}'
+
+    class _Stream:
+        def __init__(self, payload):
+            sent.update(payload)
+
+        async def __aenter__(self):
+            return _Resp()
+
+        async def __aexit__(self, *a):
+            return False
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        def stream(self, _m, _u, json=None):
+            return _Stream(json)
+
+    async def run(model):
+        sent.clear()
+        with patch.object(llm.httpx, "AsyncClient", MagicMock(return_value=_Client())):
+            async for _ in llm.chat_stream_ollama("http://x", model, [{"role": "user", "content": "hi"}]):
+                pass
+        return dict(sent)
+
+    assert asyncio.run(run("qwen3:4b")).get("think") is False
+    assert asyncio.run(run("qwen3:8b")).get("think") is False
+    # Model thường không được gửi cờ này — Ollama có thể từ chối.
+    assert "think" not in asyncio.run(run("qwen2.5:3b"))

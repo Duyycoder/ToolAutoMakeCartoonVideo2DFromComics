@@ -87,6 +87,10 @@ def chat(
     return data["choices"][0]["message"]["content"].strip()
 
 
+# Model có chế độ suy luận nội bộ — phải tắt, xem chú thích ở chat_stream_ollama.
+THINKING_MODEL_PREFIXES = ("qwen3", "deepseek-r1", "magistral")
+
+
 async def chat_stream_ollama(
     base_url: str,
     model: str,
@@ -126,6 +130,13 @@ async def chat_stream_ollama(
         "options": opts,
         "stream": True,
     }
+
+    # Model dòng "thinking" (qwen3...) mặc định sinh một khối suy luận nội bộ vào
+    # trường `thinking` TRƯỚC khi sinh `content`. Với num_predict 512, khối đó ăn
+    # sạch hạn mức và `content` trả về RỖNG — người dùng thấy trợ lý im lặng hoàn
+    # toàn. Tắt chế độ nghĩ để mọi token dành cho câu trả lời thật.
+    if any(model.lower().startswith(p) for p in THINKING_MODEL_PREFIXES):
+        payload["think"] = False
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         async with client.stream("POST", url, json=payload) as response:
