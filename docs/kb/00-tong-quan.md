@@ -11,8 +11,12 @@ Tool Auto Make Cartoon Video 2D From Comics là hệ thống tự động hoá v
 - **Bước 4 — Ghép Video:** Ghép các đoạn video, âm thanh và phụ đề thành video hoàn chỉnh (.mp4).
 
 ## Cấu trúc lưu trữ dữ liệu (storage)
-Mọi dữ liệu làm việc nằm trong thư mục `storage/stories/<slug_truyen>/`:
-- `raw/`: Các file chương chữ thô (`chuong_0001.md`).
-- `audio/`: Các file âm thanh đọc chương (`chuong_0001.wav`).
-- `video/`: Các đoạn video cảnh lẻ và video tổng hợp (`TongHop_chuong_0001.mp4`).
+Mọi dữ liệu làm việc nằm trong thư mục `storage/truyen/<slug_truyen>/`:
+- `raw/`: Chương chữ (`.md`) **và** file giọng đọc (`.wav`) của chính chương đó.
+  Hai loại file nằm CẠNH nhau, cùng tên, khác đuôi.
+- `translated/`: Bản dịch và báo cáo dịch, nếu Bước 1 có bật dịch.
+- `video/`: Video từng chương và video tổng hợp (`TongHop_*.mp4`).
 - `story.json`: Metadata tổng quan của truyện (trạng thái, thể loại, tiến độ).
+
+**Không có thư mục `audio/` riêng.** Muốn kiểm tra một chương đã có giọng đọc chưa,
+hãy tìm file `.wav` trùng tên với file `.md` trong `raw/` (hoặc `translated/`).

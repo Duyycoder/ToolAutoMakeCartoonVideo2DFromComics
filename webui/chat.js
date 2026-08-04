@@ -14,6 +14,7 @@
 
   // DOM Elements
   let widgetContainer, toggleBtn, badge, panel, messagesBox, inputArea, sendBtn;
+  let modelSelect, modelNote, modelInfo = null;
 
   function escapeHTML(str) {
     return str
@@ -79,6 +80,13 @@
           </div>
         </div>
 
+        <div class="chat-modelbar">
+          <label for="chatModelSelect">Model</label>
+          <select id="chatModelSelect"></select>
+          <span class="chat-modelbar-gpu" id="chatGpuInfo"></span>
+        </div>
+        <div class="chat-modelbar-note" id="chatModelNote"></div>
+
         <div class="chat-messages" id="chatMessages">
           <div class="chat-msg assistant">
             Xin chào! Tôi là Trợ Lý AI. Tôi có thể giúp bạn giải đáp thắc mắc vận hành hoặc tư vấn nội dung truyện.
@@ -111,8 +119,93 @@
       }
     });
 
+    modelSelect = document.getElementById("chatModelSelect");
+    modelNote = document.getElementById("chatModelNote");
+    modelSelect.addEventListener("change", onModelChange);
+
     checkHealth();
     setInterval(checkHealth, 10000);
+    loadModels();
+  }
+
+  // ---------------------------------------------------------------- Chọn model
+  function describe(m, tier) {
+    // Model nặng hơn VRAM của máy vẫn hiện ra, nhưng phải nói rõ hệ quả thay vì
+    // ẩn đi — người dùng máy 6GB có quyền chọn model to khi không dựng video.
+    const warn = m.fits ? "" : " ⚠ nặng cho máy này";
+    const miss = m.installed ? "" : " (chưa tải)";
+    return `${m.name} — ${m.vram_gb}GB${warn}${miss}`;
+  }
+
+  async function loadModels() {
+    try {
+      const res = await fetch("/api/chat/models");
+      if (!res.ok) return;
+      modelInfo = await res.json();
+
+      const gpuEl = document.getElementById("chatGpuInfo");
+      if (modelInfo.gpu_vram_mb) {
+        const gb = Math.round(modelInfo.gpu_vram_mb / 1024);
+        gpuEl.textContent = `GPU ${gb}GB`;
+        gpuEl.title = modelInfo.gpu_name || "";
+      } else {
+        gpuEl.textContent = "Không thấy GPU";
+      }
+
+      modelSelect.innerHTML = "";
+      const groups = {
+        "6gb": "Hợp máy 6GB VRAM",
+        "8gb": "Cần máy 8GB VRAM trở lên",
+      };
+      for (const [tier, label] of Object.entries(groups)) {
+        const list = modelInfo.models.filter((m) => m.tiers[0] === tier);
+        if (!list.length) continue;
+        const og = document.createElement("optgroup");
+        og.label = label;
+        for (const m of list) {
+          const opt = document.createElement("option");
+          opt.value = m.name;
+          opt.textContent = describe(m, modelInfo.tier);
+          opt.disabled = !m.installed;
+          if (m.name === modelInfo.current) opt.selected = true;
+          og.appendChild(opt);
+        }
+        modelSelect.appendChild(og);
+      }
+      renderModelNote(modelInfo.current);
+    } catch (_) {}
+  }
+
+  function renderModelNote(name) {
+    if (!modelInfo) return;
+    const m = modelInfo.models.find((x) => x.name === name);
+    if (!m) { modelNote.textContent = ""; return; }
+    const rec = modelInfo.recommended === name ? "✔ Khuyến nghị cho máy này. " : "";
+    modelNote.textContent = rec + m.note;
+    modelNote.className = "chat-modelbar-note" + (m.fits ? "" : " warn");
+  }
+
+  async function onModelChange() {
+    const name = modelSelect.value;
+    modelNote.textContent = "Đang đổi model…";
+    try {
+      const res = await fetch("/api/chat/model", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: name }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        modelNote.textContent = "Không đổi được: " + (data.detail || "lỗi không rõ");
+        return;
+      }
+      modelInfo.current = name;
+      renderModelNote(name);
+      appendMessage("assistant", `Đã chuyển sang model **${name}**. Câu hỏi tiếp theo sẽ mất vài giây để nạp model.`);
+      checkHealth();
+    } catch (e) {
+      modelNote.textContent = "Lỗi kết nối khi đổi model.";
+    }
   }
 
   function togglePanel() {

@@ -21,7 +21,9 @@ from orchestrator.storage import StorageManager  # noqa: E402
 from orchestrator.process_manager import ProcessManager  # noqa: E402
 from orchestrator.pipeline import NovelPipeline  # noqa: E402
 from orchestrator.auto_run import AutoRunManager  # noqa: E402
-from orchestrator.chatbot import ChatManager  # noqa: E402
+from orchestrator.chatbot import (  # noqa: E402
+    ChatManager, CHAT_MODEL_PROFILES, TIER_DEFAULT_MODEL, vram_tier,
+)
 from orchestrator.llm import chat_stream_ollama, unload_ollama  # noqa: E402
 from orchestrator import ollama_manager  # noqa: E402
 from orchestrator import model_preflight  # noqa: E402
@@ -90,6 +92,10 @@ class ChatRequestSchema(BaseModel):
 class AgentQuerySchema(BaseModel):
     action: str
     args: Optional[dict] = None
+
+class ChatModelSchema(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    model: str
 
 class CreateStorySchema(BaseModel):
     story_name: str
@@ -792,12 +798,12 @@ async def post_chat(body: ChatRequestSchema, request: Request):
             active_tab=body.active_tab or "",
             sticky_kb=session.get("sticky_kb") if cfg.get("kb_sticky_per_session", True) else None,
             token_budget=cfg.get("kb_token_budget", 3000),
-            min_score=cfg.get("kb_min_score", 0.50)
+            min_score=cfg.get("kb_min_score", 0.60)
         )
         if cfg.get("kb_sticky_per_session", True) and kb_sections:
             session["sticky_kb"] = kb_sections
 
-        min_score = cfg.get("kb_min_score", 0.50)
+        min_score = cfg.get("kb_min_score", 0.60)
         if max_score < min_score and "truyện" not in body.message.lower() and "story" not in body.message.lower():
             chat_mgr.single_chat_lock.release()
             refusal_text = (
@@ -937,6 +943,92 @@ async def prewarm_chat_model():
     except Exception as e:
         logger.warning(f"[Chatbot] Prewarm failed: {e}")
         return {"status": "failed", "error": str(e)}
+
+def _gpu_total_mb() -> int:
+    """VRAM tổng theo MB, 0 nếu không có nvidia-smi."""
+    import subprocess
+    try:
+        r = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return int(r.stdout.strip().splitlines()[0].strip())
+    except Exception:
+        pass
+    return 0
+
+
+def _ollama_root(cfg: dict) -> str:
+    base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
+    root = base_url.rstrip("/")
+    return root[:-3] if root.endswith("/v1") else root
+
+
+@app.get("/api/chat/models")
+def list_chat_models():
+    """Danh sách model trợ lý kèm mức VRAM thật và khuyến nghị theo máy."""
+    cfg = load_global_config().get("chatbot", {})
+    total_mb = _gpu_total_mb()
+    tier = vram_tier(total_mb) if total_mb else "8gb"
+
+    installed = []
+    try:
+        with httpx.Client(timeout=3.0) as client:
+            r = client.get(f"{_ollama_root(cfg)}/api/tags")
+            if r.status_code == 200:
+                installed = [m.get("name", "") for m in r.json().get("models", [])]
+    except Exception:
+        pass
+
+    def _same(a: str, b: str) -> bool:
+        n = lambda s: s if ":" in s else f"{s}:latest"  # noqa: E731
+        return n(a) == n(b)
+
+    models = []
+    for p in CHAT_MODEL_PROFILES:
+        models.append({
+            **p,
+            "installed": any(_same(p["name"], n) for n in installed),
+            "fits": tier in p["tiers"],
+        })
+
+    return {
+        "current": cfg.get("model", ""),
+        "gpu_name": get_gpu_info().get("name", ""),
+        "gpu_vram_mb": total_mb,
+        "tier": tier,
+        "recommended": TIER_DEFAULT_MODEL.get(tier, ""),
+        "models": models,
+    }
+
+
+@app.post("/api/chat/model")
+async def set_chat_model(body: ChatModelSchema):
+    """Đổi model trợ lý ngay trên widget, nhả model cũ khỏi VRAM trước khi lưu."""
+    known = {p["name"] for p in CHAT_MODEL_PROFILES}
+    if body.model not in known:
+        raise HTTPException(status_code=400, detail=f"Model '{body.model}' không nằm trong danh sách hỗ trợ.")
+
+    full = load_global_config()
+    chat_cfg = full.setdefault("chatbot", {})
+    old_model = chat_cfg.get("model", "")
+
+    # Nhả model cũ trước khi đổi, nếu không hai model cùng neo trong VRAM cho tới
+    # khi keep_alive hết hạn — đúng thứ gây OOM trên máy 6GB.
+    if old_model and old_model != body.model:
+        import asyncio as _asyncio
+        try:
+            await _asyncio.to_thread(unload_ollama, _ollama_root(chat_cfg), old_model)
+        except Exception as e:
+            logger.warning(f"[Chatbot] Không nhả được model cũ '{old_model}': {e}")
+
+    chat_cfg["model"] = body.model
+    if not save_global_config(full):
+        raise HTTPException(status_code=500, detail="Không lưu được cấu hình.")
+    return {"status": "ok", "model": body.model, "unloaded": old_model}
+
 
 @app.post("/api/agent/query")
 def agent_query_endpoint(body: AgentQuerySchema):

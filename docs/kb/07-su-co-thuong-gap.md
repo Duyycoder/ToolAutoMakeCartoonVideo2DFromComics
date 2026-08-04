@@ -12,5 +12,5 @@
 - **Cách khắc phục:** Mở Terminal và gõ `ollama serve`. Nếu chưa cài, tải Ollama từ trang chủ và chạy `ollama pull qwen2.5:3b`.
 
 ## Video sinh ra không có tiếng
-- **Nguyên nhân:** Bước 2 chưa được chạy hoặc bị lỗi không tạo ra file `.wav` trong `storage/stories/<slug>/audio/`.
-- **Cách khắc phục:** Kiểm tra tab Bước 2, bấm chạy lại TTS cho các chương bị thiếu âm thanh trước khi chạy Bước 5.
+- **Nguyên nhân:** Bước 2 chưa được chạy hoặc bị lỗi không tạo ra file `.wav` nằm cạnh file `.md` trong `storage/truyen/<slug>/raw/`.
+- **Cách khắc phục:** Kiểm tra tab Bước 2, bấm chạy lại TTS cho các chương bị thiếu âm thanh trước khi chạy Bước 4 (Ghép Video).
