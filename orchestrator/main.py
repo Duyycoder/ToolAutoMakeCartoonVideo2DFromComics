@@ -798,12 +798,12 @@ async def post_chat(body: ChatRequestSchema, request: Request):
             active_tab=body.active_tab or "",
             sticky_kb=session.get("sticky_kb") if cfg.get("kb_sticky_per_session", True) else None,
             token_budget=cfg.get("kb_token_budget", 3000),
-            min_score=cfg.get("kb_min_score", 0.60)
+            min_score=cfg.get("kb_min_score", 0.65)
         )
         if cfg.get("kb_sticky_per_session", True) and kb_sections:
             session["sticky_kb"] = kb_sections
 
-        min_score = cfg.get("kb_min_score", 0.60)
+        min_score = cfg.get("kb_min_score", 0.65)
         if max_score < min_score and "truyện" not in body.message.lower() and "story" not in body.message.lower():
             chat_mgr.single_chat_lock.release()
             refusal_text = (

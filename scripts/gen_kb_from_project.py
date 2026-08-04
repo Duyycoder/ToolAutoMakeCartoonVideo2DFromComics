@@ -128,11 +128,19 @@ def main():
         rows = selects_in(pans[tab], label_map)
         if not rows:
             continue
-        lines.append(f"## Lựa chọn hợp lệ — {navs.get(tab, tab)}")
-        lines.append("")
+        # MỘT đoạn `##` cho MỖI tham số, không gộp cả bước vào một đoạn.
+        #
+        # Bản trước gộp toàn bộ select của một bước thành một đoạn ~1000 token.
+        # Hỏi "Bước 3 chọn checkpoint nào" là nuốt trọn cả nghìn token mô tả mọi
+        # dropdown khác của bước đó, trong khi câu trả lời chỉ cần vài chục token.
+        # Chia nhỏ giúp nạp đúng phần cần, ngân sách context còn chỗ cho nhiều
+        # mảnh kiến thức khác nhau cùng lúc.
+        step = navs.get(tab, tab)
         for sid, label, opts in rows:
             title = label or sid
-            lines.append(f"**{title}** (`{sid}`) — các giá trị hợp lệ:")
+            lines.append(f"## {title} — {step}")
+            lines.append("")
+            lines.append(f"Tham số `{sid}` ở {step}. Các giá trị hợp lệ:")
             for val, text in opts:
                 lines.append(f"- `{val}`: {text}")
             lines.append("")

@@ -164,7 +164,7 @@ class ChatManager:
         active_tab: str = "",
         sticky_kb: Optional[List[dict]] = None,
         token_budget: int = 3000,
-        min_score: float = 0.60
+        min_score: float = 0.65
     ) -> Tuple[List[dict], float]:
         """Chấm điểm từ khoá không dấu, chọn các đoạn KB phù hợp ngân sách token.
 
