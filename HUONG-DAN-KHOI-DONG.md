@@ -1,50 +1,84 @@
-# Hướng dẫn khởi động (cho người không biết code)
+# Hướng dẫn cập nhật & khởi động
 
-Chỉ có **3 bước**. Làm đúng thứ tự là chạy được.
+**Dành cho máy đã có sẵn dự án nhưng đang ở phiên bản cũ.**
+Không cần biết code. Làm đúng 4 bước dưới đây.
 
----
-
-## Bước 1 — Cài Git (chỉ làm 1 lần duy nhất)
-
-Tải và cài: **https://git-scm.com/download/win**
-
-Cứ bấm **Next** liên tục cho tới **Install**, xong bấm **Finish**. Không cần chỉnh gì.
+> 📄 Bản in đẹp có hình minh hoạ: **[HUONG-DAN-KHOI-DONG.pdf](HUONG-DAN-KHOI-DONG.pdf)**
 
 ---
 
-## Bước 2 — Tải phần mềm về máy (chỉ làm 1 lần duy nhất)
+## Trước khi bắt đầu — yên tâm về dữ liệu
 
-1. Mở **File Explorer**, vào ổ đĩa còn trống ít nhất **60 GB** (ví dụ ổ `D:`).
-2. Bấm vào **thanh địa chỉ** ở trên cùng, xoá hết chữ trong đó, gõ `cmd` rồi bấm **Enter**.
-   → Một cửa sổ nền đen hiện ra.
-3. Copy nguyên dòng dưới đây, dán vào cửa sổ đen (bấm chuột phải để dán), rồi bấm **Enter**:
+| Sẽ bị ghi đè | Được giữ nguyên |
+|---|---|
+| Mã nguồn (các file lệnh của phần mềm) | ✅ Truyện & video đã tạo — thư mục `storage` |
+| | ✅ API key và cấu hình — thư mục `configs` |
+| | ✅ Thư viện và mô hình AI đã tải về |
 
-```
-git clone --recursive https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git
-```
-
-4. Chờ tải xong (vài phút). Xong sẽ có thư mục mới tên `ToolAutoMakeCartoonVideo2DFromComics`.
-
-> ⚠️ Nhớ giữ chữ `--recursive`. Thiếu nó là tải thiếu, phần mềm sẽ không chạy.
-
-**Nếu tải rất chậm hoặc báo lỗi mạng**, dùng đường dẫn qua máy chủ trung gian thay cho lệnh trên:
-
-```
-git clone --recursive https://ghfast.top/https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git
-```
+Nói ngắn gọn: **bạn không mất truyện, không mất video, không phải nhập lại API key.**
 
 ---
 
-## Bước 3 — Mở phần mềm
+## Bước 1 — Tìm đúng thư mục dự án
 
-Vào thư mục vừa tải về, **nháy đúp chuột vào file `run.bat`**.
+Mở **File Explorer**, tìm thư mục tên:
 
-- **Lần đầu tiên:** máy sẽ tự cài đặt mọi thứ (Python, thư viện, mô hình AI). Việc này mất **30–60 phút** và **cần Internet**. Cứ để cửa sổ đen chạy, **không được tắt giữa chừng**. Xong nó tự mở giao diện phần mềm.
-- **Những lần sau:** nháy đúp `run.bat` là giao diện mở ra sau vài giây.
+```
+ToolAutoMakeCartoonVideo2DFromComics
+```
 
-**Xong. Không phải làm gì thêm.**
+Mở nó ra, bên trong phải nhìn thấy các file như `run.bat`, `setup.bat`, `README.md`.
+**Nhìn thấy đúng những file này là đúng thư mục.**
 
-Thiếu mô hình AI nào thì phần mềm **tự tải bổ sung** trong lúc chạy — bạn không cần cài tay.
+> 🔍 **Không nhớ để ở đâu?** Bấm phím **Windows**, gõ `ToolAutoMakeCartoon`, Windows sẽ tìm giúp. Hoặc mở File Explorer, bấm vào **This PC**, gõ tên đó vào ô tìm kiếm góc trên bên phải rồi chờ.
+
+---
+
+## Bước 2 — Mở cửa sổ lệnh **ngay tại thư mục đó**
+
+Đây là bước hay làm sai nhất. Làm đúng như sau:
+
+1. Đang đứng trong thư mục ở Bước 1.
+2. Bấm chuột vào **thanh địa chỉ** trên cùng (chỗ hiện đường dẫn thư mục).
+3. **Xoá sạch** chữ đang có trong đó.
+4. Gõ `cmd` rồi bấm **Enter**.
+
+Một cửa sổ nền đen hiện ra. Dòng đầu tiên của nó **phải kết thúc bằng** `\ToolAutoMakeCartoonVideo2DFromComics>`.
+
+> ⚠️ Nếu dòng đó không có tên thư mục dự án → bạn đang đứng sai chỗ. Đóng cửa sổ đen, quay lại Bước 1.
+
+---
+
+## Bước 3 — Tải bộ cập nhật (chỉ làm 1 lần duy nhất)
+
+Copy nguyên dòng dưới đây, dán vào cửa sổ đen (**bấm chuột phải để dán**), rồi bấm **Enter**:
+
+```
+curl -L -o CAP-NHAT.bat https://raw.githubusercontent.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/main/CAP-NHAT.bat
+```
+
+Nếu báo lỗi mạng hoặc chờ quá lâu, dùng dòng này thay thế:
+
+```
+curl -L -o CAP-NHAT.bat https://ghfast.top/https://raw.githubusercontent.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/main/CAP-NHAT.bat
+```
+
+Xong thì trong thư mục dự án sẽ có thêm file mới tên **`CAP-NHAT.bat`**. Đóng cửa sổ đen lại.
+
+---
+
+## Bước 4 — Nháy đúp `CAP-NHAT.bat`
+
+1. Nó hiện phiên bản bạn đang dùng, rồi hỏi xác nhận.
+2. Gõ chữ **`Y`** rồi bấm **Enter**.
+3. Ngồi chờ. Nó tự tải bản mới, tự cập nhật, rồi **tự mở phần mềm**.
+
+**Lần đầu sau khi cập nhật có thể lâu hơn bình thường** vì phần mềm tự tải bổ sung phần còn thiếu. Cứ để chạy, đừng tắt giữa chừng.
+
+### ✅ Xong. Từ nay về sau
+
+- **Muốn cập nhật:** nháy đúp `CAP-NHAT.bat`
+- **Chỉ muốn mở phần mềm:** nháy đúp `run.bat`
 
 ---
 
@@ -52,11 +86,33 @@ Thiếu mô hình AI nào thì phần mềm **tự tải bổ sung** trong lúc 
 
 | Hiện tượng | Cách xử lý |
 |---|---|
-| Nháy `run.bat` không thấy gì | Chờ 1–2 phút. Vẫn không được thì nháy đúp `run.bat debug` để xem báo lỗi. |
-| Báo thiếu Git / thiếu submodule | Làm lại Bước 1 và Bước 2. |
-| Cài giữa chừng bị mất mạng | Nối lại mạng rồi nháy đúp `run.bat` lần nữa — nó chạy tiếp chỗ còn thiếu. |
-| Trợ lý AI trả lời "Không kết nối được Ollama" | Cài **https://ollama.com** rồi mở lại `run.bat`. Model sẽ tự tải. |
-| Muốn tắt phần mềm | Đóng cửa sổ ứng dụng — mọi thứ tự tắt sạch. |
+| Cửa sổ đen báo `'curl' is not recognized` | Máy Windows quá cũ. Tải file bằng tay: mở trình duyệt vào link ở Bước 3, bấm chuột phải → **Save as**, lưu vào thư mục dự án với tên đúng `CAP-NHAT.bat`. |
+| Báo `[LOI] May nay chua cai Git` | Cài Git tại **https://git-scm.com/download/win** (bấm Next liên tục), xong nháy đúp `CAP-NHAT.bat` lại. |
+| Báo `[LOI] File nay dang nam ngoai thu muc du an` | File `CAP-NHAT.bat` bị lưu nhầm chỗ (hay gặp nhất là vào **Downloads**). Chuyển nó vào đúng thư mục ở Bước 1. |
+| Báo `[LOI] Khong tai duoc` | Mất mạng. Nối lại mạng rồi nháy đúp `CAP-NHAT.bat` lần nữa. |
+| Cập nhật xong nhưng phần mềm không mở | Nháy đúp `run.bat debug` để xem báo lỗi thật. |
+| Trợ lý AI trả lời "Không kết nối được Ollama" | Cài **https://ollama.com** rồi mở lại `run.bat`. Mô hình sẽ tự tải. |
+| Muốn tắt phần mềm | Đóng cửa sổ ứng dụng — mọi tiến trình tự tắt sạch. |
+
+---
+
+## Máy chưa từng có dự án này?
+
+Chỉ khi đó mới cần tải mới. Làm Bước 2 ở một ổ đĩa còn trống **≥ 60 GB**, rồi dán lệnh:
+
+```
+git clone --recursive https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git
+```
+
+Mạng chậm thì dùng bản qua máy chủ trung gian:
+
+```
+git clone --recursive https://ghfast.top/https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git
+```
+
+> ⚠️ Nhớ giữ chữ `--recursive`. Thiếu nó là tải thiếu, phần mềm sẽ không chạy.
+
+Tải xong, vào thư mục vừa hiện ra và **nháy đúp `run.bat`** — nó tự cài mọi thứ (30–60 phút, cần Internet).
 
 ---
 
@@ -65,6 +121,6 @@ Thiếu mô hình AI nào thì phần mềm **tự tải bổ sung** trong lúc 
 - Windows 10 hoặc 11
 - Ổ cứng trống **≥ 60 GB**
 - Card màn hình **NVIDIA ≥ 6 GB** (không có vẫn chạy được nhưng rất chậm)
-- Internet (cho lần cài đầu tiên)
+- Internet
 
 *Muốn hiểu sâu hơn về hệ thống thì đọc [README.md](README.md).*

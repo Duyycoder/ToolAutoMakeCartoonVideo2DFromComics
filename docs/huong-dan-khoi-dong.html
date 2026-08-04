@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Hướng dẫn cập nhật & khởi động</title>
+<style>
+  @page { size: A4; margin: 14mm 13mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Arial", sans-serif;
+    color: #1b2430; margin: 0; font-size: 10.6pt; line-height: 1.55;
+  }
+  h1 { font-size: 21pt; margin: 0 0 2mm; color: #0f3f6b; letter-spacing: -.3px; }
+  .sub { color: #55657a; font-size: 10.5pt; margin: 0 0 5mm; }
+  h2 {
+    font-size: 13pt; color: #0f3f6b; margin: 7mm 0 2.5mm;
+    border-bottom: 2px solid #d8e3ee; padding-bottom: 1.5mm;
+  }
+  h3 { font-size: 11pt; margin: 4mm 0 1.5mm; color: #16324f; }
+  p { margin: 0 0 2.5mm; }
+  code {
+    font-family: Consolas, "Courier New", monospace; font-size: 9.4pt;
+    background: #eef3f8; padding: 1px 4px; border-radius: 3px; color: #0b3c5d;
+  }
+  .cmd {
+    font-family: Consolas, "Courier New", monospace; font-size: 8.9pt;
+    background: #10233a; color: #e8f2ff; padding: 3mm 3.5mm; border-radius: 4px;
+    word-break: break-all; margin: 2mm 0 3mm; line-height: 1.45;
+  }
+  .steps { counter-reset: s; padding: 0; margin: 0; list-style: none; }
+  .step { position: relative; padding-left: 12mm; margin-bottom: 5mm; }
+  .step::before {
+    counter-increment: s; content: counter(s);
+    position: absolute; left: 0; top: -0.5mm;
+    width: 8.5mm; height: 8.5mm; border-radius: 50%;
+    background: #1668b3; color: #fff; font-weight: 700; font-size: 12pt;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step h2 { margin-top: 0; border: none; padding: 0; font-size: 13pt; }
+  table { border-collapse: collapse; width: 100%; margin: 2mm 0 3mm; font-size: 9.8pt; }
+  th, td { border: 1px solid #cfdbe7; padding: 2mm 2.5mm; text-align: left; vertical-align: top; }
+  th { background: #eaf1f8; color: #0f3f6b; font-weight: 600; }
+  .note {
+    background: #f3f8fc; border-left: 4px solid #1668b3;
+    padding: 2.5mm 3mm; margin: 2.5mm 0; font-size: 9.9pt;
+  }
+  .warn { background: #fff7ec; border-left-color: #e08a1e; }
+  .ok   { background: #f0faf3; border-left-color: #2f9e5c; }
+  .pagebreak { page-break-before: always; }
+  svg { display: block; margin: 3mm auto 4mm; max-width: 100%; }
+  .cap { text-align: center; font-size: 9pt; color: #64748b; margin: -2mm 0 4mm; }
+  .foot { margin-top: 6mm; padding-top: 2mm; border-top: 1px solid #dbe5ee;
+          font-size: 8.8pt; color: #6b7c90; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Hướng dẫn cập nhật &amp; khởi động</h1>
+<p class="sub">Dành cho máy <strong>đã có sẵn dự án</strong> nhưng đang ở phiên bản cũ · Không cần biết code</p>
+
+<!-- ============ SƠ ĐỒ TỔNG QUAN 4 BƯỚC ============ -->
+<svg viewBox="0 0 780 130" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bon buoc thuc hien">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 Z" fill="#7f96ad"/>
+    </marker>
+  </defs>
+  <g font-family="Segoe UI, Arial" text-anchor="middle">
+    <!-- 1 -->
+    <rect x="6" y="26" width="172" height="78" rx="9" fill="#eaf1f8" stroke="#1668b3" stroke-width="1.6"/>
+    <circle cx="30" cy="46" r="11" fill="#1668b3"/>
+    <text x="30" y="50.5" font-size="13" font-weight="700" fill="#fff">1</text>
+    <text x="99" y="72" font-size="13.5" font-weight="600" fill="#0f3f6b">Tìm thư mục</text>
+    <text x="99" y="90" font-size="11" fill="#4b6076">dự án trên máy</text>
+    <!-- 2 -->
+    <rect x="204" y="26" width="172" height="78" rx="9" fill="#eaf1f8" stroke="#1668b3" stroke-width="1.6"/>
+    <circle cx="228" cy="46" r="11" fill="#1668b3"/>
+    <text x="228" y="50.5" font-size="13" font-weight="700" fill="#fff">2</text>
+    <text x="297" y="72" font-size="13.5" font-weight="600" fill="#0f3f6b">Mở cửa sổ lệnh</text>
+    <text x="297" y="90" font-size="11" fill="#4b6076">ngay tại thư mục đó</text>
+    <!-- 3 -->
+    <rect x="402" y="26" width="172" height="78" rx="9" fill="#eaf1f8" stroke="#1668b3" stroke-width="1.6"/>
+    <circle cx="426" cy="46" r="11" fill="#1668b3"/>
+    <text x="426" y="50.5" font-size="13" font-weight="700" fill="#fff">3</text>
+    <text x="495" y="72" font-size="13.5" font-weight="600" fill="#0f3f6b">Dán 1 dòng lệnh</text>
+    <text x="495" y="90" font-size="11" fill="#4b6076">tải bộ cập nhật về</text>
+    <!-- 4 -->
+    <rect x="600" y="26" width="174" height="78" rx="9" fill="#e7f6ec" stroke="#2f9e5c" stroke-width="1.8"/>
+    <circle cx="624" cy="46" r="11" fill="#2f9e5c"/>
+    <text x="624" y="50.5" font-size="13" font-weight="700" fill="#fff">4</text>
+    <text x="694" y="72" font-size="13.5" font-weight="600" fill="#1c6b3f">Nháy đúp file</text>
+    <text x="694" y="90" font-size="11.5" font-weight="600" fill="#1c6b3f">CAP-NHAT.bat</text>
+    <!-- arrows -->
+    <line x1="182" y1="65" x2="199" y2="65" stroke="#7f96ad" stroke-width="1.8" marker-end="url(#ar)"/>
+    <line x1="380" y1="65" x2="397" y2="65" stroke="#7f96ad" stroke-width="1.8" marker-end="url(#ar)"/>
+    <line x1="578" y1="65" x2="595" y2="65" stroke="#7f96ad" stroke-width="1.8" marker-end="url(#ar)"/>
+    <text x="390" y="16" font-size="11" fill="#64748b">Chỉ mất khoảng 5 phút thao tác — phần còn lại máy tự làm</text>
+  </g>
+</svg>
+
+<h2>Trước khi bắt đầu — yên tâm về dữ liệu</h2>
+
+<!-- ============ SƠ ĐỒ GIỮ / GHI ĐÈ ============ -->
+<svg viewBox="0 0 780 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cai gi bi ghi de, cai gi duoc giu">
+  <g font-family="Segoe UI, Arial">
+    <!-- left: overwritten -->
+    <rect x="6" y="8" width="372" height="154" rx="9" fill="#fdf2f2" stroke="#d9534f" stroke-width="1.6"/>
+    <text x="26" y="34" font-size="13.5" font-weight="700" fill="#a3312e">✕  Bị ghi đè</text>
+    <text x="26" y="62" font-size="11.5" fill="#5b3a39">Mã nguồn — các file lệnh của phần mềm</text>
+    <text x="26" y="86" font-size="11.5" fill="#5b3a39">(nếu bạn từng tự sửa code thì mất phần sửa đó)</text>
+    <rect x="26" y="104" width="330" height="42" rx="6" fill="#fff" stroke="#eccbca"/>
+    <text x="42" y="122" font-size="10.5" fill="#7a5250">Người chỉ dùng phần mềm để tạo video</text>
+    <text x="42" y="139" font-size="10.5" font-weight="600" fill="#a3312e">→ không ảnh hưởng gì cả</text>
+
+    <!-- right: kept -->
+    <rect x="402" y="8" width="372" height="154" rx="9" fill="#f0faf3" stroke="#2f9e5c" stroke-width="1.6"/>
+    <text x="422" y="34" font-size="13.5" font-weight="700" fill="#1c6b3f">✓  Được giữ nguyên</text>
+    <text x="422" y="62" font-size="11.5" fill="#2f4c3c">Truyện &amp; video đã tạo — thư mục storage</text>
+    <text x="422" y="86" font-size="11.5" fill="#2f4c3c">API key và cấu hình — thư mục configs</text>
+    <text x="422" y="110" font-size="11.5" fill="#2f4c3c">Thư viện và mô hình AI đã tải về</text>
+    <rect x="422" y="124" width="330" height="26" rx="6" fill="#fff" stroke="#c7e6d3"/>
+    <text x="438" y="141" font-size="10.5" font-weight="600" fill="#1c6b3f">→ không phải nhập lại API key</text>
+  </g>
+</svg>
+<p class="cap">Cập nhật chỉ thay phần mã nguồn. Dữ liệu của bạn nằm ngoài vùng bị đụng tới.</p>
+
+<div class="pagebreak"></div>
+
+<ol class="steps">
+
+<li class="step">
+<h2>Tìm đúng thư mục dự án</h2>
+<p>Mở <strong>File Explorer</strong> và tìm thư mục tên <code>ToolAutoMakeCartoonVideo2DFromComics</code>.</p>
+<p>Mở nó ra. Bên trong <strong>phải nhìn thấy</strong> các file dưới đây — thấy đúng chúng là đúng thư mục:</p>
+
+<!-- ============ SƠ ĐỒ CÂY THƯ MỤC ============ -->
+<svg viewBox="0 0 780 236" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cay thu muc du an">
+  <g font-family="Segoe UI, Arial">
+    <rect x="6" y="6" width="768" height="224" rx="8" fill="#fbfcfe" stroke="#cfdbe7"/>
+    <!-- root -->
+    <rect x="22" y="20" width="330" height="26" rx="5" fill="#dcecfb" stroke="#1668b3"/>
+    <text x="34" y="38" font-size="11.5" font-weight="600" fill="#0f3f6b">📁 ToolAutoMakeCartoonVideo2DFromComics</text>
+    <!-- tree lines -->
+    <line x1="40" y1="46" x2="40" y2="212" stroke="#9db4c9" stroke-width="1.4"/>
+
+    <g font-family="Consolas, Courier New" font-size="11.5">
+      <!-- run.bat -->
+      <line x1="40" y1="66" x2="62" y2="66" stroke="#9db4c9" stroke-width="1.4"/>
+      <rect x="62" y="54" width="330" height="24" rx="5" fill="#e7f6ec" stroke="#2f9e5c" stroke-width="1.4"/>
+      <text x="74" y="70" fill="#1c6b3f" font-weight="700">📄 run.bat</text>
+      <text x="404" y="70" font-family="Segoe UI, Arial" font-size="11" fill="#3d5468">mở phần mềm</text>
+
+      <!-- CAP-NHAT.bat -->
+      <line x1="40" y1="100" x2="62" y2="100" stroke="#9db4c9" stroke-width="1.4"/>
+      <rect x="62" y="88" width="330" height="24" rx="5" fill="#fff6e6" stroke="#e08a1e" stroke-width="1.4"/>
+      <text x="74" y="104" fill="#8a5610" font-weight="700">📄 CAP-NHAT.bat</text>
+      <text x="404" y="104" font-family="Segoe UI, Arial" font-size="11" fill="#3d5468">sẽ xuất hiện sau Bước 3</text>
+
+      <!-- others -->
+      <line x1="40" y1="132" x2="62" y2="132" stroke="#9db4c9" stroke-width="1.4"/>
+      <text x="70" y="136" fill="#5b6b7d">📄 setup.bat</text>
+      <line x1="40" y1="158" x2="62" y2="158" stroke="#9db4c9" stroke-width="1.4"/>
+      <text x="70" y="162" fill="#5b6b7d">📄 README.md</text>
+      <line x1="40" y1="184" x2="62" y2="184" stroke="#9db4c9" stroke-width="1.4"/>
+      <text x="70" y="188" fill="#5b6b7d">📁 storage</text>
+      <text x="200" y="188" font-family="Segoe UI, Arial" font-size="11" fill="#2f9e5c">truyện &amp; video của bạn</text>
+      <line x1="40" y1="210" x2="62" y2="210" stroke="#9db4c9" stroke-width="1.4"/>
+      <text x="70" y="214" fill="#5b6b7d">📁 configs</text>
+      <text x="200" y="214" font-family="Segoe UI, Arial" font-size="11" fill="#2f9e5c">API key của bạn</text>
+    </g>
+  </g>
+</svg>
+
+<div class="note">🔍 <strong>Không nhớ để ở đâu?</strong> Bấm phím <strong>Windows</strong>, gõ <code>ToolAutoMakeCartoon</code> — Windows sẽ tìm giúp. Hoặc mở File Explorer → <strong>This PC</strong> → gõ tên đó vào ô tìm kiếm góc trên bên phải rồi chờ.</div>
+</li>
+
+<li class="step">
+<h2>Mở cửa sổ lệnh <em>ngay tại thư mục đó</em></h2>
+<p>Đây là bước hay làm sai nhất. Làm đúng theo hình:</p>
+
+<!-- ============ MOCKUP FILE EXPLORER ============ -->
+<svg viewBox="0 0 780 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cach go cmd vao thanh dia chi">
+  <defs>
+    <marker id="ar2" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto">
+      <path d="M0,0 L8,3.5 L0,7 Z" fill="#d9534f"/>
+    </marker>
+  </defs>
+  <g font-family="Segoe UI, Arial">
+    <!-- window -->
+    <rect x="120" y="14" width="640" height="180" rx="7" fill="#fff" stroke="#b9c8d6" stroke-width="1.5"/>
+    <rect x="120" y="14" width="640" height="30" rx="7" fill="#eef3f8"/>
+    <rect x="120" y="36" width="640" height="8" fill="#eef3f8"/>
+    <circle cx="140" cy="29" r="4.5" fill="#c9d5e1"/>
+    <circle cx="155" cy="29" r="4.5" fill="#c9d5e1"/>
+    <text x="176" y="33" font-size="11" fill="#5b6b7d">File Explorer</text>
+
+    <!-- address bar highlighted -->
+    <rect x="136" y="56" width="608" height="30" rx="4" fill="#fff" stroke="#d9534f" stroke-width="2.5"/>
+    <text x="150" y="76" font-family="Consolas, Courier New" font-size="13" font-weight="700" fill="#10233a">cmd</text>
+    <rect x="182" y="61" width="1.8" height="20" fill="#10233a"/>
+    <text x="470" y="76" font-size="10.5" fill="#98a8b8">← xoá hết chữ cũ, gõ cmd, bấm Enter</text>
+
+    <!-- file list -->
+    <g font-family="Consolas, Courier New" font-size="11.5" fill="#5b6b7d">
+      <text x="150" y="112">📁 storage</text>
+      <text x="150" y="134">📁 configs</text>
+      <text x="150" y="156">📄 run.bat</text>
+      <text x="150" y="178">📄 setup.bat</text>
+    </g>
+
+    <!-- callout -->
+    <text x="6" y="52" font-size="11.5" font-weight="700" fill="#d9534f">Thanh địa chỉ</text>
+    <text x="6" y="70" font-size="10.5" fill="#a3312e">(chỗ hiện đường</text>
+    <text x="6" y="86" font-size="10.5" fill="#a3312e">dẫn thư mục)</text>
+    <line x1="104" y1="66" x2="130" y2="70" stroke="#d9534f" stroke-width="2" marker-end="url(#ar2)"/>
+
+    <!-- result cmd window -->
+    <rect x="120" y="206" width="640" height="38" rx="5" fill="#10233a"/>
+    <text x="136" y="223" font-family="Consolas, Courier New" font-size="10.5" fill="#8fe388">Microsoft Windows [Version 10.0]</text>
+    <text x="136" y="238" font-family="Consolas, Courier New" font-size="10.5" fill="#e8f2ff">D:\ToolAutoMakeCartoonVideo2DFromComics&gt;_</text>
+    <text x="6" y="232" font-size="10.5" font-weight="700" fill="#2f9e5c">Kết quả đúng →</text>
+  </g>
+</svg>
+<p class="cap">Dòng cuối trong cửa sổ đen <strong>phải kết thúc bằng tên thư mục dự án</strong>.</p>
+
+<div class="note warn">⚠️ Nếu dòng đó <strong>không</strong> có tên thư mục dự án → bạn đang đứng sai chỗ. Đóng cửa sổ đen và quay lại Bước 1.</div>
+</li>
+
+<div class="pagebreak"></div>
+
+<li class="step">
+<h2>Dán 1 dòng lệnh để tải bộ cập nhật <em>(chỉ làm 1 lần duy nhất)</em></h2>
+<p>Copy nguyên dòng dưới, dán vào cửa sổ đen (<strong>bấm chuột phải để dán</strong>), rồi bấm <strong>Enter</strong>:</p>
+<div class="cmd">curl -L -o CAP-NHAT.bat https://raw.githubusercontent.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/main/CAP-NHAT.bat</div>
+<p>Nếu báo lỗi mạng hoặc chờ quá lâu, dùng dòng này thay thế:</p>
+<div class="cmd">curl -L -o CAP-NHAT.bat https://ghfast.top/https://raw.githubusercontent.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/main/CAP-NHAT.bat</div>
+<p>Xong thì trong thư mục dự án có thêm file mới tên <code>CAP-NHAT.bat</code>. Đóng cửa sổ đen lại.</p>
+</li>
+
+<li class="step">
+<h2>Nháy đúp <code>CAP-NHAT.bat</code></h2>
+
+<!-- ============ MOCKUP CUA SO CAP NHAT ============ -->
+<svg viewBox="0 0 780 214" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cua so khi chay CAP-NHAT.bat">
+  <g font-family="Consolas, Courier New">
+    <rect x="6" y="6" width="768" height="202" rx="7" fill="#10233a"/>
+    <text x="24" y="30" font-size="11" fill="#7fb2e5">============================================================</text>
+    <text x="24" y="46" font-size="11.5" font-weight="700" fill="#e8f2ff">  CAP NHAT PHAN MEM LEN BAN MOI NHAT</text>
+    <text x="24" y="62" font-size="11" fill="#7fb2e5">============================================================</text>
+
+    <text x="24" y="86" font-size="11" fill="#e8f2ff">[1/5] Ban dang dung phien ban:</text>
+    <text x="24" y="102" font-size="11" fill="#9fb3c8">      14bfd7d  2026-07-23  test: them test cho bo chan doan...</text>
+
+    <text x="24" y="128" font-size="11" fill="#ffd479">Go chu Y roi bam Enter de cap nhat: </text>
+    <rect x="285" y="117" width="16" height="15" rx="2" fill="#2f9e5c"/>
+    <text x="290" y="129" font-size="11.5" font-weight="700" fill="#fff">Y</text>
+    <text x="330" y="128" font-family="Segoe UI, Arial" font-size="11" fill="#8fe388">← gõ Y rồi Enter</text>
+
+    <text x="24" y="154" font-size="11" fill="#e8f2ff">[2/5] Dang tai ban moi tu GitHub...</text>
+    <text x="24" y="170" font-size="11" fill="#e8f2ff">[3/5] Dang chuyen sang ban chinh thuc...</text>
+    <text x="24" y="186" font-size="11" fill="#e8f2ff">[4/5] Dang cap nhat 2 bo phan di kem...</text>
+    <text x="24" y="202" font-size="11" fill="#8fe388">[5/5] Da cap nhat xong. Dang mo phan mem...</text>
+  </g>
+</svg>
+
+<p>Nó hiện phiên bản bạn đang dùng rồi hỏi xác nhận. Gõ <strong>Y</strong> → <strong>Enter</strong> → ngồi chờ. Nó tự tải bản mới, tự cập nhật, rồi <strong>tự mở phần mềm</strong>.</p>
+
+<div class="note warn">⏳ <strong>Lần đầu sau khi cập nhật sẽ lâu hơn bình thường</strong> vì phần mềm tự tải bổ sung phần còn thiếu (mô hình AI…). Cứ để chạy, đừng tắt giữa chừng.</div>
+
+<div class="note ok"><strong>✅ Xong. Từ nay về sau:</strong><br>
+• Muốn cập nhật → nháy đúp <code>CAP-NHAT.bat</code><br>
+• Chỉ muốn mở phần mềm → nháy đúp <code>run.bat</code></div>
+</li>
+
+</ol>
+
+<div class="pagebreak"></div>
+
+<h2>Khi gặp trục trặc</h2>
+<table>
+  <tr><th style="width:42%">Hiện tượng</th><th>Cách xử lý</th></tr>
+  <tr><td><code>'curl' is not recognized</code></td><td>Windows quá cũ. Tải bằng tay: mở trình duyệt vào link ở Bước 3 → bấm chuột phải → <strong>Save as</strong> → lưu vào thư mục dự án, đúng tên <code>CAP-NHAT.bat</code>.</td></tr>
+  <tr><td><code>[LOI] May nay chua cai Git</code></td><td>Cài Git tại <strong>git-scm.com/download/win</strong> (bấm Next liên tục), xong nháy đúp <code>CAP-NHAT.bat</code> lại.</td></tr>
+  <tr><td><code>[LOI] File nay dang nam ngoai thu muc du an</code></td><td>File bị lưu nhầm chỗ — hay gặp nhất là vào <strong>Downloads</strong>. Chuyển nó vào đúng thư mục ở Bước 1.</td></tr>
+  <tr><td><code>[LOI] Khong tai duoc</code></td><td>Mất mạng. Nối lại mạng rồi nháy đúp <code>CAP-NHAT.bat</code> lần nữa.</td></tr>
+  <tr><td>Cập nhật xong nhưng phần mềm không mở</td><td>Nháy đúp <code>run.bat debug</code> để xem báo lỗi thật.</td></tr>
+  <tr><td>Trợ lý AI báo “Không kết nối được Ollama”</td><td>Cài <strong>ollama.com</strong> rồi mở lại <code>run.bat</code>. Mô hình sẽ tự tải.</td></tr>
+  <tr><td>Muốn tắt phần mềm</td><td>Đóng cửa sổ ứng dụng — mọi tiến trình tự tắt sạch.</td></tr>
+</table>
+
+<h2>Máy chưa từng có dự án này?</h2>
+<p>Chỉ khi đó mới cần tải mới. Làm <strong>Bước 2</strong> ở một ổ đĩa còn trống <strong>≥ 60 GB</strong>, rồi dán lệnh:</p>
+<div class="cmd">git clone --recursive https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git</div>
+<p>Mạng chậm thì dùng bản qua máy chủ trung gian:</p>
+<div class="cmd">git clone --recursive https://ghfast.top/https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git</div>
+<div class="note warn">⚠️ Nhớ giữ chữ <code>--recursive</code>. Thiếu nó là tải thiếu, phần mềm sẽ không chạy.</div>
+<p>Tải xong, vào thư mục vừa hiện ra và <strong>nháy đúp <code>run.bat</code></strong> — nó tự cài mọi thứ (30–60 phút, cần Internet).</p>
+
+<h2>Máy cần có gì</h2>
+<table>
+  <tr><th style="width:34%">Hệ điều hành</th><td>Windows 10 hoặc 11</td></tr>
+  <tr><th>Ổ cứng trống</th><td>≥ 60 GB</td></tr>
+  <tr><th>Card màn hình</th><td>NVIDIA ≥ 6 GB — không có vẫn chạy được nhưng rất chậm</td></tr>
+  <tr><th>Internet</th><td>Cần, để tải bản mới và mô hình AI</td></tr>
+</table>
+
+<p class="foot">ToolAutoMakeCartoonVideo2DFromComics — Hướng dẫn cập nhật &amp; khởi động</p>
+
+</body>
+</html>
