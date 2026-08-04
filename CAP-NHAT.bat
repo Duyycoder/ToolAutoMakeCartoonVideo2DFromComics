@@ -1,7 +1,35 @@
 @echo off
 setlocal enabledelayedexpansion
 set PYTHONUTF8=1
-pushd "%~dp0"
+
+rem Tham so 1 = thu muc du an. Chi co khi dang chay ban sao trong TEMP.
+if not "%~1"=="" goto :chay_that
+
+rem ------------------------------------------------------------------
+rem Dang chay TRUC TIEP trong thu muc du an. Tu nhan ban sang TEMP roi
+rem chuyen quyen dieu khien sang do.
+rem
+rem Ly do: buoc cap nhat ben duoi se GHI DE chinh file nay (no cung nam
+rem trong repo). cmd.exe doc file .bat theo vi tri byte, file bi thay
+rem giua chung thi no nhay lung tung sang dong khac.
+rem ------------------------------------------------------------------
+copy /y "%~f0" "%TEMP%\CAP-NHAT-runner.bat" >nul 2>&1
+if exist "%TEMP%\CAP-NHAT-runner.bat" goto :chuyen_sang_temp
+
+rem Khong chep duoc thi chay tai cho - van hoat dong, chi kem an toan hon
+set "PROJ=%~dp0"
+goto :bat_dau
+
+:chuyen_sang_temp
+rem Goi KHONG kem "call" -> chuyen han quyen dieu khien, file nay duoc dong lai
+"%TEMP%\CAP-NHAT-runner.bat" "%~dp0"
+exit /b %errorlevel%
+
+:chay_that
+set "PROJ=%~1"
+
+:bat_dau
+pushd "%PROJ%"
 
 echo ============================================================
 echo   CAP NHAT PHAN MEM LEN BAN MOI NHAT
@@ -67,15 +95,16 @@ if %errorlevel% neq 0 (
 echo.
 
 echo [3/5] Dang chuyen sang ban chinh thuc - nhanh main...
-git checkout main >nul 2>&1
+rem -f  : ghi de ca file nguoi dung tu them vao ma ban moi cung co
+rem       (vi du chinh CAP-NHAT.bat vua tai ve o Buoc 3 cua huong dan -
+rem        khong co -f thi git tu choi va bao "would be overwritten")
+rem -B  : tao moi hoac dat lai nhanh main bam thang vao ban tren GitHub,
+rem       chay dung ca khi may dang o detached HEAD hay nhanh khac
+git checkout -f -B main origin/main
 if %errorlevel% neq 0 (
-    rem Chua tung co nhanh main tren may nay - tao moi tu ban tren GitHub
-    git checkout -B main origin/main
-    if !errorlevel! neq 0 (
-        echo [LOI] Khong chuyen duoc sang nhanh main.
-        pause
-        exit /b 1
-    )
+    echo [LOI] Khong chuyen duoc sang nhanh main.
+    pause
+    exit /b 1
 )
 git reset --hard origin/main
 if %errorlevel% neq 0 (
@@ -111,5 +140,5 @@ echo   vi phan mem tu tai them phan con thieu.
 echo ============================================================
 echo.
 
-call "%~dp0run.bat"
+call "%PROJ%run.bat"
 exit /b 0
