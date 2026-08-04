@@ -69,7 +69,7 @@ for fname in sorted(os.listdir(RAW_DIR)):
     translator.last_report_path = report_path
     
     # Run repair
-    print(f"\n  Starting repair...")
+    print("\n  Starting repair...")
     remaining = translator.repair_missing_chunks(
         fpath,
         progress_callback=progress

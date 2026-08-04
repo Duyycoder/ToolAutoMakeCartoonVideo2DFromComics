@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import logging
+from contextlib import asynccontextmanager
 from typing import Optional
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -22,8 +23,19 @@ from orchestrator.pipeline import NovelPipeline  # noqa: E402
 from orchestrator.auto_run import AutoRunManager  # noqa: E402
 from orchestrator.chatbot import ChatManager  # noqa: E402
 from orchestrator.llm import chat_stream_ollama, unload_ollama  # noqa: E402
+from orchestrator import ollama_manager  # noqa: E402
+from orchestrator import model_preflight  # noqa: E402
 
-app = FastAPI(title="AutoCartoon Novel-to-Video Maker Orchestrator")
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """Mở app là tự kiểm tra & tải nốt mô hình còn thiếu (chạy nền, không chặn)."""
+    try:
+        model_preflight.start()
+    except Exception as e:
+        logger.warning(f"[Preflight] Không khởi động được kiểm tra mô hình: {e}")
+    yield
+
+app = FastAPI(title="AutoCartoon Novel-to-Video Maker Orchestrator", lifespan=_lifespan)
 
 # Allow CORS for developmental UI/debugging
 app.add_middleware(
@@ -257,6 +269,16 @@ def get_ollama_models():
         if name not in installed:
             models.append({"name": name, "label": label, "installed": False})
     return {"ollama_online": online, "models": models}
+
+@app.get("/api/models/preflight")
+def get_model_preflight():
+    """Tiến độ tự tải mô hình còn thiếu."""
+    return model_preflight.get_state()
+
+@app.post("/api/models/preflight")
+def rerun_model_preflight():
+    started = model_preflight.start(force=True)
+    return {"status": "started" if started else "already_running", **model_preflight.get_state()}
 
 @app.post("/api/config")
 def update_config(config: GlobalConfigSchema):
@@ -807,6 +829,31 @@ async def post_chat(body: ChatRequestSchema, request: Request):
         async def generate_chat():
             full_response = ""
             try:
+                # Ollama chưa chạy / model chưa pull -> tự lo, thay vì để câu hỏi
+                # đầu tiên trả về 404 rồi người dùng phải tự gõ `ollama pull`.
+                import asyncio as _asyncio
+                notices: list[str] = []
+                ready = await _asyncio.to_thread(
+                    ollama_manager.ensure_ready,
+                    model,
+                    base_url,
+                    cfg.get("autostart_ollama", True),
+                    True,
+                    lambda msg, pct: notices.append(msg),
+                )
+                if notices:
+                    # Chỉ báo dòng mới nhất để khỏi ngập màn hình bằng % trung gian.
+                    yield json.dumps({"delta": f"_{notices[-1]}_\n\n"}) + "\n"
+                if not ready["ok"]:
+                    yield json.dumps({
+                        "delta": ready["reason"] or "Không chuẩn bị được model cho trợ lý.",
+                    }) + "\n"
+                    yield json.dumps({
+                        "done": True, "prompt_tokens": 0, "truncated": False,
+                        "model_not_ready": True,
+                    }) + "\n"
+                    return
+
                 async for chunk in chat_stream_ollama(
                     base_url=base_url,
                     model=model,
@@ -873,6 +920,15 @@ async def prewarm_chat_model():
     if root.endswith("/v1"):
         root = root[:-3]
     model = cfg.get("model", "qwen2.5:3b")
+
+    # Mở khung chat là lúc tốt nhất để bật Ollama dậy — làm ở đây thì câu hỏi đầu
+    # tiên không phải chờ. Cố ý KHÔNG pull ở đây: prewarm phải nhanh, việc tải
+    # model nặng để preflight nền hoặc lượt chat đầu tiên lo.
+    import asyncio as _asyncio
+    if not await _asyncio.to_thread(
+        ollama_manager.ensure_server, base_url, cfg.get("autostart_ollama", True)
+    ):
+        return {"status": "failed", "error": "Ollama chưa sẵn sàng."}
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:

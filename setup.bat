@@ -30,9 +30,10 @@ if not exist "AIVoice\setup.bat" (
     exit /b 1
 )
 
-:: Tu dong sua loi ki tu dac biet & trong file setup cua submodules neu co
-powershell -Command "(gc toolCaoTruyen\setup.bat) -replace 'CAU HINH OLLAMA & MODEL AI', 'CAU HINH OLLAMA ^& MODEL AI' | Out-File -encoding utf8 toolCaoTruyen\setup.bat"
-powershell -Command "(gc AIVoice\setup.bat) -replace 'Piper & XTTSv2', 'Piper ^& XTTSv2' | Out-File -encoding utf8 AIVoice\setup.bat"
+:: (Da bo) Truoc day co 2 lenh powershell ghi de setup.bat cua submodule de escape
+:: dau "&". Ca hai file nguon nay DA escape san, nen viec ghi de chi lam 2 dieu xau:
+:: doi encoding sang UTF-8 co BOM va lam ban working tree cua submodule sau moi lan
+:: chay setup (git status luon bao modified). Da xoa.
 
 echo.
 
@@ -157,6 +158,18 @@ if %errorlevel% neq 0 (
     echo [ERROR] Failed to install Orchestrator dependencies.
     pause
     exit /b 1
+)
+echo.
+
+:: 4. Tao configs\global_config.json neu chua co.
+:: Sinh bang chinh orchestrator/config.py de gia tri mac dinh chi co MOT nguon su
+:: that (khong copy config.example.json - file mau chua key gia
+:: "YOUR_GEMINI_API_KEY_HERE" se lot qua buoc kiem tra roi chet luc goi API).
+echo [INFO] Kiem tra file cau hinh configs\global_config.json...
+set "PYTHONPATH=%CD%"
+"AIVoice\.venv\Scripts\python.exe" -c "from orchestrator.config import load_global_config; load_global_config(); print('[INFO] Cau hinh da san sang.')"
+if %errorlevel% neq 0 (
+    echo [WARNING] Chua tao duoc file cau hinh - ung dung se tu tao khi chay lan dau.
 )
 echo.
 

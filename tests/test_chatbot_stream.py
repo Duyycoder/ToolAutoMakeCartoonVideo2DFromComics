@@ -8,9 +8,32 @@ from orchestrator.main import app, chat_mgr
 from orchestrator.llm import chat_stream_ollama
 
 
+_READY = {"ok": True, "server": True, "model_installed": True, "reason": ""}
+
+
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+def test_stream_reports_when_model_cannot_be_prepared(client):
+    """Ollama tắt & không pull được -> trả lời rõ ràng, không ném 500."""
+    not_ready = {
+        "ok": False, "server": False, "model_installed": False,
+        "reason": "Không kết nối được Ollama.",
+    }
+    with patch("orchestrator.ollama_manager.ensure_ready", return_value=not_ready):
+        res = client.post("/api/chat", json={
+            "session_id": "stream-test-5",
+            "message": "Bước 3 nên chọn checkpoint nào?",
+            "mode": "auto"
+        })
+        assert res.status_code == 200
+        lines = [line.strip() for line in res.text.strip().split("\n") if line.strip()]
+        assert "Không kết nối được Ollama." in json.loads(lines[0])["delta"]
+        last = json.loads(lines[-1])
+        assert last.get("done") is True
+        assert last.get("model_not_ready") is True
 
 
 def test_stream_mode_lookup(client):
@@ -68,7 +91,9 @@ def test_stream_llm_main_flow(client):
         yield {"delta": "Tôi là Trợ lý AI."}
         yield {"done": True, "prompt_tokens": 150, "truncated": False}
 
-    with patch("orchestrator.main.chat_stream_ollama", side_effect=mock_async_stream):
+    # Ollama đã sẵn sàng -> preflight im lặng, stream không có dòng thông báo thừa.
+    with patch("orchestrator.main.chat_stream_ollama", side_effect=mock_async_stream), \
+         patch("orchestrator.ollama_manager.ensure_ready", return_value=_READY):
         res = client.post("/api/chat", json={
             "session_id": "stream-test-4",
             "message": "Bước 3 nên chọn checkpoint nào?",

@@ -43,13 +43,14 @@ git submodule update --init --recursive
 
 ## Cài đặt & chạy
 
-1. Copy cấu hình mẫu và điền API key thật:
-   ```bash
-   copy configs\config.example.json configs\global_config.json
-   ```
-   (`global_config.json` đã bị `.gitignore` loại trừ — không bao giờ commit key thật.)
-2. Chạy `setup.bat` — tạo venv tổng + gọi setup của 2 dự án con (tự nhận GPU, tải model).
-3. Chạy `run.bat` — mở **cửa sổ ứng dụng desktop** (WebView2 qua pywebview), bên trong tự khởi động orchestrator :8100 và Gemini-API proxy **chạy ẩn, không hiện console**; log ghi vào `logs/app.log` và `logs/gemini_api.log`. Đóng cửa sổ app sẽ tự tắt sạch mọi tiến trình con. Cần xem log trực tiếp thì chạy `run.bat debug`; máy thiếu pywebview/WebView2 sẽ tự fallback mở trình duyệt.
+> 🟢 **Không rành kỹ thuật?** Đọc [HUONG-DAN-KHOI-DONG.md](HUONG-DAN-KHOI-DONG.md) — 3 bước, không cần biết code.
+
+**Cách nhanh nhất:** nháy đúp `run.bat`. Máy chưa cài gì thì nó tự gọi `setup.bat` rồi mở app luôn.
+
+Chi tiết từng bước nếu muốn kiểm soát:
+
+1. Chạy `setup.bat` — tạo venv tổng + gọi setup của 2 dự án con (tự nhận GPU, tải model) và tự sinh `configs/global_config.json` nếu chưa có. API key điền sau ngay trong giao diện (mục **Cấu Hình Chung**); `global_config.json` đã bị `.gitignore` loại trừ nên không bao giờ commit key thật.
+2. Chạy `run.bat` — mở **cửa sổ ứng dụng desktop** (WebView2 qua pywebview), bên trong tự khởi động orchestrator :8100 và Gemini-API proxy **chạy ẩn, không hiện console**; log ghi vào `logs/app.log` và `logs/gemini_api.log`. Đóng cửa sổ app sẽ tự tắt sạch mọi tiến trình con. Cần xem log trực tiếp thì chạy `run.bat debug`; máy thiếu pywebview/WebView2 sẽ tự fallback mở trình duyệt.
 
 ## Chế độ trình diễn "sạch bản quyền" (khuyến nghị cho đồ án)
 

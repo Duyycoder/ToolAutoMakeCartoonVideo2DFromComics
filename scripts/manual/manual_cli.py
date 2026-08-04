@@ -1,4 +1,6 @@
-import sys; sys.path.insert(0, '.')
+import sys
+
+sys.path.insert(0, '.')
 from orchestrator.storage import StorageManager
 from orchestrator.process_manager import ProcessManager
 from orchestrator.pipeline import NovelPipeline
