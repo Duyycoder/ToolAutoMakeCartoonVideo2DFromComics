@@ -6,6 +6,7 @@
     <title>AutoCartoon Video Maker - AI Comic Video Creator</title>
     <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;🎬&lt;/text&gt;&lt;/svg&gt;">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="chat.css">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,8 +36,8 @@
                 <button class="nav-item active" data-tab="step1">
                     <span class="nav-icon">📥</span>
                     <div class="nav-text">
-                        <span class="nav-title">Bước 1: Cào & Dịch</span>
-                        <span class="nav-subtitle">Cào text & dịch Việt ngữ</span>
+                        <span class="nav-title">Bước 1: Nguồn & Dịch</span>
+                        <span class="nav-subtitle">Nhập / Sáng tác & dịch</span>
                     </div>
                 </button>
                 <button class="nav-item" data-tab="step2">
@@ -74,6 +75,13 @@
                         <span class="nav-subtitle">Quản lý API Key & Mặc định</span>
                     </div>
                 </button>
+                <button class="nav-item" data-tab="stats">
+                    <span class="nav-icon">📊</span>
+                    <div class="nav-text">
+                        <span class="nav-title">Thống Kê</span>
+                        <span class="nav-subtitle">Dashboard & Dọn dẹp</span>
+                    </div>
+                </button>
             </nav>
         </aside>
 
@@ -103,7 +111,7 @@
                 <div class="header-actions" style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; justify-content:flex-end;">
                     <span id="autoRunStatus" style="display:none; font-size:0.85rem; opacity:0.9; max-width:340px;"></span>
                     <button id="btnSaveSettings" class="btn btn-secondary btn-sm" title="Lưu toàn bộ cấu hình đang chọn — lần mở sau tự áp dụng lại">💾 Lưu cấu hình</button>
-                    <button id="btnAutoRun" class="btn btn-primary btn-sm" title="Tự động chạy nối tiếp: Cào &amp; Dịch → Sinh Giọng → Dựng Hoạt Hình → Ghép Video">🚀 Chạy tự động 1→4</button>
+                    <button id="btnAutoRun" class="btn btn-primary btn-sm" title="Tự động chạy nối tiếp: Nguồn &amp; Dịch → Sinh Giọng → Dựng Hoạt Hình → Ghép Video">🚀 Chạy tự động 1→4</button>
                     <button id="btnStopAutoRun" class="btn btn-danger btn-sm" style="display:none;">⛔ Dừng chuỗi</button>
                     <div class="status-indicator">
                         Trạng thái: <span id="pipelineStatusBadge" class="badge badge-inactive">Offline</span>
@@ -115,24 +123,29 @@
             <section class="tab-panel active" id="tab-step1">
                 <div class="panel-grid">
                     <div class="card glass-card">
-                        <h3>📥 Cào & Dịch Kịch Bản</h3>
+                        <h3>📥 Nguồn & Dịch Kịch Bản</h3>
                         <form id="formStep1" class="form-grid">
                             <div class="form-group">
                             <label for="s1Source">Nguồn truyện</label>
                             <select id="s1Source">
-                                <option value="69shuba">69shu (Tiếng Trung)</option>
-                                <option value="metruyenchu">Mê Truyện Chữ (Tiếng Việt)</option>
-                                <option value="tangthuvien">Tàng Thư Viện</option>
-                                <option value="local">Thư mục cục bộ (Local Folder)</option>
+                                <option value="local" selected>📁 Thư mục cục bộ (.md / .txt)</option>
+                                <option value="ai_write">✍️ Sáng tác bằng AI (LLM cục bộ)</option>
+                                <option value="69shuba">Web: 69shu (Tiếng Trung)</option>
+                                <option value="metruyenchu">Web: Mê Truyện Chữ (Tiếng Việt)</option>
+                                <option value="tangthuvien">Web: Tàng Thư Viện</option>
                             </select>
                         </div>
-                        <div class="form-group" id="s1StoryIdGroup">
+                        <div class="form-group" id="s1StoryIdGroup" style="display: none;">
                             <label for="s1StoryId">ID truyện hoặc Link</label>
                             <input type="text" id="s1StoryId" placeholder="Ví dụ: 12345 hoặc link truyện..." required>
                         </div>
-                        <div class="form-group" id="s1LocalFolderGroup" style="display: none;">
-                            <label for="s1LocalFolder">Đường dẫn thư mục cục bộ (chứa file .md)</label>
+                        <div class="form-group" id="s1LocalFolderGroup">
+                            <label for="s1LocalFolder">Đường dẫn thư mục cục bộ (chứa file .md/.txt)</label>
                             <input type="text" id="s1LocalFolder" placeholder="Ví dụ: C:\path\to\story_chapters">
+                        </div>
+                        <div class="form-group" id="s1TopicGroup" style="display: none;">
+                            <label for="s1Topic">Chủ đề / Ý tưởng truyện (AI sẽ sáng tác — chạy LLM cục bộ)</label>
+                            <textarea id="s1Topic" rows="3" placeholder="Ví dụ: Một lập trình viên hiện đại xuyên không vào thế giới tu tiên, dùng tư duy công nghệ để tu luyện và phá giải bí ẩn cổ xưa..."></textarea>
                         </div>
                         <div class="form-group">
                             <label class="checkbox-container">
@@ -219,7 +232,7 @@
                             </div>
                             
                             <div class="form-actions">
-                                <button type="submit" id="btnStartStep1" class="btn btn-primary w-100">Bắt đầu Cào & Dịch</button>
+                                <button type="submit" id="btnStartStep1" class="btn btn-primary w-100">Bắt đầu</button>
                                 <button type="button" id="btnStopStep1" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
                             </div>
                         </form>
@@ -365,16 +378,6 @@
                                         <label for="s2Silence">Khoảng lặng giữa câu (giây)</label>
                                         <input type="number" id="s2Silence" value="0.3" step="0.1" min="0">
                                     </div>
-                                    <div class="form-group" style="display: flex; align-items: center; gap: 15px; margin-top: 25px;">
-                                        <label class="checkbox-container">
-                                            <input type="checkbox" id="s2Normalize" checked>
-                                            <span class="checkmark"></span> Normalize
-                                        </label>
-                                        <label class="checkbox-container">
-                                            <input type="checkbox" id="s2Phonemize">
-                                            <span class="checkmark"></span> IPA Phonemize
-                                        </label>
-                                    </div>
                                 </div>
                             </details>
 
@@ -424,10 +427,13 @@
                             <div class="form-group">
                                 <label for="s3Style">Phong cách hình ảnh (Style)</label>
                                 <select id="s3Style">
-                                    <option value="flat_anime" selected>Anime 2D Flat (Lineart)</option>
+                                    <option value="thuy_mac" selected>Thủy Mặc (Mực tàu — có LoRA riêng, khuyên dùng)</option>
+                                    <option value="flat_anime">Anime 2D Flat (Lineart)</option>
                                     <option value="anime_2d">Anime 2D Truyền Thống</option>
                                     <option value="xianxia">Xianxia / Cổ Trang Trung Hoa</option>
-                                    <option value="watercolor">Watercolor / Tranh Thủy Mặc</option>
+                                    <option value="storyboard">Storyboard Flat Pastel</option>
+                                    <option value="storyboard_min">Storyboard Tối Giản</option>
+                                    <option value="watercolor">Watercolor (Màu nước loang)</option>
                                     <option value="comic">Comic / Truyện Tranh Mỹ</option>
                                     <option value="manga">Manga (Trắng Đen)</option>
                                     <option value="chibi">Chibi (Dễ thương)</option>
@@ -588,6 +594,11 @@
                                     <label for="s4CookiesFile">Đường dẫn file Cookies (.txt) cho URL này (Ghi đè mặc định)</label>
                                     <input type="text" id="s4CookiesFile" placeholder="Sử dụng mặc định từ Cấu hình chung nếu để trống...">
                                 </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="s4OutputDir">Thư mục đầu ra (video tải về & video đã gắn phụ đề)</label>
+                                <input type="text" id="s4OutputDir" placeholder="Bỏ trống = mặc định (thư mục video của truyện / tác vụ tạm)">
                             </div>
 
                             <div class="form-group">
@@ -820,24 +831,72 @@
                         <div class="settings-section">
                             <h4>🔑 API & Kết Nối</h4>
                             <div class="form-group">
-                                <label for="cfgGeminiKey">Gemini API Key</label>
-                                <input type="password" id="cfgGeminiKey" placeholder="sk-gemini-...">
+                                <label for="cfgGeminiKey">Gemini API Key (dùng chung mọi bước)</label>
+                                <input type="password" id="cfgGeminiKey" data-cfg="api_keys.gemini" placeholder="sk-gemini-...">
                             </div>
                             <div class="form-group">
                                 <label for="cfgGeminiOfflineUrl">Gemini Offline Base URL</label>
-                                <input type="text" id="cfgGeminiOfflineUrl" value="http://localhost:7860/v1">
+                                <input type="text" id="cfgGeminiOfflineUrl" data-cfg="crawler.gemini_offline_base_url" value="http://localhost:7860/v1">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgGeminiOfflineKey">Gemini Offline/Proxy Key (nếu proxy yêu cầu)</label>
+                                <input type="password" id="cfgGeminiOfflineKey" data-cfg="crawler.gemini_offline_key" placeholder="Bỏ trống nếu proxy không cần key">
                             </div>
                             <div class="form-group">
                                 <label for="cfgOllamaUrl">Ollama Base URL</label>
-                                <input type="text" id="cfgOllamaUrl" value="http://localhost:11434/v1">
+                                <input type="text" id="cfgOllamaUrl" data-cfg="crawler.ollama_base_url" value="http://localhost:11434/v1">
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h4>📥 Bước 1 — Nguồn &amp; Dịch (mặc định)</h4>
+                            <div class="form-group">
+                                <label for="cfgDefaultSite">Nguồn truyện mặc định</label>
+                                <input type="text" id="cfgDefaultSite" data-cfg="crawler.default_site" value="local">
+                            </div>
+                            <div class="form-group">
+                                <label>Bộ máy dịch mặc định</label>
+                                <span class="cfg-clone" data-clone="s1Engine" data-cfg="translate.default_engine"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Model Ollama (dịch)</label>
+                                <span class="cfg-clone" data-clone="s1OllamaModel" data-cfg="translate.ollama_model"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Gemini Offline Model (dịch)</label>
+                                <span class="cfg-clone" data-clone="s1GeminiOfflineModel" data-cfg="translate.gemini_offline_model"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Thể loại mặc định</label>
+                                <span class="cfg-clone" data-clone="s1Genre" data-cfg="translate.genre"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Bộ máy trích thuật ngữ</label>
+                                <span class="cfg-clone" data-clone="s1GlossaryEngine" data-cfg="translate.glossary_extract_engine"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Model Ollama trích thuật ngữ</label>
+                                <span class="cfg-clone" data-clone="s1GlossaryOllamaModel" data-cfg="translate.glossary_extract_ollama_model"></span>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <span class="cfg-clone" data-clone="s1AutoTranslate" data-cfg="translate.auto_translate"></span>
+                                    <span class="checkmark"></span> Tự động dịch sau khi cào/nhập
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <span class="cfg-clone" data-clone="s1AutoExtract" data-cfg="translate.auto_extract"></span>
+                                    <span class="checkmark"></span> Tự động trích thuật ngữ (glossary)
+                                </label>
                             </div>
                         </div>
                         
                         <div class="settings-section">
-                            <h4>🔊 Mặc Định TTS</h4>
+                            <h4>🔊 Bước 2 — Giọng đọc TTS (mặc định)</h4>
                             <div class="form-group">
                                 <label for="cfgTtsEngine">TTS Engine Mặc định</label>
-                                <select id="cfgTtsEngine">
+                                <select id="cfgTtsEngine" data-cfg="tts.default_engine" data-seed="s2Engine">
                                     <option value="edge">Edge-TTS</option>
                                     <option value="piper">Piper</option>
                                     <option value="clone">XTTSv2</option>
@@ -847,61 +906,125 @@
                             </div>
                             <div class="form-group">
                                 <label for="cfgTtsVoice">Voice Mặc định</label>
-                                <input type="text" id="cfgTtsVoice" value="vi-VN-NamMinhNeural">
+                                <input type="text" id="cfgTtsVoice" data-cfg="tts.default_voice" value="vi-VN-NamMinhNeural">
                             </div>
                             <div class="form-group">
                                 <label for="cfgTtsSpeed">Tốc độ Mặc định</label>
-                                <input type="number" id="cfgTtsSpeed" value="1.0" step="0.05">
+                                <input type="number" id="cfgTtsSpeed" data-cfg="tts.speed" data-seed="s2Speed" value="1.0" step="0.05">
                             </div>
                             <div class="form-group">
                                 <label class="checkbox-container">
-                                    <input type="checkbox" id="cfgTtsNormalize" checked>
+                                    <input type="checkbox" id="cfgTtsNormalize" data-cfg="tts.normalize" data-seed="s2Normalize" checked>
                                     <span class="checkmark"></span>
                                     Chuẩn hóa âm lượng (-14 LUFS)
                                 </label>
                             </div>
                             <div class="form-group">
+                                <label>Mục tiêu LUFS</label>
+                                <span class="cfg-clone" data-clone="s2TargetLufs" data-cfg="tts.target_lufs"></span>
+                            </div>
+                            <div class="form-group">
                                 <label for="cfgTtsKokoroVoice">Kokoro Voice Mặc định</label>
-                                <input type="text" id="cfgTtsKokoroVoice" value="thuc_trinh">
+                                <input type="text" id="cfgTtsKokoroVoice" data-cfg="tts.kokoro_voice" value="thuc_trinh">
                             </div>
                             <div class="form-group">
                                 <label for="cfgTtsVieneuMode">VieNeu Mode Mặc định</label>
-                                <input type="text" id="cfgTtsVieneuMode" value="v3turbo">
+                                <input type="text" id="cfgTtsVieneuMode" data-cfg="tts.vieneu_mode" value="v3turbo">
                             </div>
                             <div class="form-group">
                                 <label for="cfgTtsVieneuVoice">VieNeu Voice Mặc định</label>
-                                <input type="text" id="cfgTtsVieneuVoice" value="Ngọc Lan">
+                                <input type="text" id="cfgTtsVieneuVoice" data-cfg="tts.vieneu_voice" value="Ngọc Lan">
+                            </div>
+                            <div class="form-group">
+                                <label>VieNeu Cảm xúc</label>
+                                <span class="cfg-clone" data-clone="s2VieneuEmotion" data-cfg="tts.vieneu_emotion"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Thiết bị (device)</label>
+                                <span class="cfg-clone" data-clone="s2Device" data-cfg="tts.device"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Fade In (giây)</label>
+                                <span class="cfg-clone" data-clone="s2FadeIn" data-cfg="tts.fade_in"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Fade Out (giây)</label>
+                                <span class="cfg-clone" data-clone="s2FadeOut" data-cfg="tts.fade_out"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Khoảng lặng giữa câu (giây)</label>
+                                <span class="cfg-clone" data-clone="s2Silence" data-cfg="tts.silence_duration"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Nhiệt độ (temperature)</label>
+                                <span class="cfg-clone" data-clone="s2Temperature" data-cfg="tts.temperature"></span>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <span class="cfg-clone" data-clone="s2UseCache" data-cfg="tts.use_cache"></span>
+                                    <span class="checkmark"></span> Dùng cache giọng đọc
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>Ngưỡng cache</label>
+                                <span class="cfg-clone" data-clone="s2CacheThreshold" data-cfg="tts.cache_threshold"></span>
                             </div>
                         </div>
 
                         <div class="settings-section">
-                            <h4>🎞️ Mặc Định Video</h4>
+                            <h4>🎞️ Bước 3 — Dựng hoạt hình (mặc định)</h4>
                             <div class="form-group">
                                 <label for="cfgVideoStyle">Style Mặc định</label>
-                                <select id="cfgVideoStyle">
-                                    <option value="anime_2d_flat">Anime 2D Flat</option>
-                                    <option value="xianxia_cultivation">Xianxia</option>
-                                    <option value="watercolor_storytelling">Watercolor</option>
+                                <select id="cfgVideoStyle" data-cfg="video.default_style" data-seed="s3Style">
+                                    <!-- value PHẢI trùng tên file trong resource/image_presets/ -->
+                                    <option value="thuy_mac" selected>Thủy Mặc (có LoRA riêng)</option>
+                                    <option value="flat_anime">Anime 2D Flat</option>
+                                    <option value="anime_2d">Anime 2D Truyền Thống</option>
+                                    <option value="xianxia">Xianxia / Cổ Trang</option>
+                                    <option value="storyboard">Storyboard Flat Pastel</option>
+                                    <option value="watercolor">Watercolor</option>
+                                    <option value="manga">Manga (Trắng Đen)</option>
+                                    <option value="comic">Comic Mỹ</option>
                                 </select>
                             </div>
                             <div class="form-group">
+                                <label>Thể loại (Bước 3)</label>
+                                <span class="cfg-clone" data-clone="s3Genre" data-cfg="video.genre"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgVideoCheckpoint">Checkpoint SD Mặc định</label>
+                                <input type="text" id="cfgVideoCheckpoint" data-cfg="video.default_checkpoint" data-seed="s3Checkpoint" value="anything-v5">
+                            </div>
+                            <div class="form-group">
+                                <label>Chế độ render</label>
+                                <span class="cfg-clone" data-clone="s3RenderMode" data-cfg="video.render_mode"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Hồ sơ phần cứng</label>
+                                <span class="cfg-clone" data-clone="s3HardwareProfile" data-cfg="video.hardware_profile"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Thiết bị GPU (Bước 3)</label>
+                                <span class="cfg-clone" data-clone="s3GpuDevice" data-cfg="video.device"></span>
+                            </div>
+                            <div class="form-group">
                                 <label class="checkbox-container">
-                                    <input type="checkbox" id="cfgVideoGpu" checked>
+                                    <input type="checkbox" id="cfgVideoGpu" data-cfg="video.use_gpu" checked>
                                     <span class="checkmark"></span>
                                     Sử dụng GPU cho Video
                                 </label>
                             </div>
                             <div class="form-group">
-                                <label for="cfgVideoCheckpoint">Checkpoint SD Mặc định</label>
-                                <input type="text" id="cfgVideoCheckpoint" value="anything-v5">
+                                <label>Nhạc nền (đường dẫn BGM)</label>
+                                <span class="cfg-clone" data-clone="s3Bgm" data-cfg="video.bgm_path"></span>
                             </div>
                             <div class="form-group">
                                 <label for="cfgVideoBgmVolume">Âm lượng BGM Mặc định</label>
-                                <input type="number" id="cfgVideoBgmVolume" value="0.15" step="0.05" min="0.0" max="1.0">
+                                <input type="number" id="cfgVideoBgmVolume" data-cfg="video.bgm_volume" data-seed="s3BgmVolume" value="0.15" step="0.05" min="0.0" max="1.0">
                             </div>
                             <div class="form-group">
                                 <label for="cfgVideoLlmEngine">Step 3 LLM Engine Mặc định</label>
-                                <select id="cfgVideoLlmEngine">
+                                <select id="cfgVideoLlmEngine" data-cfg="video.default_llm_engine" data-seed="s3LlmEngine">
                                     <option value="gemini_api">Gemini Offline (Local)</option>
                                     <option value="gemini">Gemini Online (AI Studio)</option>
                                     <option value="ollama">Ollama (Local)</option>
@@ -909,23 +1032,176 @@
                             </div>
                             <div class="form-group">
                                 <label for="cfgVideoLlmModel">Step 3 LLM Model Mặc định</label>
-                                <input type="text" id="cfgVideoLlmModel" value="gemini-3-flash">
+                                <input type="text" id="cfgVideoLlmModel" data-cfg="video.default_llm_model" data-seed="s3LlmModel" value="gemini-3-flash">
                             </div>
                             <div class="form-group">
-                                <label for="cfgDownloaderCookies">Đường dẫn file Cookies (.txt) cho Downloader</label>
-                                <input type="text" id="cfgDownloaderCookies" placeholder="Ví dụ: configs/cookies_iqiyi.txt">
+                                <label class="checkbox-container">
+                                    <span class="cfg-clone" data-clone="s3Upscale" data-cfg="video.enable_upscale"></span>
+                                    <span class="checkmark"></span> Upscale ảnh (nét hơn)
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <span class="cfg-clone" data-clone="s3Subtitles" data-cfg="video.burn_subtitles"></span>
+                                    <span class="checkmark"></span> Chèn phụ đề vào video
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <span class="cfg-clone" data-clone="s3Semantic" data-cfg="video.use_semantic_split"></span>
+                                    <span class="checkmark"></span> Tách cảnh theo ngữ nghĩa
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <span class="cfg-clone" data-clone="s3ExtractChars" data-cfg="video.extract_characters"></span>
+                                    <span class="checkmark"></span> Trích xuất nhân vật
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <span class="cfg-clone" data-clone="s3FaceDetailer" data-cfg="video.enable_face_detailer"></span>
+                                    <span class="checkmark"></span> Face Detailer (làm nét mặt)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h4>🎬 Bước 4 — Autosub &amp; Lồng tiếng (mặc định)</h4>
+                            <div class="form-group">
+                                <label>Thư mục đầu ra (video tải về &amp; video đã gắn sub)</label>
+                                <span class="cfg-clone" data-clone="s4OutputDir" data-cfg="autosub.output_dir"></span>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgDownloaderCookies">File Cookies (.txt) cho Downloader</label>
+                                <input type="text" id="cfgDownloaderCookies" data-cfg="video.downloader_cookies" data-seed="s4CookiesFile" placeholder="Ví dụ: configs/cookies_iqiyi.txt">
+                            </div>
+                            <div class="form-group">
+                                <label>Ngôn ngữ nguồn</label>
+                                <span class="cfg-clone" data-clone="s4SourceLang" data-cfg="autosub.source_lang"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Nguồn tạo phụ đề</label>
+                                <span class="cfg-clone" data-clone="s4SubSource" data-cfg="autosub.sub_source"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Phương pháp burn</label>
+                                <span class="cfg-clone" data-clone="s4BurnMethod" data-cfg="autosub.burn_method"></span>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <span class="cfg-clone" data-clone="s4CleanAudio" data-cfg="autosub.clean_audio"></span>
+                                    <span class="checkmark"></span> Lọc tách giọng nền (Demucs)
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <span class="cfg-clone" data-clone="s4EnableVoiceover" data-cfg="autosub.enable_voiceover"></span>
+                                    <span class="checkmark"></span> Bật lồng tiếng Việt (Voiceover)
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>TTS Engine (lồng tiếng)</label>
+                                <span class="cfg-clone" data-clone="s4TtsEngine" data-cfg="autosub.tts_engine"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>TTS Voice (lồng tiếng)</label>
+                                <span class="cfg-clone" data-clone="s4TtsVoice" data-cfg="autosub.tts_voice"></span>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <span class="cfg-clone" data-clone="s4AutoClone" data-cfg="autosub.auto_clone"></span>
+                                    <span class="checkmark"></span> Tự động clone giọng
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>Tỉ lệ ducking (%)</label>
+                                <span class="cfg-clone" data-clone="s4DuckingRatio" data-cfg="autosub.ducking_ratio"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>LLM Engine (dịch phụ đề)</label>
+                                <span class="cfg-clone" data-clone="s4LlmEngine" data-cfg="autosub.llm_engine"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>LLM Model (dịch phụ đề)</label>
+                                <span class="cfg-clone" data-clone="s4LlmModel" data-cfg="autosub.llm_model"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Font chữ phụ đề</label>
+                                <span class="cfg-clone" data-clone="s4FontName" data-cfg="autosub.font_name"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Cỡ chữ</label>
+                                <span class="cfg-clone" data-clone="s4FontSize" data-cfg="autosub.font_size"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Màu chữ</label>
+                                <span class="cfg-clone" data-clone="s4TextColor" data-cfg="autosub.text_color"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Màu viền</label>
+                                <span class="cfg-clone" data-clone="s4StrokeColor" data-cfg="autosub.stroke_color"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Độ dày viền</label>
+                                <span class="cfg-clone" data-clone="s4StrokeWidth" data-cfg="autosub.stroke_width"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Kiểu nền phụ đề</label>
+                                <span class="cfg-clone" data-clone="s4BgStyle" data-cfg="autosub.bg_style"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Màu nền phụ đề</label>
+                                <span class="cfg-clone" data-clone="s4BgColor" data-cfg="autosub.bg_color"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Độ mờ nền (alpha 0-255)</label>
+                                <span class="cfg-clone" data-clone="s4BgAlpha" data-cfg="autosub.bg_alpha"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Vị trí phụ đề</label>
+                                <span class="cfg-clone" data-clone="s4SubPosition" data-cfg="autosub.sub_position"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Vị trí tùy chỉnh (%)</label>
+                                <span class="cfg-clone" data-clone="s4CustomPosition" data-cfg="autosub.custom_position"></span>
                             </div>
                         </div>
                         
                         <div class="settings-section">
-                            <h4>📂 Lưu Trữ & Khác</h4>
+                            <h4>🤖 Trợ Lý AI (Chatbot)</h4>
                             <div class="form-group">
-                                <label for="cfgStorageDir">Thư mục Storage lưu trữ</label>
-                                <input type="text" id="cfgStorageDir" value="storage" required>
+                                <label for="cfgChatbotEnabled">Trạng thái Trợ Lý AI</label>
+                                <select id="cfgChatbotEnabled" data-cfg="chatbot.enabled">
+                                    <option value="true">Bật trợ lý</option>
+                                    <option value="false">Tắt trợ lý</option>
+                                </select>
                             </div>
                             <div class="form-group">
-                                <label for="cfgDefaultSite">Trang web nguồn mặc định</label>
-                                <input type="text" id="cfgDefaultSite" value="69shuba">
+                                <label for="cfgChatbotModel">Model Ollama cho Trợ Lý</label>
+                                <input type="text" id="cfgChatbotModel" data-cfg="chatbot.model" value="qwen2.5:3b">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgChatbotBlockBusy">Chặn chat khi GPU bận</label>
+                                <select id="cfgChatbotBlockBusy" data-cfg="chatbot.block_when_busy">
+                                    <option value="true">Có (Cảnh báo 409 + Tra cứu 0-VRAM)</option>
+                                    <option value="false">Không (Cho phép chạy đè)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfgChatbotAutoUnload">Tự nhả VRAM trước khi chạy Pipeline</label>
+                                <select id="cfgChatbotAutoUnload" data-cfg="chatbot.auto_unload_before_pipeline">
+                                    <option value="true">Có (Tự động unload Ollama)</option>
+                                    <option value="false">Không</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h4>📂 Lưu Trữ &amp; Khác</h4>
+                            <div class="form-group">
+                                <label for="cfgStorageDir">Thư mục Storage lưu trữ</label>
+                                <input type="text" id="cfgStorageDir" data-cfg="storage_dir" value="storage" required>
                             </div>
                         </div>
                         
@@ -935,9 +1211,36 @@
                     </form>
                 </div>
             </section>
+            <section class="tab-panel" id="tab-stats">
+                <div class="card glass-card">
+                    <h3>📊 Thống Kê Hệ Thống</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Số liệu tổng hợp từ cơ sở dữ liệu SQLite. Thư mục dữ liệu: <code id="statsStorageDir">—</code></p>
+                    <div id="statsCards" class="stats-cards"></div>
+                </div>
+                <div class="card glass-card" style="margin-top: 16px;">
+                    <h3>🧹 Dọn Dẹp Dữ Liệu Tạm</h3>
+                    <p id="cleanupInfo" style="color: var(--text-secondary);">Xóa các thư mục làm việc trung gian (khung ảnh) — <strong>giữ nguyên</strong> tri thức nhân vật/LoRA. Nhấn "Xem trước" trước khi dọn.</p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
+                        <button class="btn btn-secondary" onclick="previewCleanup()">🔍 Xem trước</button>
+                        <button class="btn btn-danger" onclick="doCleanup()">🗑️ Dọn dẹp thật</button>
+                        <button class="btn btn-secondary" onclick="rebuildStatsDb()">🔄 Đồng bộ lại CSDL</button>
+                    </div>
+                </div>
+                <div class="card glass-card" style="margin-top: 16px;">
+                    <h3>📚 Danh Sách Truyện (từ CSDL)</h3>
+                    <div style="overflow-x: auto;">
+                        <table class="stats-table">
+                            <thead><tr><th>Truyện</th><th>Trạng thái</th><th>Số chương</th><th>Cập nhật</th></tr></thead>
+                            <tbody id="statsStoriesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
     
+    <div id="chatWidget"></div>
     <script src="app.js"></script>
+    <script src="chat.js"></script>
 </body>
 </html>

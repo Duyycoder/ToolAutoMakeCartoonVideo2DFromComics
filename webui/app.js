@@ -28,6 +28,7 @@ const tabPanels = document.querySelectorAll(".tab-panel");
 document.addEventListener("DOMContentLoaded", async () => {
     initTabs();
     setupEventHandlers();   // gắn listener TRƯỚC để applyAllSettings dispatch 'change' có tác dụng
+    buildConfigMirror();    // nhân bản control từng bước vào Cấu Hình Chung (phải chạy trước loadGlobalConfig)
     fetchGpuInfo();
     await loadStories();
     await loadGlobalConfig();
@@ -104,18 +105,23 @@ document.getElementById('s1Source').addEventListener('change', (e) => {
     const storyIdInput = document.getElementById('s1StoryId');
     const localFolderInput = document.getElementById('s1LocalFolder');
     
+    const topicGroup = document.getElementById('s1TopicGroup');
+    const topicInput = document.getElementById('s1Topic');
+    [storyIdGroup, localFolderGroup, topicGroup].forEach(g => { if (g) g.style.display = 'none'; });
+    [storyIdInput, localFolderInput, topicInput].forEach(inp => { if (inp) inp.removeAttribute('required'); });
     if (val === 'local') {
-        if(storyIdGroup) storyIdGroup.style.display = 'none';
-        if(localFolderGroup) localFolderGroup.style.display = 'block';
-        if(storyIdInput) storyIdInput.removeAttribute('required');
-        if(localFolderInput) localFolderInput.setAttribute('required', 'true');
+        if (localFolderGroup) localFolderGroup.style.display = 'block';
+        if (localFolderInput) localFolderInput.setAttribute('required', 'true');
+    } else if (val === 'ai_write') {
+        if (topicGroup) topicGroup.style.display = 'block';
+        if (topicInput) topicInput.setAttribute('required', 'true');
     } else {
-        if(storyIdGroup) storyIdGroup.style.display = 'block';
-        if(localFolderGroup) localFolderGroup.style.display = 'none';
-        if(storyIdInput) storyIdInput.setAttribute('required', 'true');
-        if(localFolderInput) localFolderInput.removeAttribute('required');
+        if (storyIdGroup) storyIdGroup.style.display = 'block';
+        if (storyIdInput) storyIdInput.setAttribute('required', 'true');
     }
 });
+// A1: đồng bộ hiển thị nhóm field theo nguồn đang chọn khi tải trang
+document.getElementById('s1Source').dispatchEvent(new Event('change'));
 
 // Select a story and load its metadata details
 async function selectStory(storyName) {
@@ -203,6 +209,7 @@ function buildStep1Payload() {
         base_url: document.getElementById("s1BaseUrl")?.value || null,
         story_id: document.getElementById("s1StoryId").value,
         local_folder: document.getElementById("s1LocalFolder")?.value,
+        topic: document.getElementById("s1Topic")?.value || null,
         start_chapter_id: document.getElementById("s1StartChapterId").value || null,
         max_chapters: parseInt(document.getElementById("s1NumChapters").value) || 1,
         engine: engine,
@@ -274,6 +281,7 @@ function buildStep3Payload() {
 function collectAllSettings() {
     const data = { fields: {}, radios: {}, story: elStorySelect.value || "" };
     document.querySelectorAll(".tab-panel input[id], .tab-panel select[id], .tab-panel textarea[id]").forEach(el => {
+        if (el.closest("#tab-settings")) return;       // Cấu Hình Chung lưu riêng ở global_config.json
         if (el.type === "radio") return;               // radio lưu theo nhóm bên dưới
         if (el.type === "checkbox") data.fields[el.id] = { c: el.checked };
         else data.fields[el.id] = { v: el.value };
@@ -289,6 +297,7 @@ function applyAllSettings(saved) {
     for (const [id, val] of Object.entries(saved.fields)) {
         const el = document.getElementById(id);
         if (!el) continue;                              // field đã bị xóa ở version mới
+        if (el.closest("#tab-settings")) continue;      // Cấu Hình Chung do global_config quản lý (bỏ qua snapshot cũ)
         if (val.c !== undefined) {
             el.checked = val.c;
         } else if (val.v !== undefined) {
@@ -784,35 +793,20 @@ function setupEventHandlers() {
     // Global Settings Form Submit
     document.getElementById("formSettings").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const payload = {
-            api_keys: {
-                gemini: document.getElementById("cfgGeminiKey").value
-            },
-            storage_dir: document.getElementById("cfgStorageDir").value,
-            crawler: {
-                default_site: document.getElementById("cfgDefaultSite").value,
-                gemini_offline_base_url: document.getElementById("cfgGeminiOfflineUrl").value,
-                ollama_base_url: document.getElementById("cfgOllamaUrl").value
-            },
-            tts: {
-                default_engine: document.getElementById("cfgTtsEngine").value,
-                default_voice: document.getElementById("cfgTtsVoice").value,
-                normalize: document.getElementById("cfgTtsNormalize").checked,
-                speed: parseFloat(document.getElementById("cfgTtsSpeed").value),
-                kokoro_voice: document.getElementById("cfgTtsKokoroVoice").value,
-                vieneu_mode: document.getElementById("cfgTtsVieneuMode").value,
-                vieneu_voice: document.getElementById("cfgTtsVieneuVoice").value
-            },
-            video: {
-                default_style: document.getElementById("cfgVideoStyle").value,
-                use_gpu: document.getElementById("cfgVideoGpu").checked,
-                default_checkpoint: document.getElementById("cfgVideoCheckpoint").value,
-                bgm_volume: parseFloat(document.getElementById("cfgVideoBgmVolume").value),
-                default_llm_engine: document.getElementById("cfgVideoLlmEngine").value,
-                default_llm_model: document.getElementById("cfgVideoLlmModel").value,
-                downloader_cookies: document.getElementById("cfgDownloaderCookies").value
-            }
-        };
+        // Gộp lên cấu hình đã nạp để KHÔNG mất các khóa không hiển thị trên form
+        // (vd orchestrator_port, crawler.gemini_offline_key). Mọi field mang
+        // data-cfg tự động ghi vào đúng nhánh JSON tương ứng.
+        const payload = JSON.parse(JSON.stringify(_globalConfig || {}));
+        document.querySelectorAll("#formSettings [data-cfg]").forEach(el => {
+            cfgSetByPath(payload, el.dataset.cfg, cfgReadField(el));
+        });
+        // Bảo đảm các mục bắt buộc theo GlobalConfigSchema luôn tồn tại
+        payload.api_keys = payload.api_keys || {};
+        payload.crawler = payload.crawler || {};
+        payload.tts = payload.tts || {};
+        payload.video = payload.video || {};
+        if (payload.storage_dir === undefined || payload.storage_dir === null) payload.storage_dir = "storage";
+        _globalConfig = payload;
 
         try {
             const response = await fetch(`${API_BASE}/api/config`, {
@@ -822,7 +816,11 @@ function setupEventHandlers() {
             });
             const res = await response.json();
             if (res.status === "success") {
-                alert("Đã lưu cấu hình thành công!");
+                // Áp mặc định mới vào các bước ngay và chốt snapshot để giữ nguyên
+                // sau khi tải lại (nếu không, ui_settings cũ có thể ghi đè).
+                applyConfigDefaultsToSteps();
+                await saveAllSettings();
+                alert("Đã lưu cấu hình. Các bước đã áp mặc định mới.");
             }
         } catch (e) {
             alert("Lỗi khi lưu cấu hình: " + e);
@@ -1047,7 +1045,8 @@ function setupEventHandlers() {
             bg_alpha: document.getElementById("s4BgAlpha").value === "" ? null : parseInt(document.getElementById("s4BgAlpha").value),
             sub_position: document.getElementById("s4SubPosition").value || null,
             custom_position: document.getElementById("s4CustomPosition").value === "" ? null : parseFloat(document.getElementById("s4CustomPosition").value),
-            cookies_file: document.getElementById("s4CookiesFile").value.trim() || null
+            cookies_file: document.getElementById("s4CookiesFile").value.trim() || null,
+            output_dir: document.getElementById("s4OutputDir")?.value.trim() || null
         };
         
         if (subSource === "ocr" && step4State.crop) {
@@ -1121,6 +1120,10 @@ function setupEventHandlers() {
 // Common function to send pipeline actions to the backend
 async function postPipelineAction(stepName, payload) {
     try {
+        try {
+            await fetch(`${API_BASE}/api/chat/unload`, { method: "POST" });
+        } catch (_) {}
+
         const response = await fetch(`${API_BASE}/api/pipeline/${stepName}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1180,12 +1183,12 @@ function clearConsole(stepName) {
     if (consoleBox) consoleBox.innerHTML = "";
 }
 
+// Output formatted SSE logs to console
 // Giới hạn số dòng log giữ trong DOM. Render 1 chương có thể phun hàng chục nghìn
 // dòng (tiến trình diffusion mỗi cảnh); nếu không cắt bớt, WebView2 phình bộ nhớ
 // tới mức "Out of Memory" và sập trang. Giữ ~4000 span cuối là quá đủ để theo dõi.
 const MAX_CONSOLE_LINES = 4000;
 
-// Output formatted SSE logs to console
 function appendConsoleLog(stepName, text, className = "") {
     const consoleBox = document.getElementById(`logConsole-${stepName}`);
     if (!consoleBox) return;
@@ -1553,85 +1556,115 @@ async function loadGlossaryOllamaModels() {
 }
 
 // Load Global Configuration from database
+// ==========================================================================
+// Cấu Hình Chung "mirror toàn bộ": tiện ích đọc/ghi theo đường dẫn + nhân bản
+// control của từng bước vào tab Cấu Hình để chỉnh MẶC ĐỊNH dùng chung.
+// ==========================================================================
+let _globalConfig = {};
+
+function cfgGetByPath(obj, path) {
+    return path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
+}
+function cfgSetByPath(obj, path, val) {
+    const keys = path.split(".");
+    let o = obj;
+    for (let i = 0; i < keys.length - 1; i++) {
+        if (typeof o[keys[i]] !== "object" || o[keys[i]] == null) o[keys[i]] = {};
+        o = o[keys[i]];
+    }
+    o[keys[keys.length - 1]] = val;
+}
+function cfgReadField(el) {
+    if (el.type === "checkbox") return el.checked;
+    if (el.type === "number") {
+        if (el.value === "") return null;
+        const n = parseFloat(el.value);
+        return isNaN(n) ? el.value : n;
+    }
+    return el.value;
+}
+function cfgWriteField(el, v) {
+    if (el.type === "checkbox") { el.checked = !!v; return; }
+    if (el.tagName === "SELECT" && v !== "" && v != null &&
+        ![...el.options].some(o => o.value === String(v))) {
+        const opt = document.createElement("option");
+        opt.value = String(v); opt.textContent = String(v);
+        el.appendChild(opt);
+    }
+    el.value = v;
+}
+
+// Nhân bản control gốc của từng bước vào các placeholder .cfg-clone trong tab
+// Cấu Hình. Placeholder mang: data-clone (id control gốc) + data-cfg (đường dẫn
+// trong global_config) + tùy chọn data-seed (mặc định gieo về chính control gốc).
+function buildConfigMirror() {
+    document.querySelectorAll(".cfg-clone[data-clone]").forEach(ph => {
+        const src = document.getElementById(ph.dataset.clone);
+        if (!src) return;
+        const clone = src.cloneNode(true);   // copy đúng loại control + toàn bộ <option>
+        clone.id = "cfg_" + ph.dataset.clone;
+        clone.removeAttribute("required");
+        clone.removeAttribute("name");
+        clone.querySelectorAll?.("[id]").forEach(el => el.removeAttribute("id"));
+        if (ph.dataset.cfg) clone.dataset.cfg = ph.dataset.cfg;
+        clone.dataset.seed = ph.dataset.seed || ph.dataset.clone;  // gieo về control gốc
+        ph.replaceWith(clone);
+    });
+}
+
+// Gieo MẶC ĐỊNH từ các field Cấu Hình Chung vào form của từng bước. Control
+// engine đặt trước field phụ thuộc trong HTML nên dispatch 'change' của nó
+// (ẩn/hiện, tự đặt voice) chạy trước, rồi field phụ thuộc ghi đè lại.
+function applyConfigDefaultsToSteps() {
+    document.querySelectorAll("#formSettings [data-seed]").forEach(el => {
+        const tgt = document.getElementById(el.dataset.seed);
+        if (!tgt) return;
+        cfgWriteField(tgt, cfgReadField(el));
+        tgt.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    seedS2VoiceFromConfig();  // giọng đọc phụ thuộc engine -> gieo sau cùng
+}
+
+// s2Voice được engine dựng lại option khi 'change'; chọn giọng đúng theo engine
+// từ cấu hình (kokoro_voice / vieneu_voice / default_voice) sau khi engine đã seed.
+function seedS2VoiceFromConfig() {
+    const s2Voice = document.getElementById("s2Voice");
+    if (!s2Voice) return;
+    const engine = document.getElementById("cfgTtsEngine")?.value || "edge";
+    if (engine === "kokoro") {
+        s2Voice.value = document.getElementById("cfgTtsKokoroVoice")?.value || "thuc_trinh";
+    } else if (engine === "vieneu") {
+        s2Voice.value = document.getElementById("cfgTtsVieneuVoice")?.value
+            || document.getElementById("cfgTtsVoice")?.value || "Ngọc Lan";
+        const mode = document.getElementById("s2VieneuMode");
+        if (mode) mode.value = document.getElementById("cfgTtsVieneuMode")?.value || "v3turbo";
+    } else {
+        s2Voice.value = document.getElementById("cfgTtsVoice")?.value || "vi-VN-NamMinhNeural";
+    }
+}
+
 async function loadGlobalConfig() {
     try {
         const response = await fetch(`${API_BASE}/api/config`);
         const config = await response.json();
-        
-        document.getElementById("cfgGeminiKey").value = config.api_keys?.gemini || "";
-        document.getElementById("cfgStorageDir").value = config.storage_dir || "storage";
-        document.getElementById("cfgDefaultSite").value = config.crawler?.default_site || "69shuba";
-        document.getElementById("cfgGeminiOfflineUrl").value = config.crawler?.gemini_offline_base_url || "http://localhost:7860/v1";
-        document.getElementById("cfgOllamaUrl").value = config.crawler?.ollama_base_url || "http://localhost:11434/v1";
-        
-        // Also load into Step 1 if not already modified
-        if(!document.getElementById("s1GeminiOfflineUrl").value) {
+        _globalConfig = config || {};
+
+        // 1) Nạp mọi field trong Cấu Hình Chung theo data-cfg
+        document.querySelectorAll("#formSettings [data-cfg]").forEach(el => {
+            const v = cfgGetByPath(config, el.dataset.cfg);
+            if (v !== undefined && v !== null) cfgWriteField(el, v);
+        });
+
+        // 2) Gieo MẶC ĐỊNH vào field của từng bước
+        applyConfigDefaultsToSteps();
+
+        // 3) Gieo chuyên biệt cho khóa API/URL Bước 1 (chỉ khi field còn trống,
+        //    tránh ghi đè key người dùng đã nhập riêng cho bước này).
+        if (!document.getElementById("s1GeminiOfflineUrl").value) {
             document.getElementById("s1GeminiOfflineUrl").value = config.crawler?.gemini_offline_base_url || "http://localhost:7860/v1";
         }
-        if(!document.getElementById("s1GeminiKey").value && config.api_keys?.gemini) {
+        if (!document.getElementById("s1GeminiKey").value && config.api_keys?.gemini) {
             document.getElementById("s1GeminiKey").value = config.api_keys.gemini;
-        }
-        
-        document.getElementById("cfgTtsEngine").value = config.tts?.default_engine || "edge";
-        document.getElementById("cfgTtsVoice").value = config.tts?.default_voice || "vi-VN-NamMinhNeural";
-        document.getElementById("cfgTtsSpeed").value = config.tts?.speed || 1.0;
-        document.getElementById("cfgTtsNormalize").checked = config.tts?.normalize !== false;
-        document.getElementById("cfgTtsKokoroVoice").value = config.tts?.kokoro_voice || "thuc_trinh";
-        document.getElementById("cfgTtsVieneuMode").value = config.tts?.vieneu_mode || "v3turbo";
-        document.getElementById("cfgTtsVieneuVoice").value = config.tts?.vieneu_voice || "Ngọc Lan";
-        
-        document.getElementById("cfgVideoStyle").value = config.video?.default_style || "anime_2d_flat";
-        document.getElementById("cfgVideoGpu").checked = config.video?.use_gpu !== false;
-        document.getElementById("cfgVideoCheckpoint").value = config.video?.default_checkpoint || "anything-v5";
-        document.getElementById("cfgVideoBgmVolume").value = config.video?.bgm_volume !== undefined ? config.video.bgm_volume : 0.15;
-        document.getElementById("cfgVideoLlmEngine").value = config.video?.default_llm_engine || "gemini_api";
-        document.getElementById("cfgVideoLlmModel").value = config.video?.default_llm_model || "gemini-3-flash";
-        document.getElementById("cfgDownloaderCookies").value = config.video?.downloader_cookies || "";
-        
-        // Load defaults into Step 2 forms (if not already custom selected)
-        const s2Engine = document.getElementById("s2Engine");
-        if (s2Engine) {
-            s2Engine.value = config.tts?.default_engine || "edge";
-            s2Engine.dispatchEvent(new Event('change'));
-            
-            const s2Voice = document.getElementById("s2Voice");
-            if (s2Voice) {
-                if (config.tts?.default_engine === "kokoro") {
-                    s2Voice.value = config.tts?.kokoro_voice || "thuc_trinh";
-                } else if (config.tts?.default_engine === "vieneu") {
-                    s2Voice.value = config.tts?.default_voice || "Ngọc Lan";
-                    const s2VieneuMode = document.getElementById("s2VieneuMode");
-                    if (s2VieneuMode) s2VieneuMode.value = config.tts?.vieneu_mode || "v3turbo";
-                } else {
-                    s2Voice.value = config.tts?.default_voice || "vi-VN-NamMinhNeural";
-                }
-            }
-            
-            const s2Speed = document.getElementById("s2Speed");
-            if (s2Speed) s2Speed.value = config.tts?.speed || 1.0;
-            
-            const s2Normalize = document.getElementById("s2Normalize");
-            if (s2Normalize) s2Normalize.checked = config.tts?.normalize !== false;
-        }
-
-        // Load defaults into Step 3 forms (if not already custom selected)
-        const s3Style = document.getElementById("s3Style");
-        if (s3Style) s3Style.value = config.video?.default_style || "anime_2d_flat";
-
-        const s3Checkpoint = document.getElementById("s3Checkpoint");
-        if (s3Checkpoint) s3Checkpoint.value = config.video?.default_checkpoint || "anything-v5";
-
-        const s3BgmVolume = document.getElementById("s3BgmVolume");
-        if (s3BgmVolume) s3BgmVolume.value = config.video?.bgm_volume !== undefined ? config.video.bgm_volume : 0.15;
-        
-        const s3Engine = document.getElementById("s3LlmEngine");
-        if (s3Engine) {
-            s3Engine.value = config.video?.default_llm_engine || "gemini_api";
-            s3Engine.dispatchEvent(new Event('change'));
-        }
-        const s3Model = document.getElementById("s3LlmModel");
-        if (s3Model) {
-            s3Model.value = config.video?.default_llm_model || "gemini-3-flash";
         }
     } catch (e) {
         console.error("Lỗi khi tải cấu hình chung:", e);
@@ -1748,3 +1781,56 @@ function updateStep5ButtonState() {
         btn.disabled = checkboxes.length < 2;
     }
 }
+
+// ===== Dashboard / Thống kê (A4) =====
+function _statEsc(t) {
+    return (t == null ? "" : String(t)).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+async function loadStats() {
+    try {
+        const r = await fetch(`${API_BASE}/api/stats`, { cache: "no-store" });
+        const d = await r.json();
+        const dirEl = document.getElementById("statsStorageDir");
+        if (dirEl) dirEl.textContent = d.storage_dir || "—";
+        const cards = [
+            ["Bộ truyện", d.total_stories], ["Chương", d.total_chapters],
+            ["Video hoàn tất", d.videos_done], ["Job lỗi", d.jobs_failed],
+        ];
+        document.getElementById("statsCards").innerHTML = cards.map(([lbl, val]) =>
+            `<div class="stat-card"><div class="stat-value">${val ?? 0}</div><div class="stat-label">${lbl}</div></div>`).join("");
+        const rows = (d.stories || []).map(s =>
+            `<tr><td>${_statEsc(s.name || s.slug)}</td><td>${_statEsc(s.status || "")}</td><td>${s.chapter_count ?? 0}</td><td>${_statEsc((s.updated_at || "").slice(0, 16).replace("T", " "))}</td></tr>`).join("");
+        document.getElementById("statsStoriesBody").innerHTML = rows ||
+            `<tr><td colspan="4" style="color:var(--text-muted)">Chưa có dữ liệu</td></tr>`;
+    } catch (e) {
+        document.getElementById("statsCards").innerHTML = `<div style="color:var(--danger)">Lỗi tải thống kê: ${e}</div>`;
+    }
+}
+async function previewCleanup() {
+    const el = document.getElementById("cleanupInfo");
+    el.textContent = "Đang kiểm tra...";
+    try {
+        const r = await fetch(`${API_BASE}/api/maintenance/cleanup-tasks?dry_run=true`, { method: "POST" });
+        const d = await r.json();
+        el.innerHTML = `Có <strong>${d.count}</strong> thư mục tạm, sẽ giải phóng ~<strong>${d.freed_mb} MB</strong>. Tri thức nhân vật/LoRA được giữ nguyên.`;
+    } catch (e) { el.textContent = "Lỗi: " + e; }
+}
+async function doCleanup() {
+    if (!confirm("Xóa các thư mục làm việc tạm (khung ảnh trung gian)?\nTri thức nhân vật/LoRA được giữ nguyên. Thao tác không hoàn tác.")) return;
+    const el = document.getElementById("cleanupInfo");
+    el.textContent = "Đang dọn dẹp...";
+    try {
+        const r = await fetch(`${API_BASE}/api/maintenance/cleanup-tasks?dry_run=false`, { method: "POST" });
+        const d = await r.json();
+        el.innerHTML = `✅ Đã xóa <strong>${d.count}</strong> thư mục, giải phóng ~<strong>${d.freed_mb} MB</strong>.`;
+    } catch (e) { el.textContent = "Lỗi: " + e; }
+}
+async function rebuildStatsDb() {
+    try {
+        const r = await fetch(`${API_BASE}/api/maintenance/rebuild-db`, { method: "POST" });
+        const d = await r.json();
+        alert(`Đã đồng bộ ${d.synced} truyện vào CSDL.`);
+        loadStats();
+    } catch (e) { alert("Lỗi: " + e); }
+}
+document.querySelector('.nav-item[data-tab="stats"]')?.addEventListener("click", loadStats);

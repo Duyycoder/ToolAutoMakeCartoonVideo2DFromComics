@@ -58,3 +58,30 @@ def test_step5_merge(pipe):
     # start_step_5_merge creates a thread instead of using start_process, so we just check queue creation.
     p.start_step_5_merge("test-story", {})
     assert "test-story_step5" in p.process_mgr.log_queues
+
+
+def test_step4_output_dir_override(pipe, tmp_path):
+    """Thư mục đầu ra do người dùng chỉ định (autosub_args) được ưu tiên."""
+    p, proc, set_config = pipe
+    set_config({"crawler": {"gemini_offline_key": "dummy"}})
+    out = str(tmp_path / "myout")
+    p.start_step_4_autosub("Test", {"output_dir": out, "video_path": "x.mp4"})
+    assert arg_of(proc.captured_cmd, "--output-dir") == out
+
+
+def test_step4_output_dir_from_config(pipe, tmp_path):
+    """Không có trong request thì lấy autosub.output_dir từ Cấu Hình Chung."""
+    p, proc, set_config = pipe
+    cfgout = str(tmp_path / "cfgout")
+    set_config({"crawler": {"gemini_offline_key": "dummy"}, "autosub": {"output_dir": cfgout}})
+    p.start_step_4_autosub("Test", {"video_path": "x.mp4"})
+    assert arg_of(proc.captured_cmd, "--output-dir") == cfgout
+
+
+def test_step4_output_dir_default_when_unset(pipe):
+    """Cả request lẫn cấu hình đều trống -> dùng mặc định theo truyện (…/video)."""
+    p, proc, set_config = pipe
+    set_config({"crawler": {"gemini_offline_key": "dummy"}})
+    p.start_step_4_autosub("Test", {"video_path": "x.mp4"})
+    out = arg_of(proc.captured_cmd, "--output-dir")
+    assert out.replace("\\", "/").endswith("test-story/video")

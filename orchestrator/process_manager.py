@@ -214,6 +214,14 @@ class ProcessManager:
             # một process mới chen vào trước khi reader cũ dọn bookkeeping.
             return True
 
+    def list_running(self) -> list[str]:
+        """Trả về danh sách các task_key đang chạy hoặc đang hoàn tất."""
+        with self._lock:
+            running = set(self.active_processes.keys())
+            running.update(self.manual_running_tasks)
+            running.update(self.finalizing_tasks.keys())
+            return sorted(list(running))
+
     def register_manual_task(self, task_key: str, log_queue: queue.Queue) -> bool:
         """Đăng ký task chạy bằng thread thay vì subprocess (vd Bước 5)."""
         with self._lock:

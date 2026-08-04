@@ -3,19 +3,39 @@ setlocal
 set PYTHONUTF8=1
 pushd "%~dp0"
 
-if not exist "AIVoice\.venv\Scripts\python.exe" (
-    echo [ERROR] setup.bat has not been run or virtualenv for AIVoice is missing.
-    echo Please run setup.bat first.
-    pause
-    exit /b 1
-)
+:: May moi vua "git clone" ve chua co moi truong -> tu chay setup.bat luon,
+:: de nguoi dung chi can nhay dup MOT file duy nhat la run.bat.
+if not exist "AIVoice\.venv\Scripts\python.exe" goto :need_setup
+if not exist "toolCaoTruyen\.venv\Scripts\python.exe" goto :need_setup
+goto :ready
 
-if not exist "toolCaoTruyen\.venv\Scripts\python.exe" (
-    echo [ERROR] setup.bat has not been run or virtualenv for toolCaoTruyen is missing.
-    echo Please run setup.bat first.
+:need_setup
+echo ============================================================
+echo  Lan dau chay tren may nay - dang cai dat tu dong.
+echo  Viec nay can Internet va co the mat 30-60 phut.
+echo  Cu de cua so nay chay, khong tat giua chung.
+echo ============================================================
+echo.
+call "%~dp0setup.bat"
+if not exist "AIVoice\.venv\Scripts\python.exe" (
+    echo.
+    echo [LOI] Cai dat chua hoan tat - thieu moi truong AIVoice.
+    echo       Xem thong bao loi o tren, sua roi chay lai file nay.
     pause
     exit /b 1
 )
+if not exist "toolCaoTruyen\.venv\Scripts\python.exe" (
+    echo.
+    echo [LOI] Cai dat chua hoan tat - thieu moi truong toolCaoTruyen.
+    echo       Xem thong bao loi o tren, sua roi chay lai file nay.
+    pause
+    exit /b 1
+)
+echo.
+echo [OK] Cai dat xong. Dang mo ung dung...
+echo.
+
+:ready
 
 :: Set PYTHONPATH so that orchestrator modules can be resolved
 set PYTHONPATH=%CD%

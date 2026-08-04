@@ -27,5 +27,28 @@
     "bgm_volume": 0.15,
     "default_llm_engine": "gemini_api",
     "default_llm_model": "gemini-2.5-flash"
+  },
+  "chatbot": {
+    "enabled": true,
+    "model": "qwen2.5:3b",
+    "share_model_with_step3": false,
+    "base_url": "",
+    "temperature": 0.4,
+    "top_p": 0.9,
+    "repeat_penalty": 1.05,
+    "num_predict": 512,
+    "num_ctx": 8192,
+    "max_history_turns": 12,
+    "kb_token_budget": 3000,
+    "kb_min_score": 0.50,
+    "kb_sticky_per_session": true,
+    "keep_alive": "5m",
+    "prewarm_on_open": true,
+    "idle_unload_minutes": 10,
+    "auto_unload_before_pipeline": true,
+    "block_when_busy": true,
+    "autostart_ollama": true,
+    "max_sessions": 20,
+    "session_ttl_minutes": 120
   }
 }

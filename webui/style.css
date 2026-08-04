@@ -530,3 +530,13 @@ input:focus {
     justify-content: flex-end;
     gap: 1rem;
 }
+
+/* ===== Thống kê / Dashboard ===== */
+.stats-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+.stat-card { background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 14px; padding: 18px; text-align: center; }
+.stat-card .stat-value { font-family: var(--font-header); font-size: 30px; font-weight: 700; color: var(--primary-hover); line-height: 1; }
+.stat-card .stat-label { color: var(--text-secondary); font-size: 13px; margin-top: 8px; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.stats-table th, .stats-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--glass-border); }
+.stats-table th { color: var(--text-secondary); font-weight: 600; }
+.stats-table td { color: var(--text-primary); }

@@ -40,6 +40,11 @@ class AutoRunManager:
             st = self._states.get(slug)
             return bool(st and st.get("running"))
 
+    def list_running_chains(self) -> list[str]:
+        """Trả về danh sách slug của các chuỗi chạy tự động đang hoạt động."""
+        with self._lock:
+            return sorted([slug for slug, st in self._states.items() if st and st.get("running")])
+
     def status(self, story_name: str) -> dict:
         slug = self._slug(story_name)
         with self._lock:

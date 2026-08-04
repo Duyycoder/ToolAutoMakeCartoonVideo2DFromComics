@@ -1,0 +1,36 @@
+{"q": "Bước 1 có mấy nguồn nhập truyện?", "type": "qa", "must_include": ["cào", "cục bộ", "sáng tác"]}
+{"q": "Bước 2 có mấy engine TTS?", "type": "qa", "must_include": ["edge", "piper", "xtts", "kokoro", "vieneu"]}
+{"q": "GPU 6GB nên chọn engine TTS nào?", "type": "qa", "must_include": ["edge", "piper"]}
+{"q": "GPU 6GB nên chọn model Ollama nào cho Bước 3?", "type": "qa", "must_include": ["3b"]}
+{"q": "Tệp metadata tổng quan của truyện tên là gì?", "type": "qa", "must_include": ["story.json"]}
+{"q": "Thư mục chứa video tổng hợp tên là gì?", "type": "qa", "must_include": ["video"]}
+{"q": "Tiền tố tên file video tổng hợp là gì?", "type": "qa", "must_include": ["tonghop"]}
+{"q": "Engine Edge-TTS có tốn VRAM không?", "type": "qa", "must_include": ["không"]}
+{"q": "Piper-TTS chạy online hay offline?", "type": "qa", "must_include": ["offline"]}
+{"q": "Whisper dùng ở công cụ nào?", "type": "qa", "must_include": ["tạo phụ đề", "autosub"]}
+{"q": "Công cụ Tự Động Tạo Phụ Đề có né tiếng nhạc nền không?", "type": "qa", "must_include": ["ducking", "né"]}
+{"q": "FFmpeg ghép video dùng ở bước mấy?", "type": "qa", "must_include": ["bước 4", "ghép video"]}
+{"q": "Cấu hình toàn cục lưu ở file nào?", "type": "qa", "must_include": ["config.json"]}
+{"q": "Muốn đổi API key Gemini thì nhập ở đâu?", "type": "qa", "must_include": ["cấu hình chung", "giao diện"]}
+{"q": "Model Anything V5 phù hợp với phong cách nào?", "type": "qa", "must_include": ["anime"]}
+{"q": "Lỗi CUDA Out of Memory là lỗi gì?", "type": "qa", "must_include": ["hết bộ nhớ", "vram"]}
+{"q": "Khi Ollama offline thì badge trợ lý màu gì?", "type": "qa", "must_include": ["xám"]}
+{"q": "Cổng mặc định của Ollama là bao nhiêu?", "type": "qa", "must_include": ["11434"]}
+{"q": "Cổng mặc định của Local Gemini Proxy là bao nhiêu?", "must_include": ["7860"]}
+{"q": "Nếu video ra không có tiếng thì kiểm tra bước nào?", "type": "qa", "must_include": ["bước 2"]}
+{"q": "Chế độ render classic có tác dụng gì?", "type": "qa", "must_include": ["truyền thống", "nối tiếp", "sinh ảnh"]}
+{"q": "Cờ auto_unload_before_pipeline dùng để làm gì?", "type": "qa", "must_include": ["giải phóng", "vram"]}
+{"q": "Trợ lý AI bận thì hiện badge màu gì?", "type": "qa", "must_include": ["vàng"]}
+{"q": "Trợ lý AI sẵn sàng thì hiện badge màu gì?", "type": "qa", "must_include": ["xanh"]}
+{"q": "Số token KB tối đa nạp mỗi lượt là bao nhiêu?", "type": "qa", "must_include": ["3000"]}
+{"q": "Số phiên chat tối đa lưu trong RAM là bao nhiêu?", "type": "qa", "must_include": ["20"]}
+{"q": "TTL của phiên chat là bao nhiêu phút?", "type": "qa", "must_include": ["120"]}
+{"q": "Glossary dùng để làm gì?", "type": "qa", "must_include": ["thuật ngữ", "thay thế"]}
+{"q": "Trợ lý có tự đăng video lên YouTube không?", "type": "refusal"}
+{"q": "Trợ lý có tự viết code Python giúp không?", "type": "refusal"}
+{"q": "Dự báo thời tiết hôm nay thế nào?", "type": "refusal"}
+{"q": "Giá vàng hôm nay bao nhiêu?", "type": "refusal"}
+{"q": "Công thức nấu phở bò gia truyền?", "type": "refusal"}
+{"q": "Làm sao để sửa xe máy bị đứt xích?", "type": "refusal"}
+{"q": "Cách viết phương trình đại số tuyến tính?", "type": "refusal"}
+{"q": "Ứng dụng có tự động nộp tiền điện thoại không?", "type": "refusal"}
