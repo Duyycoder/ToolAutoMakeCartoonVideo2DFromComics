@@ -288,6 +288,7 @@
   <tr><td><code>[LOI] File nay dang nam ngoai thu muc du an</code></td><td>File bị lưu nhầm chỗ — hay gặp nhất là vào <strong>Downloads</strong>. Chuyển nó vào đúng thư mục ở Bước 1.</td></tr>
   <tr><td><code>[LOI] Khong tai duoc</code></td><td>Mất mạng. Nối lại mạng rồi nháy đúp <code>CAP-NHAT.bat</code> lần nữa.</td></tr>
   <tr><td>Cập nhật xong nhưng phần mềm không mở</td><td>Nháy đúp <code>run.bat debug</code> để xem báo lỗi thật.</td></tr>
+  <tr><td><strong>Hiện trang web trong trình duyệt, không phải cửa sổ ứng dụng</strong></td><td>Máy thiếu <strong>WebView2 Runtime</strong> (hay gặp trên Windows 10). Nháy đúp <code>CAP-NHAT.bat</code> một lần nữa — bản mới đã tự cài. Vẫn vậy thì nháy đúp <code>scripts\cai_webview2.bat</code>. Lý do chính xác nằm ở dòng <code>[WARN] Ly do:</code> trong <code>logs\app.log</code>.</td></tr>
   <tr><td>Trợ lý AI báo “Không kết nối được Ollama”</td><td>Cài <strong>ollama.com</strong> rồi mở lại <code>run.bat</code>. Mô hình sẽ tự tải.</td></tr>
   <tr><td>Muốn tắt phần mềm</td><td>Đóng cửa sổ ứng dụng — mọi tiến trình tự tắt sạch.</td></tr>
 </table>

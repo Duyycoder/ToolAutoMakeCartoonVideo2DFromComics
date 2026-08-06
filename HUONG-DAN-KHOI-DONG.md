@@ -99,6 +99,7 @@ Xong thì trong thư mục dự án sẽ có thêm file mới tên **`CAP-NHAT.b
 | Báo `[LOI] File nay dang nam ngoai thu muc du an` | File `CAP-NHAT.bat` bị lưu nhầm chỗ (hay gặp nhất là vào **Downloads**). Chuyển nó vào đúng thư mục ở Bước 1. |
 | Báo `[LOI] Khong tai duoc` | Mất mạng. Nối lại mạng rồi nháy đúp `CAP-NHAT.bat` lần nữa. |
 | Cập nhật xong nhưng phần mềm không mở | Nháy đúp `run.bat debug` để xem báo lỗi thật. |
+| **Hiện ra trang web trong trình duyệt, không phải cửa sổ ứng dụng** | Máy thiếu **WebView2 Runtime** (hay gặp trên Windows 10). Nháy đúp `CAP-NHAT.bat` một lần nữa — bản mới đã tự cài. Nếu vẫn vậy, nháy đúp `scripts\cai_webview2.bat`. Lý do chính xác nằm ở dòng `[WARN] Ly do:` trong `logs\app.log`. |
 | Trợ lý AI trả lời "Không kết nối được Ollama" | Cài **https://ollama.com** rồi mở lại `run.bat`. Mô hình sẽ tự tải. |
 | Muốn tắt phần mềm | Đóng cửa sổ ứng dụng — mọi tiến trình tự tắt sạch. |
 

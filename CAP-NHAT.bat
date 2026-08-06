@@ -60,13 +60,13 @@ if not exist ".git" (
 for /f "delims=" %%b in ('git rev-parse --abbrev-ref HEAD 2^>nul') do set "NHANH=%%b"
 if not defined NHANH set "NHANH=?"
 
-echo [1/5] Ban dang dung phien ban:
+echo [1/6] Ban dang dung phien ban:
 git log -1 --pretty=format:"      %%h  %%ad  %%s" --date=short
 echo.
 echo       Nhanh hien tai: !NHANH!
 echo.
 
-echo [2/5] Dang tai ban moi tu GitHub...
+echo [2/6] Dang tai ban moi tu GitHub...
 git fetch origin --prune
 if %errorlevel% neq 0 (
     echo.
@@ -143,7 +143,7 @@ if not "!SO_COMMIT_CHUA_DAY!"=="0" (
     )
 )
 
-echo [3/5] Dang chuyen sang ban chinh thuc - nhanh main...
+echo [3/6] Dang chuyen sang ban chinh thuc - nhanh main...
 rem -f  : ghi de ca file nguoi dung tu them vao ma ban moi cung co
 rem       (vi du chinh CAP-NHAT.bat vua tai ve o Buoc 3 cua huong dan -
 rem        khong co -f thi git tu choi va bao "would be overwritten")
@@ -163,7 +163,7 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [4/5] Dang cap nhat 2 bo phan di kem - AIVoice va toolCaoTruyen...
+echo [4/6] Dang cap nhat 2 bo phan di kem - AIVoice va toolCaoTruyen...
 rem sync: dia chi tai ve co the da doi o ban moi
 git submodule sync --recursive >nul 2>&1
 rem --force: ghi de ca khi ban cu de lai file thua trong 2 thu muc nay
@@ -178,7 +178,30 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [5/5] Da cap nhat xong. Phien ban moi:
+rem ------------------------------------------------------------------
+rem Cap nhat ma nguon KHONG tu keo theo thu vien. Ban moi them thu vien
+rem hoac may cu cai thieu (vi du pywebview) thi chi git thoi van hong:
+rem app se lui ve mo trinh duyet thay vi mo cua so ung dung.
+rem pip bo qua rat nhanh khi da du, nen chay moi lan cung khong ton thoi gian.
+rem ------------------------------------------------------------------
+echo [5/6] Dang kiem tra thu vien va thanh phan giao dien...
+if exist "AIVoice\.venv\Scripts\python.exe" (
+    "AIVoice\.venv\Scripts\python.exe" -m pip install -q -r orchestrator\requirements.txt
+    if !errorlevel! neq 0 (
+        echo [CANH BAO] Cai thu vien chua xong - neu app hien trong trinh duyet
+        echo            thay vi cua so rieng thi chay setup.bat mot lan.
+    ) else (
+        echo [OK] Thu vien da du.
+    )
+) else (
+    echo [i] Chua co moi truong AIVoice - run.bat se tu chay setup.bat.
+)
+
+rem WebView2 Runtime: thieu la app chac chan hien trong trinh duyet
+if exist "scripts\cai_webview2.bat" call "scripts\cai_webview2.bat"
+echo.
+
+echo [6/6] Da cap nhat xong. Phien ban moi:
 git log -1 --pretty=format:"      %%h  %%ad  %%s" --date=short
 echo.
 echo.

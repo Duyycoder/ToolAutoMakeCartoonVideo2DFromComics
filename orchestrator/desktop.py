@@ -138,10 +138,14 @@ def _shutdown(server, thread, gemini_proc):
     print("[INFO] Da thoat ung dung, cac tien trinh da duoc don sach.")
 
 
-def _run_browser_fallback(server, thread, gemini_proc):
+def _run_browser_fallback(server, thread, gemini_proc, ly_do: str = ""):
     import webbrowser
 
+    # Ghi ro LY DO. Truoc day chi bao "khong mo duoc cua so" nen khong the biet
+    # la thieu goi pywebview hay thieu WebView2 Runtime - hai cach sua khac han.
     print("[WARN] Khong mo duoc cua so desktop -> dung trinh duyet (fallback).")
+    if ly_do:
+        print(f"[WARN] Ly do: {ly_do}")
     webbrowser.open(URL)
     if server is None:
         return
@@ -174,7 +178,11 @@ def main() -> int:
     try:
         import webview
     except ImportError:
-        _run_browser_fallback(server, thread, gemini_proc)
+        _run_browser_fallback(
+            server, thread, gemini_proc,
+            "Thieu goi pywebview trong AIVoice/.venv. "
+            "Sua bang: nhay dup CAP-NHAT.bat, hoac chay setup.bat mot lan.",
+        )
         return 0
 
     loaded = threading.Event()
@@ -201,8 +209,11 @@ def main() -> int:
             webview.start()
     except Exception as e:
         # vd: thieu WebView2 runtime tren Windows 10 doi cu
-        print(f"[WARN] Loi khoi tao WebView2: {e}")
-        _run_browser_fallback(server, thread, gemini_proc)
+        _run_browser_fallback(
+            server, thread, gemini_proc,
+            f"Loi khoi tao WebView2 ({e}). Thuong la may chua co WebView2 Runtime. "
+            "Sua bang: nhay dup CAP-NHAT.bat, hoac chay scripts\\cai_webview2.bat.",
+        )
         return 0
 
     _shutdown(server, thread, gemini_proc)

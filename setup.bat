@@ -161,6 +161,11 @@ if %errorlevel% neq 0 (
 )
 echo.
 
+:: 3b. WebView2 Runtime - thu vien Windows de ve cua so ung dung.
+::     Thieu no thi run.bat chi mo duoc giao dien trong trinh duyet.
+if exist "scripts\cai_webview2.bat" call "scripts\cai_webview2.bat"
+echo.
+
 :: 4. Tao configs\global_config.json neu chua co.
 :: Sinh bang chinh orchestrator/config.py de gia tri mac dinh chi co MOT nguon su
 :: that (khong copy config.example.json - file mau chua key gia
