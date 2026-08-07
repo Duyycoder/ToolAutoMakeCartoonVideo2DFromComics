@@ -98,27 +98,61 @@ async function loadStories() {
 }
 
 // UI Event Listeners for Step 1
+// Nguồn "Sáng tác bằng AI" không cào và không dịch, nên các ô của luồng
+// cào/dịch (ID chương, tiếp tục tải, tự động dịch, glossary) bị ẩn đi để form
+// chỉ còn đúng thứ chế độ đó dùng; nhãn cũng đổi cho khỏi hiểu nhầm.
+const S1_CRAWL_ONLY_GROUPS = ['s1StartChapterGroup', 's1ContinueDownloadGroup'];
+const S1_TRANSLATE_ONLY_GROUPS = ['s1AutoTranslateGroup', 's1AutoExtractGroup'];
+
+// Block cấu hình glossary hiện khi vừa bật "Tự động quét từ điển" vừa KHÔNG ở
+// chế độ sáng tác bằng AI (chế độ đó bỏ qua hẳn khâu dịch/trích thuật ngữ).
+function syncS1GlossaryVisibility() {
+    const block = document.getElementById('blockS1GlossaryConfig');
+    if (!block) return;
+    const isAi = document.getElementById('s1Source')?.value === 'ai_write';
+    const on = !isAi && !!document.getElementById('s1AutoExtract')?.checked;
+    block.style.display = on ? 'flex' : 'none';
+}
+
+function applyStep1SourceMode(val) {
+    const show = (id, on, display = 'block') => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = on ? display : 'none';
+    };
+    const require = (id, on) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (on) el.setAttribute('required', 'true'); else el.removeAttribute('required');
+    };
+    const isAi = val === 'ai_write';
+
+    show('s1StoryIdGroup', !isAi && val !== 'local');
+    show('s1LocalFolderGroup', val === 'local');
+    show('s1TopicGroup', isAi);
+    show('s1WordsGroup', isAi);
+    require('s1StoryId', !isAi && val !== 'local');
+    require('s1LocalFolder', val === 'local');
+    require('s1Topic', isAi);
+
+    S1_CRAWL_ONLY_GROUPS.forEach(id => show(id, !isAi));
+    S1_TRANSLATE_ONLY_GROUPS.forEach(id => show(id, !isAi));
+    syncS1GlossaryVisibility();   // block glossary còn phụ thuộc ô "Tự động quét"
+
+    const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+    setText('s1NumChaptersLabel', isAi ? 'Số chương AI sẽ viết' : 'Số lượng chương tải');
+    setText('s1GenreLabel', isAi ? 'Thể loại truyện (AI viết theo thể loại này)' : 'Thể loại truyện (cho dịch thuật)');
+    setText('s1EngineLabel', isAi ? 'Bộ máy LLM sáng tác' : 'Bộ máy dịch (Translator)');
+    const card = document.querySelector('#tab-step1 .card.glass-card h3');
+    if (card) card.textContent = isAi ? '✍️ Sáng Tác Kịch Bản Bằng AI' : '📥 Nguồn & Dịch Kịch Bản';
+    const btn = document.getElementById('btnStartStep1');
+    if (btn) btn.textContent = isAi ? 'Bắt đầu sáng tác' : 'Bắt đầu';
+}
+
 document.getElementById('s1Source').addEventListener('change', (e) => {
-    const val = e.target.value;
-    const storyIdGroup = document.getElementById('s1StoryIdGroup');
-    const localFolderGroup = document.getElementById('s1LocalFolderGroup');
-    const storyIdInput = document.getElementById('s1StoryId');
-    const localFolderInput = document.getElementById('s1LocalFolder');
-    
-    const topicGroup = document.getElementById('s1TopicGroup');
-    const topicInput = document.getElementById('s1Topic');
-    [storyIdGroup, localFolderGroup, topicGroup].forEach(g => { if (g) g.style.display = 'none'; });
-    [storyIdInput, localFolderInput, topicInput].forEach(inp => { if (inp) inp.removeAttribute('required'); });
-    if (val === 'local') {
-        if (localFolderGroup) localFolderGroup.style.display = 'block';
-        if (localFolderInput) localFolderInput.setAttribute('required', 'true');
-    } else if (val === 'ai_write') {
-        if (topicGroup) topicGroup.style.display = 'block';
-        if (topicInput) topicInput.setAttribute('required', 'true');
-    } else {
-        if (storyIdGroup) storyIdGroup.style.display = 'block';
-        if (storyIdInput) storyIdInput.setAttribute('required', 'true');
-    }
+    applyStep1SourceMode(e.target.value);
 });
 // A1: đồng bộ hiển thị nhóm field theo nguồn đang chọn khi tải trang
 document.getElementById('s1Source').dispatchEvent(new Event('change'));
@@ -210,6 +244,7 @@ function buildStep1Payload() {
         story_id: document.getElementById("s1StoryId").value,
         local_folder: document.getElementById("s1LocalFolder")?.value,
         topic: document.getElementById("s1Topic")?.value || null,
+        words_per_chapter: parseInt(document.getElementById("s1WordsPerChapter")?.value) || null,
         start_chapter_id: document.getElementById("s1StartChapterId").value || null,
         max_chapters: parseInt(document.getElementById("s1NumChapters").value) || 1,
         engine: engine,
@@ -533,9 +568,7 @@ function setupEventHandlers() {
     const elGroupS1GlossaryOllama = document.getElementById("groupS1GlossaryOllama");
 
     if (elS1AutoExtract && elBlockS1GlossaryConfig) {
-        elS1AutoExtract.addEventListener("change", () => {
-            elBlockS1GlossaryConfig.style.display = elS1AutoExtract.checked ? "flex" : "none";
-        });
+        elS1AutoExtract.addEventListener("change", syncS1GlossaryVisibility);
     }
 
     if (elS1GlossaryEngine && elGroupS1GlossaryOllama) {

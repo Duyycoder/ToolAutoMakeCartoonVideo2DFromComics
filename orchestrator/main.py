@@ -118,6 +118,7 @@ class Step1Schema(BaseModel):
     auto_translate: bool = True
     continue_download: bool = False
     topic: Optional[str] = None  # nguồn "ai_write": chủ đề/ý tưởng để LLM sáng tác
+    words_per_chapter: Optional[int] = None  # nguồn "ai_write": độ dài mỗi chương
     glossary_extract_engine: Optional[str] = "gemini"
     glossary_extract_ollama_model: Optional[str] = ""
 
@@ -328,6 +329,7 @@ def _build_step1_args(body: Step1Schema) -> dict:
         "num_chapters": body.max_chapters,
         "local_folder": body.local_folder,
         "topic": body.topic,  # nguồn "ai_write": chủ đề để LLM sáng tác
+        "words_per_chapter": body.words_per_chapter,
         "continue_download": body.continue_download
     }
     trans_args = {
@@ -446,6 +448,9 @@ class AutoRunSchema(BaseModel):
 
 @app.post("/api/pipeline/auto-run")
 def start_auto_run(body: AutoRunSchema):
+    # Chặn sớm như nút Bước 1 lẻ: thiếu chủ đề thì cả chuỗi chạy ra truyện rỗng.
+    if body.step1.source_site == "ai_write" and not (body.step1.topic or "").strip():
+        raise HTTPException(status_code=400, detail="Vui lòng nhập chủ đề/ý tưởng để AI sáng tác truyện.")
     ok, msg = auto_run_mgr.start(
         body.story_name,
         _build_step1_args(body.step1),

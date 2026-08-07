@@ -48,6 +48,7 @@ def load_global_config() -> Dict[str, Any]:
                 "ollama_model": "qwen2.5:7b-instruct",
                 "gemini_offline_model": "gemini-2.5-flash",
                 "genre": "tien_hiep",
+                "words_per_chapter": 800,
                 "auto_translate": True,
                 "auto_extract": True,
                 "glossary_extract_engine": "gemini",

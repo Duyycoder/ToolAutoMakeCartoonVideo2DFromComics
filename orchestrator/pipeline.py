@@ -22,11 +22,20 @@ def _resolve_ai_write_args(crawl_args: dict, trans_args: dict) -> dict:
             "gemini_offline_base_url", "http://localhost:7860/v1")
         model = trans_args.get("gemini_offline_model") or "gemini-2.5-flash"
         api_key = trans_args.get("gemini_api_key") or g.get("api_keys", {}).get("gemini", "")
+    # Độ dài chương: UI gửi xuống, thiếu thì lấy cấu hình chung rồi mới tới mặc
+    # định. Kẹp lại để model nhỏ không bị ép viết quá dài rồi lạc mạch.
+    words = crawl_args.get("words_per_chapter") or g.get("translate", {}).get(
+        "words_per_chapter", 800)
+    try:
+        words = max(200, min(4000, int(words)))
+    except (TypeError, ValueError):
+        words = 800
     return {
         "base_url": base_url, "model": model, "api_key": api_key,
         "topic": (crawl_args.get("topic") or "").strip(),
         "num_chapters": crawl_args.get("num_chapters") or 1,
         "genre": trans_args.get("genre") or "",
+        "words_per_chapter": words,
     }
 
 
@@ -289,6 +298,7 @@ class NovelPipeline:
                     api_key=ai_args.get("api_key", ""), topic=ai_args["topic"],
                     num_chapters=int(ai_args.get("num_chapters", 1) or 1),
                     out_dir=raw_dir, genre=ai_args.get("genre", ""),
+                    words_per_chapter=int(ai_args.get("words_per_chapter", 800) or 800),
                     progress=lambda m: q.put(m + "\n"),
                 )
                 meta = self.storage_mgr.read_story_meta(story_name)

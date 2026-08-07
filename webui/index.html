@@ -146,31 +146,42 @@
                         <div class="form-group" id="s1TopicGroup" style="display: none;">
                             <label for="s1Topic">Chủ đề / Ý tưởng truyện (AI sẽ sáng tác — chạy LLM cục bộ)</label>
                             <textarea id="s1Topic" rows="3" placeholder="Ví dụ: Một lập trình viên hiện đại xuyên không vào thế giới tu tiên, dùng tư duy công nghệ để tu luyện và phá giải bí ẩn cổ xưa..."></textarea>
+                            <small style="display:block; margin-top:4px; opacity:0.75;">
+                                AI viết thẳng tiếng Việt bằng LLM cục bộ (chọn ở "Bộ máy" bên dưới) nên nội dung sạch bản quyền
+                                và bỏ qua khâu dịch — xong là sang thẳng Bước 2 (Sinh Giọng).
+                            </small>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="s1WordsGroup" style="display: none;">
+                            <label for="s1WordsPerChapter">Độ dài mỗi chương (số từ, ước lượng)</label>
+                            <input type="number" id="s1WordsPerChapter" value="800" min="200" max="4000" step="100">
+                            <small style="display:block; margin-top:4px; opacity:0.75;">
+                                Càng dài càng lâu và càng dễ lạc mạch với model nhỏ. 800–1200 từ là mức hợp lý.
+                            </small>
+                        </div>
+                        <div class="form-group" id="s1AutoTranslateGroup">
                             <label class="checkbox-container">
                                 <input type="checkbox" id="s1AutoTranslate" checked>
                                 <span class="checkmark"></span>
                                 Tự động dịch sang Tiếng Việt (Sẽ ghi đè/xóa bản gốc)
                             </label>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="s1ContinueDownloadGroup">
                             <label class="checkbox-container">
                                 <input type="checkbox" id="s1ContinueDownload">
                                 <span class="checkmark"></span>
                                 Tiếp tục tải (tự động nối tiếp từ chương đã lưu)
                             </label>
                         </div>
-                            <div class="form-group">
+                            <div class="form-group" id="s1StartChapterGroup">
                                 <label for="s1StartChapterId">ID Chương bắt đầu (nếu nhập ID thủ công)</label>
                                 <input type="text" id="s1StartChapterId" placeholder="Bỏ trống nếu lấy chương đầu mặc định">
                             </div>
                             <div class="form-group">
-                                <label for="s1NumChapters">Số lượng chương tải</label>
+                                <label for="s1NumChapters" id="s1NumChaptersLabel">Số lượng chương tải</label>
                                 <input type="number" id="s1NumChapters" value="50" min="1">
                             </div>
                             <div class="form-group">
-                                <label for="s1Genre">Thể loại truyện (cho dịch thuật)</label>
+                                <label for="s1Genre" id="s1GenreLabel">Thể loại truyện (cho dịch thuật)</label>
                                 <select id="s1Genre">
                                     <option value="tien_hiep">Tiên Hiệp / Huyền Huyễn</option>
                                     <option value="ngon_tinh">Ngôn Tình / Đô Thị</option>
@@ -178,7 +189,7 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="s1Engine">Bộ máy dịch (Translator)</label>
+                                <label for="s1Engine" id="s1EngineLabel">Bộ máy dịch (Translator)</label>
                                 <select id="s1Engine">
                                     <option value="gemini_api" selected>Gemini Offline (Local Server / Free API)</option>
                                     <option value="gemini">Gemini Online (Yêu cầu API Key)</option>
@@ -204,7 +215,7 @@
                                 <label for="s1GeminiOfflineModel">Model (API cục bộ)</label>
                                 <input type="text" id="s1GeminiOfflineModel" placeholder="gemini-2.5-flash">
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" id="s1AutoExtractGroup">
                                 <label class="checkbox-container">
                                     <input type="checkbox" id="s1AutoExtract" checked>
                                     <span class="checkmark"></span>
@@ -869,6 +880,10 @@
                             <div class="form-group">
                                 <label>Thể loại mặc định</label>
                                 <span class="cfg-clone" data-clone="s1Genre" data-cfg="translate.genre"></span>
+                            </div>
+                            <div class="form-group">
+                                <label>Độ dài mỗi chương khi AI sáng tác (số từ)</label>
+                                <span class="cfg-clone" data-clone="s1WordsPerChapter" data-cfg="translate.words_per_chapter"></span>
                             </div>
                             <div class="form-group">
                                 <label>Bộ máy trích thuật ngữ</label>

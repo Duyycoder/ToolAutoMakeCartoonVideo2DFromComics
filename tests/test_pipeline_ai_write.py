@@ -49,7 +49,8 @@ def test_ai_write_routes_through_step1(monkeypatch, tmp_path):
 
     ok = pipeline.start_step_1_crawl_translate(
         "Test",
-        {"source": "ai_write", "topic": "  y tuong  ", "num_chapters": 3},
+        {"source": "ai_write", "topic": "  y tuong  ", "num_chapters": 3,
+         "words_per_chapter": 1200},
         {"engine": "gemini_api",
          "gemini_offline_base_url": "http://proxy/v1",
          "gemini_offline_model": "gemini-x",
@@ -67,6 +68,7 @@ def test_ai_write_routes_through_step1(monkeypatch, tmp_path):
     assert captured["model"] == "gemini-x"
     assert captured["api_key"] == "KEY"
     assert captured["genre"] == "tien_hiep"
+    assert captured["words_per_chapter"] == 1200
 
     # Sinh xong -> danh dau TRANSLATED de buoc TTS chay tiep (bo qua dich)
     assert storage.meta["status"] == "TRANSLATED"
@@ -95,3 +97,21 @@ def test_ai_write_gemini_defaults(monkeypatch):
         {"engine": "gemini_api"})
     assert args["base_url"] == "http://localhost:7860/v1"
     assert args["model"] == "gemini-2.5-flash"
+    assert args["words_per_chapter"] == 800  # UI khong gui -> mac dinh
+
+
+def test_ai_write_words_per_chapter_from_config_and_clamp(monkeypatch):
+    """Thieu tham so thi lay cau hinh chung; gia tri vo ly bi kep lai."""
+    monkeypatch.setattr(
+        config_mod, "load_global_config",
+        lambda: {"translate": {"words_per_chapter": 1500}})
+    args = _resolve_ai_write_args({"topic": "x", "num_chapters": 1}, {})
+    assert args["words_per_chapter"] == 1500
+
+    args = _resolve_ai_write_args(
+        {"topic": "x", "num_chapters": 1, "words_per_chapter": 99999}, {})
+    assert args["words_per_chapter"] == 4000
+
+    args = _resolve_ai_write_args(
+        {"topic": "x", "num_chapters": 1, "words_per_chapter": "khong phai so"}, {})
+    assert args["words_per_chapter"] == 800
