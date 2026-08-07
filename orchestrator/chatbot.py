@@ -183,6 +183,32 @@ class ChatManager:
             "answer": answer, "at": time.time(),
         }
 
+    # ------------------------------------------------------------ Chào hỏi
+    # Câu chào không có từ khoá nào trong tài liệu nên rơi thẳng vào cổng ngưỡng
+    # và bị từ chối — người dùng gõ "xin chào" mà nhận về "Tài liệu hiện có không
+    # đề cập nội dung này" kèm danh sách file. Bắt riêng, trả lời ngay, không gọi
+    # LLM và không tốn VRAM.
+    _GREETINGS = {
+        "xin chao", "chao", "chao ban", "hello", "hi", "helo", "alo",
+        "chao buoi sang", "chao buoi toi", "hey", "yo",
+    }
+
+    @classmethod
+    def is_greeting(cls, message: str) -> bool:
+        norm = re.sub(r"[^\w\s]", "", remove_vietnamese_diacritics(message)).strip()
+        norm = re.sub(r"\s+", " ", norm)
+        return bool(norm) and norm in cls._GREETINGS
+
+    @staticmethod
+    def greeting_reply() -> str:
+        return (
+            "Chào bạn! Tôi giúp được ba việc:\n\n"
+            "- **Hướng dẫn dùng phần mềm** — ví dụ *\"Bước 3 chọn checkpoint nào?\"*\n"
+            "- **Tra cứu truyện của bạn** — ví dụ *\"truyện này có bao nhiêu video?\"*\n"
+            "- **Gỡ rối khi gặp lỗi** — dán nguyên thông báo lỗi vào đây\n\n"
+            "Bạn đang muốn làm gì?"
+        )
+
     # -------------------------------------------------- Lượt suy nghĩ (có điều kiện)
     @staticmethod
     def needs_reasoning(sections: List[dict], min_files: int = 3) -> bool:
@@ -236,7 +262,7 @@ class ChatManager:
         active_tab: str = "",
         sticky_kb: Optional[List[dict]] = None,
         token_budget: int = 3000,
-        min_score: float = 0.65
+        min_score: float = 0.75
     ) -> Tuple[List[dict], float]:
         """Chấm điểm từ khoá không dấu, chọn các đoạn KB phù hợp ngân sách token.
 

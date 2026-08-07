@@ -84,6 +84,36 @@ def checkboxes_in(body: str) -> list:
     return rows
 
 
+def inputs_in(body: str, label_map: dict) -> list:
+    """Các ô nhập chữ/số, kèm nhãn và gợi ý (placeholder).
+
+    Bản trước chỉ quét <select> và ô tích, nên mọi ô NHẬP đều vắng khỏi tài liệu.
+    Hậu quả thật: hỏi "đổi đường dẫn lưu video tải về ở bước tạo phụ đề thế nào?"
+    thì trợ lý nói "tài liệu không đề cập", dù ô "Thư mục đầu ra" nằm ngay đó.
+
+    Placeholder thường mang thông tin quý nhất ("Bỏ trống = mặc định ..."), nên
+    phải lấy cả nó chứ không chỉ nhãn.
+    """
+    rows = []
+    pattern = r'<input[^>]*id="([^"]+)"[^>]*>'
+    for tag in re.findall(r"<input[^>]*>", body):
+        m_type = re.search(r'type="([^"]+)"', tag)
+        kind = (m_type.group(1) if m_type else "text").lower()
+        if kind not in ("text", "number", "password"):
+            continue
+        m_id = re.search(r'id="([^"]+)"', tag)
+        if not m_id:
+            continue
+        sid = m_id.group(1)
+        label = label_map.get(sid, "")
+        if not label:
+            continue
+        m_ph = re.search(r'placeholder="([^"]*)"', tag)
+        rows.append((sid, label, strip_tags(m_ph.group(1)) if m_ph else "", kind))
+    del pattern
+    return rows
+
+
 def selects_in(body: str, label_map: dict) -> list:
     rows = []
     for sid, inner in re.findall(r'<select[^>]*id="([^"]+)"[^>]*>(.*?)</select>', body, re.S):
@@ -153,6 +183,23 @@ def main():
             for _cid, text in boxes:
                 lines.append(f"- **{text}**")
             lines.append("")
+
+        fields = inputs_in(pans[tab], label_map)
+        if fields:
+            step_name = navs.get(tab, tab)
+            lines.append(f"## Các ô cần nhập — {step_name}")
+            lines.append("")
+            # MỖI ô một mục con `###` -> bộ chia cắt thành một mảnh riêng.
+            # Gộp cả nhóm vào một mảnh thì model chọn nhầm ô: hỏi về "Thư mục đầu
+            # ra" mà nó chỉ sang "Đường dẫn file Cookies" nằm cùng mảnh.
+            for _fid, label, hint, kind in fields:
+                loai = "số" if kind == "number" else "chữ"
+                lines.append(f"### {label}")
+                lines.append("")
+                lines.append(f"Ô nhập {loai} ở màn hình {step_name}.")
+                if hint:
+                    lines.append(f"Gợi ý ghi sẵn trong ô: {hint}")
+                lines.append("")
 
         rows = selects_in(pans[tab], label_map)
         if not rows:

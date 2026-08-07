@@ -24,6 +24,42 @@ Những ô tích có trên màn hình Bước 1: Nguồn & Dịch:
 - **Tiếp tục tải (tự động nối tiếp từ chương đã lưu)**
 - **Tự động quét & học từ điển (Glossary)**
 
+## Các ô cần nhập — Bước 1: Nguồn & Dịch
+
+### ID truyện hoặc Link
+
+Ô nhập chữ ở màn hình Bước 1: Nguồn & Dịch.
+Gợi ý ghi sẵn trong ô: Ví dụ: 12345 hoặc link truyện...
+
+### Đường dẫn thư mục cục bộ (chứa file .md/.txt)
+
+Ô nhập chữ ở màn hình Bước 1: Nguồn & Dịch.
+Gợi ý ghi sẵn trong ô: Ví dụ: C:\path\to\story_chapters
+
+### ID Chương bắt đầu (nếu nhập ID thủ công)
+
+Ô nhập chữ ở màn hình Bước 1: Nguồn & Dịch.
+Gợi ý ghi sẵn trong ô: Bỏ trống nếu lấy chương đầu mặc định
+
+### Số lượng chương tải
+
+Ô nhập số ở màn hình Bước 1: Nguồn & Dịch.
+
+### Gemini API Key (Ghi đè cấu hình chung)
+
+Ô nhập chữ ở màn hình Bước 1: Nguồn & Dịch.
+Gợi ý ghi sẵn trong ô: sk-gemini-...
+
+### Base URL (API cục bộ - Ghi đè cấu hình chung)
+
+Ô nhập chữ ở màn hình Bước 1: Nguồn & Dịch.
+Gợi ý ghi sẵn trong ô: http://localhost:7860/v1
+
+### Model (API cục bộ)
+
+Ô nhập chữ ở màn hình Bước 1: Nguồn & Dịch.
+Gợi ý ghi sẵn trong ô: gemini-2.5-flash
+
 ## Nguồn truyện — Bước 1: Nguồn & Dịch
 
 Ô chọn **Nguồn truyện** ở mục Bước 1: Nguồn & Dịch. Các giá trị hợp lệ:
@@ -59,6 +95,46 @@ Những ô tích có trên màn hình Bước 1: Nguồn & Dịch:
 - `ollama`: Ollama (Offline Local)
 - `gemini_api`: Gemini API (Offline/Local)
 - `same_as_trans`: Sử dụng cùng Engine dịch thuật
+
+## Các ô cần nhập — Bước 2: Sinh Giọng
+
+### Tốc độ đọc
+
+Ô nhập số ở màn hình Bước 2: Sinh Giọng.
+
+### Đường dẫn mô hình cục bộ
+
+Ô nhập chữ ở màn hình Bước 2: Sinh Giọng.
+Gợi ý ghi sẵn trong ô: Ví dụ: models/piper/vi_VN-vais1000-medium.onnx
+
+### Đường dẫn file âm thanh mẫu (WAV)
+
+Ô nhập chữ ở màn hình Bước 2: Sinh Giọng.
+Gợi ý ghi sẵn trong ô: Ví dụ: refs/sample_voice.wav
+
+### Sự sáng tạo (Temperature)
+
+Ô nhập số ở màn hình Bước 2: Sinh Giọng.
+
+### Độ tương đồng tối thiểu
+
+Ô nhập số ở màn hình Bước 2: Sinh Giọng.
+
+### Chuẩn hóa âm lượng (LUFS)
+
+Ô nhập số ở màn hình Bước 2: Sinh Giọng.
+
+### Fade In (giây)
+
+Ô nhập số ở màn hình Bước 2: Sinh Giọng.
+
+### Fade Out (giây)
+
+Ô nhập số ở màn hình Bước 2: Sinh Giọng.
+
+### Khoảng lặng giữa câu (giây)
+
+Ô nhập số ở màn hình Bước 2: Sinh Giọng.
 
 ## Cấu hình mẫu (Preset) — Bước 2: Sinh Giọng
 
@@ -115,6 +191,32 @@ Những ô tích có trên màn hình Bước 3: Dựng Hoạt Hình:
 - **Tách cảnh bằng LLM thông minh**
 - **Tự động nhận diện nhân vật bằng LLM (Chỉ chạy 1 lần)**
 - **Bật Phẫu thuật khuôn mặt (Face Detailer) (Tắt mặc định — bật sẽ chậm ~2× và tốn thêm VRAM)**
+
+## Các ô cần nhập — Bước 3: Dựng Hoạt Hình
+
+### Nhạc nền (BGM)
+
+Ô nhập chữ ở màn hình Bước 3: Dựng Hoạt Hình.
+Gợi ý ghi sẵn trong ô: Bỏ trống nếu không lồng nhạc nền
+
+### Âm lượng nhạc nền
+
+Ô nhập số ở màn hình Bước 3: Dựng Hoạt Hình.
+
+### Gemini API Key (Ghi đè cấu hình chung)
+
+Ô nhập chữ ở màn hình Bước 3: Dựng Hoạt Hình.
+Gợi ý ghi sẵn trong ô: sk-gemini-...
+
+### Base URL (API cục bộ - Ghi đè cấu hình chung)
+
+Ô nhập chữ ở màn hình Bước 3: Dựng Hoạt Hình.
+Gợi ý ghi sẵn trong ô: http://localhost:7860/v1
+
+### Model LLM (Ghi đè mặc định)
+
+Ô nhập chữ ở màn hình Bước 3: Dựng Hoạt Hình.
+Gợi ý ghi sẵn trong ô: gemini-3-flash
 
 ## Thể loại truyện (Làm context cho AI) — Bước 3: Dựng Hoạt Hình
 
@@ -191,6 +293,68 @@ Những ô tích có trên màn hình Tự Động Tạo Phụ Đề:
 - **Lọc tách giọng nền (Demucs)**
 - **Bật lồng tiếng Việt (Voiceover)**
 - **Tự động clone (Auto Clone)**
+
+## Các ô cần nhập — Tự Động Tạo Phụ Đề
+
+### Đường dẫn video cục bộ (.mp4)
+
+Ô nhập chữ ở màn hình Tự Động Tạo Phụ Đề.
+Gợi ý ghi sẵn trong ô: Ví dụ: storage/truyen/my_story/video/chap1.mp4
+
+### URL Link Video (TikTok, Douyin, Bilibili, YouTube)
+
+Ô nhập chữ ở màn hình Tự Động Tạo Phụ Đề.
+Gợi ý ghi sẵn trong ô: Dán link video tại đây...
+
+### Đường dẫn file Cookies (.txt) cho URL này (Ghi đè mặc định)
+
+Ô nhập chữ ở màn hình Tự Động Tạo Phụ Đề.
+Gợi ý ghi sẵn trong ô: Sử dụng mặc định từ Cấu hình chung nếu để trống...
+
+### Thư mục đầu ra (video tải về & video đã gắn phụ đề)
+
+Ô nhập chữ ở màn hình Tự Động Tạo Phụ Đề.
+Gợi ý ghi sẵn trong ô: Bỏ trống = mặc định (thư mục video của truyện / tác vụ tạm)
+
+### Giọng đọc / Mã giọng (Voice)
+
+Ô nhập chữ ở màn hình Tự Động Tạo Phụ Đề.
+Gợi ý ghi sẵn trong ô: vi-VN-NamMinhNeural
+
+### Tỷ lệ giảm nhạc nền (Ducking %)
+
+Ô nhập số ở màn hình Tự Động Tạo Phụ Đề.
+
+### Kích thước chữ (Font Size)
+
+Ô nhập số ở màn hình Tự Động Tạo Phụ Đề.
+
+### Độ dày viền (Stroke Width)
+
+Ô nhập số ở màn hình Tự Động Tạo Phụ Đề.
+
+### Độ mờ nền (Opacity 0-255)
+
+Ô nhập số ở màn hình Tự Động Tạo Phụ Đề.
+
+### Vị trí Y (%)
+
+Ô nhập số ở màn hình Tự Động Tạo Phụ Đề.
+
+### Gemini API Key
+
+Ô nhập chữ ở màn hình Tự Động Tạo Phụ Đề.
+Gợi ý ghi sẵn trong ô: sk-gemini-...
+
+### Base URL (API cục bộ)
+
+Ô nhập chữ ở màn hình Tự Động Tạo Phụ Đề.
+Gợi ý ghi sẵn trong ô: http://localhost:7860/v1
+
+### Model LLM (Ghi đè mặc định)
+
+Ô nhập chữ ở màn hình Tự Động Tạo Phụ Đề.
+Gợi ý ghi sẵn trong ô: gemini-3-flash
 
 ## Nền tảng — Tự Động Tạo Phụ Đề
 
@@ -275,6 +439,79 @@ Những ô tích có trên màn hình Tự Động Tạo Phụ Đề:
 Những ô tích có trên màn hình Cấu Hình Chung:
 - **Chuẩn hóa âm lượng (-14 LUFS)**
 - **Sử dụng GPU cho Video**
+
+## Các ô cần nhập — Cấu Hình Chung
+
+### Gemini API Key (dùng chung mọi bước)
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+Gợi ý ghi sẵn trong ô: sk-gemini-...
+
+### Gemini Offline Base URL
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+
+### Gemini Offline/Proxy Key (nếu proxy yêu cầu)
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+Gợi ý ghi sẵn trong ô: Bỏ trống nếu proxy không cần key
+
+### Ollama Base URL
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+
+### Nguồn truyện mặc định
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+
+### Voice Mặc định
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+
+### Tốc độ Mặc định
+
+Ô nhập số ở màn hình Cấu Hình Chung.
+
+### Kokoro Voice Mặc định
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+
+### VieNeu Mode Mặc định
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+
+### VieNeu Voice Mặc định
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+
+### Checkpoint SD Mặc định
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+
+### Âm lượng BGM Mặc định
+
+Ô nhập số ở màn hình Cấu Hình Chung.
+
+### Step 3 LLM Model Mặc định
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+
+### Video FPS
+
+Ô nhập số ở màn hình Cấu Hình Chung.
+
+### File Cookies (.txt) cho Downloader
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+Gợi ý ghi sẵn trong ô: Ví dụ: configs/cookies_iqiyi.txt
+
+### Model Ollama cho Trợ Lý
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
+
+### Thư mục Storage lưu trữ
+
+Ô nhập chữ ở màn hình Cấu Hình Chung.
 
 ## TTS Engine Mặc định — Cấu Hình Chung
 

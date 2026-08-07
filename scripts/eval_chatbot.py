@@ -168,7 +168,7 @@ def main():
     cfg = dict(load_global_config().get("chatbot", {}))
     if args.model:
         cfg["model"] = args.model
-    min_score = cfg.get("kb_min_score", 0.65)
+    min_score = cfg.get("kb_min_score", 0.75)
     mgr = ChatManager(None, None, None, kb_dir=KB_DIR)
     items = load_questions()
 
