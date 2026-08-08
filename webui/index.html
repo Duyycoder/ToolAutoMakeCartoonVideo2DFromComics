@@ -145,7 +145,8 @@
                         </div>
                         <div class="form-group" id="s1TopicGroup" style="display: none;">
                             <label for="s1Topic">Chủ đề / Ý tưởng truyện (AI sẽ sáng tác — chạy LLM cục bộ)</label>
-                            <textarea id="s1Topic" rows="3" placeholder="Ví dụ: Một lập trình viên hiện đại xuyên không vào thế giới tu tiên, dùng tư duy công nghệ để tu luyện và phá giải bí ẩn cổ xưa..."></textarea>
+                            <textarea id="s1Topic" class="textarea-lg" rows="16" placeholder="Ví dụ: Một lập trình viên hiện đại xuyên không vào thế giới tu tiên, dùng tư duy công nghệ để tu luyện và phá giải bí ẩn cổ xưa...&#10;&#10;Dán được cả một đoạn dài: bối cảnh, nhân vật, tình tiết muốn có, giọng văn mong muốn..."></textarea>
+                            <small id="s1TopicCounter" style="display:block; margin-top:2px; opacity:0.6; text-align:right;">0 ký tự</small>
                             <small style="display:block; margin-top:4px; opacity:0.75;">
                                 AI viết thẳng tiếng Việt bằng LLM cục bộ (chọn ở "Bộ máy" bên dưới) nên nội dung sạch bản quyền
                                 và bỏ qua khâu dịch — xong là sang thẳng Bước 2 (Sinh Giọng).
@@ -245,6 +246,7 @@
                             <div class="form-actions">
                                 <button type="submit" id="btnStartStep1" class="btn btn-primary w-100">Bắt đầu</button>
                                 <button type="button" id="btnStopStep1" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
+                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step1" title="Mở thư mục chứa các file chương (.md) trong File Explorer">📂 Mở thư mục đầu ra</button>
                             </div>
                         </form>
                     </div>
@@ -396,6 +398,7 @@
                             <div class="form-actions">
                                 <button type="submit" id="btnStartStep2" class="btn btn-primary w-100">Bắt đầu Tạo Âm Thanh</button>
                                 <button type="button" id="btnStopStep2" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
+                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step2" title="Mở thư mục chứa các file giọng đọc (.wav) trong File Explorer">📂 Mở thư mục đầu ra</button>
                             </div>
                         </form>
                     </div>
@@ -555,6 +558,7 @@
                             <div class="form-actions">
                                 <button type="submit" id="btnStartStep3" class="btn btn-primary w-100">Bắt đầu Dựng Hoạt Hình</button>
                                 <button type="button" id="btnStopStep3" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
+                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step3" title="Mở thư mục chứa video từng chương (.mp4) trong File Explorer">📂 Mở thư mục đầu ra</button>
                             </div>
                         </form>
                     </div>
@@ -795,6 +799,7 @@
                             <div class="form-group w-100" style="grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 15px;">
                                 <button type="submit" id="btnStartStep4" class="btn btn-primary w-100">Bắt đầu tạo phụ đề</button>
                                 <button type="button" id="btnStopStep4" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
+                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step4" title="Mở thư mục chứa video đã gắn phụ đề trong File Explorer">📂 Mở thư mục đầu ra</button>
                             </div>
                         </form>
                     </div>
@@ -824,6 +829,7 @@
                             <div class="form-group w-100" style="grid-column: 1 / -1; display: flex; gap: 10px;">
                                 <button type="submit" id="btnStartStep5" class="btn btn-primary w-100" disabled>Ghép các video đã chọn</button>
                                 <button type="button" id="btnStopStep5" class="btn btn-danger w-100" style="display:none;">Dừng</button>
+                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step5" title="Mở thư mục chứa video đã ghép (TongHop_*.mp4) trong File Explorer">📂 Mở thư mục đầu ra</button>
                             </div>
                         </form>
                     </div>

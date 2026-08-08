@@ -1,30 +1,24 @@
 """Sinh truyện bằng LLM cục bộ (A1 — nguồn "Sáng tác bằng AI").
 
 Gọi một endpoint tương thích chuẩn OpenAI (Gemini-local :7860 hoặc Ollama :11434)
-để viết truyện tiếng Việt từ một chủ đề, xuất ra các tệp chuong_%04d.md.
+để viết truyện tiếng Việt từ một chủ đề, xuất ra các tệp
+"Chương NNNN - [VI] Tiêu đề.md" — đúng quy tắc đặt tên mà bước TTS và ghép video
+phía sau dùng để nhận diện chương (chúng lọc theo " - [VI] ").
 
 Đây là nội dung TỰ SINH nên hoàn toàn "sạch bản quyền" — không cào, không dùng
 tác phẩm của người khác. Chạy cục bộ, không phụ thuộc dịch vụ trả phí.
 """
 import os
-import re
 from typing import Callable, Optional
+
+from orchestrator.chapter_naming import chapter_filename as _chapter_filename
+from orchestrator.chapter_naming import title_from_text as _title_from
 
 
 def _chat(base_url: str, model: str, api_key: str, messages: list,
           temperature: float = 0.85, timeout: float = 300.0) -> str:
     from .llm import chat
     return chat(base_url, model, api_key, messages, temperature=temperature, timeout=timeout)
-
-
-def _title_from(text: str, idx: int) -> str:
-    """Lấy tiêu đề chương từ dòng đầu (nếu có), nếu không thì đặt mặc định."""
-    first = (text.strip().splitlines() or [""])[0].strip()
-    first = re.sub(r"^#+\s*", "", first)
-    first = first.strip("*# ").strip()
-    if 0 < len(first) <= 80:
-        return first
-    return f"Chương {idx}"
 
 
 def generate_story(
@@ -76,7 +70,7 @@ def generate_story(
             raise RuntimeError(f"LLM trả về rỗng ở chương {i}")
 
         title = _title_from(content, i)
-        out_path = os.path.join(out_dir, f"chuong_{i:04d}.md")
+        out_path = os.path.join(out_dir, _chapter_filename(i, title))
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(content)
         written += 1

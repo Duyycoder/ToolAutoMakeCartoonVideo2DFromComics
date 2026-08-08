@@ -1,5 +1,6 @@
 import os
 import datetime
+from orchestrator import chapter_naming
 from orchestrator.storage import StorageManager
 from orchestrator.process_manager import ProcessManager
 
@@ -231,7 +232,6 @@ class NovelPipeline:
             # Handle local folder copy in a background thread to not block
             import queue as _q
             import threading
-            import shutil
             local_queue = _q.Queue()
             if not self.process_mgr.register_manual_task(task_key, local_queue):
                 return False
@@ -243,12 +243,18 @@ class NovelPipeline:
                 exit_code = 1
                 try:
                     if local_dir and os.path.exists(local_dir):
-                        copied = 0
-                        for item in os.listdir(local_dir):
-                            if item.endswith(".md") or item.endswith(".txt"):
-                                shutil.copy2(os.path.join(local_dir, item), os.path.join(raw_dir, item))
-                                copied += 1
+                        os.makedirs(raw_dir, exist_ok=True)
+                        # Truyện người dùng tự tải về có tên tệp tuỳ ý; chép sang raw/
+                        # kèm chuẩn hoá tên, nếu không các bước sau sẽ bỏ qua lặng lẽ.
+                        # Còn dịch nữa thì chưa gắn nhãn [VI] — để bước dịch tự gắn.
+                        copied = chapter_naming.normalize_dir(
+                            local_dir, raw_dir,
+                            translated=not trans_args.get("auto_translate", True),
+                            log=lambda m: local_queue.put(m + "\n"),
+                        )
                         if copied:
+                            local_queue.put(
+                                f"[Pipeline] Đã nạp {copied} chương từ thư mục cục bộ.\n")
                             exit_code = 0
                         else:
                             local_queue.put(

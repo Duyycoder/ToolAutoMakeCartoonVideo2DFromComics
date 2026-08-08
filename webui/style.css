@@ -343,6 +343,36 @@ input:focus {
     box-shadow: 0 0 10px var(--primary-glow);
 }
 
+/* Ô nhập nhiều dòng: trước đây không có style nào nên trình duyệt vẽ bằng
+   giao diện mặc định (nhỏ xíu, nền trắng) và vỡ bố cục thẻ. */
+textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    outline: none;
+    resize: vertical;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+textarea:focus {
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* Ô ý tưởng truyện: người dùng dán cả đoạn kịch bản dài vào đây */
+textarea.textarea-lg {
+    min-height: 320px;
+    max-height: 70vh;
+}
+
 /* Checkbox design */
 .checkbox-container {
     display: block;

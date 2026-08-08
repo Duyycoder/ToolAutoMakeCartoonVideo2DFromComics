@@ -165,7 +165,8 @@ async function selectStory(storyName) {
         const meta = await response.json();
 
         elActiveStoryTitle.textContent = meta.story_name;
-        elActiveStorySubtitle.textContent = `Thư mục lưu trữ: ${meta.story_dir} | Chương đã cào: ${meta.raw_chapters_count || 0}`;
+        elActiveStorySubtitle.textContent =
+            `Thư mục lưu trữ: ${meta.story_dir || "—"} | Số chương đang có: ${meta.raw_chapters_count || 0}`;
         activeStorySlug = meta.story_slug || "";
 
         // Update badge status
@@ -548,6 +549,23 @@ function setupEventHandlers() {
     elStorySelect.addEventListener("change", (e) => {
         selectStory(e.target.value);
     });
+
+    // Nút "Mở thư mục đầu ra" ở từng bước
+    document.querySelectorAll(".btn-open-out").forEach(btn => {
+        btn.addEventListener("click", () => openStepOutputFolder(btn.dataset.step, btn));
+    });
+
+    // Bộ đếm ký tự cho ô ý tưởng truyện (dán cả đoạn dài nên cần biết độ dài)
+    const elTopic = document.getElementById("s1Topic");
+    const elTopicCounter = document.getElementById("s1TopicCounter");
+    if (elTopic && elTopicCounter) {
+        const updateCount = () => {
+            elTopicCounter.textContent = `${elTopic.value.length.toLocaleString("vi-VN")} ký tự`;
+        };
+        elTopic.addEventListener("input", updateCount);
+        elTopic.addEventListener("change", updateCount);  // khôi phục cấu hình đã lưu chỉ bắn 'change'
+        updateCount();
+    }
 
     // Dynamic Options Displays depending on dropdown select values
     const elS1Engine = document.getElementById("s1Engine");
@@ -1193,6 +1211,32 @@ async function stopPipelineTask(stepName, stepNum) {
         }
     } catch (e) {
         alert("Lỗi khi dừng tiến trình: " + e);
+    }
+}
+
+// Mở thư mục đầu ra của một bước bằng File Explorer. Server tự suy ra đường dẫn
+// thật (raw/ hay translated/, video/...) nên UI không cần đoán.
+async function openStepOutputFolder(stepName, btn) {
+    if (!activeStoryName) return alert("Vui lòng chọn truyện trước!");
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Đang mở...";
+    try {
+        const res = await fetch(
+            `${API_BASE}/api/stories/${encodeURIComponent(activeStoryName)}/open-folder?step=${encodeURIComponent(stepName)}`,
+            { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Lỗi không xác định");
+        appendConsoleLog(stepName,
+            `[SYSTEM] Thư mục đầu ra: ${data.path} — đang có ${data.file_count} file.`, "log-system");
+        if (data.file_count === 0) {
+            alert(`Thư mục đầu ra đang TRỐNG — bước này chưa tạo ra file nào:\n\n${data.path}`);
+        }
+    } catch (e) {
+        alert("Không mở được thư mục đầu ra: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = label;
     }
 }
 

@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import logging
+import subprocess
 from contextlib import asynccontextmanager
 from typing import Optional
 import httpx
@@ -313,7 +314,62 @@ def get_story_details(story_name: str):
     meta = storage_mgr.read_story_meta(story_name)
     if not meta:
         raise HTTPException(status_code=404, detail=f"Story '{story_name}' not found.")
+    # Đường dẫn thật + số chương đọc từ đĩa: story.json không lưu hai thứ này nên
+    # trước đây giao diện hiện "Thư mục lưu trữ: undefined".
+    meta = dict(meta)
+    meta["story_dir"] = storage_mgr.get_story_dir(story_name)
+    meta["raw_chapters_count"] = len(storage_mgr.scan_chapters(story_name))
     return meta
+
+# ---------- Mở thư mục đầu ra của từng bước ----------
+def _step_output_dir(story_name: str, step: str) -> str:
+    """Thư mục chứa kết quả của một bước — khớp với nơi pipeline thực sự ghi ra.
+
+    Bước 1 (chương .md) và Bước 2 (.wav) dùng CHUNG một thư mục: `translated/`
+    nếu đã dịch, ngược lại `raw/` (nguồn "Sáng tác bằng AI" ghi thẳng vào raw/).
+    """
+    story_dir = storage_mgr.get_story_dir(story_name)
+    if step in ("step1", "step2"):
+        translated = os.path.join(story_dir, "translated")
+        try:
+            if any(f.endswith(".md") for f in os.listdir(translated)):
+                return translated
+        except OSError:
+            pass
+        return os.path.join(story_dir, "raw")
+    if step in ("step3", "step5"):
+        return os.path.join(story_dir, "video")
+    if step == "step4":
+        cfg_dir = ((load_global_config().get("autosub") or {}).get("output_dir") or "").strip()
+        return cfg_dir or os.path.join(story_dir, "video")
+    return story_dir
+
+
+def _reveal_in_file_manager(path: str) -> None:
+    """Mở thư mục bằng trình quản lý tệp của hệ điều hành (app chạy cục bộ)."""
+    import subprocess
+
+    if sys.platform == "win32":
+        os.startfile(path)  # noqa: S606 - đường dẫn do server tự dựng, không phải input thô
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
+
+
+@app.post("/api/stories/{story_name}/open-folder")
+def open_story_folder(story_name: str, step: str = "root"):
+    """Mở File Explorer tại thư mục đầu ra của một bước, kèm số file đang có."""
+    if not storage_mgr.read_story_meta(story_name):
+        raise HTTPException(status_code=404, detail=f"Story '{story_name}' not found.")
+    path = _step_output_dir(story_name, step)
+    try:
+        os.makedirs(path, exist_ok=True)
+        file_count = sum(1 for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)))
+        _reveal_in_file_manager(path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Không mở được thư mục '{path}': {e}")
+    return {"status": "success", "path": path, "file_count": file_count}
 
 def _build_step1_args(body: Step1Schema) -> dict:
     """Build crawl/trans args cho Bước 1 — dùng chung bởi endpoint lẻ và auto-run."""
