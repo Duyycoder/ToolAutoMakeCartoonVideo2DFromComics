@@ -140,16 +140,30 @@ def _read_head(path: str, limit: int = 2000) -> str:
         return ""
 
 
+def list_chapter_files(src_dir: str) -> List[str]:
+    """Các tệp được coi là chương trong `src_dir` (không đệ quy), sắp xếp tự nhiên."""
+    return sorted(
+        (f for f in os.listdir(src_dir)
+         if f.lower().endswith(CHAPTER_EXTS) and not f.startswith("_")),
+        key=_natural_key,
+    )
+
+
 def plan_renames(
     src_dir: str,
     translated: bool = True,
     log: Optional[Callable[[str], None]] = None,
+    include_canonical: bool = False,
 ) -> List[Tuple[str, str]]:
     """Lập bản đồ "tên cũ -> tên chuẩn" cho các tệp chương trong `src_dir`.
 
     Tệp đã đúng quy tắc được giữ nguyên và không tham gia vào việc đánh số, nhờ
     vậy chạy lại trên thư mục raw/ của truyện đã cào (có sẵn cặp bản gốc + bản
     [VI] trùng số chương) cũng không xáo trộn gì.
+
+    `include_canonical=True` thì các tệp đó vẫn có mặt trong bản đồ dưới dạng
+    "giữ nguyên tên" — cần khi chép sang thư mục khác, vì bỏ chúng ra khỏi bản
+    đồ đồng nghĩa với không chép gì cả.
 
     Số chương lấy từ tên tệp; nếu có tệp không đoán được số, hoặc số bị trùng
     nhau, thì đánh số lại theo thứ tự sắp xếp tự nhiên của tên tệp — an toàn hơn
@@ -160,18 +174,16 @@ def plan_renames(
         if log:
             log(msg)
 
-    names = sorted(
-        (f for f in os.listdir(src_dir)
-         if f.lower().endswith(CHAPTER_EXTS) and not f.startswith("_")),
-        key=_natural_key,
-    )
+    names = list_chapter_files(src_dir)
     if not names:
         return []
 
-    taken_prefixes = {chapter_prefix(f) for f in names if is_canonical(f, translated)}
+    canonical = [f for f in names if is_canonical(f, translated)]
+    taken_prefixes = {chapter_prefix(f) for f in canonical}
+    keep = [(f, f) for f in canonical] if include_canonical else []
     pending = [f for f in names if not is_canonical(f, translated)]
     if not pending:
-        return []
+        return keep
 
     indices = [parse_chapter_index(f) for f in pending]
     found = [i for i in indices if i is not None]
@@ -184,7 +196,7 @@ def plan_renames(
         use_positional = True
         say("[Đặt tên] Số chương trong tên tệp bị trùng — đánh số lại theo thứ tự tên tệp.")
 
-    plan = []
+    plan = list(keep)
     for pos, fname in enumerate(pending, 1):
         idx = pos if use_positional else indices[pos - 1]
         # Tệp đã mang nhãn [VI] thì giữ nguyên nhãn, dù bước dịch có chạy hay không
@@ -226,7 +238,9 @@ def normalize_dir(
         os.makedirs(out_dir, exist_ok=True)
 
     done = 0
-    for old_name, new_name in plan_renames(src_dir, translated=translated, log=log):
+    plan = plan_renames(src_dir, translated=translated, log=log,
+                        include_canonical=not in_place)
+    for old_name, new_name in plan:
         src = os.path.join(src_dir, old_name)
         dst = os.path.join(out_dir, new_name)
         if os.path.abspath(src) == os.path.abspath(dst):
@@ -235,7 +249,8 @@ def normalize_dir(
         if os.path.exists(dst):
             say(f"[Đặt tên] Bỏ qua '{old_name}': '{new_name}' đã tồn tại.")
             continue
-        say(f"[Đặt tên] {old_name}  ->  {new_name}")
+        if old_name != new_name:
+            say(f"[Đặt tên] {old_name}  ->  {new_name}")
         if not dry_run:
             if in_place:
                 os.rename(src, dst)

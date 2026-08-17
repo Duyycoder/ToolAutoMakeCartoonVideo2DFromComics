@@ -40,6 +40,53 @@ def _resolve_ai_write_args(crawl_args: dict, trans_args: dict) -> dict:
     }
 
 
+def _chan_doan_thu_muc_cuc_bo(local_dir: str) -> list:
+    """Nói rõ vì sao thư mục cục bộ không nạp được chương nào.
+
+    Chỉ báo "không tìm thấy file .md/.txt" thì người dùng không biết mình sai ở
+    đâu — hai tình huống hay gặp là trỏ nhầm vào thư mục cha (chương nằm trong
+    thư mục con) và tệp sai phần mở rộng.
+    """
+    out = [f"[Pipeline] Không nạp được chương nào từ: {local_dir}"]
+    try:
+        entries = os.listdir(local_dir)
+    except OSError as e:
+        out.append(f"[Pipeline] Không đọc được thư mục: {e}")
+        return out
+
+    if not entries:
+        out.append("[Pipeline] Thư mục đang trống.")
+        return out
+
+    # Thư mục con nào có sẵn chương thì gợi ý trỏ thẳng vào đó
+    co_chuong = []
+    for name in sorted(entries):
+        sub = os.path.join(local_dir, name)
+        if not os.path.isdir(sub):
+            continue
+        try:
+            n = len(chapter_naming.list_chapter_files(sub))
+        except OSError:
+            continue
+        if n:
+            co_chuong.append((name, n))
+    if co_chuong:
+        out.append("[Pipeline] Chương nằm trong thư mục con — hãy trỏ đường dẫn "
+                   "thẳng vào một trong các thư mục sau:")
+        for name, n in co_chuong[:5]:
+            out.append(f"           • {os.path.join(local_dir, name)}  ({n} file)")
+        return out
+
+    khac = sorted({os.path.splitext(f)[1].lower() for f in entries
+                   if os.path.isfile(os.path.join(local_dir, f))} - {""})
+    if khac:
+        out.append(f"[Pipeline] Chỉ nhận .md/.txt, trong khi thư mục đang chứa: "
+                   f"{', '.join(khac[:8])}")
+    else:
+        out.append("[Pipeline] Thư mục không có tệp .md/.txt nào (chỉ có thư mục con rỗng).")
+    return out
+
+
 class NovelPipeline:
     def __init__(self, storage_mgr: StorageManager, process_mgr: ProcessManager):
         self.storage_mgr = storage_mgr
@@ -242,7 +289,7 @@ class NovelPipeline:
                 local_dir = crawl_args.get("local_folder")
                 exit_code = 1
                 try:
-                    if local_dir and os.path.exists(local_dir):
+                    if local_dir and os.path.isdir(local_dir):
                         os.makedirs(raw_dir, exist_ok=True)
                         # Truyện người dùng tự tải về có tên tệp tuỳ ý; chép sang raw/
                         # kèm chuẩn hoá tên, nếu không các bước sau sẽ bỏ qua lặng lẽ.
@@ -252,16 +299,29 @@ class NovelPipeline:
                             translated=not trans_args.get("auto_translate", True),
                             log=lambda m: local_queue.put(m + "\n"),
                         )
+                        # Chạy lại trên thư mục đã nạp thì copied = 0 nhưng raw/ vẫn
+                        # đủ chương — cái quyết định thành công là raw/, không phải
+                        # số tệp vừa chép.
+                        in_raw = len(chapter_naming.list_chapter_files(raw_dir))
                         if copied:
                             local_queue.put(
                                 f"[Pipeline] Đã nạp {copied} chương từ thư mục cục bộ.\n")
                             exit_code = 0
-                        else:
+                        elif in_raw:
                             local_queue.put(
-                                "[Pipeline] Không tìm thấy file .md/.txt trong thư mục cục bộ.\n")
+                                f"[Pipeline] Thư mục raw/ đã có sẵn {in_raw} chương, "
+                                "không cần nạp lại.\n")
+                            exit_code = 0
+                        else:
+                            for line in _chan_doan_thu_muc_cuc_bo(local_dir):
+                                local_queue.put(line + "\n")
+                    elif local_dir and os.path.isfile(local_dir):
+                        local_queue.put(
+                            f"[Pipeline] '{local_dir}' là một tệp, không phải thư mục. "
+                            "Hãy trỏ vào thư mục chứa các file chương.\n")
                     else:
                         local_queue.put(
-                            "[Pipeline] Thư mục cục bộ không tồn tại.\n")
+                            f"[Pipeline] Thư mục cục bộ không tồn tại: {local_dir or '(bỏ trống)'}\n")
                 except Exception as e:
                     local_queue.put(
                         f"[Pipeline] Lỗi khi copy thư mục cục bộ: {e}\n")

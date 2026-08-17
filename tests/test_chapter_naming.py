@@ -138,3 +138,33 @@ def test_dry_run_khong_dong_vao_dia(tmp_path):
 
     assert cn.normalize_dir(str(src), None, translated=True, dry_run=True) == 1
     assert [p.name for p in src.iterdir()] == ["chuong_0001.md"]
+
+
+def test_chep_sang_thu_muc_khac_van_lay_tep_da_dung_quy_tac(tmp_path):
+    """Truyen tai ve san co ten dung chuan: khong duoc coi la "khong co gi de chep"."""
+    src = tmp_path / "tai_ve"
+    src.mkdir()
+    mk(src, ["Chương 0001 - [VI] Mo dau.md", "Chương 0002 - [VI] Tiep theo.md"])
+    dst = tmp_path / "raw"
+
+    assert cn.normalize_dir(str(src), str(dst), translated=True) == 2
+    assert sorted(p.name for p in dst.iterdir()) == [
+        "Chương 0001 - [VI] Mo dau.md",
+        "Chương 0002 - [VI] Tiep theo.md",
+    ]
+
+
+def test_chep_thu_muc_tron_ca_tep_chuan_lan_tep_lech(tmp_path):
+    src = tmp_path / "tai_ve"
+    src.mkdir()
+    mk(src, ["Chương 0001 - [VI] Mo dau.md", "chuong_0002.txt"])
+    dst = tmp_path / "raw"
+
+    assert cn.normalize_dir(str(src), str(dst), translated=True) == 2
+    assert sorted(p.name for p in dst.iterdir()) == [
+        "Chương 0001 - [VI] Mo dau.md",
+        "Chương 0002 - [VI] Tieu de trong file.md",
+    ]
+    # Thu muc nguon giu nguyen
+    assert sorted(p.name for p in src.iterdir()) == [
+        "Chương 0001 - [VI] Mo dau.md", "chuong_0002.txt"]
