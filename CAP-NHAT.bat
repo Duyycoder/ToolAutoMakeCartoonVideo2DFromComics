@@ -1,6 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 set PYTHONUTF8=1
+rem Nhanh chinh cua ban nay. Doi o day neu ban tach nhanh khac.
+set "NHANH_CHINH=feat/video-only"
 
 rem Tham so 1 = thu muc du an. Chi co khi dang chay ban sao trong TEMP.
 if not "%~1"=="" goto :chay_that
@@ -80,7 +82,7 @@ echo.
 rem ------------------------------------------------------------------
 rem Do rui ro TRUOC khi ghi de.
 rem
-rem Script nay von danh cho nguoi dung cuoi: reset thang ve main la dung
+rem Script nay von danh cho nguoi dung cuoi: reset thang ve nhanh chinh la dung
 rem y do. Nhung neu ai do dang LAM VIEC tren nhanh khac, hoac dang co
 rem commit chua day len GitHub, thi buoc reset ben duoi se keo ho ra khoi
 rem nhanh dang lam ma khong noi gi. Da xay ra that.
@@ -90,9 +92,9 @@ set "SO_COMMIT_CHUA_DAY=0"
 set "SO_FILE_SUA=0"
 
 for /f %%i in ('git status --porcelain 2^>nul ^| find /c /v ""') do set "SO_FILE_SUA=%%i"
-for /f %%i in ('git rev-list --count origin/main..HEAD 2^>nul') do set "SO_COMMIT_CHUA_DAY=%%i"
+for /f %%i in ('git rev-list --count origin/!NHANH_CHINH!..HEAD 2^>nul') do set "SO_COMMIT_CHUA_DAY=%%i"
 
-if /I not "!NHANH!"=="main" set "RUI_RO=1"
+if /I not "!NHANH!"=="!NHANH_CHINH!" set "RUI_RO=1"
 if not "!SO_FILE_SUA!"=="0" set "RUI_RO=1"
 if not "!SO_COMMIT_CHUA_DAY!"=="0" set "RUI_RO=1"
 
@@ -101,7 +103,7 @@ echo ------------------------------------------------------------
 echo  LUU Y TRUOC KHI CAP NHAT
 echo ------------------------------------------------------------
 echo  SE BI GHI DE:  moi chinh sua tay vao MA NGUON tren may nay
-echo  DUOC GIU NGUYEN: truyen va video da tao  (thu muc storage)
+echo  DUOC GIU NGUYEN: video va phu de da tao  (thu muc storage)
 echo                   file cau hinh + API key (configs)
 echo                   thu vien va model AI da tai ve
 echo ------------------------------------------------------------
@@ -109,7 +111,7 @@ echo ------------------------------------------------------------
 if defined RUI_RO (
     echo.
     echo  [CANH BAO] MAY NAY DANG CO CONG VIEC DANG DO
-    if /I not "!NHANH!"=="main" echo      - Dang o nhanh "!NHANH!", cap nhat se chuyen ban ve "main"
+    if /I not "!NHANH!"=="!NHANH_CHINH!" echo      - Dang o nhanh "!NHANH!", cap nhat se chuyen ban ve "!NHANH_CHINH!"
     if not "!SO_FILE_SUA!"=="0" echo      - Co !SO_FILE_SUA! file dang sua chua commit, se bi xoa sach
     if not "!SO_COMMIT_CHUA_DAY!"=="0" echo      - Co !SO_COMMIT_CHUA_DAY! commit chua day len GitHub
     echo.
@@ -143,19 +145,19 @@ if not "!SO_COMMIT_CHUA_DAY!"=="0" (
     )
 )
 
-echo [3/6] Dang chuyen sang ban chinh thuc - nhanh main...
+echo [3/6] Dang chuyen sang ban chinh thuc - nhanh !NHANH_CHINH!...
 rem -f  : ghi de ca file nguoi dung tu them vao ma ban moi cung co
 rem       (vi du chinh CAP-NHAT.bat vua tai ve o Buoc 3 cua huong dan -
 rem        khong co -f thi git tu choi va bao "would be overwritten")
-rem -B  : tao moi hoac dat lai nhanh main bam thang vao ban tren GitHub,
+rem -B  : tao moi hoac dat lai nhanh chinh bam thang vao ban tren GitHub,
 rem       chay dung ca khi may dang o detached HEAD hay nhanh khac
-git checkout -f -B main origin/main
+git checkout -f -B !NHANH_CHINH! origin/!NHANH_CHINH!
 if %errorlevel% neq 0 (
-    echo [LOI] Khong chuyen duoc sang nhanh main.
+    echo [LOI] Khong chuyen duoc sang nhanh !NHANH_CHINH!.
     pause
     exit /b 1
 )
-git reset --hard origin/main
+git reset --hard origin/!NHANH_CHINH!
 if %errorlevel% neq 0 (
     echo [LOI] Khong cap nhat duoc ma nguon.
     pause
@@ -163,7 +165,7 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [4/6] Dang cap nhat 2 bo phan di kem - AIVoice va toolCaoTruyen...
+echo [4/6] Dang cap nhat bo phan di kem - AIVoice...
 rem sync: dia chi tai ve co the da doi o ban moi
 git submodule sync --recursive >nul 2>&1
 rem --force: ghi de ca khi ban cu de lai file thua trong 2 thu muc nay

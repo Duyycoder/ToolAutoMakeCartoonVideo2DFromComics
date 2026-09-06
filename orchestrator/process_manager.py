@@ -234,6 +234,23 @@ class ProcessManager:
             self.completed_exit_codes.pop(task_key, None)
             return True
 
+    def emit(self, task_key: str, line: str) -> None:
+        """Chèn một dòng log của chính orchestrator vào luồng SSE của task.
+
+        Dùng cho hàng đợi nhiều video: giữa hai tiến trình con vẫn cần báo "đang
+        làm video 2/5" trong khi không có child nào đang chạy để in ra.
+        """
+        q = self.log_queues.get(task_key)
+        if q is not None:
+            q.put(line if line.endswith("\n") else line + "\n")
+
+    def finish_manual(self, task_key: str, exit_code: int) -> None:
+        """Kết thúc task do orchestrator tự điều phối: ghi mã thoát + đóng SSE."""
+        self.mark_completed(task_key, exit_code)
+        q = self.log_queues.get(task_key)
+        if q is not None:
+            q.put(None)
+
     def mark_completed(self, task_key: str, exit_code: int) -> None:
         """Ghi terminal state cho task manual/callback tự quản lý sentinel."""
         with self._lock:

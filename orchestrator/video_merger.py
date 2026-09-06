@@ -12,71 +12,66 @@ def _select_files(mp4_files: list[str], only_files: list[str] | None) -> list[st
         filtered = [f for f in filtered if os.path.basename(f) in wanted]
     return filtered
 
-def merge_videos(video_dir: str, output_file: str, only_files: list[str] | None = None) -> bool:
-    """Merges all mp4 files in video_dir into output_file using FFmpeg concat stream copy."""
+
+def _ffmpeg_exe() -> str | None:
     try:
-        # Import imageio_ffmpeg from AIVoice virtual environment
-        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "AIVoice", ".venv", "Lib", "site-packages")))
+        # imageio_ffmpeg nằm trong venv của AIVoice (orchestrator cố ý không cài torch/ffmpeg riêng)
+        sys.path.insert(0, os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "..", "AIVoice", ".venv", "Lib", "site-packages")))
         import imageio_ffmpeg
-        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        return imageio_ffmpeg.get_ffmpeg_exe()
     except ImportError:
         print("[Error] imageio_ffmpeg is not installed. Cannot find FFmpeg.")
+        return None
+
+
+def merge_files(files: list[str], output_file: str) -> bool:
+    """Ghép danh sách file video (đường dẫn tuyệt đối, đúng thứ tự) thành một file.
+
+    Ưu tiên concat stream-copy (không giải mã lại — vài giây cho video dài); chỉ
+    khi các nguồn khác codec/độ phân giải mới lùi về mã hoá lại một tầng.
+    """
+    files = [f for f in files if f and os.path.exists(f)]
+    if not files:
+        print("[Warning] Không có file video hợp lệ nào để ghép.")
         return False
 
-    mp4_files = sorted(glob.glob(os.path.join(video_dir, "*.mp4")))
-    mp4_files = _select_files(mp4_files, only_files)
-        
-    if not mp4_files:
-        print(f"[Warning] No MP4 files found in {video_dir} to merge.")
+    ffmpeg_exe = _ffmpeg_exe()
+    if not ffmpeg_exe:
         return False
-        
-    list_file = os.path.join(video_dir, "concat_list.txt")
+
+    out_dir = os.path.dirname(os.path.abspath(output_file)) or "."
+    os.makedirs(out_dir, exist_ok=True)
+    list_file = os.path.join(out_dir, "concat_list.txt")
     try:
         with open(list_file, "w", encoding="utf-8") as f:
-            for mp4 in mp4_files:
+            for mp4 in files:
                 # FFmpeg requires forward slashes and escaped single quotes
                 safe_path = os.path.abspath(mp4).replace("\\", "/")
-                # In concat demuxer, single quotes in filenames must be escaped
                 safe_path = safe_path.replace("'", "'\\''")
                 f.write(f"file '{safe_path}'\n")
-                
-        print(f"[Info] Merging {len(mp4_files)} videos into {output_file}...")
-        cmd = [
-            ffmpeg_exe,
-            "-y",
-            "-f", "concat",
-            "-safe", "0",
-            "-i", list_file,
-            "-c", "copy",
-            output_file
-        ]
-        
-        # Run ffmpeg
+
+        print(f"[Info] Merging {len(files)} videos into {output_file}...")
+        cmd = [ffmpeg_exe, "-y", "-f", "concat", "-safe", "0", "-i", list_file,
+               "-c", "copy", output_file]
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         if result.returncode != 0:
-            print(f"[Error] FFmpeg concat -c copy failed with exit code {result.returncode}. Attempting fallback re-encoding...")
-            # Fallback re-encode đúng 1 tầng
-            cmd_fallback = [
-                ffmpeg_exe,
-                "-y",
-                "-f", "concat",
-                "-safe", "0",
-                "-i", list_file,
-                "-c:v", "libx264",
-                "-preset", "veryfast",
-                "-crf", "20",
-                "-c:a", "aac",
-                output_file
-            ]
-            result_fallback = subprocess.run(cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            print(f"[Error] FFmpeg concat -c copy failed with exit code {result.returncode}. "
+                  f"Attempting fallback re-encoding...")
+            cmd_fallback = [ffmpeg_exe, "-y", "-f", "concat", "-safe", "0", "-i", list_file,
+                            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                            "-c:a", "aac", output_file]
+            result_fallback = subprocess.run(
+                cmd_fallback, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             if result_fallback.returncode != 0:
                 print("[Error] Fallback re-encoding also failed.")
                 print(result_fallback.stderr)
-                print("[SYSTEM_MSG] Các video khác độ phân giải/định dạng — hãy chọn các video cùng nguồn (cùng được tạo từ Bước 3).")
+                print("[SYSTEM_MSG] Các video khác độ phân giải/định dạng nhau — thử chọn các video "
+                      "cùng nguồn, hoặc gắn phụ đề cho chúng bằng cùng một bộ tham số trước khi ghép.")
                 return False
-            
+
         print(f"[Success] Successfully merged videos to {output_file}")
         return True
     except Exception as e:
@@ -88,6 +83,17 @@ def merge_videos(video_dir: str, output_file: str, only_files: list[str] | None 
                 os.remove(list_file)
             except OSError:
                 pass
+
+
+def merge_videos(video_dir: str, output_file: str, only_files: list[str] | None = None) -> bool:
+    """Ghép mọi mp4 trong một thư mục (bỏ qua các bản ghép cũ TongHop_*)."""
+    mp4_files = sorted(glob.glob(os.path.join(video_dir, "*.mp4")))
+    mp4_files = _select_files(mp4_files, only_files)
+    if not mp4_files:
+        print(f"[Warning] No MP4 files found in {video_dir} to merge.")
+        return False
+    return merge_files(mp4_files, output_file)
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:

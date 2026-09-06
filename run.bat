@@ -6,7 +6,6 @@ pushd "%~dp0"
 :: May moi vua "git clone" ve chua co moi truong -> tu chay setup.bat luon,
 :: de nguoi dung chi can nhay dup MOT file duy nhat la run.bat.
 if not exist "AIVoice\.venv\Scripts\python.exe" goto :need_setup
-if not exist "toolCaoTruyen\.venv\Scripts\python.exe" goto :need_setup
 goto :ready
 
 :need_setup
@@ -20,13 +19,6 @@ call "%~dp0setup.bat"
 if not exist "AIVoice\.venv\Scripts\python.exe" (
     echo.
     echo [LOI] Cai dat chua hoan tat - thieu moi truong AIVoice.
-    echo       Xem thong bao loi o tren, sua roi chay lai file nay.
-    pause
-    exit /b 1
-)
-if not exist "toolCaoTruyen\.venv\Scripts\python.exe" (
-    echo.
-    echo [LOI] Cai dat chua hoan tat - thieu moi truong toolCaoTruyen.
     echo       Xem thong bao loi o tren, sua roi chay lai file nay.
     pause
     exit /b 1
@@ -57,7 +49,7 @@ exit /b 0
 
 :debug
 echo ============================================================
-echo  AutoCartoon Video Maker - DEBUG MODE (log hien truc tiep)
+echo  Cao ^& Dich Video - DEBUG MODE (log hien truc tiep)
 echo ============================================================
 "AIVoice\.venv\Scripts\python.exe" -m orchestrator.desktop
 pause

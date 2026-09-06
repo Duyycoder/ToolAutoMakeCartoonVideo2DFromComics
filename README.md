@@ -1,133 +1,138 @@
-# ToolAutoMakeCartoonVideo2DFromComics
+# Cào &amp; Dịch Video
 
-[![CI](https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/actions/workflows/ci.yml/badge.svg)](https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/actions/workflows/ci.yml)
+> **Nhánh `feat/video-only`** — bản tách riêng của dự án, **chỉ làm hai việc**: cào video từ mạng
+> xã hội và dịch/gắn phụ đề cho chúng. Toàn bộ luồng truyện chữ → hoạt hình 2D (Bước 1-3, TTS
+> truyện, chatbot) đã được gỡ khỏi nhánh này; xem nhánh `main` nếu bạn cần luồng đó.
 
-Hệ thống tự động chuyển **truyện chữ → video hoạt hình 2D có lồng tiếng**, chạy cục bộ trên máy cá nhân (Windows + GPU NVIDIA). Đây là repo tổng (đồ án tốt nghiệp), điều phối hai dự án con qua kiến trúc **orchestrator + subprocess**.
-
-## Kiến trúc tổng quan
-
-Hệ thống gồm 3 tầng, giao tiếp với nhau qua tiến trình con (subprocess) và giao thức tiến độ JSON trên stdout — mỗi bước nặng chạy trong một tiến trình riêng để **tự giải phóng VRAM khi kết thúc**.
+Chạy cục bộ trên máy cá nhân (Windows + GPU NVIDIA), không phụ thuộc dịch vụ trả phí.
 
 ```
-ToolAutoMakeCartoonVideo2DFromComics/   (repo tổng)
-├── orchestrator/     # FastAPI :8100 — điều phối pipeline, máy trạng thái, quản lý tiến trình
-│                     # (dùng chung AIVoice/.venv, KHÔNG import torch; các bước AI nặng chạy subprocess và tự nhả VRAM)
-├── webui/            # Giao diện web 1 trang (HTML/CSS/JS thuần + SSE cập nhật tiến độ)
-├── configs/          # Cấu hình toàn cục (config.example.json — copy thành global_config.json)
-├── AIVoice/          # [submodule] TTS đa engine (edge/piper/xtts/kokoro/vieneu) + MediaComposer (sinh video)
-└── toolCaoTruyen/    # [submodule] Cào truyện + dịch AI (Gemini API / Ollama) + quản lý glossary
+ToolAutoMakeCartoonVideo2DFromComics/   (nhánh feat/video-only)
+├── orchestrator/     # FastAPI :8100 — điều phối, quản lý tiến trình, thư viện video
+├── webui/            # Giao diện 1 trang (HTML/CSS/JS thuần + SSE theo dõi tiến độ)
+├── configs/          # Cấu hình (config.example.json → global_config.json)
+├── storage/          # Dữ liệu người dùng: videos/, merged/, tasks/
+└── AIVoice/          # [submodule] MediaComposer: yt-dlp, Whisper, PaddleOCR, TTS, ffmpeg
 ```
 
-### Luồng xử lý (pipeline 4 bước)
+## Ba tác vụ
 
-| Bước | Thành phần | Đầu vào → Đầu ra |
-|------|-----------|------------------|
-| 1. Cào + Dịch | `toolCaoTruyen/adapter_cli.py` | URL/ID truyện → chương `.md` tiếng Việt |
-| 2. TTS | `AIVoice/adapter_tts_cli.py` | `.md` → `.wav` (giọng đọc) |
-| 3. Sinh video | `AIVoice/apps/MediaComposer/adapter_video_cli.py` | `.md` + `.wav` → cảnh ảnh AI + video `.mp4` |
-| 4. Hợp nhất | `orchestrator/video_merger.py` | các `.mp4` → video tổng hợp |
+| Tác vụ | Chạy bằng | Vào → Ra |
+|--------|-----------|----------|
+| **Cào video** | `AIVoice/apps/MediaComposer/adapter_download_cli.py` | link video / playlist / kênh → thư mục video + `video.json` trong thư viện |
+| **Dịch &amp; gắn phụ đề** | `AIVoice/apps/MediaComposer/adapter_autosub_cli.py` | video → `.srt` gốc + `.srt` đã dịch (+ video đã ghi phụ đề, lồng tiếng nếu bật) |
+| **Ghép video** | `orchestrator/video_merger.py` | nhiều video → một file trong `storage/merged/` |
 
-## Tải mã nguồn (QUAN TRỌNG — có submodule)
+Mọi việc nặng (yt-dlp, Whisper, PaddleOCR, ffmpeg, TTS) chạy trong **tiến trình con** dùng
+`AIVoice/.venv` để tự nhả VRAM khi xong. Orchestrator cố ý **không import torch/ffmpeg** — nó chỉ
+dựng dòng lệnh, đọc stdout (mỗi dòng một JSON) rồi đẩy sang giao diện qua SSE.
 
-Repo này dùng **git submodule** cho `AIVoice` và `toolCaoTruyen`. Phải clone kèm submodule, nếu không hai thư mục đó sẽ **rỗng**:
+## Tính năng
+
+**Cào video**
+- Dán nhiều link cùng lúc, mỗi dòng một link; nhận cả **playlist, kênh, hashtag** (yt-dlp tự giải).
+- **Xem trước danh sách** trước khi tải, tích chọn đúng video mình muốn.
+- Giới hạn số video mỗi link, **bỏ qua video đã có** trong thư viện, chọn dừng-hay-bỏ-qua khi lỗi.
+- Hỗ trợ **file cookies** (Netscape `.txt`) cho video riêng tư/giới hạn vùng; tự lọc cookie WAF của
+  TikTok (`_waftokenid`) — đây là nguyên nhân số một gây lỗi 403.
+- Chẩn đoán lỗi bằng tiếng Việt: IP bị chặn, video là tập phim TikTok Series, thiếu đăng nhập…
+- Tuỳ chọn **dịch luôn sau khi tải xong** — cào và dịch trong một lần bấm.
+
+**Thư viện video**
+- Danh sách video đã tải: nền tảng, độ phân giải, thời lượng, dung lượng, đã dịch hay chưa.
+- Xem video ngay trong giao diện, mở thư mục trong File Explorer, xoá, lọc, tìm theo tên.
+- **Nhập video có sẵn trên máy** — mặc định chỉ trỏ tới file gốc, không nhân đôi file hàng GB.
+- Xem/sửa/tải file `.srt`, và ghi thẳng bản vừa sửa vào video.
+
+**Dịch &amp; gắn phụ đề**
+- Nguồn phụ đề: **Whisper** (phiên âm tiếng nói), **OCR** (tách chữ cháy trên hình, khoanh vùng bằng
+  chuột), hoặc **nạp file `.srt` có sẵn**.
+- Ngôn ngữ đích chọn được (Việt, Anh, Trung, Nhật, Hàn, Thái, Pháp, Tây Ban Nha).
+- **Chỉ xuất `.srt`** (nhanh, để sửa tay trước) hoặc ghi hẳn phụ đề vào video.
+- Tuỳ chỉnh kiểu chữ: phông, cỡ, màu, viền, nền hộp, vị trí.
+- **Lồng tiếng** bản dịch (Edge-TTS / Piper / Kokoro / VieNeu / XTTSv2 clone) kèm ducking nhạc nền.
+- Tách giọng khỏi nhạc nền bằng Demucs trước khi phiên âm.
+- **Xử lý hàng loạt**: chọn nhiều video, chạy lần lượt cùng một bộ tham số, một luồng log duy nhất.
+- Engine dịch: **Ollama** (mặc định, chạy trên máy, không cần key), **Gemini Online** (cần API key),
+  hoặc proxy Gemini-API cục bộ nếu bạn tự cài.
+
+## Cài đặt &amp; chạy
+
+Repo dùng **git submodule** cho `AIVoice`. Phải clone kèm submodule:
 
 ```bash
-git clone --recursive https://github.com/<user>/ToolAutoMakeCartoonVideo2DFromComics.git
+git clone --recursive -b feat/video-only https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git
 ```
 
-Nếu đã lỡ clone thường (chưa có submodule):
+Lỡ clone thường thì chạy `git submodule update --init --recursive`.
+
+Sau đó nháy đúp **`run.bat`** — máy chưa cài gì thì nó tự gọi `setup.bat` (tải Python 3.11 + thư viện
++ model, cần Internet, 30-60 phút) rồi mở cửa sổ ứng dụng. Muốn xem log trực tiếp: `run.bat debug`.
+
+Dịch phụ đề mặc định dùng Ollama, cài một lần:
 
 ```bash
-git submodule update --init --recursive
+ollama pull qwen2.5:3b-instruct
 ```
 
-## Cài đặt & chạy
+## Giao diện
 
-> 🟢 **Không rành kỹ thuật?** Đọc [HUONG-DAN-KHOI-DONG.md](HUONG-DAN-KHOI-DONG.md) — 3 bước, không cần biết code.
+Mở ra là cửa sổ ứng dụng (WebView2), bên trong chạy orchestrator ở `http://127.0.0.1:8100`:
 
-**Cách nhanh nhất:** nháy đúp `run.bat`. Máy chưa cài gì thì nó tự gọi `setup.bat` rồi mở app luôn.
+| Tab | Việc |
+|-----|------|
+| 📥 Cào Video | dán link, xem trước, tải hàng loạt |
+| 📚 Thư Viện | video đã tải, phụ đề, bản đã gắn sub |
+| 🈯 Dịch &amp; Phụ Đề | chọn nguồn phụ đề, ngôn ngữ, kiểu chữ, lồng tiếng |
+| 🔗 Ghép Video | nối nhiều video thành một |
+| ⚙️ Cấu Hình | thư mục dữ liệu, API key, engine dịch, dọn dẹp file tạm |
 
-Chi tiết từng bước nếu muốn kiểm soát:
+Nút **💾 Lưu cấu hình** ghi cả hai lớp: giá trị mặc định xuống `configs/global_config.json` và trạng
+thái từng ô nhập xuống `configs/ui_settings.json` (mở lại app là điền sẵn như cũ).
 
-1. Chạy `setup.bat` — tạo venv tổng + gọi setup của 2 dự án con (tự nhận GPU, tải model) và tự sinh `configs/global_config.json` nếu chưa có. API key điền sau ngay trong giao diện (mục **Cấu Hình Chung**); `global_config.json` đã bị `.gitignore` loại trừ nên không bao giờ commit key thật.
-2. Chạy `run.bat` — mở **cửa sổ ứng dụng desktop** (WebView2 qua pywebview), bên trong tự khởi động orchestrator :8100 và Gemini-API proxy **chạy ẩn, không hiện console**; log ghi vào `logs/app.log` và `logs/gemini_api.log`. Đóng cửa sổ app sẽ tự tắt sạch mọi tiến trình con. Cần xem log trực tiếp thì chạy `run.bat debug`; máy thiếu pywebview/WebView2 sẽ tự fallback mở trình duyệt.
+## Dữ liệu nằm ở đâu
 
-## Chế độ trình diễn "sạch bản quyền" (khuyến nghị cho đồ án)
+```
+storage/
+  videos/<ten_video>/
+      video.json          # link nguồn, nền tảng, W×H, thời lượng
+      <ten_video>.mp4     # bản gốc
+      subs/*.srt          # phụ đề gốc + phụ đề đã dịch
+      output/*.mp4        # bản đã ghi phụ đề / lồng tiếng
+  merged/                 # video đã ghép
+  tasks/                  # thư mục tạm (ảnh xem trước OCR…) — xoá được trong tab Cấu Hình
+```
 
-Toàn bộ pipeline có thể chạy **hoàn toàn cục bộ, không dùng dịch vụ trả phí và không cào nội dung có bản quyền**. Đây là cấu hình mặc định trong `config.example.json`:
+Đổi chỗ lưu bằng ô **Thư mục dữ liệu** trong tab Cấu Hình (cần khởi động lại app).
 
-| Bước | Lựa chọn "sạch" | Ghi chú |
-|------|-----------------|---------|
-| 1. Nguồn truyện | **Thư mục cục bộ** (`Nguồn truyện → Local Folder`) | Dùng truyện tự sáng tác hoặc tác phẩm thuộc phạm vi công cộng (public domain) dưới dạng `.md`/`.txt` — không cào web |
-| 1. Dịch thuật | **Gemini Local** (engine `gemini_api`) qua proxy [Gemini-API](toolCaoTruyen/Gemini-API) tại `localhost:7860`, hoặc **Ollama** | Chạy trên máy, không cần API key trả phí |
-| 2. TTS | **Kokoro-Vietnamese / VieNeu / Piper** (offline, GPU/CPU local) | Edge-TTS là tùy chọn online miễn phí |
-| 3. LLM phân cảnh & prompt | **Gemini Local** (mặc định) hoặc **Ollama** — chọn ngay trên form Bước 3 | Cùng proxy `localhost:7860` như Bước 1 |
-| 3. Sinh ảnh | **Stable Diffusion local** (checkpoint mã nguồn mở, vd. Anything V5) | Chạy trên GPU cá nhân |
+## API (nếu muốn tự động hoá)
 
-> Khi viết báo cáo: nhấn mạnh chuỗi xử lý trên để chứng minh hệ thống không phụ thuộc dịch vụ thương mại và không phân phối nội dung có bản quyền.
+| Endpoint | Việc |
+|----------|------|
+| `POST /api/download/probe` | giải link → danh sách video |
+| `POST /api/download/start` | tải hàng loạt (task_key `download`) |
+| `GET /api/videos`, `GET/DELETE /api/videos/{id}` | thư viện |
+| `POST /api/videos/import` | nhập video có sẵn |
+| `GET/POST /api/videos/{id}/sub` | đọc/ghi file phụ đề |
+| `POST /api/translate/start` | dịch 1..n video (task_key `translate`) |
+| `POST /api/autosub/prepare` | khung hình xem trước để khoanh vùng OCR |
+| `POST /api/merge/start` | ghép video (task_key `merge`) |
+| `GET /api/tasks/logs/{task_key}` | luồng log SSE |
+| `POST /api/tasks/stop?task_key=` | dừng tác vụ |
 
-## Đóng gói bộ cài `setup.exe` (Inno Setup)
+Mỗi loại tác vụ chỉ chạy **một lần một** (GPU 6GB không kham nổi song song), đổi lại giao diện nối
+lại đúng luồng log sau khi F5.
 
-Thư mục [installer/](installer/) chứa script đóng gói ứng dụng thành bộ cài Windows:
+## Kiểm thử
 
 ```bash
-installer\build_installer.bat   # cần Inno Setup 6 (winget install -e --id JRSoftware.InnoSetup)
+AIVoice\.venv\Scripts\python.exe -m pytest -q
 ```
 
-- Kết quả: `installer/Output/AutoCartoonVideoMaker-Setup-<version>.exe` (~150 MB, chỉ chứa **mã nguồn** + tài nguyên đi kèm repo — không chứa venv/model/bí mật).
-- Máy đích **không cần cài sẵn Python hay Git**: bộ cài chép mã nguồn vào `%LocalAppData%\Programs\AutoCartoonVideoMaker`, tạo sẵn `global_config.json` từ file mẫu, tạo shortcut Desktop/Start Menu, rồi chạy `setup.bat` (tự tải Python 3.11 + thư viện + model AI — cần Internet, 30–60 phút).
-- Gỡ cài đặt xóa toàn bộ trừ thư mục `storage/` (truyện & video người dùng đã tạo).
-
-## Trợ lý AI cục bộ (chatbot)
-
-Widget 🤖 nổi ở góc phải dưới mọi màn hình, chạy bằng **Ollama** trên máy — không gửi dữ liệu đi đâu.
-
-- **Hướng dẫn sử dụng:** trả lời từ bộ tài liệu trong [docs/kb/](docs/kb/), luôn kèm dòng `Nguồn:` để kiểm chứng. Không tìm thấy trong tài liệu thì nói thẳng thay vì đoán.
-- **Tư vấn & truy vấn truyện:** "truyện này có bao nhiêu chương / audio / video", "danh sách truyện" — đọc thẳng từ `storage/`.
-- **Chọn model ngay trên widget:** nhóm sẵn theo máy 6GB và 8GB VRAM, kèm mức chiếm VRAM thật; tự phát hiện GPU và gợi ý model phù hợp.
-- **Không tranh GPU với Bước 3:** đang dựng video thì trợ lý chuyển sang chế độ tra cứu tài liệu (0 VRAM), hoặc cho bạn chọn dừng một trong hai.
-
-Yêu cầu: cài [Ollama](https://ollama.com) và tải model — ứng dụng tự bật `ollama serve` nếu chưa chạy.
-
-```bash
-ollama pull qwen2.5:3b
-```
-
-Tài liệu KB có hai phần **sinh tự động từ mã nguồn**, chạy lại sau khi đổi giao diện để tài liệu luôn khớp thực tế:
-
-```bash
-AIVoice\.venv\Scripts\python.exe scripts/gen_kb_from_project.py
-AIVoice\.venv\Scripts\python.exe scripts/gen_kb_faq.py
-```
-
-Đo chất lượng trả lời (`--mode llm` cần Ollama đang chạy):
-
-```bash
-AIVoice\.venv\Scripts\python.exe scripts/eval_chatbot.py --mode llm
-```
-
-Thiết kế chi tiết: [docs/PLAN-chatbot-assistant.md](docs/PLAN-chatbot-assistant.md), [docs/PLAN-chatbot-rag-v2.md](docs/PLAN-chatbot-rag-v2.md).
-
-## Kiểm thử & CI/CD
-
-- **Unit tests** (`tests/`): kiểm tra logic resolve engine LLM Bước 3 (Gemini local/online, Ollama, validation thiếu API key) và fallback cấu hình TTS Bước 2 — chạy bằng `pip install pytest && pytest -v`, không cần GPU/model.
-- **CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)): tự chạy trên mỗi push/PR vào `main` — lint lỗi nghiêm trọng (ruff), kiểm tra biên dịch toàn bộ `orchestrator/`, chạy unit tests.
-- **CD** ([.github/workflows/release.yml](.github/workflows/release.yml)): gắn tag `v*` (vd `git tag v1.0.0 && git push origin v1.0.0`) sẽ tự đóng gói mã nguồn và tạo GitHub Release kèm release notes.
-- Mỗi submodule (`AIVoice`, `toolCaoTruyen`) có workflow CI riêng kiểm tra cú pháp Python độc lập.
-
-## Yêu cầu hệ thống
-
-- Windows 10/11, Python 3.11
-- GPU NVIDIA ≥ 6GB VRAM (tối ưu cho RTX 3060/4060/5060); có fallback CPU
-- Microsoft C++ Build Tools + Git for Windows
+CI chạy `ruff` + `pytest` cho `orchestrator/` và `tests/` trên mỗi lần đẩy.
 
 ## Ghi chú về submodule
 
-`AIVoice` và `toolCaoTruyen` là hai repo Git độc lập, phát triển và push riêng. Repo tổng chỉ lưu **con trỏ tới một commit cụ thể** của mỗi submodule. Khi cập nhật code trong một submodule:
-
-```bash
-cd AIVoice
-git add -A && git commit -m "..." && git push      # push repo con
-cd ..
-git add AIVoice && git commit -m "Cap nhat submodule AIVoice"   # cập nhật con trỏ ở repo tổng
-```
+`AIVoice` là repo Git độc lập. Nhánh này trỏ tới nhánh `feat/video-only` của nó (chứa
+`adapter_download_cli.py` và các tuỳ chọn dịch mới). Khi sửa code trong submodule: commit trong
+`AIVoice/` trước, rồi commit con trỏ ở repo tổng.

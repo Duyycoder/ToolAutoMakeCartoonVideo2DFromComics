@@ -16,8 +16,8 @@ QUA TRINH CAI DAT GOM 2 GIAI DOAN
 SAU KHI CAI XONG
   - Mo ung dung bang bieu tuong "AutoCartoon Video Maker" ngoai Desktop
     hoac trong Start Menu.
-  - Neu dung engine dich "Gemini API (Offline/Local)": dien cookies vao
-    file toolCaoTruyen\Gemini-API\cookies.json (xem README trong thu muc do).
+  - Engine dich mac dinh la Ollama (chay tren may, khong can API key).
+    Cai Ollama tai https://ollama.com roi chay: ollama pull qwen2.5:3b-instruct
   - Muon cai lai moi truong: chay "AutoCartoon Video Maker - Cai dat moi truong"
     trong Start Menu.
 

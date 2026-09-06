@@ -1,46 +1,41 @@
-import os
-import sys
+"""API của công cụ Cào & Dịch Video (FastAPI, cổng 8100).
+
+Ba tác vụ nặng dùng ba `task_key` CỐ ĐỊNH: "download", "translate", "merge" —
+mỗi loại chỉ chạy một lần một (GPU 6GB không kham nổi song song), đổi lại giao
+diện nối lại luồng log sau khi F5 mà không cần nhớ mã tác vụ.
+"""
 import json
 import logging
+import os
 import subprocess
-from contextlib import asynccontextmanager
-from typing import Optional
-import httpx
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse, JSONResponse
+import sys
+from typing import List, Optional
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
 logger = logging.getLogger(__name__)
 
-# Add parent directory to sys.path to resolve orchestrator package imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from orchestrator.config import load_global_config, save_global_config, load_ui_settings, save_ui_settings  # noqa: E402
-from orchestrator.storage import StorageManager  # noqa: E402
-from orchestrator.process_manager import ProcessManager  # noqa: E402
-from orchestrator.pipeline import NovelPipeline  # noqa: E402
-from orchestrator.auto_run import AutoRunManager  # noqa: E402
-from orchestrator.chatbot import (  # noqa: E402
-    ChatManager, CHAT_MODEL_PROFILES, TIER_DEFAULT_MODEL, vram_tier,
+from orchestrator.config import (  # noqa: E402
+    load_global_config, save_global_config, load_ui_settings, save_ui_settings,
 )
-from orchestrator.llm import chat_stream_ollama, unload_ollama  # noqa: E402
+from orchestrator.storage import VideoLibrary  # noqa: E402
+from orchestrator.process_manager import ProcessManager  # noqa: E402
+from orchestrator.pipeline import VideoPipeline, AIVOICE_DIR, AUTOSUB_ADAPTER, PYTHON_EXE  # noqa: E402
 from orchestrator import ollama_manager  # noqa: E402
-from orchestrator import model_preflight  # noqa: E402
 
-@asynccontextmanager
-async def _lifespan(_app: FastAPI):
-    """Mở app là tự kiểm tra & tải nốt mô hình còn thiếu (chạy nền, không chặn)."""
-    try:
-        model_preflight.start()
-    except Exception as e:
-        logger.warning(f"[Preflight] Không khởi động được kiểm tra mô hình: {e}")
-    yield
+TASK_DOWNLOAD = "download"
+TASK_TRANSLATE = "translate"
+TASK_MERGE = "merge"
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
-app = FastAPI(title="AutoCartoon Novel-to-Video Maker Orchestrator", lifespan=_lifespan)
+app = FastAPI(title="Cào & Dịch Video — Orchestrator")
 
-# Allow CORS for developmental UI/debugging
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:8100", "http://localhost:8100"],
@@ -49,132 +44,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize singletons
-# Thư mục dữ liệu (nặng) cấu hình được: người dùng có thể trỏ sang ổ/đường dẫn khác
-# qua khóa "storage_dir" trong global_config.json (mặc định: ./storage).
 _cfg = load_global_config()
 _storage_dir = (_cfg.get("storage_dir") or "storage").strip() or "storage"
-storage_mgr = StorageManager(base_storage_dir=_storage_dir)
+library = VideoLibrary(base_storage_dir=_storage_dir)
 process_mgr = ProcessManager()
-pipeline = NovelPipeline(storage_mgr, process_mgr)
-auto_run_mgr = AutoRunManager(storage_mgr, process_mgr, pipeline)
-chat_mgr = ChatManager(storage_mgr, process_mgr, auto_run_mgr)
+pipeline = VideoPipeline(library, process_mgr)
 
-def _reject_if_auto_running(slug: str):
-    """Các endpoint chạy bước lẻ không được chen vào khi chuỗi tự động đang chạy."""
-    if auto_run_mgr.is_chain_running(slug):
-        raise HTTPException(status_code=400,
-                            detail="Chuỗi tự động đang chạy cho truyện này — bấm 'Dừng chuỗi' trước.")
 
-# Pydantic Schemas
+# ----------------------------------------------------------------- Schemas
 class GlobalConfigSchema(BaseModel):
-    # extra="allow" để giữ nguyên các mục cấu hình mới (translate, autosub, ...)
-    # mà không cần khai báo cứng từng khóa — hợp với việc Cấu Hình Chung mirror
-    # toàn bộ tham số của mọi bước.
+    # extra="allow": giữ nguyên mọi mục cấu hình mới mà không phải khai báo cứng.
     model_config = ConfigDict(extra="allow")
     api_keys: dict
     storage_dir: str
-    crawler: dict
-    tts: dict
-    video: dict
-    translate: Optional[dict] = None
-    autosub: Optional[dict] = None
-    chatbot: Optional[dict] = None
-    orchestrator_port: Optional[int] = None
 
-class ChatRequestSchema(BaseModel):
-    session_id: str
-    message: str
-    story_name: Optional[str] = ""
-    active_tab: Optional[str] = ""
-    mode: Optional[str] = "auto"
-    force: Optional[bool] = False
 
-class AgentQuerySchema(BaseModel):
-    action: str
-    args: Optional[dict] = None
-
-class ChatModelSchema(BaseModel):
-    model_config = ConfigDict(protected_namespaces=())
-    model: str
-
-class CreateStorySchema(BaseModel):
-    story_name: str
-
-class Step1Schema(BaseModel):
-    story_name: str
-    source_site: str
-    base_url: Optional[str] = None
-    story_id: Optional[str] = None
-    local_folder: Optional[str] = None
-    start_chapter_id: Optional[str] = None
-    max_chapters: Optional[int] = 1
-    engine: Optional[str] = None
-    ollama_model: Optional[str] = None
-    gemini_api_key: Optional[str] = None
-    gemini_offline_base_url: Optional[str] = None
-    gemini_offline_model: Optional[str] = None
-    genre: Optional[str] = None
-    auto_extract: bool = False
-    auto_translate: bool = True
-    continue_download: bool = False
-    topic: Optional[str] = None  # nguồn "ai_write": chủ đề/ý tưởng để LLM sáng tác
-    words_per_chapter: Optional[int] = None  # nguồn "ai_write": độ dài mỗi chương
-    glossary_extract_engine: Optional[str] = "gemini"
-    glossary_extract_ollama_model: Optional[str] = ""
-
-class Step2Schema(BaseModel):
-    story_name: str
-    preset: Optional[str] = "default"
-    engine: Optional[str] = None
-    voice: Optional[str] = None
-    speed: Optional[float] = None
-    model: Optional[str] = None
-    ref_audio: Optional[str] = None
-    phonemize: Optional[bool] = None
-    normalize: Optional[bool] = None
-    target_lufs: Optional[float] = None
-    fade_in: Optional[float] = None
-    fade_out: Optional[float] = None
-    silence_duration: Optional[float] = None
-    device: Optional[str] = "cuda"
-    use_cache: Optional[bool] = None
-    cache_threshold: Optional[float] = None
-    vieneu_mode: Optional[str] = None
-    vieneu_emotion: Optional[str] = None
-    temperature: Optional[float] = None
-
-class Step3Schema(BaseModel):
-    story_name: str
-    genre: Optional[str] = "tien_hiep"
-    style: Optional[str] = "anime_2d_flat"
-    checkpoint: Optional[str] = "anything-v5"
-    bgm_path: Optional[str] = ""
-    bgm_volume: Optional[float] = 0.15
-    enable_upscale: Optional[bool] = True
-    burn_subtitles: Optional[bool] = False
-    use_semantic_split: Optional[bool] = True
-    extract_characters: Optional[bool] = True
-    enable_face_detailer: Optional[bool] = False
-    render_mode: Optional[str] = "classic"  # "classic" | "studio" (render theo lop)
-    hardware_profile: Optional[str] = "auto"
-    device: Optional[str] = "cuda"
-    llm_engine: Optional[str] = "gemini_api"
-    llm_api_key: Optional[str] = None
-    llm_offline_base_url: Optional[str] = None
-    llm_offline_model: Optional[str] = None
-
-class Step4Schema(BaseModel):
-    story_name: Optional[str] = None
-    video_path: Optional[str] = None
-    download_url: Optional[str] = None
+class ProbeSchema(BaseModel):
+    urls: List[str]
     platform: Optional[str] = "generic"
+    cookies_file: Optional[str] = None
+    max_items: Optional[int] = 0
+
+
+class TranslateParams(BaseModel):
+    """Tham số dịch/gắn phụ đề — dùng chung cho tab Dịch và ô 'dịch luôn sau khi tải'."""
     source_lang: Optional[str] = "English"
-    sub_source: Optional[str] = "whisper"
-    crop_x: Optional[int] = -1
-    crop_y: Optional[int] = -1
-    crop_w: Optional[int] = -1
-    crop_h: Optional[int] = -1
+    target_lang: Optional[str] = "Vietnamese"
+    sub_source: Optional[str] = "whisper"   # whisper | ocr | import
+    source_srt: Optional[str] = None        # dùng khi sub_source = import
+    translate_only: Optional[bool] = False  # chỉ xuất .srt, không ghi vào video
+    no_translate: Optional[bool] = False    # ghi thẳng phụ đề nguồn, bỏ bước dịch
     burn_method: Optional[str] = "ffmpeg"
     clean_audio: Optional[bool] = False
     enable_voiceover: Optional[bool] = False
@@ -182,12 +81,15 @@ class Step4Schema(BaseModel):
     tts_voice: Optional[str] = ""
     auto_clone: Optional[bool] = False
     ducking_ratio: Optional[float] = 90.0
-    llm_engine: Optional[str] = "gemini_api"
+    llm_engine: Optional[str] = None
     llm_api_key: Optional[str] = None
     llm_offline_base_url: Optional[str] = None
     llm_offline_model: Optional[str] = None
-    
-    # Subtitle Customization Styling fields
+    crop_x: Optional[int] = -1
+    crop_y: Optional[int] = -1
+    crop_w: Optional[int] = -1
+    crop_h: Optional[int] = -1
+    ocr_use_gpu: Optional[bool] = None
     font_name: Optional[str] = None
     font_size: Optional[int] = None
     text_color: Optional[str] = None
@@ -198,340 +100,66 @@ class Step4Schema(BaseModel):
     bg_alpha: Optional[int] = None
     sub_position: Optional[str] = None
     custom_position: Optional[float] = None
-    cookies_file: Optional[str] = None
-    output_dir: Optional[str] = None  # thư mục đầu ra (video tải về + video đã sub)
 
-class Step5Schema(BaseModel):
-    story_name: str
-    selected_files: Optional[list[str]] = None
+
+class DownloadSchema(ProbeSchema):
+    skip_existing: Optional[bool] = True
+    stop_on_error: Optional[bool] = False
+    auto_translate: Optional[bool] = False
+    translate: Optional[TranslateParams] = None
+
+
+class TranslateSchema(TranslateParams):
+    entry_ids: List[str]
+
+
+class ImportSchema(BaseModel):
+    path: str
+    title: Optional[str] = ""
+    copy_file: Optional[bool] = False
+
+
+class SubSaveSchema(BaseModel):
+    name: str
+    content: str
+
+
+class MergeItem(BaseModel):
+    entry_id: str
+    kind: Optional[str] = "output"   # output | source
+    name: Optional[str] = ""
+
+
+class MergeSchema(BaseModel):
+    items: List[MergeItem]
+    output_name: Optional[str] = ""
+
 
 class PrepareSchema(BaseModel):
+    entry_id: Optional[str] = None
     video_path: Optional[str] = None
     download_url: Optional[str] = None
     platform: Optional[str] = "generic"
     cookies_file: Optional[str] = None
 
-# API Endpoints
 
+# ------------------------------------------------------------- Cấu hình
 @app.get("/api/config")
 def get_config():
     return load_global_config()
 
-@app.get("/api/stats")
-def get_stats():
-    """Thống kê tổng hợp từ SQLite (phục vụ trang Dashboard)."""
-    from orchestrator import db
-    result = db.stats(storage_mgr.db_path)
-    result["stories"] = db.list_stories(storage_mgr.db_path)
-    result["storage_dir"] = storage_mgr.base_dir
-    return result
-
-@app.post("/api/maintenance/cleanup-tasks")
-def cleanup_tasks_api(dry_run: bool = True, days: float = 0):
-    """Dọn dẹp thư mục làm việc tạm (bảo vệ contexts). dry_run=true chỉ xem trước."""
-    return storage_mgr.cleanup_tasks(keep_days=days, dry_run=dry_run)
-
-@app.post("/api/maintenance/rebuild-db")
-def rebuild_db_api():
-    """Đồng bộ lại SQLite từ các story.json trên đĩa."""
-    n = storage_mgr.rebuild_db()
-    return {"synced": n}
-
-@app.get("/api/system/gpu-info")
-def get_gpu_info():
-    import subprocess
-    try:
-        result = subprocess.run(['nvidia-smi', '--query-gpu=name,memory.total', '--format=csv,noheader'], capture_output=True, text=True,
-                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        if result.returncode == 0 and result.stdout.strip():
-            parts = result.stdout.strip().split(', ')
-            return {"name": parts[0], "vram": parts[1]}
-        return {"name": "No GPU found", "vram": "N/A"}
-    except Exception:
-        return {"name": "No nvidia-smi", "vram": "N/A"}
-
-@app.get("/api/ollama/models")
-def get_ollama_models():
-    """Danh sách model Ollama: các model đã cài trên máy + các model khuyến nghị."""
-    import urllib.request
-    import json as _json
-    curated = {
-        "qwen2.5:3b-instruct": "Chat siêu nhẹ ~2-3GB VRAM — khuyến nghị cho Bước 3 trên GPU 6GB",
-        "hy-mt2:1.8b": "Chuyên dịch Trung/Anh→Việt, siêu nhẹ (khuyến nghị Bước 1)",
-        "translategemma:4b": "Chuyên dịch Google, 55 ngôn ngữ",
-        "qwen2.5:7b-instruct": "Model chat, chất lượng cao hơn nhưng ~5GB VRAM",
-        "qwen3:8b": "Model chat, đã tối ưu giảm leak"
-    }
-    installed = []
-    online = False
-    try:
-        with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=3) as res:
-            data = _json.loads(res.read().decode("utf-8"))
-            installed = [m.get("name") for m in data.get("models", []) if m.get("name")]
-            online = True
-    except Exception:
-        pass
-
-    models = [{"name": n, "label": curated.get(n, ""), "installed": True} for n in installed]
-    for name, label in curated.items():
-        if name not in installed:
-            models.append({"name": name, "label": label, "installed": False})
-    return {"ollama_online": online, "models": models}
-
-@app.get("/api/models/preflight")
-def get_model_preflight():
-    """Tiến độ tự tải mô hình còn thiếu."""
-    return model_preflight.get_state()
-
-@app.post("/api/models/preflight")
-def rerun_model_preflight():
-    started = model_preflight.start(force=True)
-    return {"status": "started" if started else "already_running", **model_preflight.get_state()}
 
 @app.post("/api/config")
 def update_config(config: GlobalConfigSchema):
-    if save_global_config(config.dict()):
-        return {"status": "success", "config": config}
-    raise HTTPException(status_code=500, detail="Failed to save global configuration.")
+    if save_global_config(config.model_dump()):
+        return {"status": "success"}
+    raise HTTPException(status_code=500, detail="Không ghi được configs/global_config.json.")
 
-@app.get("/api/stories")
-def get_stories():
-    return storage_mgr.list_stories()
-
-@app.post("/api/stories")
-def create_story(body: CreateStorySchema):
-    if not body.story_name.strip():
-        raise HTTPException(status_code=400, detail="Story name cannot be empty.")
-    try:
-        dirs = storage_mgr.init_story_workspace(body.story_name)
-        meta = storage_mgr.read_story_meta(body.story_name)
-        return {"status": "success", "workspace": dirs, "meta": meta}
-    except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-
-@app.get("/api/stories/{story_name}")
-def get_story_details(story_name: str):
-    meta = storage_mgr.read_story_meta(story_name)
-    if not meta:
-        raise HTTPException(status_code=404, detail=f"Story '{story_name}' not found.")
-    # Đường dẫn thật + số chương đọc từ đĩa: story.json không lưu hai thứ này nên
-    # trước đây giao diện hiện "Thư mục lưu trữ: undefined".
-    meta = dict(meta)
-    meta["story_dir"] = storage_mgr.get_story_dir(story_name)
-    meta["raw_chapters_count"] = len(storage_mgr.scan_chapters(story_name))
-    return meta
-
-# ---------- Mở thư mục đầu ra của từng bước ----------
-def _step_output_dir(story_name: str, step: str) -> str:
-    """Thư mục chứa kết quả của một bước — khớp với nơi pipeline thực sự ghi ra.
-
-    Bước 1 (chương .md) và Bước 2 (.wav) dùng CHUNG một thư mục: `translated/`
-    nếu đã dịch, ngược lại `raw/` (nguồn "Sáng tác bằng AI" ghi thẳng vào raw/).
-    """
-    story_dir = storage_mgr.get_story_dir(story_name)
-    if step in ("step1", "step2"):
-        translated = os.path.join(story_dir, "translated")
-        try:
-            if any(f.endswith(".md") for f in os.listdir(translated)):
-                return translated
-        except OSError:
-            pass
-        return os.path.join(story_dir, "raw")
-    if step in ("step3", "step5"):
-        return os.path.join(story_dir, "video")
-    if step == "step4":
-        cfg_dir = ((load_global_config().get("autosub") or {}).get("output_dir") or "").strip()
-        return cfg_dir or os.path.join(story_dir, "video")
-    return story_dir
-
-
-def _reveal_in_file_manager(path: str) -> None:
-    """Mở thư mục bằng trình quản lý tệp của hệ điều hành (app chạy cục bộ)."""
-    import subprocess
-
-    if sys.platform == "win32":
-        os.startfile(path)  # noqa: S606 - đường dẫn do server tự dựng, không phải input thô
-    elif sys.platform == "darwin":
-        subprocess.Popen(["open", path])
-    else:
-        subprocess.Popen(["xdg-open", path])
-
-
-@app.post("/api/stories/{story_name}/open-folder")
-def open_story_folder(story_name: str, step: str = "root"):
-    """Mở File Explorer tại thư mục đầu ra của một bước, kèm số file đang có."""
-    if not storage_mgr.read_story_meta(story_name):
-        raise HTTPException(status_code=404, detail=f"Story '{story_name}' not found.")
-    path = _step_output_dir(story_name, step)
-    try:
-        os.makedirs(path, exist_ok=True)
-        file_count = sum(1 for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)))
-        _reveal_in_file_manager(path)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Không mở được thư mục '{path}': {e}")
-    return {"status": "success", "path": path, "file_count": file_count}
-
-def _build_step1_args(body: Step1Schema) -> dict:
-    """Build crawl/trans args cho Bước 1 — dùng chung bởi endpoint lẻ và auto-run."""
-    g_config = load_global_config()
-    gemini_key = body.gemini_api_key or g_config.get("api_keys", {}).get("gemini", "")
-    gemini_offline_base_url = body.gemini_offline_base_url or g_config.get("crawler", {}).get("gemini_offline_base_url", "http://localhost:7860/v1")
-
-    crawl_args = {
-        "source": body.source_site,
-        "base_url": body.base_url,
-        "story_id": body.story_id,
-        "start_chapter_id": body.start_chapter_id,
-        "num_chapters": body.max_chapters,
-        "local_folder": body.local_folder,
-        "topic": body.topic,  # nguồn "ai_write": chủ đề để LLM sáng tác
-        "words_per_chapter": body.words_per_chapter,
-        "continue_download": body.continue_download
-    }
-    trans_args = {
-        "auto_translate": body.auto_translate,
-        "engine": body.engine or "gemini_api",
-        "ollama_model": body.ollama_model or "qwen2.5:7b-instruct",
-        "gemini_api_key": gemini_key,
-        "gemini_offline_base_url": gemini_offline_base_url,
-        "gemini_offline_model": body.gemini_offline_model or "gemini-2.5-flash",
-        "genre": body.genre or "tien_hiep",
-        "auto_extract": body.auto_extract,
-        "glossary_extract_engine": body.glossary_extract_engine or "gemini",
-        "glossary_extract_ollama_model": body.glossary_extract_ollama_model or ""
-    }
-    return {"crawl_args": crawl_args, "trans_args": trans_args}
-
-def _build_step2_args(body: Step2Schema) -> dict:
-    # Filter out None values so pipeline defaults apply
-    return {k: v for k, v in body.dict().items() if v is not None}
-
-@app.post("/api/pipeline/step1")
-def run_step1(body: Step1Schema):
-    # Check if any step is currently running for this story
-    from orchestrator.storage import slugify
-    slug = slugify(body.story_name)
-    task_key = f"{slug}_step1"
-    _reject_if_auto_running(slug)
-
-    if process_mgr.is_running(task_key):
-        raise HTTPException(status_code=400, detail="A crawl/translate process is already active for this story.")
-
-    # Nguồn "Sáng tác bằng AI": xác thực chủ đề sớm cho thông báo rõ ràng; việc
-    # sinh truyện bằng LLM do pipeline.start_step_1_crawl_translate định tuyến
-    # (dùng chung một lối với chuỗi auto-run).
-    if body.source_site == "ai_write" and not (body.topic or "").strip():
-        raise HTTPException(status_code=400, detail="Vui lòng nhập chủ đề/ý tưởng để AI sáng tác truyện.")
-
-    step1_args = _build_step1_args(body)
-    success = pipeline.start_step_1_crawl_translate(
-        body.story_name, step1_args["crawl_args"], step1_args["trans_args"])
-    if success:
-        return {"status": "success", "task_key": task_key}
-    raise HTTPException(status_code=500, detail="Failed to start pipeline Step 1.")
-
-@app.post("/api/pipeline/step2")
-def run_step2(body: Step2Schema):
-    from orchestrator.storage import slugify
-    slug = slugify(body.story_name)
-    task_key = f"{slug}_step2"
-    
-    _reject_if_auto_running(slug)
-    if process_mgr.is_running(task_key):
-        raise HTTPException(status_code=400, detail="A TTS process is already active for this story.")
-
-    success = pipeline.start_step_2_tts(body.story_name, _build_step2_args(body))
-    if success:
-        return {"status": "success", "task_key": task_key}
-    raise HTTPException(status_code=500, detail="Failed to start pipeline Step 2.")
-
-@app.post("/api/pipeline/step3")
-def run_step3(body: Step3Schema):
-    from orchestrator.storage import slugify
-    slug = slugify(body.story_name)
-    task_key = f"{slug}_step3"
-    
-    _reject_if_auto_running(slug)
-    if process_mgr.is_running(task_key):
-        raise HTTPException(status_code=400, detail="A video generation process is already active for this story.")
-
-    try:
-        success = pipeline.start_step_3_video(body.story_name, body.dict())
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    if success:
-        return {"status": "success", "task_key": task_key}
-    raise HTTPException(status_code=500, detail="Failed to start pipeline Step 3.")
-
-@app.post("/api/pipeline/stop")
-def stop_pipeline(story_name: str, step: int):
-    from orchestrator.storage import slugify
-    slug = slugify(story_name)
-    task_key = f"{slug}_step{step}"
-    
-    if process_mgr.stop_process(task_key):
-        # Update metadata state
-        meta = storage_mgr.read_story_meta(story_name)
-        if meta:
-            meta["status"] = "CANCELLED"
-            storage_mgr.write_story_meta(story_name, meta)
-        return {"status": "success", "task_key": task_key,
-                "message": f"Successfully stopped task '{task_key}'."}
-
-    raise HTTPException(status_code=404, detail=f"No active running task found for key '{task_key}'.")
-
-@app.get("/api/pipeline/logs/{task_key}")
-def stream_logs(task_key: str):
-    """Real-time logs streaming using Server-Sent Events (SSE)."""
-    return StreamingResponse(
-        process_mgr.get_logs_generator(task_key),
-        media_type="text/event-stream"
-    )
-
-
-@app.get("/api/pipeline/status/{task_key}")
-def pipeline_task_status(task_key: str):
-    """Cho frontend kiểm tra task khi EventSource tạm ngắt/kết thúc."""
-    return process_mgr.get_task_status(task_key)
-
-# ---------------------- Chuỗi chạy tự động Bước 1→4 ----------------------
-
-class AutoRunSchema(BaseModel):
-    story_name: str
-    step1: Step1Schema
-    step2: Step2Schema
-    step3: Step3Schema
-
-@app.post("/api/pipeline/auto-run")
-def start_auto_run(body: AutoRunSchema):
-    # Chặn sớm như nút Bước 1 lẻ: thiếu chủ đề thì cả chuỗi chạy ra truyện rỗng.
-    if body.step1.source_site == "ai_write" and not (body.step1.topic or "").strip():
-        raise HTTPException(status_code=400, detail="Vui lòng nhập chủ đề/ý tưởng để AI sáng tác truyện.")
-    ok, msg = auto_run_mgr.start(
-        body.story_name,
-        _build_step1_args(body.step1),
-        _build_step2_args(body.step2),
-        body.step3.dict(),
-    )
-    if not ok:
-        raise HTTPException(status_code=400, detail=msg)
-    return {"status": "success", "message": msg}
-
-@app.get("/api/pipeline/auto-run/{story_name}")
-def auto_run_status(story_name: str):
-    return auto_run_mgr.status(story_name)
-
-@app.post("/api/pipeline/auto-run/stop")
-def stop_auto_run(story_name: str):
-    if auto_run_mgr.stop(story_name):
-        return {"status": "success", "message": "Đã gửi yêu cầu dừng chuỗi tự động."}
-    raise HTTPException(status_code=404, detail="Không có chuỗi tự động nào đang chạy cho truyện này.")
-
-# ---------------------- Lưu/khôi phục toàn bộ cấu hình UI ----------------------
 
 @app.get("/api/ui-settings")
 def get_ui_settings():
     return load_ui_settings()
+
 
 @app.post("/api/ui-settings")
 def update_ui_settings(settings: dict):
@@ -539,621 +167,358 @@ def update_ui_settings(settings: dict):
         return {"status": "success"}
     raise HTTPException(status_code=500, detail="Không ghi được configs/ui_settings.json.")
 
-@app.post("/api/system/clear-cache")
-def clear_semantic_cache():
-    import shutil
-    import os
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    cache_dir = os.path.join(repo_root, "AIVoice", "storage", "cache")
-    if os.path.exists(cache_dir):
-        try:
-            shutil.rmtree(cache_dir)
-            return {"status": "success", "message": "Đã xóa toàn bộ bộ đệm Semantic Cache thành công."}
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-    return {"status": "success", "message": "Không tìm thấy bộ đệm cache nào để xóa."}
 
-@app.post("/api/pipeline/step4")
-def run_step4(body: Step4Schema):
-    if not body.video_path and not body.download_url:
-        raise HTTPException(status_code=400, detail="Cần cung cấp video_path hoặc download_url.")
-        
-    from orchestrator.storage import slugify
-    import uuid
-    
-    slug = ""
-    if body.story_name:
-        slug = slugify(body.story_name)
-        task_key = f"{slug}_step4"
-    else:
-        task_id = uuid.uuid4().hex[:8]
-        task_key = f"autosub_{task_id}_step4"
-        
-    if process_mgr.is_running(task_key):
-        raise HTTPException(status_code=400, detail="Tiến trình Autosub đang chạy cho truyện/tác vụ này.")
-        
-    autosub_args = {k: v for k, v in body.dict().items() if v is not None}
-    
-    if not body.story_name:
-        autosub_args["task_id"] = task_id
-        
+@app.get("/api/system/gpu-info")
+def get_gpu_info():
     try:
-        success = pipeline.start_step_4_autosub(body.story_name, autosub_args)
-    except Exception as e:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
+            capture_output=True, text=True, creationflags=NO_WINDOW)
+        if result.returncode == 0 and result.stdout.strip():
+            parts = result.stdout.strip().splitlines()[0].split(", ")
+            return {"name": parts[0], "vram": parts[1] if len(parts) > 1 else "N/A"}
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return {"name": "Không thấy GPU NVIDIA", "vram": "N/A"}
+
+
+@app.get("/api/ollama/models")
+def get_ollama_models():
+    """Model Ollama đã cài + vài model dịch khuyến nghị (nhẹ, hợp GPU 6GB)."""
+    curated = {
+        "qwen2.5:3b-instruct": "Nhẹ ~2-3GB VRAM — mặc định cho dịch phụ đề",
+        "hy-mt2:1.8b": "Chuyên dịch Trung/Anh → Việt, siêu nhẹ",
+        "translategemma:4b": "Chuyên dịch, 55 ngôn ngữ",
+        "qwen2.5:7b-instruct": "Chất lượng cao hơn, ~5GB VRAM",
+    }
+    base_url = (load_global_config().get("translate") or {}).get("ollama_base_url", "")
+    installed = ollama_manager.list_installed(base_url)
+    online = ollama_manager.is_server_up(ollama_manager.to_root(base_url))
+    models = [{"name": n, "label": curated.get(n, ""), "installed": True} for n in installed]
+    for name, label in curated.items():
+        if name not in installed:
+            models.append({"name": name, "label": label, "installed": False})
+    return {"ollama_online": online, "models": models}
+
+
+@app.get("/api/stats")
+def get_stats():
+    stats = library.stats()
+    stats["running_tasks"] = process_mgr.list_running()
+    return stats
+
+
+@app.post("/api/maintenance/cleanup-tasks")
+def cleanup_tasks_api(dry_run: bool = True, days: float = 0):
+    """Dọn thư mục làm việc tạm (ảnh xem trước OCR, video tải thử...)."""
+    return library.cleanup_tasks(keep_days=days, dry_run=dry_run)
+
+
+# ------------------------------------------------------------- Thư viện
+@app.get("/api/videos")
+def list_videos():
+    return library.list_entries()
+
+
+@app.get("/api/videos/{entry_id}")
+def get_video(entry_id: str):
+    entry = library.read_entry(entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"Không có video '{entry_id}' trong thư viện.")
+    return entry
+
+
+@app.delete("/api/videos/{entry_id}")
+def delete_video(entry_id: str):
+    if not library.read_entry(entry_id):
+        raise HTTPException(status_code=404, detail=f"Không có video '{entry_id}' trong thư viện.")
+    if library.delete_entry(entry_id):
+        return {"status": "success"}
+    raise HTTPException(status_code=500, detail="Không xoá được thư mục video (file đang mở?).")
+
+
+@app.post("/api/videos/import")
+def import_video(body: ImportSchema):
+    """Đưa video có sẵn trên máy vào thư viện để dịch (mặc định không chép file)."""
+    try:
+        entry = library.register_local(body.path, body.title or "", bool(body.copy_file))
+    except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
-        
-    if success:
-        return {"status": "success", "task_key": task_key}
-    raise HTTPException(status_code=500, detail="Không khởi tạo được pipeline Bước 4.")
+
+    # Đọc W/H/thời lượng để thư viện hiện đủ thông tin như video tải về. Không đọc
+    # được (file hỏng, thiếu codec) thì vẫn giữ mục lại — người dùng vẫn dịch được.
+    meta = pipeline.probe_media(entry["file"])
+    if meta:
+        entry.update(meta)
+        library.write_entry(entry["entry_id"], entry)
+        entry = library.read_entry(entry["entry_id"])
+    return entry
+
+
+def _reveal_in_file_manager(path: str) -> None:
+    """Mở thư mục bằng trình quản lý tệp của hệ điều hành (app chạy cục bộ)."""
+    if sys.platform == "win32":
+        os.startfile(path)  # noqa: S606 - đường dẫn do server tự dựng
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
+
+
+@app.post("/api/videos/{entry_id}/open-folder")
+def open_video_folder(entry_id: str, kind: str = "root"):
+    entry = library.read_entry(entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"Không có video '{entry_id}' trong thư viện.")
+    path = {"output": library.output_dir(entry_id),
+            "subs": library.subs_dir(entry_id)}.get(kind, library.entry_dir(entry_id))
+    try:
+        os.makedirs(path, exist_ok=True)
+        _reveal_in_file_manager(path)
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Không mở được thư mục '{path}': {e}")
+    return {"status": "success", "path": path}
+
+
+@app.post("/api/system/open-folder")
+def open_storage_folder(kind: str = "storage"):
+    path = {"videos": library.videos_dir, "merged": library.merged_dir,
+            "tasks": library.tasks_dir}.get(kind, library.base_dir)
+    try:
+        os.makedirs(path, exist_ok=True)
+        _reveal_in_file_manager(path)
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Không mở được thư mục '{path}': {e}")
+    return {"status": "success", "path": path}
+
+
+@app.get("/api/videos/{entry_id}/play")
+def play_video(entry_id: str, kind: str = "source", name: str = ""):
+    """Phát video ngay trong giao diện (FileResponse của Starlette có hỗ trợ Range)."""
+    try:
+        path = library.find_file(entry_id, kind, name)
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return FileResponse(path, media_type="video/mp4", filename=os.path.basename(path))
+
+
+@app.get("/api/videos/{entry_id}/sub")
+def read_sub(entry_id: str, name: str, download: bool = False):
+    """Nội dung một file phụ đề — để sửa tay trên giao diện hoặc tải về."""
+    try:
+        path = library.find_file(entry_id, "sub", name)
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    if download:
+        return FileResponse(path, media_type="application/x-subrip", filename=os.path.basename(path))
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            return PlainTextResponse(fh.read())
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Không đọc được file phụ đề: {e}")
+
+
+@app.post("/api/videos/{entry_id}/sub")
+def save_sub(entry_id: str, body: SubSaveSchema):
+    """Lưu phụ đề đã sửa/tải lên; dùng lại được ngay ở chế độ 'phụ đề có sẵn'."""
+    try:
+        saved = library.add_sub(entry_id, body.name, body.content)
+    except (FileNotFoundError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"status": "success", **saved}
+
+
+# ------------------------------------------------------------- Cào video
+@app.post("/api/download/probe")
+def download_probe(body: ProbeSchema):
+    urls = [u.strip() for u in body.urls if u and u.strip()]
+    if not urls:
+        raise HTTPException(status_code=400, detail="Chưa nhập link video nào.")
+    try:
+        return pipeline.probe(urls, body.model_dump())
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Quá 5 phút vẫn chưa đọc xong danh sách — kiểm tra mạng/link.")
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/download/start")
+def download_start(body: DownloadSchema):
+    urls = [u.strip() for u in body.urls if u and u.strip()]
+    if not urls:
+        raise HTTPException(status_code=400, detail="Chưa nhập link video nào.")
+    if process_mgr.is_running(TASK_DOWNLOAD):
+        raise HTTPException(status_code=400, detail="Đang có lượt tải khác chạy — dừng nó trước.")
+
+    then_translate = None
+    if body.auto_translate:
+        if process_mgr.is_running(TASK_TRANSLATE):
+            raise HTTPException(status_code=400,
+                                detail="Đang có tác vụ dịch chạy — không thể bật 'dịch luôn sau khi tải'.")
+        params = body.translate or TranslateParams()
+        then_translate = params.model_dump()
+
+    if not pipeline.start_download(TASK_DOWNLOAD, urls, body.model_dump(), then_translate):
+        raise HTTPException(status_code=500, detail="Không khởi động được tiến trình tải.")
+    return {"status": "success", "task_key": TASK_DOWNLOAD}
+
+
+# ------------------------------------------------------------- Dịch video
+@app.post("/api/translate/start")
+def translate_start(body: TranslateSchema):
+    if not body.entry_ids:
+        raise HTTPException(status_code=400, detail="Chưa chọn video nào để dịch.")
+    if process_mgr.is_running(TASK_TRANSLATE):
+        raise HTTPException(status_code=400, detail="Tác vụ dịch đang chạy — dừng nó trước.")
+
+    jobs = []
+    for entry_id in body.entry_ids:
+        entry = library.read_entry(entry_id)
+        if not entry:
+            raise HTTPException(status_code=404, detail=f"Không có video '{entry_id}' trong thư viện.")
+        if not entry.get("exists"):
+            raise HTTPException(status_code=400,
+                                detail=f"File video của '{entry.get('title')}' không còn trên đĩa.")
+        jobs.append(pipeline.make_job(entry))
+
+    args = body.model_dump()
+    if args.get("sub_source") == "import":
+        # Phụ đề nạp vào phải áp cho ĐÚNG một video: dùng chung một file .srt cho
+        # cả hàng đợi thì mọi video sau đều lệch tiếng.
+        if len(jobs) > 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Chế độ 'phụ đề có sẵn' chỉ áp dụng cho một video mỗi lượt.")
+        srt = (args.get("source_srt") or "").strip()
+        if not srt or not os.path.exists(srt):
+            raise HTTPException(status_code=400, detail=f"Không tìm thấy file phụ đề: {srt or '(trống)'}")
+
+    try:
+        started = pipeline.start_translate(TASK_TRANSLATE, jobs, args)
+    except ValueError as e:  # thiếu API key cho engine đã chọn
+        raise HTTPException(status_code=400, detail=str(e))
+    if not started:
+        raise HTTPException(status_code=500, detail="Không khởi động được tác vụ dịch.")
+    return {"status": "success", "task_key": TASK_TRANSLATE, "count": len(jobs)}
+
 
 @app.post("/api/autosub/prepare")
 def autosub_prepare(body: PrepareSchema):
-    import subprocess
-    import uuid
+    """Tải/đọc video rồi trả một khung hình để người dùng khoanh vùng phụ đề (OCR)."""
     import base64
-    import json as _json
-    
-    if not body.video_path and not body.download_url:
-        raise HTTPException(status_code=400, detail="Cần cung cấp video_path hoặc download_url.")
-        
+    import uuid
+
+    video_path = body.video_path
+    if body.entry_id:
+        entry = library.read_entry(body.entry_id)
+        if not entry:
+            raise HTTPException(status_code=404, detail=f"Không có video '{body.entry_id}' trong thư viện.")
+        video_path = entry.get("file")
+    if not video_path and not body.download_url:
+        raise HTTPException(status_code=400, detail="Cần chọn video trong thư viện, hoặc nhập đường dẫn/link.")
+
     task_id = uuid.uuid4().hex[:8]
-    work_dir = os.path.join(storage_mgr.tasks_dir, f"autosub_{task_id}")
+    work_dir = os.path.join(library.tasks_dir, f"prepare_{task_id}")
     os.makedirs(work_dir, exist_ok=True)
-    
-    python_exe = os.path.abspath("AIVoice/.venv/Scripts/python.exe")
-    adapter = os.path.abspath("AIVoice/apps/MediaComposer/adapter_autosub_cli.py")
-    
-    cmd = [python_exe, adapter, "--prepare-only", "--output-dir", work_dir]
+
+    cmd = [PYTHON_EXE, AUTOSUB_ADAPTER, "--prepare-only", "--output-dir", work_dir]
     if body.download_url:
         cmd += ["--download-url", body.download_url, "--platform", body.platform or "generic"]
     else:
-        cmd += ["--video-path", body.video_path]
-        
-    from orchestrator.config import load_global_config
+        cmd += ["--video-path", video_path]
     g_config = load_global_config()
-    resolved_cookies = body.cookies_file or g_config.get("video", {}).get("downloader_cookies", "")
-    if resolved_cookies:
-        cmd += ["--cookies-file", resolved_cookies]
-        
+    cookies = (body.cookies_file
+               or (g_config.get("download") or {}).get("cookies_file")
+               or (g_config.get("video") or {}).get("downloader_cookies") or "")
+    if cookies:
+        cmd += ["--cookies-file", cookies]
+
     try:
-        res = subprocess.run(cmd, cwd="AIVoice", capture_output=True, text=True, encoding="utf-8", timeout=900,
-                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        res = subprocess.run(cmd, cwd=AIVOICE_DIR, capture_output=True, text=True,
+                             encoding="utf-8", timeout=900, creationflags=NO_WINDOW)
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="Tải/chuẩn bị video quá 15 phút — kiểm tra link hoặc mạng.")
-        
-    if res.returncode != 0:
-        err_msg = res.stderr[-1000:] if res.stderr else (res.stdout[-1000:] if res.stdout else "No output")
-        raise HTTPException(status_code=500, detail=f"Lỗi prepare_only: {err_msg}")
-        
+
     info = None
-    for line in res.stdout.splitlines():
-        if line.strip():
-            try:
-                data = _json.loads(line)
-                if data.get("event") == "prepare_done":
-                    info = data
-                    break
-            except _json.JSONDecodeError:
-                continue
-                
+    for line in (res.stdout or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if data.get("event") == "prepare_done":
+            info = data
+            break
     if not info:
-        err_msg = res.stdout[-1000:] if res.stdout else "No output"
-        raise HTTPException(status_code=500, detail=f"Không nhận được phản hồi prepare_done. Log: {err_msg}")
-        
-    preview_img_path = info.get("preview_image")
-    if not preview_img_path or not os.path.exists(preview_img_path):
+        detail = (res.stderr or res.stdout or "không có output")[-1000:]
+        raise HTTPException(status_code=500, detail=f"Không chuẩn bị được video. Log: {detail}")
+
+    preview = info.get("preview_image")
+    if not preview or not os.path.exists(preview):
         raise HTTPException(status_code=500, detail="Không tạo được ảnh xem trước.")
-        
-    with open(preview_img_path, "rb") as f:
-        img_b64 = base64.b64encode(f.read()).decode("utf-8")
-        
+    with open(preview, "rb") as fh:
+        img_b64 = base64.b64encode(fh.read()).decode("utf-8")
     return {
-        "task_id": task_id,
         "prepared_path": info.get("prepared_path"),
         "width": info.get("width"),
         "height": info.get("height"),
         "duration": info.get("duration"),
-        "preview_b64": f"data:image/jpeg;base64,{img_b64}"
+        "preview_b64": f"data:image/jpeg;base64,{img_b64}",
     }
 
-@app.post("/api/pipeline/step5")
-def run_step5(body: Step5Schema):
-    from orchestrator.storage import slugify
-    slug = slugify(body.story_name)
-    task_key = f"{slug}_step5"
-    _reject_if_auto_running(slug)
 
-    if process_mgr.is_running(task_key):
-        raise HTTPException(status_code=400, detail="Tiến trình Ghép Video đang chạy.")
-        
-    try:
-        success = pipeline.start_step_5_merge(body.story_name, body.selected_files)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-        
-    if success:
-        return {"status": "success", "task_key": task_key}
-    raise HTTPException(status_code=500, detail="Không khởi tạo được pipeline Bước 5.")
+# ------------------------------------------------------------- Ghép video
+@app.post("/api/merge/start")
+def merge_start(body: MergeSchema):
+    if not body.items:
+        raise HTTPException(status_code=400, detail="Chưa chọn video nào để ghép.")
+    if process_mgr.is_running(TASK_MERGE):
+        raise HTTPException(status_code=400, detail="Tác vụ ghép đang chạy.")
 
-@app.get("/api/stories/{story_name}/videos")
-def get_story_videos(story_name: str):
-    import glob
+    files = []
+    for item in body.items:
+        try:
+            files.append(library.find_file(item.entry_id, item.kind or "output", item.name or ""))
+        except (FileNotFoundError, ValueError) as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-    story_dir = storage_mgr.get_story_dir(story_name)
-    if not os.path.exists(story_dir):
-        raise HTTPException(status_code=404, detail="Truyện không tồn tại.")
-        
-    video_dir = os.path.join(story_dir, "video")
-    if not os.path.exists(video_dir):
-        return []
-        
-    mp4_files = sorted(glob.glob(os.path.join(video_dir, "*.mp4")))
-    
-    videos = []
-    for f in mp4_files:
-        name = os.path.basename(f)
-        size = os.path.getsize(f)
-        is_merged = name.startswith("TongHop_")
-        videos.append({
-            "name": name,
-            "size": size,
-            "is_merged": is_merged
-        })
-    return videos
+    if not pipeline.start_merge(TASK_MERGE, files, body.output_name or ""):
+        raise HTTPException(status_code=500, detail="Không khởi động được tác vụ ghép.")
+    return {"status": "success", "task_key": TASK_MERGE, "count": len(files)}
 
-@app.post("/api/pipeline/stop-task")
+
+@app.get("/api/merged")
+def list_merged():
+    return library._list_files(library.merged_dir, (".mp4",))
+
+
+# ------------------------------------------------------------- Tác vụ chung
+@app.get("/api/tasks/logs/{task_key}")
+def stream_logs(task_key: str):
+    return StreamingResponse(process_mgr.get_logs_generator(task_key),
+                             media_type="text/event-stream")
+
+
+@app.get("/api/tasks/status/{task_key}")
+def task_status(task_key: str):
+    return process_mgr.get_task_status(task_key)
+
+
+@app.get("/api/tasks/running")
+def running_tasks():
+    return {"running": process_mgr.list_running()}
+
+
+@app.post("/api/tasks/stop")
 def stop_task(task_key: str):
     if process_mgr.stop_process(task_key):
-        try:
-            parts = task_key.rsplit("_", 1)
-            if len(parts) == 2 and parts[1].startswith("step"):
-                slug = parts[0]
-                stories = storage_mgr.list_stories()
-                for s in stories:
-                    if s.get("story_slug") == slug:
-                        story_name = s.get("story_name")
-                        meta = storage_mgr.read_story_meta(story_name)
-                        if meta:
-                            meta["status"] = "CANCELLED"
-                            storage_mgr.write_story_meta(story_name, meta)
-                        break
-        except Exception:
-            pass
-            
-        return {"status": "success", "message": f"Successfully stopped task '{task_key}'."}
-        
-    raise HTTPException(status_code=404, detail=f"No active running task found for key '{task_key}'.")
-
-# ------------------------------------------------------------------ Chatbot API
-@app.get("/api/chat/health")
-def get_chat_health():
-    cfg = load_global_config().get("chatbot", {})
-    base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
-    root = base_url.rstrip("/")
-    if root.endswith("/v1"):
-        root = root[:-3]
-
-    want_model = cfg.get("model", "qwen2.5:3b")
-    ollama_online = False
-    model_loaded = False   # đã nạp sẵn trong VRAM (/api/ps)
-    model_installed = False  # đã pull về đĩa (/api/tags)
-
-    def _same_tag(a: str, b: str) -> bool:
-        """Ollama coi 'foo' và 'foo:latest' là một."""
-        norm = lambda s: s if ":" in s else f"{s}:latest"  # noqa: E731
-        return norm(a) == norm(b)
-
-    try:
-        with httpx.Client(timeout=2.0) as client:
-            r = client.get(f"{root}/api/ps")
-            if r.status_code == 200:
-                ollama_online = True
-                names = [m.get("name", "") for m in r.json().get("models", [])]
-                model_loaded = any(_same_tag(want_model, n) for n in names)
-
-            # model_installed phải HỎI THẬT /api/tags. Trước đây giá trị này bị
-            # hardcode True, nên khi model chưa pull thì badge vẫn xanh và người
-            # dùng chỉ phát hiện ra khi câu hỏi đầu tiên trả về 404.
-            rt = client.get(f"{root}/api/tags")
-            if rt.status_code == 200:
-                ollama_online = True
-                installed = [m.get("name", "") for m in rt.json().get("models", [])]
-                model_installed = any(_same_tag(want_model, n) for n in installed)
-    except Exception:
-        pass
-
-    gpu_weight, busy_tasks = chat_mgr.get_gpu_weight()
-    return {
-        "ollama_online": ollama_online,
-        "model": want_model,
-        "model_installed": model_installed,
-        "model_loaded": model_loaded,
-        "busy": gpu_weight != "none",
-        "busy_tasks": busy_tasks,
-        "gpu_weight": gpu_weight,
-        "lookup_only": gpu_weight == "heavy"
-    }
-
-@app.get("/api/system/busy")
-def get_system_busy():
-    gpu_weight, tasks = chat_mgr.get_gpu_weight()
-    chains = auto_run_mgr.list_running_chains()
-    return {
-        "running": len(tasks) > 0,
-        "tasks": tasks,
-        "chains": chains,
-        "gpu_weight": gpu_weight
-    }
-
-@app.post("/api/chat")
-async def post_chat(body: ChatRequestSchema, request: Request):
-    cfg = load_global_config().get("chatbot", {})
-    if not cfg.get("enabled", True):
-        raise HTTPException(status_code=503, detail="Trợ lý AI đang bị tắt trong Cấu Hình Chung.")
-
-    acquired = chat_mgr.single_chat_lock.acquire(blocking=False)
-    if not acquired:
-        raise HTTPException(status_code=429, detail="Trợ lý đang trả lời câu trước.")
-
-    try:
-        gpu_weight, busy_tasks = chat_mgr.get_gpu_weight()
-        block_when_busy = cfg.get("block_when_busy", True)
-
-        if block_when_busy and gpu_weight == "heavy" and not body.force and body.mode != "lookup":
-            chat_mgr.single_chat_lock.release()
-            lookup_ans = chat_mgr.lookup_only(body.message, body.active_tab or "")
-            return JSONResponse(
-                status_code=409,
-                content={
-                    "detail": "Pipeline GPU bận",
-                    "busy_tasks": busy_tasks,
-                    "lookup_answer": lookup_ans
-                }
-            )
-
-        # Chào hỏi: trả lời ngay, không qua truy xuất và không gọi LLM.
-        if chat_mgr.is_greeting(body.message):
-            chat_mgr.single_chat_lock.release()
-            loi_chao = chat_mgr.greeting_reply()
-
-            async def generate_greeting():
-                yield json.dumps({"delta": loi_chao}) + "\n"
-                yield json.dumps({"done": True, "prompt_tokens": 0, "truncated": False}) + "\n"
-
-            return StreamingResponse(generate_greeting(), media_type="application/x-ndjson")
-
-        action, action_args = chat_mgr.route_intent(body.message, body.story_name or "")
-        if action != "chat":
-            if action in ["run_step", "select_story"]:
-                chat_mgr.single_chat_lock.release()
-
-                # PHẢI trả NDJSON có newline cuối như mọi nhánh khác.
-                # Trước đây nhánh này trả JSONResponse thuần (application/json,
-                # không newline). Client tách stream theo "\n" rồi lop() dòng cuối
-                # chưa hoàn chỉnh vào buffer, nên gói JSON duy nhất không bao giờ
-                # được xử lý — widget đứng mãi ở dấu "..." khi người dùng gõ lệnh.
-                async def generate_agent_action():
-                    yield json.dumps({
-                        "agent_action": action,
-                        "args": action_args,
-                        "message": f"Yêu cầu thực thi lệnh {action}",
-                        "done": True,
-                    }) + "\n"
-
-                return StreamingResponse(
-                    generate_agent_action(), media_type="application/x-ndjson"
-                )
-            elif action in ["list_stories", "story_report", "system_status"]:
-                res = chat_mgr.agent_query(action, action_args)
-                chat_mgr.single_chat_lock.release()
-                async def generate_agent_l1():
-                    yield json.dumps({"delta": "Dưới đây là thông tin bạn yêu cầu:\n"}) + "\n"
-                    yield json.dumps({"agent_result": res, "done": True, "prompt_tokens": 0, "truncated": False}) + "\n"
-                return StreamingResponse(generate_agent_l1(), media_type="application/x-ndjson")
-
-        if body.mode == "lookup" or (gpu_weight == "heavy" and not body.force):
-            lookup_ans = chat_mgr.lookup_only(body.message, body.active_tab or "")
-            chat_mgr.single_chat_lock.release()
-            async def generate_lookup():
-                yield json.dumps({"delta": lookup_ans["answer"]}) + "\n"
-                yield json.dumps({"done": True, "prompt_tokens": 0, "truncated": False, "mode": "lookup", "sources": lookup_ans["sources"]}) + "\n"
-            return StreamingResponse(generate_lookup(), media_type="application/x-ndjson")
-
-        session = chat_mgr.get_or_create_session(
-            body.session_id,
-            max_sessions=cfg.get("max_sessions", 20),
-            ttl_minutes=cfg.get("session_ttl_minutes", 120)
-        )
-
-        kb_sections, max_score = chat_mgr.select_kb(
-            query=body.message,
-            active_tab=body.active_tab or "",
-            sticky_kb=session.get("sticky_kb") if cfg.get("kb_sticky_per_session", True) else None,
-            token_budget=cfg.get("kb_token_budget", 3000),
-            min_score=cfg.get("kb_min_score", 0.75)
-        )
-        if cfg.get("kb_sticky_per_session", True) and kb_sections:
-            session["sticky_kb"] = kb_sections
-
-        min_score = cfg.get("kb_min_score", 0.75)
-        if max_score < min_score and "truyện" not in body.message.lower() and "story" not in body.message.lower():
-            chat_mgr.single_chat_lock.release()
-            refusal_text = (
-                "Tài liệu hiện có không đề cập nội dung này.\n\n"
-                "📌 **Các mục bạn có thể tham khảo:**\n"
-                "- `00-tong-quan.md`: Quy trình 5 bước\n"
-                "- `06-cau-hinh.md`: Cấu hình chung\n"
-                "- `07-su-co-thuong-gap.md`: FAQ giải quyết lỗi\n"
-            )
-            async def generate_gate_refusal():
-                yield json.dumps({"delta": refusal_text}) + "\n"
-                yield json.dumps({"done": True, "prompt_tokens": 0, "truncated": False, "gate_refusal": True}) + "\n"
-            return StreamingResponse(generate_gate_refusal(), media_type="application/x-ndjson")
-
-        story_ctx = chat_mgr.build_story_context(body.story_name or "")
-
-        # Cache câu lặp — CHỈ cho câu hỏi vận hành thuần (vai A). Câu có ngữ cảnh
-        # truyện không được cache: số chương/audio/video đổi liên tục nên trả lời
-        # cũ sẽ sai. Câu tiếp nối trong hội thoại cũng không, vì nghĩa của nó phụ
-        # thuộc các lượt trước.
-        model_now = cfg.get("model", "qwen2.5:3b")
-        cacheable = (
-            cfg.get("cache_repeat_questions", True)
-            and not story_ctx
-            and not session.get("messages")
-        )
-        if cacheable:
-            hit = chat_mgr.cache_get(body.message, model_now)
-            if hit:
-                chat_mgr.single_chat_lock.release()
-
-                async def generate_cached():
-                    yield json.dumps({"delta": hit}) + "\n"
-                    yield json.dumps({
-                        "done": True, "prompt_tokens": 0,
-                        "truncated": False, "from_cache": True,
-                    }) + "\n"
-
-                return StreamingResponse(generate_cached(), media_type="application/x-ndjson")
-
-        base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
-        num_ctx = cfg.get("num_ctx", 8192)
-
-        # Lượt suy nghĩ: chỉ chạy khi truy xuất tỏ ra không chắc (mảnh rải trên
-        # nhiều file). Cho model chọn mảnh dựa trên TIÊU ĐỀ trước, rồi mới nạp
-        # nội dung của mảnh đã chọn — prompt ngắn nên lượt này rẻ.
-        if cfg.get("reasoning_pass", True) and chat_mgr.needs_reasoning(kb_sections):
-            try:
-                picked_reply = ""
-                async for ch in chat_stream_ollama(
-                    base_url=base_url, model=model_now,
-                    messages=chat_mgr.build_reasoning_prompt(body.message, kb_sections),
-                    temperature=0.1, num_predict=24, num_ctx=num_ctx,
-                ):
-                    picked_reply += ch.get("delta", "")
-                before = len(kb_sections)
-                kb_sections = chat_mgr.apply_reasoning(kb_sections, picked_reply)
-                logger.info(f"[Chatbot] Lượt suy nghĩ: {before} mảnh -> {len(kb_sections)}.")
-            except Exception as e:
-                # Chọn hỏng thì dùng nguyên danh sách truy xuất, không chặn câu trả lời.
-                logger.warning(f"[Chatbot] Lượt suy nghĩ lỗi, bỏ qua: {e}")
-
-        system_prompt = chat_mgr.build_system_prompt(kb_sections, story_ctx)
-
-        messages = [{"role": "system", "content": system_prompt}]
-        history = session.get("messages", [])
-        max_turns = cfg.get("max_history_turns", 12)
-        recent_history = history[-(max_turns * 2):]
-        messages.extend(recent_history)
-        messages.append({"role": "user", "content": body.message})
-
-        model = model_now
-
-        async def generate_chat():
-            full_response = ""
-            try:
-                # Ollama chưa chạy / model chưa pull -> tự lo, thay vì để câu hỏi
-                # đầu tiên trả về 404 rồi người dùng phải tự gõ `ollama pull`.
-                import asyncio as _asyncio
-                notices: list[str] = []
-                ready = await _asyncio.to_thread(
-                    ollama_manager.ensure_ready,
-                    model,
-                    base_url,
-                    cfg.get("autostart_ollama", True),
-                    True,
-                    lambda msg, pct: notices.append(msg),
-                )
-                if notices:
-                    # Chỉ báo dòng mới nhất để khỏi ngập màn hình bằng % trung gian.
-                    yield json.dumps({"delta": f"_{notices[-1]}_\n\n"}) + "\n"
-                if not ready["ok"]:
-                    yield json.dumps({
-                        "delta": ready["reason"] or "Không chuẩn bị được model cho trợ lý.",
-                    }) + "\n"
-                    yield json.dumps({
-                        "done": True, "prompt_tokens": 0, "truncated": False,
-                        "model_not_ready": True,
-                    }) + "\n"
-                    return
-
-                async for chunk in chat_stream_ollama(
-                    base_url=base_url,
-                    model=model,
-                    messages=messages,
-                    temperature=cfg.get("temperature", 0.4),
-                    top_p=cfg.get("top_p", 0.9),
-                    repeat_penalty=cfg.get("repeat_penalty", 1.05),
-                    num_predict=cfg.get("num_predict", 512),
-                    num_ctx=num_ctx,
-                ):
-                    if await request.is_disconnected():
-                        logger.info("[Chatbot] Client ngắt kết nối giữa stream.")
-                        break
-
-                    if "delta" in chunk:
-                        full_response += chunk["delta"]
-                    yield json.dumps(chunk) + "\n"
-
-                if full_response:
-                    if cacheable:
-                        chat_mgr.cache_put(body.message, model_now, full_response)
-                    session["messages"].append({"role": "user", "content": body.message})
-                    session["messages"].append({"role": "assistant", "content": full_response})
-            except Exception as ex:
-                logger.error(f"[Chatbot] Lỗi stream chat: {ex}")
-                yield json.dumps({"error": str(ex)}) + "\n"
-            finally:
-                chat_mgr.single_chat_lock.release()
-
-        return StreamingResponse(generate_chat(), media_type="application/x-ndjson")
-
-    except HTTPException:
-        chat_mgr.single_chat_lock.release()
-        raise
-    except Exception as e:
-        chat_mgr.single_chat_lock.release()
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/chat/unload")
-def unload_chat_endpoint():
-    cfg = load_global_config().get("chatbot", {})
-    base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
-    model = cfg.get("model", "")
-    ok = unload_ollama(base_url, model)
-    return {"status": "success" if ok else "failed"}
-
-@app.delete("/api/chat/sessions/{session_id}")
-def delete_chat_session_endpoint(session_id: str):
-    if session_id in chat_mgr.sessions:
-        del chat_mgr.sessions[session_id]
-        return {"status": "success"}
-    return {"status": "not_found"}
-
-@app.post("/api/chat/prewarm")
-async def prewarm_chat_model():
-    cfg = load_global_config().get("chatbot", {})
-    if not cfg.get("prewarm_on_open", True):
-        return {"status": "disabled"}
-
-    gpu_weight, _ = chat_mgr.get_gpu_weight()
-    if gpu_weight == "heavy":
-        return {"status": "busy_skipped"}
-
-    base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
-    root = base_url.rstrip("/")
-    if root.endswith("/v1"):
-        root = root[:-3]
-    model = cfg.get("model", "qwen2.5:3b")
-
-    # Mở khung chat là lúc tốt nhất để bật Ollama dậy — làm ở đây thì câu hỏi đầu
-    # tiên không phải chờ. Cố ý KHÔNG pull ở đây: prewarm phải nhanh, việc tải
-    # model nặng để preflight nền hoặc lượt chat đầu tiên lo.
-    import asyncio as _asyncio
-    if not await _asyncio.to_thread(
-        ollama_manager.ensure_server, base_url, cfg.get("autostart_ollama", True)
-    ):
-        return {"status": "failed", "error": "Ollama chưa sẵn sàng."}
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            await client.post(f"{root}/api/generate", json={"model": model, "keep_alive": "5m"})
-            return {"status": "prewarmed", "model": model}
-    except Exception as e:
-        logger.warning(f"[Chatbot] Prewarm failed: {e}")
-        return {"status": "failed", "error": str(e)}
-
-def _gpu_total_mb() -> int:
-    """VRAM tổng theo MB, 0 nếu không có nvidia-smi."""
-    import subprocess
-    try:
-        r = subprocess.run(
-            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
-            capture_output=True, text=True,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-        )
-        if r.returncode == 0 and r.stdout.strip():
-            return int(r.stdout.strip().splitlines()[0].strip())
-    except Exception:
-        pass
-    return 0
+        return {"status": "success", "message": f"Đã dừng tác vụ '{task_key}'."}
+    raise HTTPException(status_code=404, detail=f"Không có tác vụ '{task_key}' đang chạy.")
 
 
-def _ollama_root(cfg: dict) -> str:
-    base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
-    root = base_url.rstrip("/")
-    return root[:-3] if root.endswith("/v1") else root
-
-
-@app.get("/api/chat/models")
-def list_chat_models():
-    """Danh sách model trợ lý kèm mức VRAM thật và khuyến nghị theo máy."""
-    cfg = load_global_config().get("chatbot", {})
-    total_mb = _gpu_total_mb()
-    tier = vram_tier(total_mb) if total_mb else "8gb"
-
-    installed = []
-    try:
-        with httpx.Client(timeout=3.0) as client:
-            r = client.get(f"{_ollama_root(cfg)}/api/tags")
-            if r.status_code == 200:
-                installed = [m.get("name", "") for m in r.json().get("models", [])]
-    except Exception:
-        pass
-
-    def _same(a: str, b: str) -> bool:
-        n = lambda s: s if ":" in s else f"{s}:latest"  # noqa: E731
-        return n(a) == n(b)
-
-    models = []
-    for p in CHAT_MODEL_PROFILES:
-        models.append({
-            **p,
-            "installed": any(_same(p["name"], n) for n in installed),
-            "fits": tier in p["tiers"],
-        })
-
-    return {
-        "current": cfg.get("model", ""),
-        "gpu_name": get_gpu_info().get("name", ""),
-        "gpu_vram_mb": total_mb,
-        "tier": tier,
-        "recommended": TIER_DEFAULT_MODEL.get(tier, ""),
-        "models": models,
-    }
-
-
-@app.post("/api/chat/model")
-async def set_chat_model(body: ChatModelSchema):
-    """Đổi model trợ lý ngay trên widget, nhả model cũ khỏi VRAM trước khi lưu."""
-    known = {p["name"] for p in CHAT_MODEL_PROFILES}
-    if body.model not in known:
-        raise HTTPException(status_code=400, detail=f"Model '{body.model}' không nằm trong danh sách hỗ trợ.")
-
-    full = load_global_config()
-    chat_cfg = full.setdefault("chatbot", {})
-    old_model = chat_cfg.get("model", "")
-
-    # Nhả model cũ trước khi đổi, nếu không hai model cùng neo trong VRAM cho tới
-    # khi keep_alive hết hạn — đúng thứ gây OOM trên máy 6GB.
-    if old_model and old_model != body.model:
-        import asyncio as _asyncio
-        try:
-            await _asyncio.to_thread(unload_ollama, _ollama_root(chat_cfg), old_model)
-        except Exception as e:
-            logger.warning(f"[Chatbot] Không nhả được model cũ '{old_model}': {e}")
-
-    chat_cfg["model"] = body.model
-    if not save_global_config(full):
-        raise HTTPException(status_code=500, detail="Không lưu được cấu hình.")
-    return {"status": "ok", "model": body.model, "unloaded": old_model}
-
-
-@app.post("/api/agent/query")
-def agent_query_endpoint(body: AgentQuerySchema):
-    return chat_mgr.agent_query(body.action, body.args or {})
-
-# Serve Web UI assets directly
+# Giao diện web (đặt CUỐI để không nuốt mất các route /api/*)
 webui_dir = os.path.abspath("webui")
 if os.path.exists(webui_dir):
     app.mount("/", StaticFiles(directory=webui_dir, html=True), name="webui")

@@ -47,10 +47,6 @@ jobs:
           python -m compileall app/services/storytelling -q
           python -m pytest tests -q
 
-      - name: Kiem tra cu phap toolCaoTruyen
-        run: |
-          python -m compileall toolCaoTruyen/core toolCaoTruyen/translator toolCaoTruyen/sources toolCaoTruyen/web -q
-          python -m py_compile toolCaoTruyen/adapter_cli.py toolCaoTruyen/main.py toolCaoTruyen/app.py
 
   dong-goi:
     name: Dong goi va phat hanh
@@ -65,7 +61,7 @@ jobs:
       - name: Tao goi ma nguon
         run: |
           zip -r "ToolAutoMakeCartoonVideo2DFromComics-${GITHUB_REF_NAME}.zip" \
-            orchestrator webui configs tests scripts docs AIVoice toolCaoTruyen \
+            orchestrator webui configs tests scripts docs AIVoice \
             README.md pytest.ini run.bat setup.bat .gitmodules \
             -x "*/.git" "*/.git/*" "*__pycache__*" "*.pyc"
 

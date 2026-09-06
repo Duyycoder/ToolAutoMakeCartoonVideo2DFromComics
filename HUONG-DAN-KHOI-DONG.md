@@ -1,21 +1,17 @@
 # Hướng dẫn cập nhật & khởi động
 
-**Dành cho máy đã có sẵn dự án nhưng đang ở phiên bản cũ.**
+**Dành cho máy đã có sẵn dự án nhưng đang ở phiên bản cũ.** Bản này là nhánh **Cào & Dịch Video**.
 Không cần biết code. Làm đúng 4 bước dưới đây.
-
-> 📄 Bản in đẹp có hình minh hoạ: **[HUONG-DAN-KHOI-DONG.pdf](HUONG-DAN-KHOI-DONG.pdf)**
-
----
 
 ## Trước khi bắt đầu — yên tâm về dữ liệu
 
 | Sẽ bị ghi đè | Được giữ nguyên |
 |---|---|
-| Mã nguồn (các file lệnh của phần mềm) | ✅ Truyện & video đã tạo — thư mục `storage` |
+| Mã nguồn (các file lệnh của phần mềm) | ✅ Video, phụ đề đã tạo — thư mục `storage` |
 | | ✅ API key và cấu hình — thư mục `configs` |
 | | ✅ Thư viện và mô hình AI đã tải về |
 
-Nói ngắn gọn: **bạn không mất truyện, không mất video, không phải nhập lại API key.**
+Nói ngắn gọn: **bạn không mất video, không mất phụ đề, không phải nhập lại API key.**
 
 ---
 
@@ -54,13 +50,13 @@ Một cửa sổ nền đen hiện ra. Dòng đầu tiên của nó **phải k�
 Copy nguyên dòng dưới đây, dán vào cửa sổ đen (**bấm chuột phải để dán**), rồi bấm **Enter**:
 
 ```
-curl -L -o CAP-NHAT.bat https://raw.githubusercontent.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/main/CAP-NHAT.bat
+curl -L -o CAP-NHAT.bat https://raw.githubusercontent.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/feat/video-only/CAP-NHAT.bat
 ```
 
 Nếu báo lỗi mạng hoặc chờ quá lâu, dùng dòng này thay thế:
 
 ```
-curl -L -o CAP-NHAT.bat https://ghfast.top/https://raw.githubusercontent.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/main/CAP-NHAT.bat
+curl -L -o CAP-NHAT.bat https://ghfast.top/https://raw.githubusercontent.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics/feat/video-only/CAP-NHAT.bat
 ```
 
 Xong thì trong thư mục dự án sẽ có thêm file mới tên **`CAP-NHAT.bat`**. Đóng cửa sổ đen lại.
@@ -68,7 +64,7 @@ Xong thì trong thư mục dự án sẽ có thêm file mới tên **`CAP-NHAT.b
 > 💡 **Cách khác, không cần tải file:** dán thẳng dòng dưới đây vào cửa sổ đen rồi bấm Enter. Nó cập nhật ngay, và xong xuôi thì `CAP-NHAT.bat` cũng tự có sẵn trong thư mục cho những lần sau:
 >
 > ```
-> git fetch origin && git checkout main && git reset --hard origin/main && git submodule sync --recursive && git submodule update --init --recursive --force
+> git fetch origin && git checkout feat/video-only && git reset --hard origin/feat/video-only && git submodule sync --recursive && git submodule update --init --recursive --force
 > ```
 >
 > Dùng cách này thì **bỏ qua Bước 4**, chỉ cần nháy đúp `run.bat`.
@@ -100,7 +96,7 @@ Xong thì trong thư mục dự án sẽ có thêm file mới tên **`CAP-NHAT.b
 | Báo `[LOI] Khong tai duoc` | Mất mạng. Nối lại mạng rồi nháy đúp `CAP-NHAT.bat` lần nữa. |
 | Cập nhật xong nhưng phần mềm không mở | Nháy đúp `run.bat debug` để xem báo lỗi thật. |
 | **Hiện ra trang web trong trình duyệt, không phải cửa sổ ứng dụng** | Máy thiếu **WebView2 Runtime** (hay gặp trên Windows 10). Nháy đúp `CAP-NHAT.bat` một lần nữa — bản mới đã tự cài. Nếu vẫn vậy, nháy đúp `scripts\cai_webview2.bat`. Lý do chính xác nằm ở dòng `[WARN] Ly do:` trong `logs\app.log`. |
-| Trợ lý AI trả lời "Không kết nối được Ollama" | Cài **https://ollama.com** rồi mở lại `run.bat`. Mô hình sẽ tự tải. |
+| Dịch phụ đề báo lỗi kết nối Ollama | Cài **https://ollama.com**, mở cửa sổ đen gõ `ollama pull qwen2.5:3b-instruct`, rồi mở lại `run.bat`. |
 | Muốn tắt phần mềm | Đóng cửa sổ ứng dụng — mọi tiến trình tự tắt sạch. |
 
 ---
@@ -110,13 +106,13 @@ Xong thì trong thư mục dự án sẽ có thêm file mới tên **`CAP-NHAT.b
 Chỉ khi đó mới cần tải mới. Làm Bước 2 ở một ổ đĩa còn trống **≥ 60 GB**, rồi dán lệnh:
 
 ```
-git clone --recursive https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git
+git clone --recursive -b feat/video-only https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git
 ```
 
 Mạng chậm thì dùng bản qua máy chủ trung gian:
 
 ```
-git clone --recursive https://ghfast.top/https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git
+git clone --recursive -b feat/video-only https://ghfast.top/https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics.git
 ```
 
 > ⚠️ Nhớ giữ chữ `--recursive`. Thiếu nó là tải thiếu, phần mềm sẽ không chạy.

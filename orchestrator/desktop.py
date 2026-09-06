@@ -19,7 +19,7 @@ HOST = "127.0.0.1"
 PORT = 8100
 URL = f"http://{HOST}:{PORT}/"
 GEMINI_PROXY_PORT = 7860
-WINDOW_TITLE = "AutoCartoon Video Maker"
+WINDOW_TITLE = "Cao & Dich Video"
 # main.py resolve "storage"/"webui"/"AIVoice/.venv" theo CWD -> phai dung o goc repo
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 LOGS_DIR = os.path.join(ROOT_DIR, "logs")
@@ -46,13 +46,30 @@ def _port_open(port: int, host: str = HOST) -> bool:
         return sock.connect_ex((host, port)) == 0
 
 
+def _gemini_proxy_bat():
+    """Duong dan start_server.bat cua proxy Gemini-API, doc tu cau hinh.
+
+    Nhanh nay khong kem theo proxy (no thuoc bo cao truyen). Ai tu cai o cho khac
+    thi khai bao duong dan o Cau Hinh -> translate.gemini_proxy_bat; de trong thi
+    app bo qua, dich bang Ollama hoac Gemini Online.
+    """
+    try:
+        from orchestrator.config import load_global_config
+        path = ((load_global_config().get("translate") or {}).get("gemini_proxy_bat") or "").strip()
+    except Exception:
+        return None
+    if not path:
+        return None
+    return path if os.path.isabs(path) else os.path.join(ROOT_DIR, path)
+
+
 def _start_gemini_proxy():
     """Chay Gemini-API proxy AN (khong mo cua so cmd rieng nhu run.bat cu).
 
     Tra ve Popen de kill khi dong app; None neu proxy da chay san / thieu file.
     """
-    bat = os.path.join(ROOT_DIR, "toolCaoTruyen", "Gemini-API", "start_server.bat")
-    if not os.path.exists(bat):
+    bat = _gemini_proxy_bat()
+    if not bat or not os.path.exists(bat):
         return None
     if _port_open(GEMINI_PROXY_PORT):
         print(f"[INFO] Gemini proxy da chay san tren cong {GEMINI_PROXY_PORT}.")

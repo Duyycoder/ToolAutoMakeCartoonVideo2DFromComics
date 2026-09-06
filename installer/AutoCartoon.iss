@@ -1,15 +1,15 @@
 ; ============================================================================
-;  AutoCartoon Video Maker - Inno Setup script
+;  Cao va Dich Video - Inno Setup script
 ;  Build:  installer\build_installer.bat   (can cai Inno Setup 6 tren may build)
-;  Output: installer\Output\AutoCartoonVideoMaker-Setup-<version>.exe
+;  Output: installer\Output\CaoVaDichVideo-Setup-<version>.exe
 ;
 ;  Bo cai kieu "web installer": chi dong goi MA NGUON (~vai chuc MB).
 ;  Buoc [Run] cuoi se chay setup.bat de tai Python 3.11 + thu vien AI + model
 ;  (can Internet; may trang khong can cai san Python hay Git).
 ; ============================================================================
 
-#define MyAppName "AutoCartoon Video Maker"
-#define MyAppDirName "AutoCartoonVideoMaker"
+#define MyAppName "Cao va Dich Video"
+#define MyAppDirName "CaoVaDichVideo"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Duyycoder"
 #define MyAppURL "https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics"
@@ -29,7 +29,7 @@ PrivilegesRequired=lowest
 DefaultDirName={userpf}\{#MyAppDirName}
 DisableProgramGroupPage=yes
 OutputDir=Output
-OutputBaseFilename=AutoCartoonVideoMaker-Setup-{#MyAppVersion}
+OutputBaseFilename=CaoVaDichVideo-Setup-{#MyAppVersion}
 SetupIconFile=app.ico
 UninstallDisplayIcon={app}\app.ico
 Compression=lzma2/max
@@ -52,14 +52,14 @@ Name: "desktopicon"; Description: "Tao bieu tuong ngoai man hinh Desktop"; Group
 ; .gitignore cua repo: payload xap xi ket qua "git clone --recursive".
 Source: "{#SourceDir}\*"; DestDir: "{app}"; \
     Flags: recursesubdirs createallsubdirs; \
-    Excludes: ".git,.gitmodules,.gitattributes,.github,.claude,.agents,__pycache__,*.pyc,.pytest_cache,.ruff_cache,.mypy_cache,.venv,venv,scratch,logs,cookies.json,*cookies*,*.key,*.pem,.env,.env.*,Thumbs.db,desktop.ini,*.log,\installer,\storage,\models,\configs\global_config.json,\AIVoice\models,\AIVoice\storage,\AIVoice\data,\AIVoice\third_party,\AIVoice\apps\storage,\AIVoice\apps\MediaComposer\models,\AIVoice\apps\MediaComposer\storage,\AIVoice\MediaComposer\models,\AIVoice\MediaComposer\storage,\toolCaoTruyen\truyen_tai_ve,\toolCaoTruyen\test_output,\toolCaoTruyen\Gemini-API\models"
+    Excludes: ".git,.gitmodules,.gitattributes,.github,.claude,.agents,__pycache__,*.pyc,.pytest_cache,.ruff_cache,.mypy_cache,.venv,venv,scratch,logs,cookies.json,*cookies*,*.key,*.pem,.env,.env.*,Thumbs.db,desktop.ini,*.log,\installer,\storage,\models,\configs\global_config.json,\AIVoice\models,\AIVoice\storage,\AIVoice\data,\AIVoice\third_party,\AIVoice\apps\storage,\AIVoice\apps\MediaComposer\models,\AIVoice\apps\MediaComposer\storage,\AIVoice\MediaComposer\models,\AIVoice\MediaComposer\storage
 ; --- Icon rieng cho shortcut ---
 Source: "app.ico"; DestDir: "{app}"
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\run.bat"; \
     WorkingDir: "{app}"; IconFilename: "{app}\app.ico"; \
-    Comment: "Mo AutoCartoon Video Maker"
+    Comment: "Mo cong cu Cao va Dich Video"
 Name: "{autoprograms}\{#MyAppName} - Cai dat moi truong"; Filename: "{app}\setup.bat"; \
     WorkingDir: "{app}"; IconFilename: "{app}\app.ico"; \
     Comment: "Chay lai buoc cai Python/thu vien/model neu can"
@@ -81,7 +81,6 @@ Filename: "{app}\setup.bat"; WorkingDir: "{app}"; \
 ; Xoa nhung thu setup.bat sinh ra sau khi cai (khong nam trong danh sach file
 ; cua installer). GIU LAI {app}\storage - truyen va video nguoi dung da tao.
 Type: filesandordirs; Name: "{app}\AIVoice\.venv"
-Type: filesandordirs; Name: "{app}\toolCaoTruyen\.venv"
 Type: filesandordirs; Name: "{app}\models"
 Type: filesandordirs; Name: "{app}\AIVoice\models"
 Type: filesandordirs; Name: "{app}\AIVoice\storage"

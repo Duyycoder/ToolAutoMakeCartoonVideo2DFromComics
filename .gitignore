@@ -80,3 +80,7 @@ Thumbs.db
 desktop.ini
 global_glossary.json
 storage/kb_index.db
+
+# Nhanh chi-video: khong dung submodule cao truyen (thu muc van con tren dia)
+/toolCaoTruyen/
+/storage_demo/

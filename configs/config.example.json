@@ -1,68 +1,63 @@
 {
-  "_comment": "Mau cau hinh. Copy file nay thanh global_config.json va dien gia tri that. global_config.json da bi .gitignore loai tru - KHONG commit key that.",
-  "_comment_copyright": "Cau hinh mac dinh huong toi che do KHONG vuong ban quyen: nguon truyen tu thu muc cuc bo (source local) + LLM chay local qua Gemini-API proxy (khong can key tra phi).",
+  "_comment": "Mau cau hinh. App tu sinh configs/global_config.json khi chay lan dau; file that da bi .gitignore loai tru - KHONG commit key that.",
+  "_comment_engine": "Engine dich mac dinh la Ollama (chay cuc bo, khong can API key). Doi sang gemini/gemini_api neu ban co key hoac tu chay proxy Gemini-API.",
   "api_keys": {
-    "gemini": "YOUR_GEMINI_API_KEY_HERE"
+    "gemini": "DIEN_GEMINI_API_KEY_NEU_DUNG_ENGINE_ONLINE"
   },
   "storage_dir": "storage",
-  "crawler": {
-    "default_site": "local",
+  "orchestrator_port": 8100,
+  "download": {
+    "platform": "generic",
+    "cookies_file": "",
+    "max_items": 0,
+    "skip_existing": true,
+    "stop_on_error": false,
+    "auto_translate": false
+  },
+  "translate": {
+    "engine": "ollama",
+    "target_lang": "Vietnamese",
+    "ollama_base_url": "http://localhost:11434/v1",
+    "ollama_model": "qwen2.5:3b-instruct",
+    "autostart_ollama": true,
     "gemini_offline_base_url": "http://localhost:7860/v1",
     "gemini_offline_key": "",
-    "ollama_base_url": "http://localhost:11434/v1"
+    "gemini_proxy_bat": ""
+  },
+  "autosub": {
+    "output_dir": "",
+    "source_lang": "English",
+    "sub_source": "whisper",
+    "burn_method": "ffmpeg",
+    "clean_audio": false,
+    "translate_only": false,
+    "enable_voiceover": false,
+    "tts_engine": "edge",
+    "tts_voice": "vi-VN-NamMinhNeural",
+    "auto_clone": false,
+    "ducking_ratio": 90.0,
+    "llm_engine": "ollama",
+    "llm_model": "",
+    "font_name": "",
+    "font_size": 45,
+    "text_color": "#ffffff",
+    "stroke_color": "#000000",
+    "stroke_width": 1.5,
+    "bg_style": "None",
+    "bg_color": "#000000",
+    "bg_alpha": 140,
+    "sub_position": "bottom",
+    "custom_position": 70.0
+  },
+  "video": {
+    "downloader_cookies": "",
+    "ocr_use_gpu": true
   },
   "tts": {
     "default_engine": "edge",
     "default_voice": "vi-VN-NamMinhNeural",
     "kokoro_voice": "thuc_trinh",
     "vieneu_mode": "v3turbo",
-    "vieneu_voice": "Ngọc Lan",
-    "normalize": true,
-    "speed": 1
-  },
-  "video": {
-    "sd_steps": 8,
-    "sd_guidance": 5.0,
-    "sd_image_width": 768,
-    "sd_image_height": 432,
-    "sd_output_width": 1920,
-    "sd_output_height": 1080,
-    "sd_video_fps": 24,
-    "sd_face_detailer_steps": 14,
-    "sd_face_detailer_strength": 0.45,
-    "sd_ip_adapter_scale": 0.6,
-    "sd_studio_render_steps": 0,
-    "sd_studio_render_guidance": 0.0,
-    "default_style": "anime_2d_flat",
-    "use_gpu": true,
-    "default_checkpoint": "anything-v5",
-    "bgm_volume": 0.15,
-    "default_llm_engine": "gemini_api",
-    "default_llm_model": "gemini-2.5-flash"
-  },
-  "chatbot": {
-    "enabled": true,
-    "model": "qwen2.5:3b",
-    "share_model_with_step3": false,
-    "base_url": "",
-    "temperature": 0.4,
-    "top_p": 0.9,
-    "repeat_penalty": 1.05,
-    "num_predict": 512,
-    "num_ctx": 8192,
-    "max_history_turns": 12,
-    "kb_token_budget": 3000,
-    "kb_min_score": 0.75,
-    "kb_sticky_per_session": true,
-    "cache_repeat_questions": true,
-    "reasoning_pass": true,
-    "keep_alive": "5m",
-    "prewarm_on_open": true,
-    "idle_unload_minutes": 10,
-    "auto_unload_before_pipeline": true,
-    "block_when_busy": true,
-    "autostart_ollama": true,
-    "max_sessions": 20,
-    "session_ttl_minutes": 120
+    "vieneu_voice": "Ngọc Lan"
   }
 }
