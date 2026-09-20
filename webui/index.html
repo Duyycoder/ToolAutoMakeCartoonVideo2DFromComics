@@ -556,6 +556,18 @@
                                 </select>
                             </div>
 
+                            <details class="advanced-tweaks">
+                                <summary>Tham số sinh ảnh AI</summary>
+                                <p class="help-text" style="margin-top: 10px;">
+                                    Dùng chung với <strong>Cấu Hình Chung</strong> — sửa ở đây thì mục
+                                    &ldquo;Tinh Chỉnh Nâng Cao&rdquo; bên đó đổi theo, và ngược lại.
+                                    Phải bấm <strong>Lưu tham số sinh ảnh</strong> ở cuối mục này thì lần
+                                    dựng sau mới chạy bằng thông số mới.
+                                </p>
+                                <!-- Các control được app.js nhân bản từ Cấu Hình Chung xuống (buildSdMirror). -->
+                                <div class="form-grid" id="s3SdMirror" style="margin-top: 12px;"></div>
+                            </details>
+
                             <div class="form-actions">
                                 <button type="submit" id="btnStartStep3" class="btn btn-primary w-100">Bắt đầu Dựng Hoạt Hình</button>
                                 <button type="button" id="btnStopStep3" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>

@@ -1760,6 +1760,139 @@ function initSdTuning() {
     };
 }
 
+// ---------------------------------------------------------------------------
+// Nhân bản tham số sinh ảnh từ Cấu Hình Chung xuống Bước 3.
+//
+// Giá trị DÙNG CHUNG chứ không phải bản riêng của từng truyện: bản sao chỉ là
+// mặt kính nhìn vào đúng control gốc trong #formSettings. Nhờ vậy đường lưu vẫn
+// y như cũ (#formSettings [data-cfg] -> global_config.json -> apply_sd_params
+// ghi xuống config.toml của MediaComposer), không phải đụng tới backend.
+//
+// Dựng bằng JS thay vì chép tay sang HTML để nhãn và tooltip chỉ tồn tại một
+// bản duy nhất — sửa lời giải thích ở Cấu Hình Chung là Bước 3 đổi theo.
+// ---------------------------------------------------------------------------
+const SD_MIRROR_IDS = [
+    "cfgSdAspect", "cfgSdSteps", "cfgSdGuidance", "cfgSdIpScale",
+    "cfgSdFdSteps", "cfgSdFdStrength", "cfgSdStudioSteps",
+    "cfgSdStudioGuidance", "cfgSdFps",
+];
+
+let _sdMirrorLinks = [];
+
+function buildSdMirror() {
+    const host = document.getElementById("s3SdMirror");
+    if (!host || _sdMirrorLinks.length) return;
+
+    SD_MIRROR_IDS.forEach(srcId => {
+        const src = document.getElementById(srcId);
+        if (!src) return;
+        // Nhãn gốc chứa luôn <output> hiển thị số hiện tại, mà initSdTuning()
+        // đã điền số vào đó TRƯỚC khi hàm này chạy. Đọc thẳng textContent sẽ
+        // nuốt cả con số ("Inference Steps 25") và nướng cứng nó vào nhãn bản
+        // sao — bỏ <output> trên một bản clone trước khi lấy chữ.
+        const srcLabel = document.querySelector(`#formSettings label[for="${srcId}"]`);
+        const labelProbe = srcLabel?.cloneNode(true);
+        labelProbe?.querySelectorAll("output").forEach(o => o.remove());
+        const text = labelProbe
+            ? labelProbe.textContent.replace(/\s+/g, " ").trim()
+            : srcId;
+
+        const clone = src.cloneNode(true);
+        // cloneNode(true) bê theo cả id của node con (vd <option id="...">).
+        // buildConfigMirror() cũ cũng gỡ vì lý do này — giữ cho giống.
+        clone.querySelectorAll?.("[id]").forEach(el => el.removeAttribute("id"));
+        // Bản sao phải VÔ HÌNH với cả hai cơ chế lưu, nếu không giá trị sẽ bị
+        // ghi thành hai nơi rồi đá nhau lúc nạp lại:
+        //   - collectAllSettings() chỉ nhặt control có id  -> bỏ id
+        //   - chỉ #formSettings [data-cfg] mới vào global_config -> bỏ data-cfg
+        clone.removeAttribute("id");
+        clone.removeAttribute("data-cfg");
+        clone.removeAttribute("name");
+        clone.setAttribute("aria-label", text);
+
+        const label = document.createElement("label");
+        label.textContent = text;
+        if (srcLabel?.title) label.title = srcLabel.title;
+
+        // Thanh trượt cần ô số bên cạnh nhãn giống hệt bên Cấu Hình Chung.
+        let out = null;
+        if (src.type === "range") {
+            out = document.createElement("output");
+            label.append(" ", out);
+        }
+
+        const group = document.createElement("div");
+        group.className = "form-group";
+        group.append(label, clone);
+        host.appendChild(group);
+
+        const digits = String(src.step || "1").includes(".") ? 2 : 0;
+        const paint = () => {
+            if (out) out.textContent = Number(clone.value).toFixed(digits);
+        };
+
+        // Chống vòng lặp bằng cách so giá trị chứ không bằng cờ: hai bên bằng
+        // nhau là dừng, nên vòng luôn tự cắt sau đúng một nhịp. Cờ toàn cục thì
+        // nuốt mất lần đồng bộ thứ hai nếu sau này có handler lồng nhau.
+        const push = (from, to) => {
+            const v = cfgReadField(from);
+            if (cfgReadField(to) === v) { paint(); return; }
+            cfgWriteField(to, v);
+            // Phát lại event thật để phần đang lắng nghe control kia vẫn chạy:
+            // onchange của cfgSdAspect ghi cặp rộng×cao ẩn, và initSdTuning()
+            // cập nhật ô số bên Cấu Hình Chung.
+            to.dispatchEvent(new Event("input", { bubbles: true }));
+            to.dispatchEvent(new Event("change", { bubbles: true }));
+            paint();
+        };
+
+        clone.addEventListener("input", () => push(clone, src));
+        clone.addEventListener("change", () => push(clone, src));
+        src.addEventListener("input", () => push(src, clone));
+        src.addEventListener("change", () => push(src, clone));
+
+        _sdMirrorLinks.push({ src, clone, paint });
+    });
+
+    if (!_sdMirrorLinks.length) return;
+
+    // Nút "Lưu cấu hình" trên thanh tiêu đề đi về /api/ui-settings, KHÔNG đụng
+    // global_config.json — mà Bước 3 lại đọc tham số sinh ảnh từ file đó
+    // (pipeline.py -> apply_sd_params). Thiếu nút này thì chỉnh ở đây xong bấm
+    // Bắt đầu vẫn render bằng thông số cũ mà không báo gì.
+    // Mượn thẳng submit handler của #formSettings thay vì chép lại logic lưu.
+    const save = document.createElement("button");
+    save.type = "button";                 // không được submit nhầm #formStep3
+    save.className = "btn btn-secondary btn-sm";
+    save.textContent = "Lưu tham số sinh ảnh";
+    save.title = "Ghi vào Cấu Hình Chung để lần dựng sau dùng đúng thông số này";
+    save.addEventListener("click", () => {
+        document.getElementById("formSettings")?.requestSubmit();
+    });
+    const row = document.createElement("div");
+    row.className = "form-actions";
+    row.appendChild(save);
+    host.after(row);
+
+    // Ô không hợp lệ (vd Video FPS = 0) nằm trong <details> đang đóng thì trình
+    // duyệt không focus được -> sự kiện submit không bao giờ phát, nút "Bắt đầu
+    // Dựng Hoạt Hình" trông như chết. Mở <details> ra để lỗi hiện lên.
+    // Dùng capture vì 'invalid' không bubble.
+    document.getElementById("formStep3")?.addEventListener("invalid", e => {
+        const d = e.target.closest("details");
+        if (d && !d.open) d.open = true;
+    }, true);
+}
+
+// loadGlobalConfig() ghi thẳng vào field gốc bằng cfgWriteField nên KHÔNG phát
+// event — phải kéo giá trị sang bản sao bằng tay sau mỗi lần nạp cấu hình.
+function syncSdMirror() {
+    _sdMirrorLinks.forEach(({ src, clone, paint }) => {
+        cfgWriteField(clone, cfgReadField(src));
+        paint();
+    });
+}
+
 async function loadGlobalConfig() {
     try {
         const response = await fetch(`${API_BASE}/api/config`);
@@ -1775,6 +1908,13 @@ async function loadGlobalConfig() {
         // 2) Gieo MẶC ĐỊNH vào field của từng bước
         applyConfigDefaultsToSteps();
         initSdTuning();
+        // Phải sau initSdTuning(): bản sao cần onchange của cfgSdAspect đã gắn
+        // thì đổi tỷ lệ ở Bước 3 mới ghi được cặp rộng×cao ẩn.
+        buildSdMirror();
+        // Bước 1 ở trên vừa ghi giá trị vào field gốc bằng cfgWriteField (không
+        // phát event), nên phải kéo sang bản sao bằng tay — cả lần đầu lẫn mọi
+        // lần nạp lại cấu hình về sau.
+        syncSdMirror();
 
         // 3) Gieo chuyên biệt cho khóa API/URL Bước 1 (chỉ khi field còn trống,
         //    tránh ghi đè key người dùng đã nhập riêng cho bước này).
