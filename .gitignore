@@ -80,3 +80,15 @@ Thumbs.db
 desktop.ini
 global_glossary.json
 storage/kb_index.db
+
+# --- Tài liệu đồ án cá nhân (không thuộc mã nguồn tool) ---
+# ~2000 file, phần lớn là ảnh preview .png/.jpg do công cụ soạn thảo sinh ra.
+# Ignore chỉ làm git thôi theo dõi, KHÔNG xoá file trên đĩa.
+/_DATN/
+
+# --- Ghi chép kế hoạch/báo cáo của phiên làm việc (không cần chia sẻ) ---
+/plans/
+
+# --- Thư mục nháp của công cụ AI ---
+**/.codex_work/
+**/.codex_tmp/
