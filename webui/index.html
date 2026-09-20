@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoCartoon Video Maker - AI Comic Video Creator</title>
-    <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;🎬&lt;/text&gt;&lt;/svg&gt;">
+    <title>AutoCartoon Studio — Dựng video từ truyện</title>
+    <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22&gt;&lt;rect width=%2224%22 height=%2224%22 rx=%225%22 fill=%22%230B0C0E%22/&gt;&lt;g fill=%22none%22 stroke=%22%23F2683C%22 stroke-width=%221.75%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22&gt;&lt;rect x=%224%22 y=%225%22 width=%2216%22 height=%2214%22 rx=%222%22/&gt;&lt;path d=%22M8.5 5v14M15.5 5v14M4 12h16%22/&gt;&lt;/g&gt;&lt;/svg&gt;">
+    <link rel="stylesheet" href="fonts/fonts.css">
+    <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/inter-vietnamese.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="chat.css">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 </head>
 <body>
     <div class="glass-bg"></div>
@@ -18,7 +18,7 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="brand">
-                <span class="logo-icon">🎬</span>
+                <span class="logo-icon"><svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16M16 4v16M3 12h18"/></svg></span>
                 <h2>AutoCartoon</h2>
             </div>
             
@@ -29,54 +29,54 @@
                         <option value="" disabled selected>Chọn truyện hoặc tạo mới...</option>
                     </select>
                 </div>
-                <button id="btnNewStory" class="btn btn-secondary btn-sm">+ Tạo truyện mới</button>
+                <button id="btnNewStory" class="btn btn-secondary btn-sm" title="Tạo dự án truyện mới" aria-label="Tạo truyện mới"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Tạo truyện mới</span></button>
             </div>
 
             <nav class="nav-menu">
                 <button class="nav-item active" data-tab="step1">
-                    <span class="nav-icon">📥</span>
+                    <span class="nav-icon"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></span>
                     <div class="nav-text">
                         <span class="nav-title">Bước 1: Nguồn & Dịch</span>
                         <span class="nav-subtitle">Nhập / Sáng tác & dịch</span>
                     </div>
                 </button>
                 <button class="nav-item" data-tab="step2">
-                    <span class="nav-icon">🔊</span>
+                    <span class="nav-icon"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11v2M7.5 8v8M12 4v16M16.5 8.5v7M21 11v2"/></svg></span>
                     <div class="nav-text">
                         <span class="nav-title">Bước 2: Sinh Giọng</span>
                         <span class="nav-subtitle">Chuyển văn bản thành giọng nói</span>
                     </div>
                 </button>
                 <button class="nav-item" data-tab="step3">
-                    <span class="nav-icon">🎞️</span>
+                    <span class="nav-icon"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
                     <div class="nav-text">
                         <span class="nav-title">Bước 3: Dựng Hoạt Hình</span>
                         <span class="nav-subtitle">Sinh ảnh, upscale & dựng video</span>
                     </div>
                 </button>
                 <button class="nav-item" data-tab="step5">
-                    <span class="nav-icon">🔗</span>
+                    <span class="nav-icon"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M8.5 6h3a2 2 0 0 1 2 2v2.5M8.5 18h3a2 2 0 0 0 2-2v-2.5"/></svg></span>
                     <div class="nav-text">
                         <span class="nav-title">Bước 4: Ghép Video</span>
                         <span class="nav-subtitle">Hợp nhất các video chương</span>
                     </div>
                 </button>
                 <button class="nav-item" data-tab="step4">
-                    <span class="nav-icon">🎬</span>
+                    <span class="nav-icon"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10.5h10M7 14h3.5M13.5 14H17"/></svg></span>
                     <div class="nav-text">
                         <span class="nav-title">Tự Động Tạo Phụ Đề</span>
                         <span class="nav-subtitle">Dịch & ghép sub cho video lẻ</span>
                     </div>
                 </button>
                 <button class="nav-item" data-tab="settings">
-                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-icon"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h5M13 7h8M3 12h11M19 12h2M3 17h3M11 17h10"/><circle cx="10.5" cy="7" r="2"/><circle cx="16.5" cy="12" r="2"/><circle cx="8.5" cy="17" r="2"/></svg></span>
                     <div class="nav-text">
                         <span class="nav-title">Cấu Hình Chung</span>
                         <span class="nav-subtitle">Quản lý API Key & Mặc định</span>
                     </div>
                 </button>
                 <button class="nav-item" data-tab="stats">
-                    <span class="nav-icon">📊</span>
+                    <span class="nav-icon"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><rect x="5" y="12" width="3.5" height="6"/><rect x="10.25" y="7" width="3.5" height="11"/><rect x="15.5" y="14" width="3.5" height="4"/></svg></span>
                     <div class="nav-text">
                         <span class="nav-title">Thống Kê</span>
                         <span class="nav-subtitle">Dashboard & Dọn dẹp</span>
@@ -90,7 +90,7 @@
             <!-- Modal for New Story Creation -->
             <div id="modalNewStory" class="modal">
                 <div class="modal-content glass-card">
-                    <h3>📖 Tạo dự án truyện mới</h3>
+                    <h3>Tạo dự án truyện mới</h3>
                     <div class="form-group">
                         <label for="newStoryName">Tên truyện chữ</label>
                         <input type="text" id="newStoryName" placeholder="Ví dụ: Đắc Kỷ Trụ Vương" required>
@@ -108,14 +108,12 @@
                     <h1 id="activeStoryTitle">Chưa chọn truyện</h1>
                     <p id="activeStorySubtitle">Vui lòng chọn truyện ở thanh bên để bắt đầu quy trình dựng video</p>
                 </div>
-                <div class="header-actions" style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; justify-content:flex-end;">
-                    <span id="autoRunStatus" style="display:none; font-size:0.85rem; opacity:0.9; max-width:340px;"></span>
-                    <button id="btnSaveSettings" class="btn btn-secondary btn-sm" title="Lưu toàn bộ cấu hình đang chọn — lần mở sau tự áp dụng lại">💾 Lưu cấu hình</button>
-                    <button id="btnAutoRun" class="btn btn-primary btn-sm" title="Tự động chạy nối tiếp: Nguồn &amp; Dịch → Sinh Giọng → Dựng Hoạt Hình → Ghép Video">🚀 Chạy tự động 1→4</button>
-                    <button id="btnStopAutoRun" class="btn btn-danger btn-sm" style="display:none;">⛔ Dừng chuỗi</button>
-                    <div class="status-indicator">
-                        Trạng thái: <span id="pipelineStatusBadge" class="badge badge-inactive">Offline</span>
-                    </div>
+                <div class="header-actions">
+                    <span id="autoRunStatus" class="help-text" style="display:none;"></span>
+                    <button id="btnSaveSettings" class="btn btn-secondary btn-sm" title="Lưu toàn bộ cấu hình đang chọn — lần mở sau tự áp dụng lại">Lưu cấu hình</button>
+                    <button id="btnStopAutoRun" class="btn btn-danger btn-sm" style="display:none;"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg><span>Dừng chuỗi</span></button>
+                    <button id="btnAutoRun" class="btn btn-secondary btn-sm" title="Tự động chạy nối tiếp: Nguồn &amp; Dịch → Sinh Giọng → Dựng Hoạt Hình → Ghép Video"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg><span>Chạy tự động 1→4</span></button>
+                    <span id="pipelineStatusBadge" class="badge badge-inactive">Offline</span>
                 </div>
             </header>
 
@@ -123,13 +121,15 @@
             <section class="tab-panel active" id="tab-step1">
                 <div class="panel-grid">
                     <div class="card glass-card">
-                        <h3>📥 Nguồn & Dịch Kịch Bản</h3>
+                        <!-- Icon cua title nay nam o rule ::before trong <head> (khong dat inline SVG):
+                             app.js ghi de h3.textContent moi lan doi nguon truyen nen inline SVG se bi xoa. -->
+                        <h3>Nguồn &amp; Dịch Kịch Bản</h3>
                         <form id="formStep1" class="form-grid">
                             <div class="form-group">
                             <label for="s1Source">Nguồn truyện</label>
                             <select id="s1Source">
-                                <option value="local" selected>📁 Thư mục cục bộ (.md / .txt)</option>
-                                <option value="ai_write">✍️ Sáng tác bằng AI (LLM cục bộ)</option>
+                                <option value="local" selected>Thư mục cục bộ (.md / .txt)</option>
+                                <option value="ai_write">Sáng tác bằng AI (LLM cục bộ)</option>
                                 <option value="69shuba">Web: 69shu (Tiếng Trung)</option>
                                 <option value="metruyenchu">Web: Mê Truyện Chữ (Tiếng Việt)</option>
                                 <option value="tangthuvien">Web: Tàng Thư Viện</option>
@@ -146,8 +146,8 @@
                         <div class="form-group" id="s1TopicGroup" style="display: none;">
                             <label for="s1Topic">Chủ đề / Ý tưởng truyện (AI sẽ sáng tác — chạy LLM cục bộ)</label>
                             <textarea id="s1Topic" class="textarea-lg" rows="16" placeholder="Ví dụ: Một lập trình viên hiện đại xuyên không vào thế giới tu tiên, dùng tư duy công nghệ để tu luyện và phá giải bí ẩn cổ xưa...&#10;&#10;Dán được cả một đoạn dài: bối cảnh, nhân vật, tình tiết muốn có, giọng văn mong muốn..."></textarea>
-                            <small id="s1TopicCounter" style="display:block; margin-top:2px; opacity:0.6; text-align:right;">0 ký tự</small>
-                            <small style="display:block; margin-top:4px; opacity:0.75;">
+                            <small id="s1TopicCounter" class="help-text" style="text-align:right;">0 ký tự</small>
+                            <small class="help-text">
                                 AI viết thẳng tiếng Việt bằng LLM cục bộ (chọn ở "Bộ máy" bên dưới) nên nội dung sạch bản quyền
                                 và bỏ qua khâu dịch — xong là sang thẳng Bước 2 (Sinh Giọng).
                             </small>
@@ -155,7 +155,7 @@
                         <div class="form-group" id="s1WordsGroup" style="display: none;">
                             <label for="s1WordsPerChapter">Độ dài mỗi chương (số từ, ước lượng)</label>
                             <input type="number" id="s1WordsPerChapter" value="800" min="200" max="4000" step="100">
-                            <small style="display:block; margin-top:4px; opacity:0.75;">
+                            <small class="help-text">
                                 Càng dài càng lâu và càng dễ lạc mạch với model nhỏ. 800–1200 từ là mức hợp lý.
                             </small>
                         </div>
@@ -202,7 +202,7 @@
                                 <select id="s1OllamaModel">
                                     <option value="qwen2.5:7b-instruct" selected>qwen2.5:7b-instruct</option>
                                 </select>
-                                <small id="s1OllamaStatus" style="display:block; margin-top:4px; opacity:0.75;"></small>
+                                <small id="s1OllamaStatus" class="help-text"></small>
                             </div>
                             <div class="form-group" id="groupGeminiKey" style="display:none;">
                                 <label for="s1GeminiKey">Gemini API Key (Ghi đè cấu hình chung)</label>
@@ -225,10 +225,10 @@
                             </div>
                             
                             <!-- Block cấu hình chi tiết trích xuất Glossary -->
-                            <div id="blockS1GlossaryConfig" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; padding-left: 1.25rem; border-left: 2px solid #3b82f6;">
+                            <div id="blockS1GlossaryConfig" style="display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-4); padding-left: var(--sp-5); border-left: 2px solid var(--border-strong);">
                                 <div class="form-group">
                                     <label for="s1GlossaryEngine">Engine trích xuất từ điển</label>
-                                    <select id="s1GlossaryEngine" style="background-color: rgba(255, 255, 255, 0.05); color: #fff; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 0.35rem 0.5rem; width: 100%;">
+                                    <select id="s1GlossaryEngine">
                                         <option value="gemini" selected>Gemini API (Online)</option>
                                         <option value="ollama">Ollama (Offline Local)</option>
                                         <option value="gemini_api">Gemini API (Offline/Local)</option>
@@ -237,7 +237,7 @@
                                 </div>
                                 <div class="form-group" id="groupS1GlossaryOllama" style="display: none;">
                                     <label for="s1GlossaryOllamaModel">Model Ollama trích xuất</label>
-                                    <select id="s1GlossaryOllamaModel" style="background-color: rgba(255, 255, 255, 0.05); color: #fff; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 0.35rem 0.5rem; width: 100%;">
+                                    <select id="s1GlossaryOllamaModel">
                                         <!-- Sẽ load tự động -->
                                     </select>
                                 </div>
@@ -246,13 +246,13 @@
                             <div class="form-actions">
                                 <button type="submit" id="btnStartStep1" class="btn btn-primary w-100">Bắt đầu</button>
                                 <button type="button" id="btnStopStep1" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
-                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step1" title="Mở thư mục chứa các file chương (.md) trong File Explorer">📂 Mở thư mục đầu ra</button>
+                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step1" title="Mở thư mục chứa các file chương (.md) trong File Explorer">Mở thư mục đầu ra</button>
                             </div>
                         </form>
                     </div>
 
                     <div class="card glass-card log-panel">
-                        <h3>🖥️ Log Tiến Trình</h3>
+                        <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7.5 9.5L10 12l-2.5 2.5M13 15h4"/></svg>Log Tiến Trình</h3>
                         <div id="logConsole-step1" class="console-box"></div>
                     </div>
                 </div>
@@ -261,7 +261,7 @@
             <section class="tab-panel" id="tab-step2">
                 <div class="panel-grid">
                     <div class="card glass-card">
-                        <h3>🔊 Cấu Hình Chuyển Bản Dịch Sang Giọng Nói (TTS)</h3>
+                        <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></svg>Sinh Giọng Đọc (TTS)</h3>
                         <form id="formStep2" class="form-grid">
                             <div class="form-group">
                                 <label for="s2Preset">Cấu hình mẫu (Preset)</label>
@@ -306,7 +306,7 @@
                             </div>
                             
                             <!-- VieNeu Specific Options -->
-                            <div class="form-grid" id="groupVieneuOptions" style="display:none; grid-column: 1 / -1; margin-top: 5px; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 8px;">
+                            <div class="form-grid well" id="groupVieneuOptions" style="display:none; grid-column: 1 / -1; margin-top: 4px; padding: 12px;">
                                 <div class="form-group">
                                     <label for="s2VieneuMode">Chế độ VieNeu-TTS (Mode)</label>
                                     <select id="s2VieneuMode">
@@ -331,8 +331,8 @@
                             </div>
                             
                             <!-- Semantic Cache -->
-                            <div class="form-grid" style="grid-column: 1 / -1; margin-top: 10px; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 8px;">
-                                <h4 style="grid-column: 1 / -1; margin: 0 0 10px 0; color: var(--accent);">Bộ đệm ngữ nghĩa (Semantic Cache)</h4>
+                            <div class="form-grid well" style="grid-column: 1 / -1; margin-top: 12px; padding: 12px;">
+                                <h4 style="grid-column: 1 / -1; margin: 0 0 8px 0;">Bộ đệm ngữ nghĩa (Semantic Cache)</h4>
                                 <div class="form-group" style="display: flex; align-items: center; justify-content: space-between;">
                                     <label for="s2UseCache" style="margin: 0;">Kích hoạt Semantic Cache</label>
                                     <label class="switch">
@@ -345,12 +345,12 @@
                                         <label for="s2CacheThreshold">Độ tương đồng tối thiểu</label>
                                         <input type="number" id="s2CacheThreshold" value="0.95" step="0.01" min="0.5" max="1.0">
                                     </div>
-                                    <button type="button" id="btnClearCache" class="btn btn-secondary btn-sm" style="height: 38px; margin-bottom: 2px;">🗑️ Xóa Cache</button>
+                                    <button type="button" id="btnClearCache" class="btn btn-secondary btn-sm"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9.5 7V4.5h5V7"/><path d="M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7"/><path d="M10.5 11v6M13.5 11v6"/></svg><span>Xóa cache</span></button>
                                 </div>
                             </div>
                             
-                            <details class="advanced-tweaks" style="grid-column: 1 / -1; margin-top: 10px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
-                                <summary style="cursor: pointer; font-weight: bold; color: var(--accent);">Tùy Chỉnh Âm Thanh Nâng Cao ⚙️</summary>
+                            <details class="advanced-tweaks">
+                                <summary>Tùy chỉnh âm thanh nâng cao</summary>
                                 <div class="form-grid" style="margin-top: 15px;">
                                     <div class="form-group" style="display: flex; align-items: center; justify-content: space-between;">
                                         <label for="s2Phonemize" style="margin: 0;">Phiên âm IPA tiếng Việt (--phonemize)</label>
@@ -366,7 +366,7 @@
                                             <span class="slider round"></span>
                                         </label>
                                     </div>
-                                    <div class="form-group" style="grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px; padding-top: 10px;"></div>
+                                    <div class="form-group" style="grid-column: 1 / -1; border-top: 1px solid var(--border-subtle); margin-top: var(--sp-3); padding-top: var(--sp-3);"></div>
                                     
                                     <div class="form-group">
                                         <label for="s2Device">Thiết Bị Xử Lý (Device)</label>
@@ -398,13 +398,13 @@
                             <div class="form-actions">
                                 <button type="submit" id="btnStartStep2" class="btn btn-primary w-100">Bắt đầu Tạo Âm Thanh</button>
                                 <button type="button" id="btnStopStep2" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
-                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step2" title="Mở thư mục chứa các file giọng đọc (.wav) trong File Explorer">📂 Mở thư mục đầu ra</button>
+                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step2" title="Mở thư mục chứa các file giọng đọc (.wav) trong File Explorer">Mở thư mục đầu ra</button>
                             </div>
                         </form>
                     </div>
 
                     <div class="card glass-card log-panel">
-                        <h3>🖥️ Log Tiến Trình</h3>
+                        <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7.5 9.5L10 12l-2.5 2.5M13 15h4"/></svg>Log Tiến Trình</h3>
                         <div id="logConsole-step2" class="console-box"></div>
                     </div>
                 </div>
@@ -413,7 +413,7 @@
             <section class="tab-panel" id="tab-step3">
                 <div class="panel-grid">
                     <div class="card glass-card">
-                        <h3>🎞️ Dựng Hoạt Hình Hoàn Chỉnh (MediaComposer)</h3>
+                        <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>Dựng Hoạt Hình (MediaComposer)</h3>
                         <form id="formStep3" class="form-grid">
                             <div class="form-group">
                                 <label for="s3Genre">Thể loại truyện (Làm context cho AI)</label>
@@ -433,10 +433,10 @@
                                         <option value="cpu">CPU (Rất chậm)</option>
                                     </select>
                                 </div>
-                                <button type="button" class="btn" style="height: 42px;" onclick="fetchGpuInfo()">🔄 Detect</button>
+                                <button type="button" class="btn btn-secondary" onclick="fetchGpuInfo()"><svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg><span>Nhận diện</span></button>
                             </div>
-                            <div class="form-group" style="grid-column: 1 / -1; margin-top: -15px;">
-                                <small id="gpuInfoText" style="color: var(--accent);"></small>
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <small id="gpuInfoText" class="help-text"></small>
                             </div>
                             <div class="form-group">
                                 <label for="s3Style">Phong cách hình ảnh (Style)</label>
@@ -457,6 +457,7 @@
                                     <option value="pixel_art">Pixel Art</option>
                                     <option value="stickman">Stickman / Người Que</option>
                                 </select>
+                            </div>
                             <div class="form-group">
                                 <label for="s3Checkpoint">Mô hình SD Checkpoint</label>
                                 <select id="s3Checkpoint">
@@ -497,7 +498,7 @@
                                 <select id="s3OllamaModel">
                                     <option value="qwen2.5:3b-instruct" selected>qwen2.5:3b-instruct</option>
                                 </select>
-                                <small id="s3OllamaStatus" style="display:block; margin-top:4px; opacity:0.75;"></small>
+                                <small id="s3OllamaStatus" class="help-text"></small>
                             </div>
                             <div class="form-group" id="groupS3LlmModel" style="display:none;">
                                 <label for="s3LlmModel">Model LLM (Ghi đè mặc định)</label>
@@ -544,7 +545,7 @@
                                     <option value="classic">Classic — 1 ảnh/cảnh (SD vẽ chung, ổn định)</option>
                                     <option value="studio">Studio — render theo lớp: nền + nhân vật riêng rồi ghép (thử nghiệm)</option>
                                 </select>
-                                <small>Studio: nhân vật sinh riêng khung to (mặt đẹp hơn), tách nền chroma rồi ghép lên nền tái dùng theo bối cảnh. Cảnh đông người/tương tác tự lùi về classic.</small>
+                                <small class="help-text">Studio: nhân vật sinh riêng khung to (mặt đẹp hơn), tách nền chroma rồi ghép lên nền tái dùng theo bối cảnh. Cảnh đông người/tương tác tự lùi về classic.</small>
                             </div>
                             <div class="form-group">
                                 <label for="s3HardwareProfile">Cấu hình VRAM</label>
@@ -558,13 +559,13 @@
                             <div class="form-actions">
                                 <button type="submit" id="btnStartStep3" class="btn btn-primary w-100">Bắt đầu Dựng Hoạt Hình</button>
                                 <button type="button" id="btnStopStep3" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
-                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step3" title="Mở thư mục chứa video từng chương (.mp4) trong File Explorer">📂 Mở thư mục đầu ra</button>
+                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step3" title="Mở thư mục chứa video từng chương (.mp4) trong File Explorer">Mở thư mục đầu ra</button>
                             </div>
                         </form>
                     </div>
 
                     <div class="card glass-card log-panel">
-                        <h3>🖥️ Log Tiến Trình</h3>
+                        <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7.5 9.5L10 12l-2.5 2.5M13 15h4"/></svg>Log Tiến Trình</h3>
                         <div id="logConsole-step3" class="console-box"></div>
                     </div>
                 </div>
@@ -573,7 +574,7 @@
             <section class="tab-panel" id="tab-step4">
                 <div class="panel-grid">
                     <div class="card glass-card">
-                        <h3>🎬 Tự Động Tạo Phụ Đề & Lồng Tiếng</h3>
+                        <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10.5h10M7 14h3.5M13.5 14H17"/></svg>Tự Động Tạo Phụ Đề &amp; Lồng Tiếng</h3>
                         <form id="formStep4" class="form-grid">
                             <div class="form-group" style="grid-column: 1 / -1;">
                                 <label>Nguồn Video</label>
@@ -638,7 +639,7 @@
                                 <div style="display: flex; gap: 10px; margin-top: 5px;">
                                     <button type="button" id="btnS4Prepare" class="btn btn-secondary btn-sm">Tải & Xem trước</button>
                                 </div>
-                                <div id="s4RoiSelectionArea" style="position:relative; display:none; max-width:100%; border:1px solid #444; border-radius:6px; overflow:hidden; margin-top:10px; cursor: crosshair;">
+                                <div id="s4RoiSelectionArea" style="position:relative; display:none; margin-top:10px;">
                                     <img id="s4PreviewImg" style="display:block; max-width:100%; height:auto;" />
                                 </div>
                                 <span class="help-text">Kéo giữ chuột trên hình preview ở trên để vẽ khung chữ nhật bao lấy phụ đề.</span>
@@ -665,7 +666,7 @@
                             </div>
 
                             <!-- TTS Dubbing options -->
-                            <div class="form-group" id="groupS4Voiceover" style="grid-column: 1 / -1; display: none; background: rgba(0,0,0,0.15); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                            <div class="form-group well" id="groupS4Voiceover" style="grid-column: 1 / -1; display: none; padding: 16px;">
                                 <div class="form-grid">
                                     <div class="form-group">
                                         <label for="s4TtsEngine">Bộ máy TTS (Engine)</label>
@@ -685,8 +686,8 @@
                                         <label for="s4DuckingRatio">Tỷ lệ giảm nhạc nền (Ducking %)</label>
                                         <input type="number" id="s4DuckingRatio" value="90.0" min="0" max="100" step="5">
                                     </div>
-                                    <div class="form-group" id="groupS4AutoClone" style="display: none;">
-                                        <label for="s4AutoClone" style="font-weight: normal; cursor: pointer; margin-top: 25px; display: block;">
+                                    <div class="form-group" id="groupS4AutoClone" style="display: none; align-self: end;">
+                                        <label for="s4AutoClone" style="font-weight: normal; cursor: pointer; display: block;">
                                             <input type="checkbox" id="s4AutoClone"> Tự động clone (Auto Clone)
                                         </label>
                                     </div>
@@ -695,9 +696,9 @@
 
                             <!-- Subtitle Customization Styling section -->
                             <div class="form-group" style="grid-column: 1 / -1; margin-top: 15px;">
-                                <h4>🎨 Tùy Chỉnh Kiểu Phụ Đề</h4>
+                                <h4><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V5h16v2"/><path d="M12 5v14M9 19h6"/></svg>Tùy Chỉnh Kiểu Phụ Đề</h4>
                             </div>
-                            <div class="form-group" style="grid-column: 1 / -1; background: rgba(0,0,0,0.15); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                            <div class="form-group well" style="grid-column: 1 / -1; padding: 16px;">
                                 <div class="form-grid">
                                     <div class="form-group">
                                         <label for="s4FontName">Phông chữ (Font)</label>
@@ -765,7 +766,7 @@
 
                             <!-- Translation LLM settings -->
                             <div class="form-group" style="grid-column: 1 / -1; margin-top: 10px;">
-                                <h4>🤖 Cấu Hình API Dịch Phụ Đề</h4>
+                                <h4><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5.5h9M7.5 3.5v2M11 5.5c0 4.5-3.6 8-8 8M5 9.5c0 2.7 3.2 5 7.5 6"/><path d="M13 21l4.5-11L22 21M14.8 17h5.4"/></svg>Cấu Hình API Dịch Phụ Đề</h4>
                             </div>
 
                             <div class="form-group">
@@ -789,7 +790,7 @@
                                 <select id="s4OllamaModel">
                                     <option value="qwen2.5:3b-instruct" selected>qwen2.5:3b-instruct</option>
                                 </select>
-                                <small id="s4OllamaStatus" style="display:block; margin-top:4px; opacity:0.75;"></small>
+                                <small id="s4OllamaStatus" class="help-text"></small>
                             </div>
                             <div class="form-group" id="groupS4LlmModel" style="display:none;">
                                 <label for="s4LlmModel">Model LLM (Ghi đè mặc định)</label>
@@ -799,13 +800,13 @@
                             <div class="form-group w-100" style="grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 15px;">
                                 <button type="submit" id="btnStartStep4" class="btn btn-primary w-100">Bắt đầu tạo phụ đề</button>
                                 <button type="button" id="btnStopStep4" class="btn btn-danger w-100" style="display:none;">Dừng tiến trình</button>
-                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step4" title="Mở thư mục chứa video đã gắn phụ đề trong File Explorer">📂 Mở thư mục đầu ra</button>
+                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step4" title="Mở thư mục chứa video đã gắn phụ đề trong File Explorer">Mở thư mục đầu ra</button>
                             </div>
                         </form>
                     </div>
 
                     <div class="card glass-card log-panel">
-                        <h3>🖥️ Log Tiến Trình</h3>
+                        <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7.5 9.5L10 12l-2.5 2.5M13 15h4"/></svg>Log Tiến Trình</h3>
                         <div id="logConsole-step4" class="console-box"></div>
                     </div>
                 </div>
@@ -814,28 +815,28 @@
             <section class="tab-panel" id="tab-step5">
                 <div class="panel-grid">
                     <div class="card glass-card">
-                        <h3>🔗 Bước 4: Ghép Video (Hợp Nhất Chương)</h3>
-                        <p class="help-text" style="margin-bottom: 15px;">Chọn các file video chương vừa được tạo từ truyện đã chọn để ghép lại thành video dài hoàn chỉnh.</p>
+                        <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M8.5 6h3a2 2 0 0 1 2 2v2.5M8.5 18h3a2 2 0 0 0 2-2v-2.5"/></svg>Ghép Video Chương</h3>
+                        <p class="help-text">Chọn các file video chương đã dựng để ghép thành một video hoàn chỉnh.</p>
                         
                         <form id="formStep5" class="form-grid">
                             <div class="form-group" style="grid-column: 1 / -1;">
                                 <label>Danh sách video chương phát hiện được:</label>
-                                <div id="s5VideoListContainer" style="border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; max-height: 250px; overflow-y: auto; margin-top: 8px; margin-bottom: 10px;">
+                                <div id="s5VideoListContainer">
                                     <p class="help-text" style="text-align:center;">Vui lòng chọn truyện ở thanh bên và bấm "Tải danh sách video".</p>
                                 </div>
-                                <button type="button" id="btnS5LoadVideos" class="btn btn-secondary btn-sm" style="margin-bottom: 15px;">Tải danh sách video</button>
+                                <button type="button" id="btnS5LoadVideos" class="btn btn-secondary btn-sm"><svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/></svg><span>Tải danh sách video</span></button>
                             </div>
 
                             <div class="form-group w-100" style="grid-column: 1 / -1; display: flex; gap: 10px;">
                                 <button type="submit" id="btnStartStep5" class="btn btn-primary w-100" disabled>Ghép các video đã chọn</button>
                                 <button type="button" id="btnStopStep5" class="btn btn-danger w-100" style="display:none;">Dừng</button>
-                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step5" title="Mở thư mục chứa video đã ghép (TongHop_*.mp4) trong File Explorer">📂 Mở thư mục đầu ra</button>
+                                <button type="button" class="btn btn-secondary w-100 btn-open-out" data-step="step5" title="Mở thư mục chứa video đã ghép (TongHop_*.mp4) trong File Explorer">Mở thư mục đầu ra</button>
                             </div>
                         </form>
                     </div>
 
                     <div class="card glass-card log-panel">
-                        <h3>🖥️ Log Ghép Video</h3>
+                        <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7.5 9.5L10 12l-2.5 2.5M13 15h4"/></svg>Log Ghép Video</h3>
                         <div id="logConsole-step5" class="console-box"></div>
                     </div>
                 </div>
@@ -843,10 +844,10 @@
 
             <section class="tab-panel" id="tab-settings">
                 <div class="card glass-card max-w-2xl">
-                    <h3>⚙️ Cấu Hình Toàn Cục Hệ Thống</h3>
+                    <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h5M13 7h8M3 12h11M19 12h2M3 17h3M11 17h10"/><circle cx="10.5" cy="7" r="2"/><circle cx="16.5" cy="12" r="2"/><circle cx="8.5" cy="17" r="2"/></svg>Cấu Hình Toàn Cục</h3>
                     <form id="formSettings" class="form-grid">
                         <div class="settings-section">
-                            <h4>🔑 API & Kết Nối</h4>
+                            <h4><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M17 6l2.5 2.5M14.5 8.5L17 11"/></svg>API &amp; Kết Nối</h4>
                             <div class="form-group">
                                 <label for="cfgGeminiKey">Gemini API Key (dùng chung mọi bước)</label>
                                 <input type="password" id="cfgGeminiKey" data-cfg="api_keys.gemini" placeholder="sk-gemini-...">
@@ -866,7 +867,7 @@
                         </div>
 
                         <div class="settings-section">
-                            <h4>📥 Bước 1 — Nguồn &amp; Dịch (mặc định)</h4>
+                            <h4><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Bước 1 — Nguồn &amp; Dịch</h4>
                             <div class="form-group">
                                 <label for="cfgDefaultSite">Nguồn truyện mặc định</label>
                                 <input type="text" id="cfgDefaultSite" data-cfg="crawler.default_site" value="local">
@@ -914,7 +915,7 @@
                         </div>
                         
                         <div class="settings-section">
-                            <h4>🔊 Bước 2 — Giọng đọc TTS (mặc định)</h4>
+                            <h4><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></svg>Bước 2 — Giọng đọc TTS</h4>
                             <div class="form-group">
                                 <label for="cfgTtsEngine">TTS Engine Mặc định</label>
                                 <select id="cfgTtsEngine" data-cfg="tts.default_engine" data-seed="s2Engine">
@@ -993,7 +994,7 @@
                         </div>
 
                         <div class="settings-section">
-                            <h4>🎞️ Bước 3 — Dựng hoạt hình (mặc định)</h4>
+                            <h4><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>Bước 3 — Dựng hoạt hình</h4>
                             <div class="form-group">
                                 <label for="cfgVideoStyle">Style Mặc định</label>
                                 <select id="cfgVideoStyle" data-cfg="video.default_style" data-seed="s3Style">
@@ -1088,7 +1089,7 @@
                         </div>
 
                         <div class="settings-section">
-                            <h4>⚙️ Tinh Chỉnh Nâng Cao — Tham số sinh ảnh</h4>
+                            <h4><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h5M13 7h8M3 12h11M19 12h2M3 17h3M11 17h10"/><circle cx="10.5" cy="7" r="2"/><circle cx="16.5" cy="12" r="2"/><circle cx="8.5" cy="17" r="2"/></svg>Tinh Chỉnh Nâng Cao — Tham số sinh ảnh</h4>
                             <p class="settings-hint">
                                 Ghi thẳng vào <code>config.toml</code> của MediaComposer trước mỗi lần chạy Bước 3 —
                                 dùng chung với chế độ Batch. Di chuột vào nhãn để xem giải thích.
@@ -1169,7 +1170,7 @@
                         </div>
 
                         <div class="settings-section">
-                            <h4>🎬 Bước 4 — Autosub &amp; Lồng tiếng (mặc định)</h4>
+                            <h4><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10.5h10M7 14h3.5M13.5 14H17"/></svg>Bước 4 — Autosub &amp; Lồng tiếng</h4>
                             <div class="form-group">
                                 <label>Thư mục đầu ra (video tải về &amp; video đã gắn sub)</label>
                                 <span class="cfg-clone" data-clone="s4OutputDir" data-cfg="autosub.output_dir"></span>
@@ -1271,7 +1272,7 @@
                         </div>
                         
                         <div class="settings-section">
-                            <h4>🤖 Trợ Lý AI (Chatbot)</h4>
+                            <h4><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"/></svg>Trợ Lý AI (Chatbot)</h4>
                             <div class="form-group">
                                 <label for="cfgChatbotEnabled">Trạng thái Trợ Lý AI</label>
                                 <select id="cfgChatbotEnabled" data-cfg="chatbot.enabled">
@@ -1300,37 +1301,37 @@
                         </div>
 
                         <div class="settings-section">
-                            <h4>📂 Lưu Trữ &amp; Khác</h4>
+                            <h4><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13h18"/><path d="M5.5 5h13l2.5 8v4a2 2 0 0 1-2 2h-15a2 2 0 0 1-2-2v-4z"/><path d="M7 16.5h.01M10 16.5h.01"/></svg>Lưu Trữ &amp; Khác</h4>
                             <div class="form-group">
                                 <label for="cfgStorageDir">Thư mục Storage lưu trữ</label>
                                 <input type="text" id="cfgStorageDir" data-cfg="storage_dir" value="storage" required>
                             </div>
                         </div>
                         
-                        <div class="form-actions" style="grid-column: 1 / -1; margin-top: 1rem;">
-                            <button type="submit" class="btn btn-primary w-100">💾 Lưu Cấu Hình</button>
+                        <div class="form-actions" style="grid-column: 1 / -1;">
+                            <button type="submit" class="btn btn-primary"><svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3"/><rect x="8" y="13" width="8" height="5"/></svg><span>Lưu cấu hình</span></button>
                         </div>
                     </form>
                 </div>
             </section>
             <section class="tab-panel" id="tab-stats">
                 <div class="card glass-card">
-                    <h3>📊 Thống Kê Hệ Thống</h3>
-                    <p style="color: var(--text-secondary); margin-bottom: 16px;">Số liệu tổng hợp từ cơ sở dữ liệu SQLite. Thư mục dữ liệu: <code id="statsStorageDir">—</code></p>
+                    <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><rect x="5" y="12" width="3.5" height="6"/><rect x="10.25" y="7" width="3.5" height="11"/><rect x="15.5" y="14" width="3.5" height="4"/></svg>Thống Kê Hệ Thống</h3>
+                    <p class="help-text">Số liệu tổng hợp từ cơ sở dữ liệu SQLite. Thư mục dữ liệu: <code id="statsStorageDir">—</code></p>
                     <div id="statsCards" class="stats-cards"></div>
                 </div>
-                <div class="card glass-card" style="margin-top: 16px;">
-                    <h3>🧹 Dọn Dẹp Dữ Liệu Tạm</h3>
-                    <p id="cleanupInfo" style="color: var(--text-secondary);">Xóa các thư mục làm việc trung gian (khung ảnh) — <strong>giữ nguyên</strong> tri thức nhân vật/LoRA. Nhấn "Xem trước" trước khi dọn.</p>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
-                        <button class="btn btn-secondary" onclick="previewCleanup()">🔍 Xem trước</button>
-                        <button class="btn btn-danger" onclick="doCleanup()">🗑️ Dọn dẹp thật</button>
-                        <button class="btn btn-secondary" onclick="rebuildStatsDb()">🔄 Đồng bộ lại CSDL</button>
+                <div class="card glass-card">
+                    <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9.5 7V4.5h5V7"/><path d="M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7"/><path d="M10.5 11v6M13.5 11v6"/></svg>Dọn Dẹp Dữ Liệu Tạm</h3>
+                    <p id="cleanupInfo" class="help-text">Xóa các thư mục làm việc trung gian (khung ảnh) — <strong>giữ nguyên</strong> tri thức nhân vật/LoRA. Nhấn "Xem trước" trước khi dọn.</p>
+                    <div class="form-actions">
+                        <button class="btn btn-secondary" onclick="previewCleanup()"><svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><span>Xem trước</span></button>
+                        <button class="btn btn-danger" onclick="doCleanup()"><svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9.5 7V4.5h5V7"/><path d="M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7"/><path d="M10.5 11v6M13.5 11v6"/></svg><span>Dọn dẹp thật</span></button>
+                        <button class="btn btn-secondary" onclick="rebuildStatsDb()"><svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4v5h-5"/></svg><span>Đồng bộ lại CSDL</span></button>
                     </div>
                 </div>
-                <div class="card glass-card" style="margin-top: 16px;">
-                    <h3>📚 Danh Sách Truyện (từ CSDL)</h3>
-                    <div style="overflow-x: auto;">
+                <div class="card glass-card">
+                    <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6.5C10.5 5 8.5 4.5 4 4.5V18c4.5 0 6.5.5 8 2 1.5-1.5 3.5-2 8-2V4.5c-4.5 0-6.5.5-8 2z"/><path d="M12 6.5V20"/></svg>Danh Sách Truyện</h3>
+                    <div class="table-wrap">
                         <table class="stats-table">
                             <thead><tr><th>Truyện</th><th>Trạng thái</th><th>Số chương</th><th>Cập nhật</th></tr></thead>
                             <tbody id="statsStoriesBody"></tbody>

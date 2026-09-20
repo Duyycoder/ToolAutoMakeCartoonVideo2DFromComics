@@ -1,276 +1,628 @@
-/* Chatbot Floating Widget Styles */
+/* ============================================================
+   CUTROOM — Chat widget (chat.css)
+   Dark-only. Zero blur, zero gradient, 1 accent ember.
+   Toan bo mau/size lay tu :root cua style.css — KHONG hardcode,
+   KHONG dinh nghia lai :root.
+   Ten class GIU NGUYEN 100% (chat.js set className truc tiep).
+   ============================================================ */
+
+/* ---------- 1. Anchor container ---------- */
 #chatWidget {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 9999;
-  font-family: inherit;
+  right: var(--sp-6);
+  bottom: var(--sp-6);
+  z-index: var(--z-chat-btn);
+  font-family: var(--font-ui);
+  font-size: var(--fs-13);
+  line-height: var(--lh-normal);
+  color: var(--text-primary);
 }
 
+/* ---------- 2. Toggle button (emoji trong JS -> an, thay bang mask SVG) ---------- */
 .chat-toggle-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--primary, #4f46e5);
-  color: #fff;
-  border: none;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
   position: relative;
-  transition: transform 0.2s ease, background-color 0.2s ease;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-3);
+  cursor: pointer;
+  font-size: 0;                 /* an emoji 🤖 do chat.js chen */
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.chat-toggle-btn::before {
+  content: "";
+  width: 19px;
+  height: 19px;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 11.5a8.38 8.38 0 0 1-8.5 8.4 9.4 9.4 0 0 1-3.8-.8L3 21l1.9-5a8.4 8.4 0 0 1-.9-3.9A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 11.5a8.38 8.38 0 0 1-8.5 8.4 9.4 9.4 0 0 1-3.8-.8L3 21l1.9-5a8.4 8.4 0 0 1-.9-3.9A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .chat-toggle-btn:hover {
-  transform: scale(1.05);
+  background: var(--bg-hover);
+  border-color: var(--accent-border);
 }
 
+.chat-toggle-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* ---------- 3. Status badge (chat.js: ready / busy / offline) ---------- */
 .chat-badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 14px;
-  height: 14px;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  border: 2px solid #fff;
+  border: 2px solid var(--bg-app);
+  /* #6E757E = 3.35:1 tren --bg-raised, dat nguong 3:1 cho non-text indicator (SC 1.4.11) */
+  background: #6E757E;
 }
 
-.chat-badge.ready { background: #22c55e; }
-.chat-badge.busy { background: #eab308; }
-.chat-badge.offline { background: #9ca3af; }
+.chat-badge.ready   { background: var(--success); }
+.chat-badge.busy    { background: var(--warning); animation: chat-pulse 1.6s var(--ease) infinite; }
+.chat-badge.offline { background: #6E757E; }
 
+@keyframes chat-pulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
+
+/* ---------- 4. Panel ---------- */
 .chat-panel {
   display: none;
-  position: absolute;
-  bottom: 70px;
-  right: 0;
+  position: fixed;
+  right: var(--sp-6);
+  bottom: calc(var(--sp-6) + 56px);
+  z-index: var(--z-chat-panel);
   width: 380px;
   height: 560px;
-  background: var(--glass-bg, rgba(30, 41, 59, 0.95));
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  max-height: calc(100vh - 120px);
   flex-direction: column;
   overflow: hidden;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-4);
+  backdrop-filter: none;
 }
 
 .chat-panel.open {
   display: flex;
+  animation: chat-panel-in var(--dur-base) var(--ease);
 }
 
+@keyframes chat-panel-in {
+  from { opacity: 0; transform: translateY(8px) scale(.985) }
+  to   { opacity: 1; transform: none }
+}
+
+/* ---------- 5. Header ---------- */
 .chat-header {
-  padding: 14px 16px;
-  background: rgba(0, 0, 0, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2) 0 var(--sp-3);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
 }
 
 .chat-header-title {
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--text-primary, #f8fafc);
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  letter-spacing: -.005em;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-header-title small {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .chat-header-actions {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
 }
 
+/* Icon button — emoji 🔄 / ✖ trong chat.js duoc an, thay bang mask SVG */
 .chat-icon-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
   background: transparent;
-  border: none;
-  color: #94a3b8;
+  border: 0;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
   cursor: pointer;
-  font-size: 16px;
-  padding: 4px;
-  border-radius: 4px;
+  font-size: 0;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 
-.chat-icon-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+.chat-icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.chat-icon-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.chat-icon-btn::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  background-color: currentColor;
+  -webkit-mask-position: center;
+          mask-position: center;
+  -webkit-mask-size: contain;
+          mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
 }
 
-.chat-messages {
-  flex: 1;
-  padding: 16px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+#chatNewBtn::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.5 12a8.5 8.5 0 0 1-14.6 5.9L3.5 15.5'/%3E%3Cpath d='M3.5 12a8.5 8.5 0 0 1 14.6-5.9l2.4 2.4'/%3E%3Cpath d='M20.5 4v4.5H16'/%3E%3Cpath d='M3.5 20v-4.5H8'/%3E%3C/svg%3E");
+          mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20.5 12a8.5 8.5 0 0 1-14.6 5.9L3.5 15.5'/%3E%3Cpath d='M3.5 12a8.5 8.5 0 0 1 14.6-5.9l2.4 2.4'/%3E%3Cpath d='M20.5 4v4.5H16'/%3E%3Cpath d='M3.5 20v-4.5H8'/%3E%3C/svg%3E");
 }
 
-.chat-msg {
-  max-width: 85%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-size: 14px;
-  line-height: 1.5;
-  word-break: break-word;
+#chatCloseBtn::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E");
+          mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E");
 }
 
-.chat-msg.user {
-  align-self: flex-end;
-  background: var(--primary, #4f46e5);
-  color: #fff;
-  border-bottom-right-radius: 2px;
-}
-
-.chat-msg.assistant {
-  align-self: flex-start;
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--text-primary, #f1f5f9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom-left-radius: 2px;
-}
-
-.chat-msg.lookup {
-  border-left: 4px solid var(--warning, #f59e0b);
-}
-
-.chat-truncated-banner {
-  background: rgba(245, 158, 11, 0.2);
-  border: 1px solid #f59e0b;
-  color: #fef08a;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  margin-bottom: 8px;
-}
-
-.chat-input-area {
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-}
-
-.chat-input-area textarea {
-  flex: 1;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  color: #fff;
-  padding: 8px 12px;
-  font-size: 14px;
-  resize: none;
-  height: 40px;
-  max-height: 100px;
-  outline: none;
-}
-
-.chat-send-btn {
-  background: var(--primary, #4f46e5);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-weight: 500;
-  cursor: pointer;
-  height: 40px;
-}
-
-.chat-send-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.chat-card {
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  padding: 12px;
-  margin-top: 8px;
-  font-size: 13px;
-}
-
-.chat-card-title {
-  font-weight: 600;
-  color: #38bdf8;
-  margin-bottom: 6px;
-}
-
-.chat-card-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.chat-btn-sm {
-  padding: 6px 12px;
-  font-size: 12px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.chat-btn-primary { background: #3b82f6; color: #fff; }
-.chat-btn-secondary { background: #475569; color: #fff; }
-.chat-btn-warning { background: #f59e0b; color: #000; }
-
-/* Thanh chọn model ngay trong widget */
+/* ---------- 6. Model bar ---------- */
 .chat-modelbar {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px 4px;
-  border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+  gap: var(--sp-2);
+  padding: 7px var(--sp-3);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--fs-11);
 }
 
 .chat-modelbar label {
-  font-size: 11px;
-  color: var(--text-muted, #6b7280);
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: var(--fs-11);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: .04em;
+  color: var(--text-muted);
 }
 
 .chat-modelbar select {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  padding: 4px 6px;
-  font-size: 12px;
-  border-radius: 6px;
-  color: var(--text-primary, #f3f4f6);
-  background: var(--bg-secondary, #12122b);
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  width: auto;
+  height: var(--control-h-sm);
+  padding: 0 24px 0 8px;
+  background-color: var(--bg-input);
+  /* Chevron: dung chung token var(--chevron) dinh nghia o :root cua style.css */
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  cursor: pointer;
 }
 
-.chat-modelbar select option:disabled { color: var(--text-muted, #6b7280); }
+.chat-modelbar select:hover { border-color: var(--border-strong); }
+
+.chat-modelbar select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+
+.chat-modelbar select option { background: var(--bg-panel); color: var(--text-primary); }
+.chat-modelbar select option:disabled { color: var(--text-disabled); }
 
 .chat-modelbar-gpu {
-  font-size: 11px;
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
   white-space: nowrap;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-muted);
 }
 
 .chat-modelbar-note {
-  padding: 0 12px 8px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--text-secondary, #9ca3af);
-  border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+  flex: 0 0 auto;
+  padding: 6px var(--sp-3);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--fs-11);
+  line-height: 1.45;
+  color: var(--text-muted);
 }
 
-.chat-modelbar-note.warn { color: var(--warning, #f59e0b); }
+/* chat.js luon giu the nay; rong thi khong chiem cho */
+.chat-modelbar-note:empty { display: none; }
 
+.chat-modelbar-note.warn {
+  background: var(--warning-subtle);
+  border-bottom-color: var(--warning-border);
+  color: var(--warning-text);
+}
+
+/* ---------- 7. Message list ---------- */
+.chat-messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  background: var(--bg-app);
+  scroll-behavior: smooth;
+}
+
+.chat-msg {
+  position: relative;
+  max-width: 88%;
+  padding: 8px 11px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  font-size: var(--fs-13);
+  line-height: 1.55;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+}
+
+/* User: canh phai, nen accent-subtle + vien accent (KHONG nen dac) */
+.chat-msg.user {
+  align-self: flex-end;
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  border-bottom-right-radius: var(--r-xs);
+}
+
+/* Assistant: canh trai, surface raised */
+.chat-msg.assistant {
+  align-self: flex-start;
+  background: var(--bg-raised);
+  border-color: var(--border-subtle);
+  border-bottom-left-radius: var(--r-xs);
+  color: var(--text-secondary);
+}
+
+.chat-msg.assistant strong { color: var(--text-primary); font-weight: 600; }
+
+/* System / thong bao tra cuu: full width, sunken, thanh info ben trai */
+.chat-msg.lookup {
+  align-self: stretch;
+  max-width: 100%;
+  background: var(--bg-sunken);
+  border-color: var(--border);
+  border-left: 2px solid var(--info);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.chat-msg strong { font-weight: 600; }
+
+.chat-msg li {
+  margin-left: 16px;
+  list-style: disc;
+  padding-left: 2px;
+}
+
+.chat-msg br + li { margin-top: 2px; }
+
+/* Code / preformatted trong message */
+.chat-msg code,
+.chat-card code {
+  font-family: var(--font-mono);
+  font-size: .92em;
+  padding: 1px 5px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-xs);
+  color: var(--accent-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-msg pre {
+  margin: var(--sp-2) 0;
+  padding: var(--sp-2) 10px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.chat-msg pre code {
+  display: block;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: var(--text-secondary);
+  white-space: pre;
+  word-break: normal;
+}
+
+/* Banner cat bot lich su */
+.chat-truncated-banner {
+  align-self: stretch;
+  padding: 5px 9px;
+  background: var(--warning-subtle);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--r-sm);
+  color: var(--warning-text);
+  font-size: var(--fs-11);
+  line-height: 1.45;
+  text-align: center;
+}
+
+/* ---------- 8. Card (danh sach truyen / xac nhan lenh / GPU ban) ---------- */
+.chat-card {
+  align-self: stretch;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.chat-card-title {
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.chat-card ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.chat-card li { list-style: disc; }
+.chat-card li strong { color: var(--text-primary); font-weight: 500; }
+
+.chat-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ---------- 9. Card buttons ---------- */
+.chat-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-h-sm);
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.chat-btn-sm:focus-visible { outline: none; box-shadow: var(--ring); }
+.chat-btn-sm:active { transform: translateY(.5px); }
+
+.chat-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+  box-shadow: var(--shadow-bevel);
+}
+.chat-btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.chat-btn-primary:active { background: var(--accent-active); }
+
+.chat-btn-secondary {
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+.chat-btn-secondary:hover { background: var(--bg-active); border-color: var(--border-strong); }
+
+.chat-btn-warning {
+  background: var(--warning-subtle);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
+}
+.chat-btn-warning:hover { background: var(--warning-subtle); border-color: var(--warning); }
+.chat-btn-warning:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(217, 162, 39, .60); }
+
+/* ---------- 10. Input area ---------- */
+.chat-input-area {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+}
+
+.chat-input-area textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 36px;
+  min-height: 36px;
+  max-height: 120px;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-13);
+  line-height: 1.4;
+  resize: none;
+  outline: none;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.chat-input-area textarea:hover { border-color: var(--border-strong); }
+
+.chat-input-area textarea:focus {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+  background: var(--bg-raised);
+}
+
+.chat-input-area textarea::placeholder { color: var(--text-disabled); }
+
+.chat-input-area textarea:disabled {
+  background: var(--bg-panel);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+/* Nut gui — chat.js doi textContent "Gửi" <-> "Dừng" nen phai la nut chu */
+.chat-send-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-width: 56px;
+  padding: 0 13px;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-md);
+  color: var(--text-on-accent);
+  font-family: var(--font-ui);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-bevel);
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.chat-send-btn:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.chat-send-btn:active:not(:disabled) { background: var(--accent-active); }
+.chat-send-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.chat-send-btn:disabled {
+  background: var(--bg-active);
+  border-color: var(--border);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Trang thai dang stream: chat.js them .chat-btn-warning vao nut gui ("Dừng") */
+.chat-send-btn.chat-btn-warning {
+  height: 36px;
+  background: var(--warning-subtle);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
+  box-shadow: none;
+}
+
+.chat-send-btn.chat-btn-warning::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-left: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: chat-pulse 1.2s var(--ease) infinite;
+}
+
+.chat-send-btn.chat-btn-warning:hover { background: var(--warning-subtle); border-color: var(--warning); }
+.chat-send-btn.chat-btn-warning:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(217, 162, 39, .60); }
+
+/* Scrollbar: dung rule global ::-webkit-scrollbar* trong style.css, da phu
+   moi vung cuon ben trong .chat-panel — khong can khai bao lai o day. */
+
+/* ---------- 11. Responsive ---------- */
 @media (max-width: 600px) {
+  /* Panel chiem toan man -> nut toggle nam duoi panel, khong con tac dung.
+     An han de khong phu thuoc vao thu tu stacking ngam cua #chatWidget. */
+  #chatWidget:has(.chat-panel.open) .chat-toggle-btn { display: none; }
+
   .chat-panel {
-    width: 100vw;
-    height: 100vh;
-    bottom: 0;
+    left: 0;
     right: 0;
+    bottom: 0;
+    top: 0;
+    width: auto;
+    height: auto;
+    max-height: none;
     border-radius: 0;
+    border-width: 0;
+  }
+  .chat-msg { max-width: 92%; }
+}
+
+/* ---------- 12. Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #chatWidget *,
+  .chat-panel,
+  .chat-panel * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }

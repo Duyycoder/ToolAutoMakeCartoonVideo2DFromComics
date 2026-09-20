@@ -146,7 +146,7 @@ function applyStep1SourceMode(val) {
     setText('s1GenreLabel', isAi ? 'Thể loại truyện (AI viết theo thể loại này)' : 'Thể loại truyện (cho dịch thuật)');
     setText('s1EngineLabel', isAi ? 'Bộ máy LLM sáng tác' : 'Bộ máy dịch (Translator)');
     const card = document.querySelector('#tab-step1 .card.glass-card h3');
-    if (card) card.textContent = isAi ? '✍️ Sáng Tác Kịch Bản Bằng AI' : '📥 Nguồn & Dịch Kịch Bản';
+    if (card) card.textContent = isAi ? 'Sáng Tác Kịch Bản Bằng AI' : 'Nguồn & Dịch Kịch Bản';
     const btn = document.getElementById('btnStartStep1');
     if (btn) btn.textContent = isAi ? 'Bắt đầu sáng tác' : 'Bắt đầu';
 }
@@ -484,7 +484,7 @@ async function pollAutoRun() {
         }
         autoRunLastStep = null;
         if (st.finished) {
-            setAutoRunUi(false, st.error ? `❌ Chuỗi dừng: ${st.error}` : "✅ Đã hoàn thành Bước 1→4!");
+            setAutoRunUi(false, st.error ? `Chuỗi dừng: ${st.error}` : "Đã hoàn thành Bước 1→4.");
             loadStories();
         } else {
             setAutoRunUi(false, null);
@@ -1940,7 +1940,7 @@ async function doCleanup() {
     try {
         const r = await fetch(`${API_BASE}/api/maintenance/cleanup-tasks?dry_run=false`, { method: "POST" });
         const d = await r.json();
-        el.innerHTML = `✅ Đã xóa <strong>${d.count}</strong> thư mục, giải phóng ~<strong>${d.freed_mb} MB</strong>.`;
+        el.innerHTML = `Đã xóa <strong>${d.count}</strong> thư mục, giải phóng ~<strong>${d.freed_mb} MB</strong>.`;
     } catch (e) { el.textContent = "Lỗi: " + e; }
 }
 async function rebuildStatsDb() {

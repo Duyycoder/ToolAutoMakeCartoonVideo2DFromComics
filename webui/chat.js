@@ -71,7 +71,7 @@
       <div class="chat-panel" id="chatPanel">
         <div class="chat-header">
           <div class="chat-header-title">
-            <span>🤖 Trợ Lý AI</span>
+            <span>Trợ Lý AI</span>
             <small id="chatSubTitle" style="font-size: 11px; opacity: 0.7; font-weight: normal;"></small>
           </div>
           <div class="chat-header-actions">
@@ -132,7 +132,7 @@
   function describe(m, tier) {
     // Model nặng hơn VRAM của máy vẫn hiện ra, nhưng phải nói rõ hệ quả thay vì
     // ẩn đi — người dùng máy 6GB có quyền chọn model to khi không dựng video.
-    const warn = m.fits ? "" : " ⚠ nặng cho máy này";
+    const warn = m.fits ? "" : " — nặng cho máy này";
     const miss = m.installed ? "" : " (chưa tải)";
     return `${m.name} — ${m.vram_gb}GB${warn}${miss}`;
   }
@@ -180,7 +180,7 @@
     if (!modelInfo) return;
     const m = modelInfo.models.find((x) => x.name === name);
     if (!m) { modelNote.textContent = ""; return; }
-    const rec = modelInfo.recommended === name ? "✔ Khuyến nghị cho máy này. " : "";
+    const rec = modelInfo.recommended === name ? "Khuyến nghị cho máy này. " : "";
     modelNote.textContent = rec + m.note;
     modelNote.className = "chat-modelbar-note" + (m.fits ? "" : " warn");
   }
@@ -271,14 +271,14 @@
 
     if (cardData.type === "story_list") {
       div.innerHTML = `
-        <div class="chat-card-title">📚 Danh sách truyện (${cardData.count})</div>
+        <div class="chat-card-title">Danh sách truyện (${cardData.count})</div>
         <ul>
           ${cardData.data.map(s => `<li><strong>${escapeHTML(s.title || s.story_name)}</strong> (slug: <code>${s.story_slug}</code>)</li>`).join("")}
         </ul>
       `;
     } else if (cardData.type === "story_report") {
       div.innerHTML = `
-        <div class="chat-card-title">📊 Báo cáo truyện "${escapeHTML(cardData.story)}"</div>
+        <div class="chat-card-title">Báo cáo truyện "${escapeHTML(cardData.story)}"</div>
         <div>- Trạng thái: <code>${cardData.status}</code></div>
         <div>- Số chương: <strong>${cardData.chapters}</strong></div>
         <div>- File âm thanh: <strong>${cardData.audio_files}</strong></div>
@@ -286,7 +286,7 @@
       `;
     } else if (cardData.type === "system_status") {
       div.innerHTML = `
-        <div class="chat-card-title">🖥 Trạng thái hệ thống</div>
+        <div class="chat-card-title">Trạng thái hệ thống</div>
         <div>- Mức GPU: <code>${cardData.gpu_weight}</code></div>
         <div>- Task đang chạy: ${cardData.running_tasks.length ? cardData.running_tasks.map(t => `<code>${t}</code>`).join(", ") : "Không có"}</div>
       `;
@@ -344,7 +344,7 @@
     const div = document.createElement("div");
     div.className = "chat-card";
     div.innerHTML = `
-      <div class="chat-card-title" style="color:#f59e0b;">⚠️ GPU đang bận (${detailData.busy_tasks ? detailData.busy_tasks.join(", ") : "Pipeline"})</div>
+      <div class="chat-card-title" style="color:var(--warning-text);">GPU đang bận (${detailData.busy_tasks ? detailData.busy_tasks.join(", ") : "Pipeline"})</div>
       <div style="font-size:12px; margin-bottom:8px;">Pipeline đang chạy cần toàn bộ bộ nhớ GPU. Hãy chọn một tùy chọn:</div>
       <div class="chat-card-actions" style="flex-direction:column; gap:6px;">
         <button class="chat-btn-sm chat-btn-warning" id="modalLookupBtn">Tra cứu tài liệu (0 VRAM)</button>
@@ -480,7 +480,7 @@
             if (chunk.done && chunk.truncated) {
               const truncBanner = document.createElement("div");
               truncBanner.className = "chat-truncated-banner";
-              truncBanner.textContent = "⚠️ Ngữ cảnh quá dài, câu trả lời có thể thiếu.";
+              truncBanner.textContent = "Ngữ cảnh quá dài, câu trả lời có thể thiếu.";
               assistantMsgDiv.insertBefore(truncBanner, assistantMsgDiv.firstChild);
             }
           } catch (e) {

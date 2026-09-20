@@ -17,3 +17,7 @@
 *.html text
 *.css  text
 *.js   text
+
+# Font tu host: danh dau binary tuong minh de git khong bao gio dung toi
+# noi dung, du may clone ve cau hinh core.autocrlf kieu gi.
+*.woff2 binary
