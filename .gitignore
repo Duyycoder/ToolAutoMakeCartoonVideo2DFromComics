@@ -86,6 +86,11 @@ storage/kb_index.db
 # Ignore chỉ làm git thôi theo dõi, KHÔNG xoá file trên đĩa.
 /_DATN/
 
+# --- Tài liệu cá nhân trong docs/ (đồ án, slide trình bày) ---
+# KHÔNG ignore cả docs/: docs/kb/ là knowledge base mà chatbot index
+# (orchestrator/kb_index.py), còn các file PLAN-/REVIEW- là tài liệu của tool.
+/docs/trinh-bay-datn.md
+
 # --- Ghi chép kế hoạch/báo cáo của phiên làm việc (không cần chia sẻ) ---
 /plans/
 
