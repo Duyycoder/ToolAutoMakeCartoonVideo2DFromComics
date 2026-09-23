@@ -180,6 +180,17 @@ def test_don_thu_muc_tam(lib):
     assert done["count"] == 1 and not os.path.exists(tmp_dir)
 
 
+def test_dat_so_ngay_thi_giu_thu_muc_con_moi(lib):
+    # keep_days=0 da bo so tuoi (tung chap chon tren Windows); nhung khi CO dat so
+    # ngay thi van phai loc tuoi - thu muc vua tao chua du tuoi, khong duoc xoa.
+    tmp_dir = os.path.join(lib.tasks_dir, "vua_tao")
+    os.makedirs(tmp_dir)
+
+    done = lib.cleanup_tasks(keep_days=1, dry_run=False)
+
+    assert done["count"] == 0 and os.path.isdir(tmp_dir)
+
+
 def test_thong_ke(lib):
     make_entry(lib)
     lib.add_sub("phim_abc", "phim.vi.srt", "x")

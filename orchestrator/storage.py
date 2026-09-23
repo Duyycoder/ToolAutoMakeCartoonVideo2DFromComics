@@ -381,11 +381,15 @@ class VideoLibrary:
             path = os.path.join(self.tasks_dir, name)
             if not os.path.isdir(path):
                 continue
-            try:
-                if os.path.getmtime(path) > cutoff:
+            # keep_days <= 0 = dọn HẾT, không so tuổi. So với "bây giờ" là sai: trên
+            # Windows thời gian ghi của thư mục vừa tạo có lúc lớn hơn time.time()
+            # một chút (hai nguồn đồng hồ khác độ chính xác) nên bị bỏ sót ngẫu nhiên.
+            if keep_days > 0:
+                try:
+                    if os.path.getmtime(path) > cutoff:
+                        continue
+                except OSError:
                     continue
-            except OSError:
-                continue
             freed += self._dir_size(path)
             if not dry_run:
                 shutil.rmtree(path, ignore_errors=True)
