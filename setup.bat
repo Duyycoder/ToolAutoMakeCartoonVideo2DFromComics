@@ -130,6 +130,10 @@ echo.
 :: Goi bang duong dan day du (xem ghi chu NoDefaultCurrentDirectoryInExePath o
 :: tren) - "call setup.bat" tran se bao "not recognized" tren may bat bien do.
 :: Van phai dung TRONG thu muc AIVoice vi setup cua no dung duong dan tuong doi.
+:: Cai bo thu vien GON cua cong cu video thay vi requirements.txt day du: ban day
+:: du keo theo ca luong ve truyen tranh (diffusers, insightface, rembg, basicsr...)
+:: va lam pip giai phu thuoc ket hang gio - da thu that tren may sach.
+set "AIVOICE_REQUIREMENTS=requirements-video.txt"
 echo [INFO] Setting up TTS ^& Video Engines (AIVoice)...
 cd /d "%~dp0AIVoice"
 call "%~dp0AIVoice\setup.bat" --skip-models
@@ -148,6 +152,53 @@ if %errorlevel% neq 0 (
     echo [ERROR] Failed to install Orchestrator dependencies.
     pause
     exit /b 1
+)
+echo.
+
+:: 3a. Tinh nang TUY CHON - cai duoc thi tot, loi thi chi canh bao.
+::     Tach khoi requirements-video.txt vi day la nhung goi hay vo tren may moi
+::     (can trinh bien dich C++, chi muc rieng, Git). Hong mot goi KHONG duoc keo
+::     ca buoi cai dat chet theo - thieu goi nao thi rieng tinh nang do bao loi.
+echo ----------------------------------------------------------------------
+echo [INFO] Cai cac tinh nang tuy chon - giong doc offline, tach nhac nen, OCR...
+echo ----------------------------------------------------------------------
+set "VPY=%~dp0AIVoice\.venv\Scripts\python.exe"
+set "CAI_THIEU="
+:: Khoa PyTorch dang co: goi tuy chon nao doi torch khac thi pip bao loi (chi mat
+:: goi do) thay vi am tham thay torch CUDA bang ban CPU tu PyPI - hong ca Whisper.
+set "RANG_BUOC=%~dp0AIVoice\.venv\rang_buoc_torch.txt"
+"%VPY%" -m pip freeze | findstr /b /i "torch== torchaudio== torchvision==" > "%RANG_BUOC%"
+
+call :cai_tuy_chon "Giong doc Piper - offline" "piper-tts>=1.2.0"
+call :cai_tuy_chon "Giong doc XTTSv2 - nhai giong" "coqui-tts>=0.27.5"
+call :cai_tuy_chon "Giong doc VieNeu" "vieneu==3.0.9" "neucodec>=0.0.6" "torchao==0.16.0"
+call :cai_tuy_chon "Tach nhac nen Demucs" "demucs"
+call :cai_tuy_chon "Cong cu kiem thu pytest" "pytest"
+
+:: OCR doc chu chay tren hinh. PyPI chi co paddlepaddle-gpu toi 2.6.2 - ban 3.x
+:: GPU nam o chi muc rieng cua Paddle. May khong co GPU CUDA thi dung ban CPU.
+"%VPY%" -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" >nul 2>&1
+if !errorlevel! equ 0 (
+    call :cai_tuy_chon "Paddle GPU cho OCR" "paddlepaddle-gpu==3.3.1" "--extra-index-url" "https://www.paddlepaddle.org.cn/packages/stable/cu126/"
+) else (
+    call :cai_tuy_chon "Paddle CPU cho OCR" "paddlepaddle==3.3.1"
+)
+:: videocr tren PyPI la ban GOC dung Tesseract - ma nguon goi API cua fork
+:: oliverfei/videocr-PaddleOCR nen phai cai tu Git, ghim commit da chay on.
+where git >nul 2>&1
+if !errorlevel! equ 0 (
+    call :cai_tuy_chon "videocr-PaddleOCR" "videocr @ git+https://github.com/oliverfei/videocr-PaddleOCR.git@b56af756cd2fdcdb54c79037d507aa8aec3c23c5"
+) else (
+    echo [WARNING] Khong co Git - bo qua videocr-PaddleOCR, che do OCR se khong dung duoc.
+    set "CAI_THIEU=!CAI_THIEU! videocr-PaddleOCR;"
+)
+
+if defined CAI_THIEU (
+    echo.
+    echo [WARNING] Chua cai duoc:!CAI_THIEU!
+    echo           Cac tinh nang con lai van dung binh thuong. Chay lai setup.bat de thu lai.
+) else (
+    echo [INFO] Da cai du cac tinh nang tuy chon.
 )
 echo.
 
@@ -183,4 +234,19 @@ if defined CALLED_FROM_RUN exit /b 0
 echo  Bam phim bat ky de mo cong cu. Lan sau chi can nhay dup run.bat.
 pause >nul
 call "%~dp0run.bat"
+exit /b 0
+
+
+:: ---------------------------------------------------------------------------
+:: cai_tuy_chon "<mo ta>" "<goi 1>" ["<goi hoac tham so 2>" ...]
+:: Cai mot tinh nang tuy chon; loi thi ghi ten vao CAI_THIEU roi di tiep.
+:: Mo ta KHONG duoc chua dau ngoac tron: no bi mo rong ben trong khoi if (...)
+:: ben duoi, dau ")" se dong khoi som va lam hong ca file.
+:cai_tuy_chon
+echo [INFO] - %~1...
+"%VPY%" -m pip install --default-timeout=1000 --prefer-binary -c "%RANG_BUOC%" %2 %3 %4 %5 %6
+if errorlevel 1 (
+    echo [WARNING] Chua cai duoc: %~1
+    set "CAI_THIEU=!CAI_THIEU! %~1;"
+)
 exit /b 0
