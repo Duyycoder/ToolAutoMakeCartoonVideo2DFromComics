@@ -89,7 +89,9 @@ if %errorlevel% neq 0 (
 
 echo [INFO] Dang cai dat Python 3.11.9 chay ngam (Silent Mode)...
 echo Vui long cho 1-2 phut...
-start /wait python-3.11.9-amd64.exe /quiet PrependPath=1 Include_test=0
+:: Goi bang duong dan day du: may nao bat NoDefaultCurrentDirectoryInExePath
+:: (chinh sach bao mat) thi cmd KHONG tim file o thu muc hien tai nua.
+start "" /wait "%CD%\python-3.11.9-amd64.exe" /quiet PrependPath=1 Include_test=0
 del python-3.11.9-amd64.exe
 
 :: Verify silent install
@@ -125,15 +127,18 @@ echo.
 :: IP-Adapter, CLIP ViT-H ~2.5 GB, Hyper-SD). Cong cu video khong dung toi -
 :: da kiem adapter_autosub/adapter_download khong goi cai nao. Mo hinh giong doc
 :: (Piper/XTTS) van tai vi tab Dich co dung de long tieng.
+:: Goi bang duong dan day du (xem ghi chu NoDefaultCurrentDirectoryInExePath o
+:: tren) - "call setup.bat" tran se bao "not recognized" tren may bat bien do.
+:: Van phai dung TRONG thu muc AIVoice vi setup cua no dung duong dan tuong doi.
 echo [INFO] Setting up TTS ^& Video Engines (AIVoice)...
-cd AIVoice
-call setup.bat --skip-models
+cd /d "%~dp0AIVoice"
+call "%~dp0AIVoice\setup.bat" --skip-models
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to setup AIVoice.
     pause
     exit /b 1
 )
-cd ..
+cd /d "%~dp0"
 echo.
 
 :: 3. Setup Orchestrator extra dependencies in AIVoice .venv
