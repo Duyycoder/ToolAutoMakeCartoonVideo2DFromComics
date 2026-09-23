@@ -1,6 +1,6 @@
 {
   "_comment": "Mau cau hinh. Copy file nay thanh global_config.json va dien gia tri that. global_config.json da bi .gitignore loai tru - KHONG commit key that.",
-  "_comment_copyright": "Cau hinh mac dinh huong toi che do KHONG vuong ban quyen: nguon truyen tu thu muc cuc bo (source local) + LLM chay local qua Gemini-API proxy (khong can key tra phi).",
+  "_comment_copyright": "Cau hinh mac dinh huong toi che do KHONG vuong ban quyen: nguon truyen tu thu muc cuc bo (source local) + LLM chay local qua Ollama (khong can key tra phi).",
   "api_keys": {
     "gemini": "YOUR_GEMINI_API_KEY_HERE"
   },
@@ -10,6 +10,11 @@
     "gemini_offline_base_url": "http://localhost:7860/v1",
     "gemini_offline_key": "",
     "ollama_base_url": "http://localhost:11434/v1"
+  },
+  "translate": {
+    "default_engine": "ollama",
+    "ollama_model": "qwen2.5:7b-instruct",
+    "glossary_extract_engine": "ollama"
   },
   "tts": {
     "default_engine": "edge",
@@ -37,8 +42,12 @@
     "use_gpu": true,
     "default_checkpoint": "anything-v5",
     "bgm_volume": 0.15,
-    "default_llm_engine": "gemini_api",
-    "default_llm_model": "gemini-2.5-flash"
+    "default_llm_engine": "ollama",
+    "default_llm_model": "qwen2.5:3b-instruct"
+  },
+  "autosub": {
+    "llm_engine": "ollama",
+    "llm_model": "qwen2.5:3b-instruct"
   },
   "chatbot": {
     "enabled": true,

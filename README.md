@@ -15,7 +15,7 @@ ToolAutoMakeCartoonVideo2DFromComics/   (repo tổng)
 ├── webui/            # Giao diện web 1 trang (HTML/CSS/JS thuần + SSE cập nhật tiến độ)
 ├── configs/          # Cấu hình toàn cục (config.example.json — copy thành global_config.json)
 ├── AIVoice/          # [submodule] TTS đa engine (edge/piper/xtts/kokoro/vieneu) + MediaComposer (sinh video)
-└── toolCaoTruyen/    # [submodule] Cào truyện + dịch AI (Gemini API / Ollama) + quản lý glossary
+└── toolCaoTruyen/    # [submodule] Cào truyện + dịch AI (Ollama) + quản lý glossary
 ```
 
 ### Luồng xử lý (pipeline 4 bước)
@@ -50,7 +50,7 @@ git submodule update --init --recursive
 Chi tiết từng bước nếu muốn kiểm soát:
 
 1. Chạy `setup.bat` — tạo venv tổng + gọi setup của 2 dự án con (tự nhận GPU, tải model) và tự sinh `configs/global_config.json` nếu chưa có. API key điền sau ngay trong giao diện (mục **Cấu Hình Chung**); `global_config.json` đã bị `.gitignore` loại trừ nên không bao giờ commit key thật.
-2. Chạy `run.bat` — mở **cửa sổ ứng dụng desktop** (WebView2 qua pywebview), bên trong tự khởi động orchestrator :8100 và Gemini-API proxy **chạy ẩn, không hiện console**; log ghi vào `logs/app.log` và `logs/gemini_api.log`. Đóng cửa sổ app sẽ tự tắt sạch mọi tiến trình con. Cần xem log trực tiếp thì chạy `run.bat debug`; máy thiếu pywebview/WebView2 sẽ tự fallback mở trình duyệt.
+2. Chạy `run.bat` — mở **cửa sổ ứng dụng desktop** (WebView2 qua pywebview), bên trong tự khởi động orchestrator :8100 **chạy ẩn, không hiện console**; log ghi vào `logs/app.log`. Đóng cửa sổ app sẽ tự tắt sạch mọi tiến trình con. Cần xem log trực tiếp thì chạy `run.bat debug`; máy thiếu pywebview/WebView2 sẽ tự fallback mở trình duyệt.
 
 ## Chế độ trình diễn "sạch bản quyền" (khuyến nghị cho đồ án)
 
@@ -59,9 +59,9 @@ Toàn bộ pipeline có thể chạy **hoàn toàn cục bộ, không dùng dị
 | Bước | Lựa chọn "sạch" | Ghi chú |
 |------|-----------------|---------|
 | 1. Nguồn truyện | **Thư mục cục bộ** (`Nguồn truyện → Local Folder`) | Dùng truyện tự sáng tác hoặc tác phẩm thuộc phạm vi công cộng (public domain) dưới dạng `.md`/`.txt` — không cào web |
-| 1. Dịch thuật | **Gemini Local** (engine `gemini_api`) qua proxy [Gemini-API](toolCaoTruyen/Gemini-API) tại `localhost:7860`, hoặc **Ollama** | Chạy trên máy, không cần API key trả phí |
+| 1. Dịch thuật | **Ollama** (mô hình offline, vd. `qwen2.5:7b-instruct`) tại `localhost:11434` | Chạy trên máy, không cần API key trả phí |
 | 2. TTS | **Kokoro-Vietnamese / VieNeu / Piper** (offline, GPU/CPU local) | Edge-TTS là tùy chọn online miễn phí |
-| 3. LLM phân cảnh & prompt | **Gemini Local** (mặc định) hoặc **Ollama** — chọn ngay trên form Bước 3 | Cùng proxy `localhost:7860` như Bước 1 |
+| 3. LLM phân cảnh & prompt | **Ollama** — chọn ngay trên form Bước 3 | Cùng máy chủ `localhost:11434` như Bước 1; `qwen2.5:3b-instruct` nhẹ ~2–3 GB VRAM |
 | 3. Sinh ảnh | **Stable Diffusion local** (checkpoint mã nguồn mở, vd. Anything V5) | Chạy trên GPU cá nhân |
 
 > Khi viết báo cáo: nhấn mạnh chuỗi xử lý trên để chứng minh hệ thống không phụ thuộc dịch vụ thương mại và không phân phối nội dung có bản quyền.
@@ -110,7 +110,7 @@ Thiết kế chi tiết: [docs/PLAN-chatbot-assistant.md](docs/PLAN-chatbot-assi
 
 ## Kiểm thử & CI/CD
 
-- **Unit tests** (`tests/`): kiểm tra logic resolve engine LLM Bước 3 (Gemini local/online, Ollama, validation thiếu API key) và fallback cấu hình TTS Bước 2 — chạy bằng `pip install pytest && pytest -v`, không cần GPU/model.
+- **Unit tests** (`tests/`): kiểm tra logic resolve engine LLM Bước 3 (Ollama, validation thiếu API key) và fallback cấu hình TTS Bước 2 — chạy bằng `pip install pytest && pytest -v`, không cần GPU/model.
 - **CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)): tự chạy trên mỗi push/PR vào `main` — lint lỗi nghiêm trọng (ruff), kiểm tra biên dịch toàn bộ `orchestrator/`, chạy unit tests.
 - **CD** ([.github/workflows/release.yml](.github/workflows/release.yml)): gắn tag `v*` (vd `git tag v1.0.0 && git push origin v1.0.0`) sẽ tự đóng gói mã nguồn và tạo GitHub Release kèm release notes.
 - Mỗi submodule (`AIVoice`, `toolCaoTruyen`) có workflow CI riêng kiểm tra cú pháp Python độc lập.
