@@ -18,6 +18,7 @@ dist/
 .coverage
 htmlcov/
 *.log
+*.log.old
 
 # --- Môi trường ảo (mỗi máy tự tạo bằng setup.bat) ---
 .venv/

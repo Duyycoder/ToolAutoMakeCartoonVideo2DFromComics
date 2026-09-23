@@ -26,14 +26,43 @@ LOGS_DIR = os.path.join(ROOT_DIR, "logs")
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
+LOG_MAX_BYTES = 5 * 1024 * 1024   # qua co nay thi xoay vong luc mo app
+LOG_KEEP_TAIL = 1024 * 1024       # giu 1 MB cuoi de con tra loi cua lan chay truoc
+
+
+def _rotate_log(path, max_bytes=LOG_MAX_BYTES, keep_tail=LOG_KEEP_TAIL):
+    """app.log chi ghi noi them nen lon mai - da tung phinh toi gan 1 GB.
+
+    Moi lan mo app: qua `max_bytes` thi cat lay `keep_tail` byte cuoi sang
+    app.log.old roi bat dau file moi. Khong giu nguyen ca file cu vi nhu vay
+    lan xoay dau tien van de lai nguyen mot file 1 GB tren dia.
+    """
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        return
+    if size <= max_bytes:
+        return
+    try:
+        with open(path, "rb") as src:
+            src.seek(max(0, size - keep_tail))
+            tail = src.read()
+        with open(path + ".old", "wb") as dst:
+            dst.write(tail)
+        os.remove(path)
+    except OSError:
+        pass  # file dang bi tien trinh khac giu (app cu chua tat) -> de lan sau
+
+
 def _ensure_streams():
     """Duoi pythonw, sys.stdout/stderr la None -> moi print/log se lam
     logging noi tung. Chuyen het ve logs/app.log de van doc duoc khi can."""
     if sys.stdout is not None and sys.stderr is not None:
         return
     os.makedirs(LOGS_DIR, exist_ok=True)
-    log_file = open(os.path.join(LOGS_DIR, "app.log"), "a",
-                    encoding="utf-8", buffering=1)
+    log_path = os.path.join(LOGS_DIR, "app.log")
+    _rotate_log(log_path)
+    log_file = open(log_path, "a", encoding="utf-8", buffering=1)
     if sys.stdout is None:
         sys.stdout = log_file
     if sys.stderr is None:
