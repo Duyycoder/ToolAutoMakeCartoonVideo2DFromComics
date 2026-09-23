@@ -442,6 +442,7 @@
                                 <label for="s3Style">Phong cách hình ảnh (Style)</label>
                                 <select id="s3Style">
                                     <option value="thuy_mac" selected>Thủy Mặc (Mực tàu — có LoRA riêng, khuyên dùng)</option>
+                                    <option value="dreamshaper_cinematic">Điện Ảnh Bán Thực (tối ưu cho DreamShaper 8)</option>
                                     <option value="flat_anime">Anime 2D Flat (Lineart)</option>
                                     <option value="anime_2d">Anime 2D Truyền Thống</option>
                                     <option value="xianxia">Xianxia / Cổ Trang Trung Hoa</option>
@@ -462,10 +463,9 @@
                                 <label for="s3Checkpoint">Mô hình SD Checkpoint</label>
                                 <select id="s3Checkpoint">
                                     <option value="anything-v5">Anything V5 (Anime)</option>
-                                    <option value="dreamshaper-8">DreamShaper 8 (Semi-Realistic)</option>
+                                    <option value="dreamshaper-8">DreamShaper 8 (Semi-Realistic — hợp style Điện Ảnh Bán Thực)</option>
                                     <option value="majicmix-realistic">MajicMix Realistic</option>
                                     <option value="cetus-mix">Cetus-Mix (Anime)</option>
-                                    <option value="rpg-v4">RPG v4 (Fantasy)</option>
                                     <option value="meinamix">MeinaMix (Anime)</option>
                                 </select>
                             </div>
@@ -1012,6 +1012,7 @@
                                 <select id="cfgVideoStyle" data-cfg="video.default_style" data-seed="s3Style">
                                     <!-- value PHẢI trùng tên file trong resource/image_presets/ -->
                                     <option value="thuy_mac" selected>Thủy Mặc (có LoRA riêng)</option>
+                                    <option value="dreamshaper_cinematic">Điện Ảnh Bán Thực (DreamShaper 8)</option>
                                     <option value="flat_anime">Anime 2D Flat</option>
                                     <option value="anime_2d">Anime 2D Truyền Thống</option>
                                     <option value="xianxia">Xianxia / Cổ Trang</option>

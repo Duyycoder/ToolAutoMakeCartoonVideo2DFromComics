@@ -237,6 +237,7 @@ Gợi ý ghi sẵn trong ô: gemini-3-flash
 
 Ô chọn **Phong cách hình ảnh (Style)** ở mục Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
 - `thuy_mac`: Thủy Mặc (Mực tàu — có LoRA riêng, khuyên dùng)
+- `dreamshaper_cinematic`: Điện Ảnh Bán Thực (tối ưu cho checkpoint DreamShaper 8)
 - `flat_anime`: Anime 2D Flat (Lineart)
 - `anime_2d`: Anime 2D Truyền Thống
 - `xianxia`: Xianxia / Cổ Trang Trung Hoa
@@ -256,10 +257,9 @@ Gợi ý ghi sẵn trong ô: gemini-3-flash
 
 Ô chọn **Mô hình SD Checkpoint** ở mục Bước 3: Dựng Hoạt Hình. Các giá trị hợp lệ:
 - `anything-v5`: Anything V5 (Anime)
-- `dreamshaper-8`: DreamShaper 8 (Semi-Realistic)
+- `dreamshaper-8`: DreamShaper 8 (Semi-Realistic — đi cặp với style `dreamshaper_cinematic`)
 - `majicmix-realistic`: MajicMix Realistic
 - `cetus-mix`: Cetus-Mix (Anime)
-- `rpg-v4`: RPG v4 (Fantasy)
 - `meinamix`: MeinaMix (Anime)
 
 ## Engine LLM Kịch bản & Prompt — Bước 3: Dựng Hoạt Hình
@@ -526,6 +526,7 @@ Gợi ý ghi sẵn trong ô: Ví dụ: configs/cookies_iqiyi.txt
 
 Ô chọn **Style Mặc định** ở mục Cấu Hình Chung. Các giá trị hợp lệ:
 - `thuy_mac`: Thủy Mặc (có LoRA riêng)
+- `dreamshaper_cinematic`: Điện Ảnh Bán Thực (DreamShaper 8)
 - `flat_anime`: Anime 2D Flat
 - `anime_2d`: Anime 2D Truyền Thống
 - `xianxia`: Xianxia / Cổ Trang
@@ -590,7 +591,7 @@ Gợi ý ghi sẵn trong ô: Ví dụ: configs/cookies_iqiyi.txt
 - `temperature` = 0.3
 
 **Khối `video`:**
-- `default_style` = "anime_2d_flat"
+- `default_style` = "thuy_mac"
 - `use_gpu` = True
 - `default_checkpoint` = "anything-v5"
 - `bgm_path` = ""

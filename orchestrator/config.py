@@ -73,7 +73,7 @@ def load_global_config() -> Dict[str, Any]:
                 "temperature": 0.3
             },
             "video": {
-                "default_style": "anime_2d_flat",
+                "default_style": "thuy_mac",
                 "use_gpu": True,
                 "default_checkpoint": "anything-v5",
                 "bgm_path": "",

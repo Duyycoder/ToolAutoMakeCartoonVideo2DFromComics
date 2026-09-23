@@ -541,7 +541,7 @@ class NovelPipeline:
             "--genre", video_args.get("genre", "tien_hiep"),
             "--input-dir", video_input_dir,
             "--output-dir", video_output_dir,
-            "--style", video_args.get("style") or video_cfg.get("default_style") or "anime_2d_flat",
+            "--style", video_args.get("style") or video_cfg.get("default_style") or "thuy_mac",
             "--checkpoint", video_args.get("checkpoint") or video_cfg.get("default_checkpoint") or "anything-v5",
             "--bgm-path", video_args.get("bgm_path") or "",
             "--bgm-volume", str(video_args.get("bgm_volume") if video_args.get("bgm_volume") is not None else video_cfg.get("bgm_volume", 0.15)),

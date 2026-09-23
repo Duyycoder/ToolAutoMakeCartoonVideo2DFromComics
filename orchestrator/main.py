@@ -147,7 +147,7 @@ class Step2Schema(BaseModel):
 class Step3Schema(BaseModel):
     story_name: str
     genre: Optional[str] = "tien_hiep"
-    style: Optional[str] = "anime_2d_flat"
+    style: Optional[str] = "thuy_mac"
     checkpoint: Optional[str] = "anything-v5"
     bgm_path: Optional[str] = ""
     bgm_volume: Optional[float] = 0.15

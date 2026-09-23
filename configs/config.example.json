@@ -38,7 +38,7 @@
     "sd_ip_adapter_scale": 0.6,
     "sd_studio_render_steps": 0,
     "sd_studio_render_guidance": 0.0,
-    "default_style": "anime_2d_flat",
+    "default_style": "thuy_mac",
     "use_gpu": true,
     "default_checkpoint": "anything-v5",
     "bgm_volume": 0.15,
