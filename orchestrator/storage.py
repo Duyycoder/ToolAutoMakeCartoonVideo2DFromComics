@@ -29,6 +29,8 @@ SUB_EXTS = (".srt", ".vtt", ".ass")
 # entry_id là TÊN THƯ MỤC do người dùng gián tiếp điều khiển (tiêu đề video) nên
 # phải kiểm tra trước khi ghép đường dẫn — chặn "..", ổ đĩa khác, dấu gạch chéo.
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,120}$")
+# Đuôi thời gian của mã lô — dùng để suy nhãn dễ đọc mà không phải lưu thêm trường.
+BATCH_STAMP = re.compile(r"_?(\d{8}_\d{6})$")
 
 
 def slugify(text: str, max_len: int = 60) -> str:
@@ -48,6 +50,65 @@ def human_size(num_bytes: int) -> str:
             return f"{num_bytes:.0f} {unit}" if unit == "B" else f"{num_bytes:.1f} {unit}"
         num_bytes /= 1024.0
     return f"{num_bytes:.1f} GB"
+
+
+def natural_key(name: str) -> list:
+    """Khoá sắp xếp tự nhiên: "tap2" đứng TRƯỚC "tap10" (sắp theo chữ thì ngược lại).
+
+    Người dùng đặt tên tập phim theo số, sắp sai ở đây là ghép ra video lộn tập.
+    """
+    return [int(part) if part.isdigit() else part.lower()
+            for part in re.split(r"(\d+)", name or "")]
+
+
+def scan_video_files(folder: str) -> List[str]:
+    """File video nằm NGAY trong một thư mục, sắp theo thứ tự tự nhiên.
+
+    Cố ý không đệ quy: người dùng lỡ chọn nhầm thư mục gốc ổ đĩa thì cũng không
+    ngồi chờ quét cả ổ.
+    """
+    if not folder or not os.path.isdir(folder):
+        return []
+    names = [n for n in os.listdir(folder)
+             if n.lower().endswith(VIDEO_EXTS)
+             and os.path.isfile(os.path.join(folder, n))]
+    names.sort(key=natural_key)
+    return [os.path.join(folder, n) for n in names]
+
+
+def new_batch_id(name: str = "") -> str:
+    """Mã của một LÔ: mọi video trong cùng một lượt chạy mang chung mã này.
+
+    Nhờ nó (kèm `batch_index`) mà bước ghép biết nối theo đúng thứ tự người dùng
+    đã sắp, kể cả khi chạy tự động hoặc mở lại app sau khi tắt.
+    """
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    return f"lo_{slugify(name, 30)}_{stamp}" if name else f"lo_{stamp}"
+
+
+def batch_order(meta: Dict[str, Any]) -> float:
+    """Số thứ tự trong lô, ép về float.
+
+    `video.json` do adapter cào ghi ra nên trường này có thể thiếu hoặc là chuỗi;
+    mục cũ (trước khi có lô) coi như 0 và vẫn đọc được bình thường.
+    """
+    try:
+        return float(meta.get("batch_index") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def batch_label(batch_id: str) -> str:
+    """Nhãn dễ đọc suy từ mã lô: "lo_phim_a_20260922_154501" -> "phim_a (22/09 15:45)"."""
+    body = (batch_id or "")
+    body = body[3:] if body.startswith("lo_") else body
+    match = BATCH_STAMP.search(body)
+    if not match:
+        return body or batch_id
+    name = body[:match.start()]
+    stamp = match.group(1)
+    pretty = f"{stamp[6:8]}/{stamp[4:6]} {stamp[9:11]}:{stamp[11:13]}"
+    return f"{name} ({pretty})" if name else pretty
 
 
 class VideoLibrary:
@@ -133,6 +194,41 @@ class VideoLibrary:
         out.sort(key=lambda m: m.get("created_at", ""), reverse=True)
         return out
 
+    def list_batch(self, batch_id: str) -> List[Dict[str, Any]]:
+        """Các mục của một lô, sắp theo `batch_index` TĂNG DẦN — đây là thứ tự ghép.
+
+        Cố ý không dùng thứ tự của `list_entries` (mới nhất trước) vì như vậy là
+        ghép ngược đời so với lúc người dùng sắp hàng đợi.
+        """
+        if not batch_id:
+            return []
+        items = [m for m in self.list_entries() if (m.get("batch_id") or "") == batch_id]
+        items.sort(key=batch_order)
+        return items
+
+    def list_batches(self) -> List[Dict[str, Any]]:
+        """Tóm tắt từng lô (mới nhất trước) để giao diện chọn "nạp cả lô"."""
+        groups: Dict[str, Dict[str, Any]] = {}
+        for meta in self.list_entries():
+            batch_id = (meta.get("batch_id") or "").strip()
+            if not batch_id:
+                continue
+            created = meta.get("created_at", "")
+            group = groups.get(batch_id)
+            if not group:
+                group = groups[batch_id] = {
+                    "batch_id": batch_id, "name": batch_label(batch_id),
+                    "count": 0, "translated": 0, "created_at": created,
+                }
+            group["count"] += 1
+            group["translated"] += 1 if meta.get("has_translation") else 0
+            # Mốc của lô là video ĐẦU TIÊN, không phải video cuối.
+            if created and (not group["created_at"] or created < group["created_at"]):
+                group["created_at"] = created
+        out = list(groups.values())
+        out.sort(key=lambda g: g["created_at"], reverse=True)
+        return out
+
     def _decorate(self, meta: Dict[str, Any]) -> Dict[str, Any]:
         """Bổ sung thông tin quét từ đĩa (phụ đề, bản đã dịch, file còn không)."""
         entry_id = meta["entry_id"]
@@ -201,12 +297,17 @@ class VideoLibrary:
         return path
 
     # ---------------- tạo mục ----------------
-    def register_local(self, video_path: str, title: str = "", copy_file: bool = False) -> Dict[str, Any]:
+    def register_local(self, video_path: str, title: str = "", copy_file: bool = False,
+                       batch_id: str = "", batch_index: float = 0) -> Dict[str, Any]:
         """Đưa một video có sẵn trên máy vào thư viện.
 
         Mặc định chỉ TRỎ tới file gốc (`copy_file=False`) — video hàng GB không
         nên nhân đôi chỉ để gắn phụ đề. Khi xoá mục, file gốc ngoài thư viện được
         giữ nguyên (xem `delete_entry`).
+
+        `batch_id`/`batch_index` là chỗ đứng của video trong lô — cùng bộ trường
+        mà adapter cào ghi vào `video.json`, nên file trên máy và video tải về
+        xếp chung được một hàng.
         """
         src = os.path.abspath(video_path)
         if not os.path.exists(src):
@@ -236,6 +337,8 @@ class VideoLibrary:
             "source": "import",
             "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
             "width": 0, "height": 0, "duration": 0,
+            "batch_id": batch_id or "",
+            "batch_index": batch_index or 0,
         }
         self.write_entry(entry_id, meta)
         return self.read_entry(entry_id)

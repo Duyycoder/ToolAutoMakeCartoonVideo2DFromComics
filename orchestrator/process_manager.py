@@ -184,6 +184,19 @@ class ProcessManager:
             q.put(None)
         return True
 
+    def request_stop(self, task_key: str) -> bool:
+        """Xin dừng một task chạy bằng thread (nhập hàng loạt, ghép video).
+
+        Task loại này không có tiến trình con để giết nên nút Dừng chỉ đặt được
+        cờ; vòng lặp của task tự kiểm tra giữa hai việc rồi thoát cho sạch. Trả
+        False nếu task không chạy — để endpoint còn báo 404 cho đúng.
+        """
+        with self._lock:
+            if task_key not in self.manual_running_tasks:
+                return False
+            self.user_stopped_tasks.add(task_key)
+            return True
+
     def was_user_stopped(self, task_key: str) -> bool:
         """Task kết thúc do người dùng bấm Dừng (phân biệt với lỗi thật)."""
         with self._lock:
@@ -232,6 +245,9 @@ class ProcessManager:
             self.log_queues[task_key] = log_queue
             self.manual_running_tasks.add(task_key)
             self.completed_exit_codes.pop(task_key, None)
+            # Cờ "người dùng đã bấm Dừng" của lượt TRƯỚC phải xoá ở đây, giống
+            # start_process làm — không thì lượt mới vừa chạy đã tự thoát.
+            self.user_stopped_tasks.discard(task_key)
             return True
 
     def emit(self, task_key: str, line: str) -> None:

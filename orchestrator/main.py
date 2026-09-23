@@ -4,6 +4,7 @@ Ba tác vụ nặng dùng ba `task_key` CỐ ĐỊNH: "download", "translate", "
 mỗi loại chỉ chạy một lần một (GPU 6GB không kham nổi song song), đổi lại giao
 diện nối lại luồng log sau khi F5 mà không cần nhớ mã tác vụ.
 """
+import datetime
 import json
 import logging
 import os
@@ -24,14 +25,17 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from orchestrator.config import (  # noqa: E402
     load_global_config, save_global_config, load_ui_settings, save_ui_settings,
 )
-from orchestrator.storage import VideoLibrary  # noqa: E402
+from orchestrator.storage import VideoLibrary, new_batch_id, scan_video_files  # noqa: E402
 from orchestrator.process_manager import ProcessManager  # noqa: E402
-from orchestrator.pipeline import VideoPipeline, AIVOICE_DIR, AUTOSUB_ADAPTER, PYTHON_EXE  # noqa: E402
-from orchestrator import ollama_manager  # noqa: E402
+from orchestrator.pipeline import (  # noqa: E402
+    VideoPipeline, AIVOICE_DIR, AUTOSUB_ADAPTER, PYTHON_EXE, REPO_ROOT,
+)
+from orchestrator import ollama_manager, project  # noqa: E402
 
 TASK_DOWNLOAD = "download"
 TASK_TRANSLATE = "translate"
 TASK_MERGE = "merge"
+TASK_IMPORT = "import"
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 app = FastAPI(title="Cào & Dịch Video — Orchestrator")
@@ -43,6 +47,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def khong_cache_giao_dien(request, call_next):
+    """App chạy cục bộ nên không cache file giao diện — đọc lại từ đĩa vài mili-giây.
+
+    Thiếu dòng này thì sau mỗi lần cập nhật, cửa sổ WebView2 vẫn hiện giao diện
+    CŨ cho tới khi người dùng tự xoá cache: lỗi rất khó đoán vì code đã đúng mà
+    màn hình thì không đổi.
+    """
+    response = await call_next(request)
+    if not request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+    return response
 
 _cfg = load_global_config()
 _storage_dir = (_cfg.get("storage_dir") or "storage").strip() or "storage"
@@ -102,11 +120,23 @@ class TranslateParams(BaseModel):
     custom_position: Optional[float] = None
 
 
+class MergeAfterSchema(BaseModel):
+    """Khúc ghép nối vào cuối chuỗi tải/nhập → dịch → ghép."""
+    enabled: Optional[bool] = False
+    output_name: Optional[str] = ""
+    prefer: Optional[str] = "output"    # output = ưu tiên bản đã gắn phụ đề | source = bản gốc
+    normalize: Optional[bool] = True    # tự chuẩn hoá khi các video khác cỡ nhau
+
+
 class DownloadSchema(ProbeSchema):
     skip_existing: Optional[bool] = True
     stop_on_error: Optional[bool] = False
     auto_translate: Optional[bool] = False
     translate: Optional[TranslateParams] = None
+    batch_id: Optional[str] = ""
+    batch_name: Optional[str] = ""
+    batch_index: Optional[List[float]] = None   # chỗ đứng của từng link trong lô
+    merge_after: Optional[MergeAfterSchema] = None
 
 
 class TranslateSchema(TranslateParams):
@@ -117,6 +147,41 @@ class ImportSchema(BaseModel):
     path: str
     title: Optional[str] = ""
     copy_file: Optional[bool] = False
+
+
+class ProjectFolderSchema(BaseModel):
+    folder: str
+
+
+class ProjectInitSchema(BaseModel):
+    folder: str
+    name: Optional[str] = ""
+    doi_ten: Optional[bool] = True   # False = chỉ đánh dấu dự án, giữ nguyên tên file
+
+
+class ProjectCreateSchema(BaseModel):
+    thu_muc_cha: str
+    ten: str
+
+
+class ImportBatchItem(BaseModel):
+    path: str
+    title: Optional[str] = ""
+    index: Optional[float] = None   # chỗ đứng trong lô; để trống = theo thứ tự gửi lên
+
+
+class ImportBatchSchema(BaseModel):
+    items: List[ImportBatchItem]
+    copy_file: Optional[bool] = False
+    batch_id: Optional[str] = ""    # có sẵn = nhập thêm vào lô đang dựng
+    batch_name: Optional[str] = ""
+    auto_translate: Optional[bool] = False
+    translate: Optional[TranslateParams] = None
+    merge_after: Optional[MergeAfterSchema] = None
+
+
+class PickFilesSchema(BaseModel):
+    mode: Optional[str] = "files"   # files = chọn nhiều video | folder = chọn cả thư mục
 
 
 class SubSaveSchema(BaseModel):
@@ -133,6 +198,7 @@ class MergeItem(BaseModel):
 class MergeSchema(BaseModel):
     items: List[MergeItem]
     output_name: Optional[str] = ""
+    normalize: Optional[bool] = True   # tự chuẩn hoá khi các video khác cỡ nhau
 
 
 class PrepareSchema(BaseModel):
@@ -255,6 +321,159 @@ def import_video(body: ImportSchema):
     return entry
 
 
+@app.post("/api/videos/import-batch")
+def import_batch(body: ImportBatchSchema):
+    """Nhập nhiều video có sẵn trên máy vào thư viện, giữ đúng thứ tự đã sắp.
+
+    Chạy nền (task_key "import") vì mỗi file phải đọc W/H bằng một tiến trình
+    con; giao diện theo dõi qua SSE như các tác vụ nặng khác.
+    """
+    items = [it for it in body.items if (it.path or "").strip()]
+    if not items:
+        raise HTTPException(status_code=400, detail="Chưa chọn file video nào.")
+    if process_mgr.is_running(TASK_IMPORT):
+        raise HTTPException(status_code=400, detail="Đang có lượt nhập khác chạy — chờ nó xong đã.")
+
+    then_translate = _chain_translate(body.auto_translate, body.translate)
+    then_merge = _chain_merge(body.merge_after)
+    batch_id = (body.batch_id or "").strip() or new_batch_id(body.batch_name or "")
+
+    then = None
+    if then_translate or then_merge:
+        def then(exit_code: int, entries: List[dict]):
+            """Nhập xong thì đi tiếp: dịch từng video rồi ghép cả lô."""
+            pipeline.chain_after_entries(TASK_IMPORT, entries, exit_code,
+                                         then_translate, then_merge, batch_id)
+
+    if not pipeline.start_import(TASK_IMPORT, [it.model_dump() for it in items],
+                                 bool(body.copy_file), batch_id, then):
+        raise HTTPException(status_code=500, detail="Không khởi động được tác vụ nhập.")
+    return {"status": "success", "task_key": TASK_IMPORT,
+            "batch_id": batch_id, "count": len(items)}
+
+
+@app.get("/api/batches")
+def list_batches():
+    """Các lô đã chạy — để tab Ghép nạp lại cả lô đúng thứ tự."""
+    return library.list_batches()
+
+
+@app.get("/api/batches/{batch_id}")
+def get_batch(batch_id: str):
+    entries = library.list_batch(batch_id)
+    if not entries:
+        raise HTTPException(status_code=404, detail=f"Không có lô '{batch_id}'.")
+    return entries
+
+
+# ------------------------------------------------------------- Dự án video
+def _nho_du_an(folder: str, name: str) -> None:
+    """Ghi vào danh sách dự án gần đây để sidebar chọn lại nhanh."""
+    cfg = load_global_config()
+    du_an = cfg.get("du_an") or {}
+    gan_day = [r for r in (du_an.get("gan_day") or [])
+               if (r.get("folder") or "").lower() != folder.lower()]
+    gan_day.insert(0, {"folder": folder, "name": name,
+                       "at": datetime.datetime.now().isoformat(timespec="seconds")})
+    du_an["gan_day"] = gan_day[:10]
+    du_an["hien_tai"] = folder
+    cfg["du_an"] = du_an
+    save_global_config(cfg)
+
+
+def _quen_du_an(folder: str) -> None:
+    cfg = load_global_config()
+    du_an = cfg.get("du_an") or {}
+    du_an["gan_day"] = [r for r in (du_an.get("gan_day") or [])
+                        if (r.get("folder") or "").lower() != folder.lower()]
+    if (du_an.get("hien_tai") or "").lower() == folder.lower():
+        du_an["hien_tai"] = ""
+    cfg["du_an"] = du_an
+    save_global_config(cfg)
+
+
+@app.post("/api/project/inspect")
+def project_inspect(body: ProjectFolderSchema):
+    """Nhìn một thư mục TRƯỚC khi động vào nó.
+
+    Chỉ đọc: trả về có video không, đã là dự án chưa, và bảng đổi tên dự kiến để
+    giao diện cho người dùng duyệt. Đổi tên file là việc không Ctrl+Z được nên
+    không bao giờ làm mà chưa hỏi.
+    """
+    try:
+        return project.xem_xet(body.folder)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/project/init")
+def project_init(body: ProjectInitSchema):
+    """Biến thư mục thành dự án — đổi tên file THẬT khi `doi_ten` bật."""
+    try:
+        data = project.init(body.folder, body.name or "", bool(body.doi_ten))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Không đổi tên được file: {e}")
+    _nho_du_an(data["folder"], data["name"])
+    return data
+
+
+@app.post("/api/project/create")
+def project_create(body: ProjectCreateSchema):
+    """Tạo thư mục dự án rỗng để tải video về (luồng dán link)."""
+    try:
+        data = project.tao_moi(body.thu_muc_cha, body.ten)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Không tạo được thư mục dự án: {e}")
+    _nho_du_an(data["folder"], data["name"])
+    return data
+
+
+@app.post("/api/project/open")
+def project_open(body: ProjectFolderSchema):
+    data = project.doc(body.folder)
+    if not data:
+        raise HTTPException(status_code=404,
+                            detail=f"Thư mục '{body.folder}' chưa phải là dự án.")
+    _nho_du_an(data["folder"], data.get("name") or "")
+    return data
+
+
+@app.post("/api/project/undo-rename")
+def project_undo_rename(body: ProjectFolderSchema):
+    """Trả tên file về y như trước khi init, rồi bỏ đánh dấu dự án."""
+    try:
+        res = project.hoan_tac(body.folder)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Không trả lại tên file được: {e}")
+    _quen_du_an(res["folder"])
+    return res
+
+
+@app.get("/api/project/videos")
+def project_videos(folder: str, ke_ca_da_ghep: bool = False):
+    if not project.da_init(folder):
+        raise HTTPException(status_code=404, detail=f"Thư mục '{folder}' chưa phải là dự án.")
+    return project.danh_sach_video(folder, ke_ca_da_ghep)
+
+
+@app.get("/api/project/recent")
+def project_recent():
+    """Dự án gần đây — bỏ qua cái đã bị xoá hoặc chuyển đi chỗ khác."""
+    du_an = (load_global_config().get("du_an") or {})
+    gan_day = [r for r in (du_an.get("gan_day") or [])
+               if r.get("folder") and project.da_init(r["folder"])]
+    hien_tai = du_an.get("hien_tai") or ""
+    if hien_tai and not project.da_init(hien_tai):
+        hien_tai = ""
+    return {"hien_tai": hien_tai, "gan_day": gan_day}
+
+
 def _reveal_in_file_manager(path: str) -> None:
     """Mở thư mục bằng trình quản lý tệp của hệ điều hành (app chạy cục bộ)."""
     if sys.platform == "win32":
@@ -290,6 +509,56 @@ def open_storage_folder(kind: str = "storage"):
     except OSError as e:
         raise HTTPException(status_code=500, detail=f"Không mở được thư mục '{path}': {e}")
     return {"status": "success", "path": path}
+
+
+@app.post("/api/system/pick-files")
+def pick_files(body: PickFilesSchema):
+    """Mở hộp thoại chọn video của hệ điều hành, trả về đường dẫn thật.
+
+    Trình duyệt không cho biết đường dẫn file người dùng chọn, và video vài GB
+    thì không upload được — nên hộp thoại phải mở ở phía máy chủ. Chạy tiến
+    trình riêng vì tkinter đòi luồng chính (xem `orchestrator/file_picker.py`).
+    """
+    mode = "folder" if (body.mode or "") == "folder" else "files"
+    env = os.environ.copy()
+    env["PYTHONPATH"] = REPO_ROOT
+    env["PYTHONIOENCODING"] = "utf-8"
+    try:
+        res = subprocess.run(
+            [sys.executable, "-m", "orchestrator.file_picker", "--mode", mode],
+            cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8",
+            timeout=600, creationflags=NO_WINDOW, env=env)
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504,
+                            detail="Hộp thoại chọn file mở quá 10 phút chưa chọn gì — thử lại.")
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Không mở được hộp thoại chọn file: {e}")
+
+    data = None
+    for line in (res.stdout or "").splitlines():
+        line = line.strip()
+        if line.startswith("{"):
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+    if data is None:
+        detail = (res.stderr or "")[-400:] or "không đọc được kết quả"
+        raise HTTPException(status_code=500,
+                            detail=f"Không mở được hộp thoại chọn file. Chi tiết: {detail}")
+    if data.get("error"):
+        raise HTTPException(status_code=500, detail=f"Hộp thoại chọn file lỗi: {data['error']}")
+
+    paths = data.get("paths") or []
+    folder = ""
+    cancelled = not paths
+    if mode == "folder" and paths:
+        folder = paths[0]
+        paths = scan_video_files(folder)
+        # Thư mục rỗng KHÔNG phải là lỗi: lúc tạo dự án trống để tải video về,
+        # thư mục cha đương nhiên chưa có video nào. Bên gọi tự quyết định.
+        cancelled = False
+    return {"paths": paths, "folder": folder, "cancelled": cancelled}
 
 
 @app.get("/api/videos/{entry_id}/play")
@@ -329,6 +598,32 @@ def save_sub(entry_id: str, body: SubSaveSchema):
 
 
 # ------------------------------------------------------------- Cào video
+def _chain_translate(enabled: bool, params: Optional[TranslateParams]) -> Optional[dict]:
+    """Tham số cho khúc dịch nối sau khi tải/nhập (None = không bật)."""
+    if not enabled:
+        return None
+    if process_mgr.is_running(TASK_TRANSLATE):
+        raise HTTPException(
+            status_code=400,
+            detail="Đang có tác vụ dịch chạy — không thể bật 'dịch luôn sau khi tải'.")
+    return (params or TranslateParams()).model_dump()
+
+
+def _chain_merge(opts: Optional[MergeAfterSchema]) -> Optional[dict]:
+    """Tham số cho khúc ghép ở cuối chuỗi (None = không bật).
+
+    Chặn ngay tại đây nếu đang có lượt ghép khác: cả chuỗi chạy dưới task_key
+    của khúc đầu nên tới lúc ghép mới phát hiện xung đột là đã muộn.
+    """
+    if not opts or not opts.enabled:
+        return None
+    if process_mgr.is_running(TASK_MERGE):
+        raise HTTPException(
+            status_code=400,
+            detail="Đang có tác vụ ghép chạy — không thể bật 'ghép lại khi xong'.")
+    return opts.model_dump()
+
+
 @app.post("/api/download/probe")
 def download_probe(body: ProbeSchema):
     urls = [u.strip() for u in body.urls if u and u.strip()]
@@ -350,17 +645,14 @@ def download_start(body: DownloadSchema):
     if process_mgr.is_running(TASK_DOWNLOAD):
         raise HTTPException(status_code=400, detail="Đang có lượt tải khác chạy — dừng nó trước.")
 
-    then_translate = None
-    if body.auto_translate:
-        if process_mgr.is_running(TASK_TRANSLATE):
-            raise HTTPException(status_code=400,
-                                detail="Đang có tác vụ dịch chạy — không thể bật 'dịch luôn sau khi tải'.")
-        params = body.translate or TranslateParams()
-        then_translate = params.model_dump()
+    then_translate = _chain_translate(body.auto_translate, body.translate)
+    then_merge = _chain_merge(body.merge_after)
 
-    if not pipeline.start_download(TASK_DOWNLOAD, urls, body.model_dump(), then_translate):
+    args = body.model_dump()
+    args["batch_id"] = (body.batch_id or "").strip() or new_batch_id(body.batch_name or "")
+    if not pipeline.start_download(TASK_DOWNLOAD, urls, args, then_translate, then_merge):
         raise HTTPException(status_code=500, detail="Không khởi động được tiến trình tải.")
-    return {"status": "success", "task_key": TASK_DOWNLOAD}
+    return {"status": "success", "task_key": TASK_DOWNLOAD, "batch_id": args["batch_id"]}
 
 
 # ------------------------------------------------------------- Dịch video
@@ -477,14 +769,19 @@ def merge_start(body: MergeSchema):
     if process_mgr.is_running(TASK_MERGE):
         raise HTTPException(status_code=400, detail="Tác vụ ghép đang chạy.")
 
-    files = []
+    files, sizes = [], []
     for item in body.items:
         try:
             files.append(library.find_file(item.entry_id, item.kind or "output", item.name or ""))
         except (FileNotFoundError, ValueError) as e:
             raise HTTPException(status_code=400, detail=str(e))
+        # W/H đọc sẵn từ video.json: máy đích không có ffprobe nên đây là cách
+        # rẻ nhất để biết có phải chuẩn hoá trước khi nối hay không.
+        entry = library.read_entry(item.entry_id) or {}
+        sizes.append((entry.get("width") or 0, entry.get("height") or 0))
 
-    if not pipeline.start_merge(TASK_MERGE, files, body.output_name or ""):
+    if not pipeline.start_merge(TASK_MERGE, files, body.output_name or "", sizes,
+                                "auto" if body.normalize else "never"):
         raise HTTPException(status_code=500, detail="Không khởi động được tác vụ ghép.")
     return {"status": "success", "task_key": TASK_MERGE, "count": len(files)}
 
@@ -515,6 +812,11 @@ def running_tasks():
 def stop_task(task_key: str):
     if process_mgr.stop_process(task_key):
         return {"status": "success", "message": f"Đã dừng tác vụ '{task_key}'."}
+    # Task chạy bằng thread (nhập hàng loạt, ghép) không có tiến trình con để
+    # giết — chỉ đặt cờ, vòng lặp của nó tự thoát sau việc đang dở.
+    if process_mgr.request_stop(task_key):
+        return {"status": "success",
+                "message": f"Đã yêu cầu dừng '{task_key}' — sẽ dừng sau khi xong việc đang dở."}
     raise HTTPException(status_code=404, detail=f"Không có tác vụ '{task_key}' đang chạy.")
 
 

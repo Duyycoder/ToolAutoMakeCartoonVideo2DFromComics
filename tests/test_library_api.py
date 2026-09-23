@@ -9,6 +9,7 @@ import pytest
 from fastapi import HTTPException
 
 import orchestrator.main as main
+import orchestrator.pipeline as pipeline_mod
 from orchestrator.storage import VideoLibrary
 
 
@@ -169,23 +170,123 @@ def test_ghep_bao_loi_khi_file_khong_ton_tai(lib, entry):
     assert e.value.status_code == 400
 
 
-def test_ghep_goi_pipeline_voi_duong_dan_that(lib, entry, monkeypatch):
+@pytest.fixture
+def bat_ghep(monkeypatch):
+    """Chan pipeline.start_merge lai de doc tham so gui xuong."""
     calls = {}
-    monkeypatch.setattr(main.pipeline, "start_merge",
-                        lambda task_key, files, name: calls.update(files=files, name=name) or True)
+
+    def fake(task_key, files, name, sizes=None, normalize="auto"):
+        calls.update(files=files, name=name, sizes=sizes, normalize=normalize)
+        return True
+
+    monkeypatch.setattr(main.pipeline, "start_merge", fake)
+    return calls
+
+
+def test_ghep_goi_pipeline_voi_duong_dan_that(lib, entry, bat_ghep):
     body = main.MergeSchema(items=[main.MergeItem(entry_id=entry["entry_id"], kind="source")],
                             output_name="ban_ghep")
     res = main.merge_start(body)
 
     assert res["count"] == 1
-    assert calls["files"] == [entry["file"]]
-    assert calls["name"] == "ban_ghep"
+    assert bat_ghep["files"] == [entry["file"]]
+    assert bat_ghep["name"] == "ban_ghep"
+
+
+def test_ghep_gui_kem_kich_thuoc_doc_tu_video_json(lib, entry, bat_ghep):
+    entry["width"], entry["height"] = 1080, 1920
+    lib.write_entry(entry["entry_id"], entry)
+
+    main.merge_start(main.MergeSchema(
+        items=[main.MergeItem(entry_id=entry["entry_id"], kind="source")]))
+
+    # Khong co ffprobe tren may dich -> W/H phai lay san tu video.json.
+    assert bat_ghep["sizes"] == [(1080, 1920)]
+    assert bat_ghep["normalize"] == "auto"
+
+
+def test_tat_tu_chuan_hoa_thi_bao_xuong_pipeline(lib, entry, bat_ghep):
+    main.merge_start(main.MergeSchema(
+        items=[main.MergeItem(entry_id=entry["entry_id"], kind="source")], normalize=False))
+    assert bat_ghep["normalize"] == "never"
 
 
 def test_dung_tac_vu_khong_chay_thi_404(lib):
     with pytest.raises(HTTPException) as e:
         main.stop_task("translate")
     assert e.value.status_code == 404
+
+
+# ------------------------------------------------------- Nhap hang loat (lo)
+class SyncThread:
+    """Chay thang target khi .start() — de test khoi phai cho thread that."""
+
+    def __init__(self, target=None, daemon=None, **kwargs):
+        self._target = target
+
+    def start(self):
+        self._target()
+
+
+@pytest.fixture
+def nhap_dong_bo(monkeypatch):
+    """Nhap hang loat chay dong bo va khong doc W/H bang tien trinh con."""
+    monkeypatch.setattr(pipeline_mod.threading, "Thread", SyncThread)
+    monkeypatch.setattr(main.pipeline, "probe_media", lambda *a, **k: {})
+
+
+def make_files(tmp_path, *names):
+    out = []
+    for name in names:
+        path = tmp_path / name
+        path.write_bytes(b"0" * 64)
+        out.append(main.ImportBatchItem(path=str(path)))
+    return out
+
+
+def test_nhap_hang_loat_yeu_cau_it_nhat_mot_file(lib):
+    with pytest.raises(HTTPException) as e:
+        main.import_batch(main.ImportBatchSchema(items=[main.ImportBatchItem(path="  ")]))
+    assert e.value.status_code == 400
+
+
+def test_nhap_hang_loat_giu_dung_thu_tu_da_sap(lib, tmp_path, nhap_dong_bo):
+    items = make_files(tmp_path, "tap10.mp4", "tap2.mp4", "tap1.mp4")
+    res = main.import_batch(main.ImportBatchSchema(items=items, batch_name="Phim Test"))
+
+    assert res["count"] == 3 and res["batch_id"].startswith("lo_phim_test_")
+    # Thu tu trong lo phai la thu tu NGUOI DUNG gui len, khong phai sap theo ten.
+    titles = [e["title"] for e in lib.list_batch(res["batch_id"])]
+    assert titles == ["tap10", "tap2", "tap1"]
+
+
+def test_nhap_hang_loat_mot_file_hong_khong_giet_ca_lo(lib, tmp_path, nhap_dong_bo):
+    items = make_files(tmp_path, "tap1.mp4")
+    items.append(main.ImportBatchItem(path=str(tmp_path / "khong_co.mp4")))
+    items += make_files(tmp_path, "tap3.mp4")
+
+    res = main.import_batch(main.ImportBatchSchema(items=items))
+
+    assert [e["title"] for e in lib.list_batch(res["batch_id"])] == ["tap1", "tap3"]
+
+
+def test_nhap_them_vao_lo_co_san_thi_xep_theo_so_thu_tu_gui_kem(lib, tmp_path, nhap_dong_bo):
+    first = main.import_batch(main.ImportBatchSchema(items=make_files(tmp_path, "b.mp4")))
+    them = make_files(tmp_path, "a.mp4")
+    them[0].index = 0.5   # chen len TRUOC file da nhap o luot dau
+
+    main.import_batch(main.ImportBatchSchema(items=them, batch_id=first["batch_id"]))
+
+    assert [e["title"] for e in lib.list_batch(first["batch_id"])] == ["a", "b"]
+
+
+def test_dung_tac_vu_chay_bang_thread_thi_dat_co(lib):
+    # Nut Dung truoc day khong co tac dung voi task thread (nhap/ghep).
+    import queue as _queue
+    assert main.process_mgr.register_manual_task("import", _queue.Queue())
+    assert main.stop_task("import")["status"] == "success"
+    assert main.process_mgr.was_user_stopped("import")
+    main.process_mgr.finish_manual("import", 1)
 
 
 def test_thong_ke_kem_tac_vu_dang_chay(lib, entry):

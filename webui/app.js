@@ -3,13 +3,19 @@
  * Ba tác vụ nặng dùng task_key cố định ("download" | "translate" | "merge") nên
  * mở lại trang là nối lại đúng luồng log đang chạy, không cần nhớ mã tác vụ.
  */
-const TASKS = { download: 'download', translate: 'translate', merge: 'merge' };
+const TASKS = { download: 'download', translate: 'translate', merge: 'merge', import: 'import' };
 
 const state = {
     config: {},
     library: [],
     selected: new Set(),   // entry_id đang chọn ở tab Thư Viện
     mergeList: [],         // [{entry_id, kind, name, label}]
+    batch: [],             // hàng đợi tab Lô: [{kind:'file'|'url', value, title, note}]
+    batches: [],           // các lô đã chạy, để tab Ghép nạp lại
+    duAn: null,            // dự án đang mở: {folder, name, videos...}
+    duAnVideos: [],        // video của dự án, ĐÃ theo thứ tự đánh số
+    duAnChon: [],          // tên file đã chọn, theo đúng thứ tự người dùng sắp
+    duAnModal: null,       // ngữ cảnh cửa sổ tạo/init dự án
     probe: [],
     roi: null,             // {x, y, w, h} theo pixel THẬT của video
     prepared: null,
@@ -122,7 +128,12 @@ async function loadUiSettings() {
     // ui_settings ghi đè cấu hình chung: đây là thứ người dùng vừa chỉnh trên form.
     Object.entries(saved || {}).forEach(([id, value]) => writeField($(id) || {}, value));
     if (saved && saved.trOllamaModel) state.wantedOllamaModel = saved.trOllamaModel;
+    // Hàng đợi đang soạn dở không phải là một ô nhập nên lưu riêng, để F5 hay tắt
+    // app giữa chừng không mất công sắp lại thứ tự.
+    if (saved && Array.isArray(saved._batchQueue)) state.batch = saved._batchQueue;
     refreshTranslateVisibility();
+    refreshBatchVisibility();
+    renderBatch();
 }
 
 async function saveAllSettings() {
@@ -131,7 +142,7 @@ async function saveAllSettings() {
         const value = readField(el);
         if (value !== null) setByPath(cfg, el.dataset.cfg, value);
     });
-    const ui = {};
+    const ui = { _batchQueue: state.batch };
     document.querySelectorAll('[data-persist]').forEach((el) => {
         if (el.id) ui[el.id] = readField(el);
     });
@@ -226,10 +237,19 @@ function streamLogs(taskKey, consoleId, onFinish) {
     };
 }
 
+// Tải và nhập file dùng chung cặp nút của tab Lô: một lô có thể chạy bằng cả hai.
 const RUN_BUTTONS = {
-    download: ['btnDlStart', 'btnDlStop'],
+    download: ['btnBatchRun', 'btnBatchStop'],
+    import: ['btnBatchRun', 'btnBatchStop'],
     translate: ['btnTrStart', 'btnTrStop'],
     merge: ['btnMgStart', 'btnMgStop'],
+};
+
+const TASK_CONSOLE = {
+    download: 'logConsole-batch',
+    import: 'logConsole-batch',
+    translate: 'logConsole-translate',
+    merge: 'logConsole-merge',
 };
 
 function setRunning(taskKey, running) {
@@ -252,9 +272,9 @@ async function resumeRunningTasks() {
     let running = [];
     try { running = (await api('/api/tasks/running')).running || []; } catch (e) { return; }
     running.forEach((key) => {
-        if (!RUN_BUTTONS[key]) return;
+        if (!TASK_CONSOLE[key]) return;
         setRunning(key, true);
-        streamLogs(key, `logConsole-${key}`, key === 'download' ? loadLibrary : loadLibrary);
+        streamLogs(key, TASK_CONSOLE[key], key === 'merge' ? loadMerged : loadLibrary);
     });
 }
 
@@ -265,72 +285,459 @@ async function stopTask(taskKey) {
     } catch (e) { toast(e.message, 'error'); }
 }
 
-/* ------------------------------------------------------------ Cào video */
+/* --------------------------------------------------------------- Lô video
+ * Hàng đợi gom hai nguồn (file trên máy + link) vào MỘT danh sách đã sắp; vị trí
+ * trong danh sách này chính là thứ tự ghép, nên mọi thao tác đều giữ nguyên nó.
+ */
 function urlsFromBox() {
     return ($('dlUrls').value || '').split('\n').map((s) => s.trim()).filter(Boolean);
 }
 
-function downloadPayload(urls) {
+function sourceParams() {
     return {
-        urls,
         platform: $('dlPlatform').value,
         cookies_file: $('dlCookies').value.trim() || null,
         max_items: Number($('dlMaxItems').value || 0),
-        skip_existing: $('dlSkipExisting').checked,
-        stop_on_error: $('dlStopOnError').checked,
-        auto_translate: $('dlAutoTranslate').checked,
-        translate: $('dlAutoTranslate').checked ? translateParams() : null,
     };
+}
+
+/** Sắp tự nhiên: "tap2" đứng trước "tap10" (sắp theo chữ thì ngược lại). */
+function compareNatural(a, b) {
+    return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function baseName(path) {
+    return String(path || '').split(/[\\/]/).pop();
+}
+
+function addToQueue(items) {
+    const seen = new Set(state.batch.map((it) => it.value));
+    let added = 0;
+    items.forEach((it) => {
+        if (!it.value || seen.has(it.value)) return;
+        seen.add(it.value);
+        state.batch.push(it);
+        added += 1;
+    });
+    renderBatch();
+    return added;
+}
+
+function renderBatch() {
+    const box = $('bqList');
+    $('bqCount').textContent = state.batch.length;
+    if (!state.batch.length) {
+        box.innerHTML = '<p class="help-text" style="text-align:center;">Hàng đợi trống — '
+            + 'chọn file trên máy hoặc dán link rồi bấm "Giải link".</p>';
+        return;
+    }
+    box.innerHTML = state.batch.map((it, i) => `
+        <div class="list-row">
+            <span class="list-main">
+                <b>${i + 1}. ${esc(it.title || baseName(it.value))}</b>
+                <small class="dim">${it.kind === 'file' ? '📁 ' : '🔗 '}${esc(it.note || it.value)}</small>
+            </span>
+            <span style="display:flex; gap:4px;">
+                <button type="button" class="btn btn-secondary btn-sm" data-act="bq-up" data-idx="${i}">▲</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-act="bq-down" data-idx="${i}">▼</button>
+                <button type="button" class="btn btn-danger btn-sm" data-act="bq-del" data-idx="${i}">✕</button>
+            </span>
+        </div>`).join('');
+}
+
+async function pickFiles(mode) {
+    const btn = mode === 'folder' ? $('btnPickFolder') : $('btnPickFiles');
+    const label = btn.textContent;
+    btn.disabled = true; btn.textContent = '⏳ Đang mở hộp thoại…';
+    try {
+        const res = await api('/api/system/pick-files', {
+            method: 'POST', body: JSON.stringify({ mode }),
+        });
+        if (res.cancelled) return;
+        if (!(res.paths || []).length) {
+            toast(mode === 'folder'
+                ? `Thư mục "${baseName(res.folder)}" không có file video nào.`
+                : 'Chưa chọn video nào.', 'warn');
+            return;
+        }
+        const added = addToQueue((res.paths || []).map((p) => ({
+            kind: 'file', value: p, title: baseName(p).replace(/\.[^.]+$/, ''), note: p,
+        })));
+        toast(added ? `Đã thêm ${added} video vào hàng đợi.` : 'Các video này đã có trong hàng đợi.',
+            added ? 'success' : 'warn');
+    } catch (e) {
+        toast(e.message, 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = label;
+    }
 }
 
 async function doProbe() {
     const urls = urlsFromBox();
-    if (!urls.length) { toast('Chưa nhập link nào.', 'warn'); return; }
+    if (!urls.length) { toast('Chưa dán link nào.', 'warn'); return; }
     const btn = $('btnDlProbe');
-    btn.disabled = true; btn.textContent = '⏳ Đang đọc danh sách…';
+    const label = btn.textContent;
+    btn.disabled = true; btn.textContent = '⏳ Đang giải link…';
     try {
+        // Giải playlist/kênh ngay tại đây: có vậy người dùng mới sắp được thứ tự
+        // của từng video trước khi chạy, thay vì phó mặc cho lúc tải.
         const data = await api('/api/download/probe', {
-            method: 'POST', body: JSON.stringify(downloadPayload(urls)),
+            method: 'POST', body: JSON.stringify({ urls, ...sourceParams() }),
         });
-        state.probe = data.entries || [];
-        renderProbe(data);
-        toast(`Tìm thấy ${state.probe.length} video.`, 'success');
+        const entries = data.entries || [];
+        const added = addToQueue(entries.map((e) => ({
+            kind: 'url', value: e.url, title: e.title || e.url,
+            note: `${e.uploader || ''}${e.duration ? ' · ' + fmtDuration(e.duration) : ''}`.trim() || e.url,
+        })));
+        (data.errors || []).forEach((er) => toast(`${er.url}: ${er.error}`, 'error'));
+        toast(added ? `Đã thêm ${added} video vào hàng đợi.` : 'Các link này đã có trong hàng đợi.',
+            added ? 'success' : 'warn');
+        if (added) $('dlUrls').value = '';
     } catch (e) {
         toast(e.message, 'error');
     } finally {
-        btn.disabled = false; btn.textContent = '🔍 Xem trước danh sách';
+        btn.disabled = false; btn.textContent = label;
     }
 }
 
-function renderProbe(data) {
-    $('dlProbeBox').style.display = '';
-    $('dlProbeCount').textContent = state.probe.length;
-    const rows = state.probe.map((e, i) => `
-        <label class="list-row">
-            <input type="checkbox" class="probe-check" data-idx="${i}" checked>
-            <span class="list-main">
-                <b>${esc(e.title)}</b>
-                <small>${esc(e.uploader || '')} ${e.duration ? '· ' + fmtDuration(e.duration) : ''}</small>
-                <small class="dim">${esc(e.url)}</small>
-            </span>
-        </label>`).join('');
-    const errors = (data.errors || []).map((er) =>
-        `<div class="list-row log-error"><span class="list-main">${esc(er.url)} — ${esc(er.error)}</span></div>`).join('');
-    $('dlProbeList').innerHTML = rows + errors || '<p class="help-text">Không có video nào.</p>';
+/* Ô "soi": bản sao của một ô thật bên tab khác, để chỉnh ngay tại màn hình đang
+ * đứng mà không phải nhảy tab. Giá trị chỉ có MỘT nguồn duy nhất là ô thật —
+ * mọi hàm đọc tham số (translateParams…) vẫn đọc ô thật như cũ. */
+function copyField(from, to) {
+    if (to.type === 'checkbox') to.checked = from.checked;
+    else to.value = from.value;
 }
 
-async function startDownload(urls) {
-    if (!urls.length) { toast('Chưa nhập link nào.', 'warn'); return; }
-    $('logConsole-download').innerHTML = '';
+function bindMirrors() {
+    document.querySelectorAll('[data-mirror]').forEach((clone) => {
+        const src = $(clone.dataset.mirror);
+        if (!src) return;
+        // Chép luôn danh sách lựa chọn thay vì viết tay lần nữa — thêm/bớt option
+        // ở ô thật là ô soi tự có theo, không bao giờ lệch nhau.
+        if (src.tagName === 'SELECT') clone.innerHTML = src.innerHTML;
+        copyField(src, clone);
+        clone.addEventListener('change', () => {
+            copyField(clone, src);
+            src.dispatchEvent(new Event('change'));   // để refreshTranslateVisibility chạy theo
+        });
+        src.addEventListener('change', () => copyField(src, clone));
+    });
+}
+
+function syncMirrors() {
+    document.querySelectorAll('[data-mirror]').forEach((clone) => {
+        const src = $(clone.dataset.mirror);
+        if (src) copyField(src, clone);
+    });
+}
+
+function refreshBatchVisibility() {
+    const showMerge = $('bqDoMerge').checked;
+    document.querySelectorAll('.bq-merge-opt').forEach((el) => {
+        el.style.display = showMerge ? '' : 'none';
+    });
+    const showSub = $('dlAutoTranslate').checked;
+    document.querySelectorAll('.bq-sub-opt').forEach((el) => {
+        el.style.display = showSub ? '' : 'none';
+    });
+}
+
+function mergeAfterPayload() {
+    if (!$('bqDoMerge').checked) return null;
+    return {
+        enabled: true,
+        output_name: $('bqMergeName').value.trim(),
+        prefer: $('bqMergePrefer').value,
+        normalize: $('bqNormalize').checked,
+    };
+}
+
+/** Khúc dịch + ghép chỉ được gắn vào LỆNH CUỐI của lô, không thì nó chạy khi mới xong nửa. */
+function batchTail() {
+    const translate = $('dlAutoTranslate').checked;
+    return {
+        auto_translate: translate,
+        translate: translate ? translateParams() : null,
+        merge_after: mergeAfterPayload(),
+    };
+}
+
+async function startDownloadLeg(urls, batchId, tail, batchName) {
     try {
-        await api('/api/download/start', { method: 'POST', body: JSON.stringify(downloadPayload(urls)) });
+        await api('/api/download/start', {
+            method: 'POST',
+            body: JSON.stringify({
+                urls: urls.map((u) => u.value),
+                batch_index: urls.map((u) => u.index),
+                batch_id: batchId || '',
+                batch_name: batchName || '',
+                skip_existing: $('dlSkipExisting').checked,
+                stop_on_error: $('dlStopOnError').checked,
+                ...sourceParams(),
+                ...tail,
+            }),
+        });
         setRunning(TASKS.download, true);
-        streamLogs(TASKS.download, 'logConsole-download', loadLibrary);
+        streamLogs(TASKS.download, 'logConsole-batch', afterBatch);
+    } catch (e) {
+        toast(e.message, 'error');
+        setRunning(TASKS.download, false);
+    }
+}
+
+function afterBatch() {
+    loadLibrary();
+    loadMerged();
+    loadBatches();
+}
+
+async function runBatch() {
+    if (!state.batch.length) { toast('Hàng đợi đang trống.', 'warn'); return; }
+
+    const files = [], urls = [];
+    state.batch.forEach((it, i) => {
+        const slot = { value: it.value, title: it.title, index: i + 1 };
+        (it.kind === 'file' ? files : urls).push(slot);
+    });
+
+    const batchName = $('bqName').value.trim();
+    const tail = batchTail();
+    $('logConsole-batch').innerHTML = '';
+
+    if (!files.length) {
+        startDownloadLeg(urls, '', tail, batchName);
+        return;
+    }
+
+    try {
+        const res = await api('/api/videos/import-batch', {
+            method: 'POST',
+            body: JSON.stringify({
+                items: files.map((f) => ({ path: f.value, title: f.title, index: f.index })),
+                copy_file: $('bqCopyFile').checked,
+                batch_name: batchName,
+                // Còn link phải tải thì để khúc tải mang theo phần dịch/ghép.
+                ...(urls.length ? {} : tail),
+            }),
+        });
+        setRunning(TASKS.import, true);
+        streamLogs(TASKS.import, 'logConsole-batch', () => {
+            loadLibrary();
+            if (urls.length) startDownloadLeg(urls, res.batch_id, tail, batchName);
+            else afterBatch();
+        });
+    } catch (e) {
+        toast(e.message, 'error');
+        setRunning(TASKS.import, false);
+    }
+}
+
+function stopBatch() {
+    // Một lô có thể đang ở khúc nhập hoặc khúc tải — dừng cái nào đang chạy.
+    Object.keys(state.streams).forEach((key) => {
+        if (key === TASKS.import || key === TASKS.download) stopTask(key);
+    });
+}
+
+/* ------------------------------------------------------------------ Dự án
+ * Dự án = MỘT thư mục trên đĩa có `.duan.json`. Mở thư mục có sẵn video thì
+ * luôn phải qua bảng duyệt đổi tên — đổi tên file không Ctrl+Z được.
+ */
+async function chonThuMuc() {
+    try {
+        const res = await api('/api/system/pick-files', {
+            method: 'POST', body: JSON.stringify({ mode: 'folder' }),
+        });
+        return res.cancelled ? null : res;
+    } catch (e) {
+        toast(e.message, 'error');
+        return null;
+    }
+}
+
+function renderXemTruocDoiTen(danhSach) {
+    $('duAnPreview').innerHTML = danhSach.map((x, i) => `
+        <div class="list-row">
+            <span class="list-main">
+                <b>${i + 1}. ${esc(x.moi)}</b>
+                <small class="dim">${x.doi ? `từ: ${esc(x.cu)}` : 'giữ nguyên tên'}</small>
+            </span>
+        </div>`).join('') || '<p class="help-text">Không có video nào.</p>';
+}
+
+function moModalDuAn(cheDo, thongTin) {
+    state.duAnModal = { cheDo, ...thongTin };
+    const laTao = cheDo === 'tao';
+    $('duAnTitle').textContent = laTao ? 'Tạo dự án trống' : 'Mở thư mục thành dự án';
+    $('duAnFolder').textContent = laTao
+        ? `Sẽ tạo một thư mục con trong: ${thongTin.folder}`
+        : thongTin.folder;
+    $('duAnTen').value = thongTin.ten || '';
+    $('duAnPreviewBox').style.display = laTao ? 'none' : '';
+    $('btnDuAnGiuTen').style.display = laTao ? 'none' : '';
+    $('btnDuAnXacNhan').textContent = laTao ? 'Tạo dự án' : 'Đổi tên & mở dự án';
+    if (!laTao) renderXemTruocDoiTen(thongTin.xem_truoc || []);
+    $('modalDuAn').classList.add('open');
+}
+
+async function moThuMucDuAn() {
+    const chon = await chonThuMuc();
+    if (!chon) return;
+    try {
+        const xem = await api('/api/project/inspect', {
+            method: 'POST', body: JSON.stringify({ folder: chon.folder }),
+        });
+        if (xem.da_init) {          // đã là dự án rồi thì mở thẳng, không hỏi lại
+            await moDuAn(xem.folder);
+            return;
+        }
+        if (!xem.co_video) {
+            toast(`Thư mục "${baseName(xem.folder)}" không có file video nào.`, 'warn');
+            return;
+        }
+        moModalDuAn('init', { folder: xem.folder, ten: xem.ten, xem_truoc: xem.xem_truoc });
     } catch (e) { toast(e.message, 'error'); }
+}
+
+async function taoDuAnMoi() {
+    const chon = await chonThuMuc();
+    if (!chon) return;
+    moModalDuAn('tao', { folder: chon.folder, ten: '' });
+}
+
+async function xacNhanDuAn(doiTen) {
+    const ctx = state.duAnModal;
+    if (!ctx) return;
+    const ten = $('duAnTen').value.trim();
+    try {
+        let data;
+        if (ctx.cheDo === 'tao') {
+            if (!ten) { toast('Phải đặt tên dự án.', 'warn'); return; }
+            data = await api('/api/project/create', {
+                method: 'POST', body: JSON.stringify({ thu_muc_cha: ctx.folder, ten }),
+            });
+        } else {
+            data = await api('/api/project/init', {
+                method: 'POST',
+                body: JSON.stringify({ folder: ctx.folder, name: ten, doi_ten: doiTen }),
+            });
+        }
+        $('modalDuAn').classList.remove('open');
+        await moDuAn(data.folder);
+        toast(`Đã mở dự án "${data.name}".`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function moDuAn(folder, opts = {}) {
+    try {
+        state.duAn = await api('/api/project/open', {
+            method: 'POST', body: JSON.stringify({ folder }),
+        });
+    } catch (e) {
+        toast(e.message, 'error');
+        return;
+    }
+    state.duAnChon = [];
+    await loadDuAnVideos();
+    await loadDuAnGanDay();
+    if (!opts.im_lang) goTab('library');
+}
+
+async function loadDuAnGanDay() {
+    let res;
+    try { res = await api('/api/project/recent'); } catch (e) { return; }
+    const select = $('duAnSelect');
+    select.innerHTML = '<option value="">— Chưa mở dự án nào —</option>'
+        + (res.gan_day || []).map((r) =>
+            `<option value="${esc(r.folder)}">${esc(r.name || r.folder)}</option>`).join('');
+    select.value = (state.duAn && state.duAn.folder) || res.hien_tai || '';
+    // Mở lại app là vào thẳng dự án đang làm dở, không phải chọn lại.
+    if (!state.duAn && res.hien_tai) moDuAn(res.hien_tai, { im_lang: true });
+}
+
+async function loadDuAnVideos() {
+    if (!state.duAn) { state.duAnVideos = []; renderLibrary(); return; }
+    const url = `/api/project/videos?folder=${encodeURIComponent(state.duAn.folder)}`
+        + `&ke_ca_da_ghep=${$('libHienDaGhep').checked}`;
+    try {
+        state.duAnVideos = await api(url);
+    } catch (e) {
+        state.duAnVideos = [];
+        toast(e.message, 'error');
+    }
+    // Video biến mất khỏi danh sách thì cũng bỏ khỏi lựa chọn, không để chọn ma.
+    const con = new Set(state.duAnVideos.map((v) => v.file));
+    state.duAnChon = state.duAnChon.filter((f) => con.has(f));
+    renderLibrary();
+}
+
+/** Video đã chọn, theo ĐÚNG thứ tự người dùng sắp (không phải thứ tự đánh số). */
+function duAnVideoDaChon() {
+    return state.duAnChon
+        .map((f) => state.duAnVideos.find((v) => v.file === f))
+        .filter(Boolean);
+}
+
+function renderDuAnLibrary() {
+    const chon = state.duAnChon;
+    const rows = state.duAnVideos.map((v) => {
+        const thuTu = chon.indexOf(v.file);
+        const daChon = thuTu >= 0;
+        return `
+        <div class="lib-card">
+            <label class="lib-head">
+                <input type="checkbox" class="duan-check" data-file="${esc(v.file)}" ${daChon ? 'checked' : ''}>
+                <span class="list-main">
+                    <b>${daChon ? `<span class="ok">[${thuTu + 1}]</span> ` : ''}${esc(v.file)}</b>
+                    <small>
+                        ${v.exists ? human(v.size) : '<b class="bad">thiếu file trên đĩa</b>'}
+                        ${v.merged_into ? ` · <b class="ok">đã ghép vào ${esc(v.merged_into)}</b>` : ''}
+                    </small>
+                    ${v.ten_goc && v.ten_goc !== v.file
+                        ? `<small class="dim">tên cũ: ${esc(v.ten_goc)}</small>` : ''}
+                </span>
+            </label>
+            <div class="lib-actions">
+                ${daChon ? `
+                    <button class="btn btn-secondary btn-sm" data-act="duan-up" data-file="${esc(v.file)}">▲</button>
+                    <button class="btn btn-secondary btn-sm" data-act="duan-down" data-file="${esc(v.file)}">▼</button>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+
+    $('libList').innerHTML = rows || '<p class="help-text" style="text-align:center;">'
+        + 'Dự án chưa có video nào. Tải video về ở tab <b>Lô Video</b>.</p>';
+    $('libDuAnTomTat').innerHTML = state.duAnVideos.length
+        ? `Đã chọn <b>${chon.length}</b>/${state.duAnVideos.length} video`
+          + (chon.length ? ' — thứ tự trên đây cũng là thứ tự ghép.' : ' — chọn video để đi tiếp.')
+        : '';
+    refreshBuocTiepTheo();
+}
+
+/** Bước tinh chỉnh tham số chỉ mở ra khi đã chọn xong và sắp xong thứ tự. */
+function refreshBuocTiepTheo() {
+    const box = $('libDuAnBuoc');
+    if (!box) return;
+    box.style.display = state.duAn && state.duAnVideos.length ? 'flex' : 'none';
+    const nut = $('btnDuAnTinhChinh');
+    const coChon = state.duAnChon.length > 0;
+    nut.disabled = !coChon;
+    nut.style.opacity = coChon ? '' : '.5';
+    nut.title = coChon ? '' : 'Chọn ít nhất một video trước đã';
+}
+
+function human(bytes) {
+    const n = Number(bytes || 0);
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    if (n < 1024 ** 3) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+    return `${(n / 1024 ** 3).toFixed(1)} GB`;
 }
 
 /* -------------------------------------------------------------- Thư viện */
 async function loadLibrary() {
+    // Đang mở dự án thì thư viện lấy từ thư mục dự án, không phải từ storage.
+    if (state.duAn) { await loadDuAnVideos(); loadStats(); return; }
     try {
         state.library = await api('/api/videos');
     } catch (e) {
@@ -355,10 +762,16 @@ function filteredLibrary() {
 }
 
 function renderLibrary() {
+    // Có dự án đang mở thì thư viện CHÍNH LÀ danh sách video của dự án đó —
+    // chọn và sắp thứ tự ngay tại đây rồi mới sang bước tinh chỉnh tham số.
+    if (state.duAn) { renderDuAnLibrary(); return; }
+
+    $('libDuAnTomTat').innerHTML = '';
     const items = filteredLibrary();
     if (!items.length) {
         $('libList').innerHTML = '<p class="help-text" style="text-align:center;">'
-            + 'Chưa có video nào. Sang tab <b>Cào Video</b> để tải, hoặc nhập video có sẵn ở trên.</p>';
+            + 'Chưa có video nào. Sang tab <b>Lô Video</b> để chọn file/dán link, '
+            + 'hoặc nhập video có sẵn bằng nút ở trên.</p>';
         return;
     }
     $('libList').innerHTML = items.map((v) => {
@@ -388,6 +801,8 @@ function renderLibrary() {
                         ${v.has_translation ? '<b class="ok"> · đã có bản dịch</b>' : ''}
                         ${v.exists ? '' : '<b class="bad"> · thiếu file trên đĩa</b>'}
                     </small>
+                    ${v.batch_id ? `<small class="dim">📦 Lô ${esc(batchLabel(v.batch_id))}`
+                        + ` · thứ tự ${esc(String(v.batch_index || 0))}</small>` : ''}
                     ${v.url ? `<small class="dim">${esc(v.url)}</small>` : ''}
                 </span>
             </label>
@@ -617,6 +1032,7 @@ function renderMergeList() {
                 <button type="button" class="btn btn-danger btn-sm" data-act="mg-del" data-idx="${i}">✕</button>
             </span>
         </div>`).join('');
+    refreshMergeSizeWarning();
 }
 
 async function loadMerged() {
@@ -629,6 +1045,58 @@ async function loadMerged() {
     } catch (e) { /* bỏ qua */ }
 }
 
+/** Nhãn dễ đọc của một lô — lấy luôn nhãn server đã tính, chưa có thì hiện mã thô. */
+function batchLabel(batchId) {
+    const found = state.batches.find((b) => b.batch_id === batchId);
+    return found ? found.name : batchId;
+}
+
+async function loadBatches() {
+    try {
+        state.batches = await api('/api/batches');
+    } catch (e) { state.batches = []; }
+    const select = $('mgBatchPick');
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">— Chọn một lô đã chạy —</option>'
+        + state.batches.map((b) =>
+            `<option value="${esc(b.batch_id)}">${esc(b.name)} — ${b.count} video`
+            + `${b.translated ? ` (${b.translated} đã dịch)` : ''}</option>`).join('');
+    select.value = current;
+}
+
+async function loadBatchIntoMerge() {
+    const batchId = $('mgBatchPick').value;
+    if (!batchId) { toast('Chọn một lô trước đã.', 'warn'); return; }
+    try {
+        // Lấy từ API chứ không lọc state.library: thứ tự của lô nằm ở batch_index,
+        // còn thư viện thì sắp theo "mới nhất trước" — lọc tay là ghép ngược.
+        const entries = await api(`/api/batches/${encodeURIComponent(batchId)}`);
+        state.mergeList = [];
+        entries.forEach((v) => {
+            const outputs = v.outputs || [];
+            if (outputs.length) addToMerge(v.entry_id, 'output', outputs[outputs.length - 1].name);
+            else addToMerge(v.entry_id, 'source', '');
+        });
+        toast(`Đã nạp ${state.mergeList.length} video của lô, đúng thứ tự.`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+/** Cảnh báo trước khi ghép nếu lô lẫn nhiều cỡ khác nhau. */
+function refreshMergeSizeWarning() {
+    const box = $('mgSizeWarn');
+    if (!box) return;
+    const sizes = state.mergeList.map((it) => {
+        const entry = state.library.find((v) => v.entry_id === it.entry_id);
+        return entry && entry.width ? `${entry.width}x${entry.height}` : '';
+    }).filter(Boolean);
+    const distinct = [...new Set(sizes)];
+    if (distinct.length < 2) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    box.textContent = `⚠️ Danh sách có ${distinct.length} cỡ khác nhau (${distinct.join(', ')}) — `
+        + 'giữ ô "tự chuẩn hoá" được bật, không thì ffmpeg nối không nổi.';
+}
+
 async function startMerge() {
     if (!state.mergeList.length) { toast('Chưa chọn video nào để ghép.', 'warn'); return; }
     $('logConsole-merge').innerHTML = '';
@@ -638,6 +1106,7 @@ async function startMerge() {
             body: JSON.stringify({
                 items: state.mergeList.map((it) => ({ entry_id: it.entry_id, kind: it.kind, name: it.name })),
                 output_name: $('mgOutputName').value.trim(),
+                normalize: $('mgNormalize').checked,
             }),
         });
         setRunning(TASKS.merge, true);
@@ -692,19 +1161,48 @@ function bindEvents() {
     $('btnOpenStorage').addEventListener('click', () =>
         api('/api/system/open-folder?kind=storage', { method: 'POST' }).catch((e) => toast(e.message, 'error')));
 
-    // --- Cào video
-    $('formDownload').addEventListener('submit', (e) => { e.preventDefault(); startDownload(urlsFromBox()); });
+    // --- Lô video
+    $('btnPickFiles').addEventListener('click', () => pickFiles('files'));
+    $('btnPickFolder').addEventListener('click', () => pickFiles('folder'));
     $('btnDlProbe').addEventListener('click', doProbe);
-    $('btnDlStop').addEventListener('click', () => stopTask(TASKS.download));
-    $('btnDlCheckAll').addEventListener('click', () =>
-        document.querySelectorAll('.probe-check').forEach((c) => { c.checked = true; }));
-    $('btnDlUncheckAll').addEventListener('click', () =>
-        document.querySelectorAll('.probe-check').forEach((c) => { c.checked = false; }));
-    $('btnDlStartSelected').addEventListener('click', () => {
-        const urls = [...document.querySelectorAll('.probe-check')]
-            .filter((c) => c.checked)
-            .map((c) => state.probe[Number(c.dataset.idx)].url);
-        startDownload(urls);
+    $('formBatch').addEventListener('submit', (e) => { e.preventDefault(); runBatch(); });
+    $('btnBatchStop').addEventListener('click', stopBatch);
+    $('btnBqSortName').addEventListener('click', () => {
+        state.batch.sort((a, b) => compareNatural(a.title || a.value, b.title || b.value));
+        renderBatch();
+    });
+    $('btnBqReverse').addEventListener('click', () => { state.batch.reverse(); renderBatch(); });
+    $('btnBqClear').addEventListener('click', () => { state.batch = []; renderBatch(); });
+    $('bqDoMerge').addEventListener('change', refreshBatchVisibility);
+    $('dlAutoTranslate').addEventListener('change', refreshBatchVisibility);
+    $('btnBqMoreParams').addEventListener('click', () => goTab('translate'));
+    $('bqList').addEventListener('click', (event) => {
+        const el = event.target.closest('[data-act]');
+        if (!el) return;
+        const idx = Number(el.dataset.idx);
+        if (el.dataset.act === 'bq-del') state.batch.splice(idx, 1);
+        if (el.dataset.act === 'bq-up' && idx > 0) {
+            [state.batch[idx - 1], state.batch[idx]] = [state.batch[idx], state.batch[idx - 1]];
+        }
+        if (el.dataset.act === 'bq-down' && idx < state.batch.length - 1) {
+            [state.batch[idx + 1], state.batch[idx]] = [state.batch[idx], state.batch[idx + 1]];
+        }
+        renderBatch();
+    });
+
+    // --- Dự án
+    $('btnDuAnMo').addEventListener('click', moThuMucDuAn);
+    $('btnDuAnTao').addEventListener('click', taoDuAnMoi);
+    $('duAnSelect').addEventListener('change', (event) => {
+        if (event.target.value) moDuAn(event.target.value);
+    });
+    $('btnDuAnXacNhan').addEventListener('click', () => xacNhanDuAn(true));
+    $('btnDuAnGiuTen').addEventListener('click', () => xacNhanDuAn(false));
+    $('btnDuAnHuy').addEventListener('click', () => $('modalDuAn').classList.remove('open'));
+    $('libHienDaGhep').addEventListener('change', loadDuAnVideos);
+    $('btnDuAnTinhChinh').addEventListener('click', () => {
+        if (!state.duAnChon.length) { toast('Chọn ít nhất một video trước đã.', 'warn'); return; }
+        goTab('translate');
     });
 
     // --- Thư viện
@@ -732,20 +1230,33 @@ function bindEvents() {
         goTab('merge');
     });
     $('btnLibImport').addEventListener('click', async () => {
-        const path = $('libImportPath').value.trim();
-        if (!path) { toast('Nhập đường dẫn file video trước đã.', 'warn'); return; }
         try {
-            await api('/api/videos/import', {
-                method: 'POST',
-                body: JSON.stringify({ path, copy_file: $('libImportCopy').checked }),
+            const picked = await api('/api/system/pick-files', {
+                method: 'POST', body: JSON.stringify({ mode: 'files' }),
             });
-            $('libImportPath').value = '';
-            toast('Đã thêm vào thư viện.', 'success');
+            const paths = picked.paths || [];
+            if (!paths.length) return;
+            for (const path of paths) {
+                await api('/api/videos/import', {
+                    method: 'POST', body: JSON.stringify({ path, copy_file: false }),
+                });
+            }
+            toast(`Đã thêm ${paths.length} video vào thư viện.`, 'success');
             loadLibrary();
         } catch (e) { toast(e.message, 'error'); }
     });
 
     $('libList').addEventListener('change', (event) => {
+        const duAnCheck = event.target.closest('.duan-check');
+        if (duAnCheck) {
+            const file = duAnCheck.dataset.file;
+            // Bỏ vào cuối danh sách chọn = thứ tự chọn chính là thứ tự ghép mặc định.
+            if (duAnCheck.checked) state.duAnChon.push(file);
+            else state.duAnChon = state.duAnChon.filter((f) => f !== file);
+            renderLibrary();
+            refreshBuocTiepTheo();
+            return;
+        }
         const check = event.target.closest('.lib-check');
         if (!check) return;
         if (check.checked) state.selected.add(check.dataset.id);
@@ -756,6 +1267,18 @@ function bindEvents() {
     $('libList').addEventListener('click', async (event) => {
         const el = event.target.closest('[data-act]');
         if (!el) return;
+
+        // Sắp thứ tự video trong dự án — thứ tự này chính là thứ tự ghép.
+        if (el.dataset.act === 'duan-up' || el.dataset.act === 'duan-down') {
+            const i = state.duAnChon.indexOf(el.dataset.file);
+            const j = el.dataset.act === 'duan-up' ? i - 1 : i + 1;
+            if (i >= 0 && j >= 0 && j < state.duAnChon.length) {
+                [state.duAnChon[i], state.duAnChon[j]] = [state.duAnChon[j], state.duAnChon[i]];
+                renderLibrary();
+            }
+            return;
+        }
+
         const { act, id, name } = el.dataset;
         const entry = state.library.find((v) => v.entry_id === id);
         if (act === 'play') { event.preventDefault(); openPlayer(id, 'source', '', entry && entry.title); }
@@ -818,6 +1341,7 @@ function bindEvents() {
         state.library.forEach((v) => (v.outputs || []).forEach((o) => addToMerge(v.entry_id, 'output', o.name)));
         if (!state.mergeList.length) toast('Chưa có bản đã gắn phụ đề nào.', 'warn');
     });
+    $('btnMgLoadBatch').addEventListener('click', loadBatchIntoMerge);
     $('mgList').addEventListener('click', (event) => {
         const el = event.target.closest('[data-act]');
         if (!el) return;
@@ -897,13 +1421,19 @@ function bindEvents() {
 document.addEventListener('DOMContentLoaded', async () => {
     initTabs();
     bindEvents();
+    bindMirrors();
     initRoiPicker();
     try { await loadConfig(); } catch (e) { toast(`Không đọc được cấu hình: ${e.message}`, 'error'); }
     try { await loadUiSettings(); } catch (e) { /* lần đầu chưa có file */ }
+    syncMirrors();
     refreshTranslateVisibility();
+    refreshBatchVisibility();
+    renderBatch();
     loadOllamaModels();   // Ollama trả lời chậm vài giây — đừng chặn cả trang chờ nó
     loadGpu();
+    loadDuAnGanDay();   // có dự án đang làm dở thì mở lại luôn
     loadLibrary();
     loadMerged();
+    loadBatches();
     resumeRunningTasks();
 });

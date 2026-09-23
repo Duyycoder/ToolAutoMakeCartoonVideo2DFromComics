@@ -19,12 +19,21 @@
                 <h2>Cào &amp; Dịch Video</h2>
             </div>
 
+            <div class="story-selector-container">
+                <label for="duAnSelect">Dự án hiện tại</label>
+                <select id="duAnSelect">
+                    <option value="">— Chưa mở dự án nào —</option>
+                </select>
+                <button type="button" id="btnDuAnMo" class="btn btn-secondary btn-sm">📂 Mở thư mục có video…</button>
+                <button type="button" id="btnDuAnTao" class="btn btn-secondary btn-sm">➕ Tạo dự án trống…</button>
+            </div>
+
             <nav class="nav-menu">
                 <button class="nav-item active" data-tab="download">
-                    <span class="nav-icon">📥</span>
+                    <span class="nav-icon">🎬</span>
                     <div class="nav-text">
-                        <span class="nav-title">Cào Video</span>
-                        <span class="nav-subtitle">Tải hàng loạt từ link/playlist/kênh</span>
+                        <span class="nav-title">Lô Video</span>
+                        <span class="nav-subtitle">Chọn file/dán link → sắp thứ tự → chạy</span>
                     </div>
                 </button>
                 <button class="nav-item" data-tab="library">
@@ -79,17 +88,35 @@
                 </div>
             </header>
 
-            <!-- ------------------------------------------------ TAB: CÀO VIDEO -->
+            <!-- ------------------------------------------------ TAB: LÔ VIDEO -->
             <section class="tab-panel active" id="tab-download">
                 <div class="panel-grid">
                     <div class="card glass-card">
-                        <h3>📥 Cào Video Hàng Loạt</h3>
-                        <form id="formDownload" class="form-grid">
+                        <h3>🎬 Lô Video</h3>
+                        <p class="help-text">Gom video từ máy và từ link vào một hàng đợi, sắp đúng thứ tự,
+                            rồi chạy một mạch: tải về → (tuỳ chọn) lồng tiếng &amp; gắn phụ đề → ghép lại.</p>
+
+                        <!-- ---------- NGUỒN 1: FILE TRÊN MÁY ---------- -->
+                        <h4 style="margin-top:14px;">1 · Thêm video vào hàng đợi</h4>
+                        <div class="form-grid">
+                            <div class="form-group" style="grid-column:1/-1; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                                <button type="button" id="btnPickFiles" class="btn btn-secondary">📁 Chọn file trên máy…</button>
+                                <button type="button" id="btnPickFolder" class="btn btn-secondary">📂 Chọn cả thư mục…</button>
+                                <label class="checkbox-container" style="margin:0;">
+                                    <input type="checkbox" id="bqCopyFile" data-persist>
+                                    <span class="checkmark"></span> Chép file vào thư viện
+                                </label>
+                            </div>
+                            <div class="form-group" style="grid-column:1/-1; margin-top:-6px;">
+                                <span class="help-text">Không tích ô chép thì công cụ chỉ trỏ tới file gốc — video vài GB
+                                    không phải nhân đôi. Chọn cả thư mục sẽ lấy mọi video trong đó (không vào thư mục con).</span>
+                            </div>
+
+                            <!-- ---------- NGUỒN 2: LINK ---------- -->
                             <div class="form-group" style="grid-column:1/-1;">
-                                <label for="dlUrls">Link video / playlist / kênh — mỗi dòng một link</label>
-                                <textarea id="dlUrls" rows="5" data-persist
+                                <label for="dlUrls">…hoặc dán link video / playlist / kênh — mỗi dòng một link</label>
+                                <textarea id="dlUrls" rows="4" data-persist
                                     placeholder="https://www.tiktok.com/@user/video/123...&#10;https://www.youtube.com/playlist?list=...&#10;https://www.bilibili.com/video/BV..."></textarea>
-                                <span class="help-text">Dán link 1 video, hoặc cả playlist/kênh — hệ thống tự giải ra từng video.</span>
                             </div>
 
                             <div class="form-group">
@@ -114,47 +141,140 @@
                                        placeholder="Ví dụ: D:\cookies\tiktok.txt — để trống nếu không cần">
                             </div>
 
+                            <div class="form-group" style="grid-column:1/-1; display:flex; gap:10px; flex-wrap:wrap;">
+                                <button type="button" id="btnDlProbe" class="btn btn-secondary">🔗 Giải link &amp; thêm vào hàng đợi</button>
+                                <span class="help-text" style="align-self:center;">Playlist/kênh được giải ra từng video ngay tại đây
+                                    để bạn thấy trước và sắp thứ tự.</span>
+                            </div>
+                        </div>
+
+                        <!-- ---------- HÀNG ĐỢI ---------- -->
+                        <h4 style="margin-top:18px;">2 · Hàng đợi — thứ tự này cũng là thứ tự ghép
+                            (<span id="bqCount">0</span> video)</h4>
+                        <div id="bqList" class="list-box"></div>
+                        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                            <button type="button" id="btnBqSortName" class="btn btn-secondary btn-sm">↕️ Sắp theo tên</button>
+                            <button type="button" id="btnBqReverse" class="btn btn-secondary btn-sm">🔄 Đảo ngược</button>
+                            <button type="button" id="btnBqClear" class="btn btn-secondary btn-sm">🗑️ Xoá hàng đợi</button>
+                        </div>
+
+                        <!-- ---------- CHẠY ---------- -->
+                        <h4 style="margin-top:18px;">3 · Chạy lô</h4>
+                        <form id="formBatch" class="form-grid">
                             <div class="form-group">
-                                <label class="checkbox-container">
+                                <label for="bqName">Tên lô (để trống cũng được)</label>
+                                <input type="text" id="bqName" data-persist placeholder="Ví dụ: Phim ABC tập 1-10">
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container" style="margin-top:26px;">
                                     <input type="checkbox" id="dlSkipExisting" checked data-persist data-cfg="download.skip_existing">
                                     <span class="checkmark"></span> Bỏ qua video đã có trong thư viện
                                 </label>
                             </div>
-                            <div class="form-group">
-                                <label class="checkbox-container">
-                                    <input type="checkbox" id="dlStopOnError" data-persist data-cfg="download.stop_on_error">
-                                    <span class="checkmark"></span> Dừng cả lô khi gặp lỗi
-                                </label>
-                            </div>
+
                             <div class="form-group" style="grid-column:1/-1;">
                                 <label class="checkbox-container">
                                     <input type="checkbox" id="dlAutoTranslate" data-persist data-cfg="download.auto_translate">
-                                    <span class="checkmark"></span> Dịch &amp; gắn phụ đề luôn sau khi tải xong
+                                    <span class="checkmark"></span> Lồng tiếng &amp; gắn phụ đề từng video sau khi tải
                                 </label>
-                                <span class="help-text">Dùng đúng bộ tham số đang đặt ở tab <b>Dịch &amp; Phụ Đề</b>.</span>
+                            </div>
+
+                            <!-- Các tham số sub hay dùng nhất, chỉnh ngay tại đây thay vì nhảy tab.
+                                 Mỗi ô là bản soi của ô thật bên tab Dịch (data-mirror) nên chỉ có
+                                 MỘT nguồn giá trị duy nhất, sửa bên nào cũng khớp bên kia. -->
+                            <div class="form-group bq-sub-opt">
+                                <label for="bqSourceLang">Ngôn ngữ gốc của video</label>
+                                <select id="bqSourceLang" data-mirror="trSourceLang"></select>
+                            </div>
+                            <div class="form-group bq-sub-opt">
+                                <label for="bqTargetLang">Ngôn ngữ phụ đề</label>
+                                <select id="bqTargetLang" data-mirror="trTargetLang"></select>
+                            </div>
+                            <div class="form-group bq-sub-opt">
+                                <label for="bqSubSource">Lấy lời thoại từ đâu</label>
+                                <select id="bqSubSource" data-mirror="trSubSource"></select>
+                            </div>
+                            <div class="form-group bq-sub-opt">
+                                <label for="bqTtsVoice">Giọng đọc lồng tiếng</label>
+                                <input type="text" id="bqTtsVoice" data-mirror="trTtsVoice">
+                            </div>
+                            <div class="form-group bq-sub-opt" style="grid-column:1/-1;">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="bqVoiceover" data-mirror="trVoiceover">
+                                    <span class="checkmark"></span> Đọc lời thoại tiếng Việt đè lên tiếng gốc
+                                </label>
+                            </div>
+                            <details class="form-group bq-sub-opt" style="grid-column:1/-1;">
+                                <summary style="cursor:pointer;">⚙️ Tuỳ chọn nâng cao</summary>
+                                <div class="form-grid" style="margin-top:12px;">
+                                    <div class="form-group">
+                                        <label for="bqTtsEngine">Bộ máy đọc (TTS)</label>
+                                        <select id="bqTtsEngine" data-mirror="trTtsEngine"></select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="checkbox-container" style="margin-top:26px;">
+                                            <input type="checkbox" id="bqCleanAudio" data-mirror="trCleanAudio">
+                                            <span class="checkmark"></span> Tách nhạc nền trước khi nghe lời
+                                        </label>
+                                    </div>
+                                    <div class="form-group" style="grid-column:1/-1;">
+                                        <label class="checkbox-container">
+                                            <input type="checkbox" id="bqTranslateOnly" data-mirror="trTranslateOnly">
+                                            <span class="checkmark"></span> Chỉ xuất file .srt, không ghi chữ vào video
+                                        </label>
+                                    </div>
+                                    <div class="form-group" style="grid-column:1/-1;">
+                                        <button type="button" id="btnBqMoreParams" class="btn btn-secondary btn-sm">
+                                            🎨 Kiểu chữ, vùng OCR, bộ dịch… →
+                                        </button>
+                                        <span class="help-text">Những thứ ít đổi nằm ở tab Dịch &amp; Phụ Đề.</span>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <div class="form-group" style="grid-column:1/-1;">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="bqDoMerge" data-persist>
+                                    <span class="checkmark"></span> Ghép cả lô thành một video khi xong
+                                </label>
+                            </div>
+                            <div class="form-group bq-merge-opt">
+                                <label for="bqMergeName">Tên file ghép</label>
+                                <input type="text" id="bqMergeName" data-persist placeholder="Để trống = ghep_ngày_giờ">
+                            </div>
+                            <div class="form-group bq-merge-opt">
+                                <label for="bqMergePrefer">Ghép bản nào</label>
+                                <select id="bqMergePrefer" data-persist>
+                                    <option value="output">Bản đã gắn phụ đề (không có thì lấy bản gốc)</option>
+                                    <option value="source">Luôn dùng bản gốc</option>
+                                </select>
+                            </div>
+                            <div class="form-group bq-merge-opt" style="grid-column:1/-1;">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="bqNormalize" checked data-persist>
+                                    <span class="checkmark"></span> Tự chuẩn hoá khi các video khác độ phân giải
+                                </label>
+                                <span class="help-text">Lô lẫn video dọc với video ngang thì bắt buộc bật, không thì ffmpeg
+                                    nối không nổi. Bật lên sẽ chậm hơn vì phải mã hoá lại.</span>
+                            </div>
+
+                            <div class="form-group" style="grid-column:1/-1;">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="dlStopOnError" data-persist data-cfg="download.stop_on_error">
+                                    <span class="checkmark"></span> Dừng cả lô khi một video lỗi
+                                </label>
                             </div>
 
                             <div class="form-group" style="grid-column:1/-1; display:flex; gap:10px; flex-wrap:wrap;">
-                                <button type="button" id="btnDlProbe" class="btn btn-secondary">🔍 Xem trước danh sách</button>
-                                <button type="submit" id="btnDlStart" class="btn btn-primary">⬇️ Bắt đầu tải</button>
-                                <button type="button" id="btnDlStop" class="btn btn-danger" style="display:none;">⛔ Dừng</button>
+                                <button type="submit" id="btnBatchRun" class="btn btn-primary">▶️ Chạy lô</button>
+                                <button type="button" id="btnBatchStop" class="btn btn-danger" style="display:none;">⛔ Dừng</button>
                             </div>
                         </form>
-
-                        <div id="dlProbeBox" style="display:none; margin-top:16px;">
-                            <h4 style="margin-bottom:8px;">Danh sách video tìm được (<span id="dlProbeCount">0</span>)</h4>
-                            <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
-                                <button type="button" id="btnDlCheckAll" class="btn btn-secondary btn-sm">Chọn tất cả</button>
-                                <button type="button" id="btnDlUncheckAll" class="btn btn-secondary btn-sm">Bỏ chọn</button>
-                                <button type="button" id="btnDlStartSelected" class="btn btn-primary btn-sm">⬇️ Tải các video đã chọn</button>
-                            </div>
-                            <div id="dlProbeList" class="list-box"></div>
-                        </div>
                     </div>
 
                     <div class="card glass-card log-panel">
-                        <h3>🖥️ Log Tải Video</h3>
-                        <div id="logConsole-download" class="console-box"></div>
+                        <h3>🖥️ Log Lô Video</h3>
+                        <div id="logConsole-batch" class="console-box"></div>
                     </div>
                 </div>
             </section>
@@ -177,6 +297,12 @@
                                 <option value="missing">Thiếu file trên đĩa</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label class="checkbox-container" style="margin-top:26px;">
+                                <input type="checkbox" id="libHienDaGhep">
+                                <span class="checkmark"></span> Hiện cả video đã ghép
+                            </label>
+                        </div>
                         <div class="form-group" style="grid-column:1/-1; display:flex; gap:10px; flex-wrap:wrap;">
                             <button type="button" id="btnLibReload" class="btn btn-secondary btn-sm">🔄 Tải lại</button>
                             <button type="button" id="btnLibSelectAll" class="btn btn-secondary btn-sm">Chọn tất cả</button>
@@ -188,19 +314,18 @@
                     </div>
 
                     <div class="form-grid" style="margin-top:6px; align-items:end; border-top:1px solid rgba(255,255,255,.08); padding-top:14px;">
-                        <div class="form-group" style="grid-column:1/-1;">
-                            <label for="libImportPath">Nhập video có sẵn trên máy vào thư viện</label>
-                            <input type="text" id="libImportPath" placeholder="Ví dụ: D:\phim\tap1.mp4">
+                        <div class="form-group" style="grid-column:1/-1; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                            <button type="button" id="btnLibImport" class="btn btn-secondary">➕ Nhập video trên máy vào thư viện</button>
+                            <span class="help-text" style="margin:0;">Mở hộp thoại chọn file. Muốn nhập nhiều video theo
+                                thứ tự để ghép thì dùng tab <b>Lô Video</b>.</span>
                         </div>
-                        <div class="form-group">
-                            <label class="checkbox-container">
-                                <input type="checkbox" id="libImportCopy">
-                                <span class="checkmark"></span> Chép file vào thư viện (mặc định chỉ trỏ tới file gốc)
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <button type="button" id="btnLibImport" class="btn btn-secondary">➕ Nhập vào thư viện</button>
-                        </div>
+                    </div>
+
+                    <div id="libDuAnBuoc" style="margin-top:12px; display:none; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <span id="libDuAnTomTat" class="help-text" style="margin:0;"></span>
+                        <button type="button" id="btnDuAnTinhChinh" class="btn btn-primary btn-sm">
+                            ⚙️ Tinh chỉnh tham số dịch &amp; phụ đề →
+                        </button>
                     </div>
 
                     <div id="libList" style="margin-top:16px;">
@@ -449,13 +574,26 @@
                                     <p class="help-text" style="text-align:center;">Chưa có video nào — thêm từ tab Thư Viện hoặc bấm "Nạp mọi bản đã dịch".</p>
                                 </div>
                             </div>
-                            <div class="form-group" style="grid-column:1/-1; display:flex; gap:10px; flex-wrap:wrap;">
+                            <div class="form-group" style="grid-column:1/-1; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                                <select id="mgBatchPick" style="max-width:320px;">
+                                    <option value="">— Chọn một lô đã chạy —</option>
+                                </select>
+                                <button type="button" id="btnMgLoadBatch" class="btn btn-secondary btn-sm">📦 Nạp cả lô (đúng thứ tự)</button>
                                 <button type="button" id="btnMgLoadOutputs" class="btn btn-secondary btn-sm">📥 Nạp mọi bản đã dịch</button>
                                 <button type="button" id="btnMgClear" class="btn btn-secondary btn-sm">Xoá danh sách</button>
                             </div>
                             <div class="form-group">
                                 <label for="mgOutputName">Tên file kết quả (không cần đuôi .mp4)</label>
                                 <input type="text" id="mgOutputName" placeholder="Để trống = ghep_ngày_giờ">
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-container" style="margin-top:26px;">
+                                    <input type="checkbox" id="mgNormalize" checked data-persist>
+                                    <span class="checkmark"></span> Tự chuẩn hoá khi các video khác cỡ
+                                </label>
+                            </div>
+                            <div class="form-group" style="grid-column:1/-1;">
+                                <div id="mgSizeWarn" class="help-text" style="display:none; color:#fbbf24;"></div>
                             </div>
                             <div class="form-group" style="grid-column:1/-1; display:flex; gap:10px; flex-wrap:wrap;">
                                 <button type="submit" id="btnMgStart" class="btn btn-primary">🔗 Ghép ngay</button>
@@ -559,6 +697,34 @@
             <video id="playerVideo" controls style="width:100%; border-radius:10px; background:#000;"></video>
             <div class="modal-actions">
                 <button id="btnPlayerClose" class="btn btn-secondary">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cửa sổ dự án: xem trước đổi tên (thư mục có sẵn) hoặc đặt tên (dự án trống).
+         Đổi tên file là việc không Ctrl+Z được nên luôn phải qua bảng duyệt này. -->
+    <div id="modalDuAn" class="modal">
+        <div class="modal-content glass-card" style="max-width:820px;">
+            <h3 id="duAnTitle">Mở dự án</h3>
+            <p class="help-text" id="duAnFolder" style="word-break:break-all;"></p>
+
+            <div class="form-group">
+                <label for="duAnTen">Tên dự án</label>
+                <input type="text" id="duAnTen" placeholder="Ví dụ: Phim ABC">
+            </div>
+
+            <div id="duAnPreviewBox">
+                <p class="help-text" style="margin-bottom:6px;">
+                    Các video sẽ được đánh số theo thứ tự dưới đây để dễ theo dõi và ghép đúng thứ tự.
+                    <b>Tên cũ được lưu lại nên hoàn tác lúc nào cũng được.</b>
+                </p>
+                <div id="duAnPreview" class="list-box" style="max-height:320px;"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button id="btnDuAnXacNhan" class="btn btn-primary">Đổi tên &amp; mở dự án</button>
+                <button id="btnDuAnGiuTen" class="btn btn-secondary">Giữ nguyên tên file</button>
+                <button id="btnDuAnHuy" class="btn btn-secondary">Huỷ</button>
             </div>
         </div>
     </div>

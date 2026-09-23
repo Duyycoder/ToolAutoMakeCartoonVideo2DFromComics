@@ -15,7 +15,7 @@ import queue
 import subprocess
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from orchestrator.config import load_global_config
 from orchestrator.llm import resolve_llm
@@ -40,8 +40,14 @@ class VideoPipeline:
     def build_download_cmd(self, urls: List[str], args: dict, g_config: dict) -> list:
         cmd = [PYTHON_EXE, DOWNLOAD_ADAPTER, "--output-dir", self.library.videos_dir,
                "--platform", args.get("platform") or "generic"]
-        for u in urls:
+        # Số thứ tự trong lô đi KÈM từng link (adapter ghép 1-1 theo thứ tự) —
+        # có vậy lô lẫn file-trên-máy với link mới ghép đúng thứ tự người dùng sắp.
+        indexes = list(args.get("batch_index") or [])
+        for i, u in enumerate(urls):
             cmd += ["--url", u]
+            cmd += ["--batch-index", str(float(indexes[i] if i < len(indexes) else i + 1))]
+        if args.get("batch_id"):
+            cmd += ["--batch-id", args["batch_id"]]
         if args.get("max_items"):
             cmd += ["--max-items", str(int(args["max_items"]))]
         if args.get("skip_existing", True):
@@ -74,10 +80,16 @@ class VideoPipeline:
         raise RuntimeError(f"Không đọc được danh sách video từ link đã nhập. Chi tiết: {detail}")
 
     def start_download(self, task_key: str, urls: List[str], args: dict,
-                       then_translate: Optional[dict] = None) -> bool:
-        """Tải hàng loạt vào thư viện. `then_translate` != None thì dịch luôn video vừa tải."""
+                       then_translate: Optional[dict] = None,
+                       then_merge: Optional[dict] = None) -> bool:
+        """Tải hàng loạt vào thư viện, rồi (tuỳ chọn) dịch và ghép luôn.
+
+        Cả chuỗi tải → dịch → ghép chạy dưới MỘT task_key: giao diện chỉ theo dõi
+        một luồng log, và chỉ được đóng SSE (`finish_manual`) đúng một lần ở cuối.
+        """
         g_config = load_global_config()
         cmd = self.build_download_cmd(urls, args, g_config)
+        batch_id = args.get("batch_id") or ""
         known_before = {e["entry_id"] for e in self.library.list_entries()}
 
         def on_done(exit_code: int):
@@ -86,27 +98,37 @@ class VideoPipeline:
             self.process_mgr.emit(
                 task_key,
                 f"[HỆ THỐNG] Tải xong, thư viện có thêm {len(new_entries)} video.")
-            if not then_translate:
-                self.process_mgr.finish_manual(task_key, exit_code)
-                return exit_code == 0
-            if self.process_mgr.was_user_stopped(task_key) or not new_entries:
-                if not new_entries:
-                    self.process_mgr.emit(task_key, "[HỆ THỐNG] Không có video mới để dịch.")
-                self.process_mgr.finish_manual(task_key, exit_code)
-                return exit_code == 0
-            jobs = [self.make_job(e) for e in new_entries]
-            self.process_mgr.emit(
-                task_key, f"[HỆ THỐNG] Chuyển sang dịch {len(jobs)} video vừa tải.")
-            if not self._launch_chain(task_key, jobs, then_translate, reuse_queue=True):
-                self.process_mgr.emit(task_key, "[LỖI] Không khởi động được bước dịch.")
-                self.process_mgr.finish_manual(task_key, 1)
-                return False
+
+            self.chain_after_entries(task_key, new_entries, exit_code,
+                                     then_translate, then_merge, batch_id)
             return exit_code == 0
 
         started = self.process_mgr.start_process(
             task_key=task_key, cmd=cmd, cwd=AIVOICE_DIR,
             on_completed=on_done, close_queue_on_exit=False)
         return started
+
+    def chain_after_entries(self, task_key: str, entries: List[dict], exit_code: int,
+                            then_translate: Optional[dict], then_merge: Optional[dict],
+                            batch_id: str) -> None:
+        """Đi tiếp sau khi video đã nằm trong thư viện: dịch từng cái rồi ghép cả lô.
+
+        Dùng chung cho hai kiểu đầu vào (tải theo link và nhập file trên máy) để
+        chỉ có MỘT chỗ quyết định lúc nào đóng SSE.
+        """
+        if then_translate and not self.process_mgr.was_user_stopped(task_key):
+            if not entries:
+                self.process_mgr.emit(task_key, "[HỆ THỐNG] Không có video mới để dịch.")
+            else:
+                jobs = [self.make_job(e) for e in entries]
+                self.process_mgr.emit(
+                    task_key, f"[HỆ THỐNG] Chuyển sang dịch {len(jobs)} video.")
+                if self._launch_chain(task_key, jobs, then_translate, reuse_queue=True,
+                                      then_merge=then_merge, batch_id=batch_id):
+                    return
+                self.process_mgr.emit(task_key, "[LỖI] Không khởi động được bước dịch.")
+                exit_code = 1
+        self._finish_or_merge(task_key, exit_code, then_merge, batch_id)
 
     def probe_media(self, path: str, timeout: float = 120.0) -> Dict[str, Any]:
         """W/H/thời lượng của một file video. Trả {} nếu không đọc được.
@@ -133,6 +155,76 @@ class VideoPipeline:
             if data.get("event") == "probe_file_done":
                 return {k: data[k] for k in ("width", "height", "duration") if k in data}
         return {}
+
+    # ------------------------------------------------------------------ NHẬP
+    def start_import(self, task_key: str, items: List[dict], copy_file: bool = False,
+                     batch_id: str = "",
+                     then: Optional[Callable[[int, List[dict]], None]] = None) -> bool:
+        """Nhập nhiều video có sẵn trên máy vào thư viện, giữ nguyên thứ tự đã sắp.
+
+        Chạy nền kèm log SSE chứ không làm thẳng trong request: đọc W/H mỗi file
+        là một tiến trình con (~vài giây), nhập 50 file kiểu đồng bộ là giao diện
+        đứng hình vài phút mà không biết đang tới đâu.
+
+        `then(exit_code, entries)` != None thì nó chịu trách nhiệm đóng SSE (dùng
+        khi nối tiếp sang dịch/ghép); ngược lại hàm này tự `finish_manual`.
+        """
+        if not items:
+            return False
+        if not self.process_mgr.register_manual_task(task_key, queue.Queue()):
+            return False
+
+        total = len(items)
+
+        def _run():
+            ok = fail = 0
+            entries: List[dict] = []
+            self.process_mgr.emit(task_key, f"[HỆ THỐNG] Nhận {total} file vào thư viện.")
+            try:
+                for i, item in enumerate(items):
+                    if self.process_mgr.was_user_stopped(task_key):
+                        self.process_mgr.emit(task_key, "[HỆ THỐNG] Đã dừng theo yêu cầu.")
+                        break
+                    path = (item.get("path") or "").strip()
+                    name = os.path.basename(path) or path or "(trống)"
+                    self.process_mgr.emit(task_key, f"[HỆ THỐNG] ({i + 1}/{total}) Đang đọc: {name}")
+                    try:
+                        entry = self.library.register_local(
+                            path, item.get("title") or "", copy_file,
+                            batch_id=batch_id,
+                            batch_index=float(item.get("index") or (i + 1)))
+                    except (FileNotFoundError, ValueError, OSError) as e:
+                        fail += 1
+                        self.process_mgr.emit(task_key, f"[LỖI] ({i + 1}/{total}) {name}: {e}")
+                        continue
+                    # Thiếu W/H chỉ làm thư viện hiện "—"; vẫn dịch/ghép được
+                    # nên không để nó giết cả lượt nhập.
+                    meta = self.probe_media(entry["file"])
+                    if meta:
+                        entry.update(meta)
+                        self.library.write_entry(entry["entry_id"], entry)
+                        entry = self.library.read_entry(entry["entry_id"])
+                    else:
+                        self.process_mgr.emit(
+                            task_key, f"[HỆ THỐNG] Không đọc được thông số của {name} — vẫn nhập.")
+                    entries.append(entry)
+                    ok += 1
+                    self.process_mgr.emit(
+                        task_key, f"[THÀNH CÔNG] ({i + 1}/{total}) {entry.get('title')}")
+            except Exception as e:  # không để SSE treo vĩnh viễn vì một lỗi lạ
+                fail += 1
+                self.process_mgr.emit(task_key, f"[LỖI] Nhập hàng loạt hỏng giữa chừng: {e}")
+            self.process_mgr.emit(
+                task_key,
+                f"[HỆ THỐNG] Nhập xong: {ok} thành công, {fail} lỗi trên tổng {total} file.")
+            code = 0 if (ok and not fail) else 1
+            if then:
+                then(code, entries)
+            else:
+                self.process_mgr.finish_manual(task_key, code)
+
+        threading.Thread(target=_run, daemon=True).start()
+        return True
 
     # ----------------------------------------------------------------- DỊCH
     def make_job(self, entry: Dict[str, Any]) -> Dict[str, Any]:
@@ -222,7 +314,8 @@ class VideoPipeline:
         return True
 
     def _launch_chain(self, task_key: str, jobs: List[dict], args: dict,
-                      reuse_queue: bool) -> bool:
+                      reuse_queue: bool, then_merge: Optional[dict] = None,
+                      batch_id: str = "") -> bool:
         """Khởi động video đầu tiên; các video sau được nối trong callback."""
         g_config = load_global_config()
         total = len(jobs)
@@ -233,7 +326,7 @@ class VideoPipeline:
                 task_key,
                 f"[HỆ THỐNG] Xong hàng đợi: {state['ok']} thành công, {state['fail']} lỗi "
                 f"trên tổng {total} video.")
-            self.process_mgr.finish_manual(task_key, exit_code)
+            self._finish_or_merge(task_key, exit_code, then_merge, batch_id)
 
         def on_item_done(idx: int, exit_code: int):
             job = jobs[idx]
@@ -281,22 +374,84 @@ class VideoPipeline:
         return launch(0)
 
     # ------------------------------------------------------------------ GHÉP
-    def start_merge(self, task_key: str, files: List[str], output_name: str = "") -> bool:
+    def merged_path(self, output_name: str = "") -> str:
+        name = slugify(output_name) if output_name else f"ghep_{time.strftime('%Y%m%d_%H%M%S')}"
+        return os.path.join(self.library.merged_dir, name + ".mp4")
+
+    def start_merge(self, task_key: str, files: List[str], output_name: str = "",
+                    sizes: Optional[List[tuple]] = None, normalize: str = "auto") -> bool:
         """Ghép danh sách file video đã chọn thành một file trong storage/merged/."""
         files = [f for f in files if f and os.path.exists(f)]
         if not files:
             return False
-        q = queue.Queue()
-        if not self.process_mgr.register_manual_task(task_key, q):
+        if not self.process_mgr.register_manual_task(task_key, queue.Queue()):
+            return False
+        self._merge_in_thread(task_key, files, self.merged_path(output_name), sizes, normalize)
+        return True
+
+    def start_merge_batch(self, task_key: str, batch_id: str, opts: dict,
+                          prev_code: int = 0) -> bool:
+        """Ghép mọi video của một lô theo đúng `batch_index`.
+
+        Dùng cho khúc cuối của chuỗi tải → dịch → ghép nên KHÔNG mở task mới
+        (cả chuỗi chung một task_key) và tự đóng SSE khi xong. Trả False khi
+        không đủ video để ghép — lúc đó bên gọi phải tự đóng SSE.
+        """
+        prefer = opts.get("prefer") or "output"
+        files, sizes = [], []
+        for entry in self.library.list_batch(batch_id):
+            path = ""
+            if prefer != "source":
+                outputs = entry.get("outputs") or []
+                if outputs:
+                    # Bản mới nhất, không phải bản đầu bảng chữ cái.
+                    path = max(outputs, key=lambda o: o.get("mtime", ""))["path"]
+            path = path or (entry.get("file") or "")
+            if not path or not os.path.exists(path):
+                self.process_mgr.emit(
+                    task_key, f"[BỎ QUA] {entry.get('title')} — không còn file để ghép.")
+                continue
+            files.append(path)
+            sizes.append((entry.get("width") or 0, entry.get("height") or 0))
+
+        if len(files) < 2:
+            self.process_mgr.emit(
+                task_key, "[HỆ THỐNG] Không đủ video trong lô để ghép (cần ít nhất 2).")
             return False
 
-        name = slugify(output_name) if output_name else f"ghep_{time.strftime('%Y%m%d_%H%M%S')}"
-        out = os.path.join(self.library.merged_dir, name + ".mp4")
+        self.process_mgr.emit(
+            task_key,
+            f"[HỆ THỐNG] Ghép {len(files)} video của lô theo đúng thứ tự đã sắp"
+            + (" (bản đã gắn phụ đề)." if prefer != "source" else " (bản gốc)."))
+        self._merge_in_thread(task_key, files, self.merged_path(opts.get("output_name") or ""),
+                              sizes, "auto" if opts.get("normalize", True) else "never",
+                              prev_code)
+        return True
 
-        class QueueWriter:
+    def _finish_or_merge(self, task_key: str, exit_code: int,
+                         then_merge: Optional[dict], batch_id: str) -> None:
+        """Đóng SSE — hoặc chạy nốt khúc ghép rồi mới đóng.
+
+        Chốt chặn duy nhất bảo đảm `finish_manual` được gọi ĐÚNG MỘT LẦN cho cả
+        chuỗi; gọi hai lần là giao diện mất sạch log của khúc sau.
+        """
+        if (then_merge and batch_id
+                and not self.process_mgr.was_user_stopped(task_key)
+                and self.start_merge_batch(task_key, batch_id, then_merge, exit_code)):
+            return
+        self.process_mgr.finish_manual(task_key, exit_code)
+
+    def _merge_in_thread(self, task_key: str, files: List[str], out: str,
+                         sizes: Optional[List[tuple]] = None, normalize: str = "auto",
+                         prev_code: int = 0) -> None:
+        """Chạy ffmpeg ở thread riêng, đẩy mọi dòng in của video_merger vào log SSE."""
+        process_mgr = self.process_mgr
+        tasks_dir = self.library.tasks_dir
+
+        class TaskWriter:
             def write(self, message):
                 if message.strip():
-                    q.put(message.strip() + "\n")
+                    process_mgr.emit(task_key, message.strip())
 
             def flush(self):
                 pass
@@ -305,15 +460,16 @@ class VideoPipeline:
             ok = False
             try:
                 from orchestrator.video_merger import merge_files
-                q.put(f"[HỆ THỐNG] Ghép {len(files)} video vào {out}...\n")
-                with contextlib.redirect_stdout(QueueWriter()):
-                    ok = merge_files(files, out)
-                q.put(f"[HỆ THỐNG] Ghép xong: {out}\n" if ok
-                      else "[HỆ THỐNG] Ghép thất bại — xem chi tiết phía trên.\n")
+                process_mgr.emit(task_key, f"[HỆ THỐNG] Ghép {len(files)} video vào {out}...")
+                with contextlib.redirect_stdout(TaskWriter()):
+                    ok = merge_files(files, out, sizes=sizes, normalize=normalize,
+                                     work_dir=tasks_dir)
+                process_mgr.emit(task_key, f"[HỆ THỐNG] Ghép xong: {out}" if ok
+                                 else "[HỆ THỐNG] Ghép thất bại — xem chi tiết phía trên.")
             except Exception as e:
-                q.put(f"[LỖI] {e}\n")
+                process_mgr.emit(task_key, f"[LỖI] {e}")
             finally:
-                self.process_mgr.finish_manual(task_key, 0 if ok else 1)
+                # Ghép xong mà khúc trước có video lỗi thì cả lượt vẫn tính là lỗi.
+                process_mgr.finish_manual(task_key, prev_code if ok else 1)
 
         threading.Thread(target=_run, daemon=True).start()
-        return True

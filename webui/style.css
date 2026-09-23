@@ -282,12 +282,13 @@ select:focus {
     flex-direction: column;
 }
 
+/* Form chiếm hết chiều ngang, log nằm DƯỚI. Trước đây chia đôi màn hình nên
+   form bị nhồi vào một cột hẹp và phải cuộn rất dài cho một lượt làm việc. */
 .panel-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
     align-items: start;
-    height: 100%;
 }
 
 .card {
@@ -306,17 +307,34 @@ select:focus {
     color: var(--primary-hover);
 }
 
-/* Form Styles */
+/* Form Styles
+   Grid THẬT hai cột: các .form-group ngắn (ngôn ngữ, giọng đọc…) đứng cạnh nhau
+   thay vì mỗi thứ một dòng. Những ô cần trọn chiều ngang đã có sẵn
+   `grid-column:1/-1` trong HTML — trước đây flex-column làm chúng vô nghĩa. */
 .form-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 980px) {
+    .form-grid { grid-template-columns: 1fr; }
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+}
+
+/* Hàng nút bấm: chỗ nào viết thẳng `display:flex` trong thẻ là có ý xếp NGANG,
+   nhưng .form-group mặc định xếp dọc nên phải nói rõ hướng — thiếu dòng này thì
+   mỗi nút chiếm trọn một dòng, nhìn như danh sách menu. */
+.form-group[style*="display:flex"],
+.form-group[style*="display: flex"] {
+    flex-direction: row;
+    align-items: center;
 }
 
 .form-group label {
@@ -498,7 +516,12 @@ textarea.textarea-lg {
 .log-panel {
     display: flex;
     flex-direction: column;
-    height: 600px;
+}
+
+/* Log nằm dưới form nên không cần cao bằng nửa màn hình nữa. */
+.log-panel .console-box {
+    height: 280px;
+    flex-grow: 0;
 }
 
 .console-box {

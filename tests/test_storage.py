@@ -4,7 +4,9 @@ import os
 
 import pytest
 
-from orchestrator.storage import VideoLibrary, human_size, slugify
+from orchestrator.storage import (
+    VideoLibrary, batch_label, batch_order, human_size, new_batch_id, slugify,
+)
 
 
 def test_slugify_bo_dau_tieng_viet():
@@ -35,7 +37,7 @@ def lib(tmp_path):
     return VideoLibrary(str(tmp_path / "storage"))
 
 
-def make_entry(lib, entry_id="phim_abc", title="Phim ABC", with_file=True):
+def make_entry(lib, entry_id="phim_abc", title="Phim ABC", with_file=True, **extra):
     entry_dir = lib.entry_dir(entry_id)
     os.makedirs(entry_dir, exist_ok=True)
     video_file = os.path.join(entry_dir, "phim.mp4")
@@ -44,6 +46,7 @@ def make_entry(lib, entry_id="phim_abc", title="Phim ABC", with_file=True):
             fh.write(b"0" * 1024)
     meta = {"entry_id": entry_id, "title": title, "file": video_file,
             "platform": "tiktok", "created_at": "2026-01-01T00:00:00", "duration": 61}
+    meta.update(extra)
     with open(os.path.join(entry_dir, "video.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh)
     return entry_dir
@@ -184,3 +187,66 @@ def test_thong_ke(lib):
     assert stats["videos"] == 1
     assert stats["subs"] == 1
     assert stats["duration_total"] == 61
+
+
+# ------------------------------------------------------------------- LO VIDEO
+# Ghep sai thu tu la loi nguoi dung chi phat hien khi xem het video da ghep,
+# nen thu tu cua lo phai duoc kiem ky o day.
+def test_nhap_file_ngoai_mang_theo_cho_dung_trong_lo(lib, tmp_path):
+    src = tmp_path / "tap1.mp4"
+    src.write_bytes(b"0" * 10)
+    entry = lib.register_local(str(src), batch_id="lo_test", batch_index=3.5)
+    assert (entry["batch_id"], entry["batch_index"]) == ("lo_test", 3.5)
+    # Phai ghi xuong video.json chu khong chi nam trong RAM, neu khong tat app la mat thu tu.
+    assert lib.read_entry(entry["entry_id"])["batch_index"] == 3.5
+
+
+def test_lo_sap_theo_so_thu_tu_tang_dan(lib):
+    make_entry(lib, "v_c", batch_id="lo_1", batch_index=3)
+    make_entry(lib, "v_a", batch_id="lo_1", batch_index=1.002)
+    make_entry(lib, "v_b", batch_id="lo_1", batch_index="1.001")  # adapter co the ghi dang chuoi
+    make_entry(lib, "v_x", batch_id="lo_2", batch_index=1)
+
+    assert [e["entry_id"] for e in lib.list_batch("lo_1")] == ["v_b", "v_a", "v_c"]
+    assert [e["entry_id"] for e in lib.list_batch("lo_2")] == ["v_x"]
+
+
+def test_lo_khong_dung_thu_tu_cua_thu_vien(lib):
+    # list_entries tra ve MOI NHAT TRUOC; list_batch phai nguoc lai voi no.
+    make_entry(lib, "v1", batch_id="lo_1", batch_index=1, created_at="2026-01-01T00:00:00")
+    make_entry(lib, "v2", batch_id="lo_1", batch_index=2, created_at="2026-02-02T00:00:00")
+    assert [e["entry_id"] for e in lib.list_entries()] == ["v2", "v1"]
+    assert [e["entry_id"] for e in lib.list_batch("lo_1")] == ["v1", "v2"]
+
+
+def test_muc_cu_khong_co_ma_lo_van_doc_duoc(lib):
+    make_entry(lib, "phim_cu")
+    assert lib.list_batch("") == []
+    assert lib.list_batch("lo_khong_ton_tai") == []
+    assert lib.list_batches() == []
+    assert batch_order(lib.read_entry("phim_cu")) == 0.0
+
+
+def test_tom_tat_cac_lo(lib):
+    make_entry(lib, "v1", batch_id="lo_a_20260922_100000", batch_index=1,
+               created_at="2026-09-22T10:00:05")
+    make_entry(lib, "v2", batch_id="lo_a_20260922_100000", batch_index=2,
+               created_at="2026-09-22T10:02:00")
+    make_entry(lib, "v3", batch_id="lo_b_20260923_080000", batch_index=1,
+               created_at="2026-09-23T08:00:10")
+    lib.add_sub("v2", "phim.vi.srt", "x")
+
+    batches = lib.list_batches()
+    assert [g["batch_id"] for g in batches] == ["lo_b_20260923_080000", "lo_a_20260922_100000"]
+    lo_a = batches[1]
+    assert lo_a["count"] == 2 and lo_a["translated"] == 1
+    # Moc cua lo la video DAU TIEN, khong phai video cuoi.
+    assert lo_a["created_at"] == "2026-09-22T10:00:05"
+
+
+def test_ma_lo_moi_va_nhan_de_doc():
+    assert new_batch_id().startswith("lo_")
+    assert new_batch_id("Phim Hay").startswith("lo_phim_hay_")
+    assert batch_label("lo_phim_hay_20260922_154501") == "phim_hay (22/09 15:45)"
+    assert batch_label("lo_20260922_154501") == "22/09 15:45"
+    assert batch_label("linh_tinh") == "linh_tinh"
