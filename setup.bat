@@ -134,6 +134,9 @@ echo.
 :: du keo theo ca luong ve truyen tranh (diffusers, insightface, rembg, basicsr...)
 :: va lam pip giai phu thuoc ket hang gio - da thu that tren may sach.
 set "AIVOICE_REQUIREMENTS=requirements-video.txt"
+:: Chi tai mo hinh giong Piper (vai chuc MB). XTTSv2 ~5.2 GB chi can khi nhai giong,
+:: bat may moi tai no la chan ca buoi cai hang gio tren mang cham - da gap that.
+set "AIVOICE_MODEL_ENGINES=piper"
 echo [INFO] Setting up TTS ^& Video Engines (AIVoice)...
 cd /d "%~dp0AIVoice"
 call "%~dp0AIVoice\setup.bat" --skip-models

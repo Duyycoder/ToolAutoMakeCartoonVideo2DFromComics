@@ -62,6 +62,8 @@ AIVoice\.venv\Scripts\python.exe -m pytest -q
 | Hiện tượng | Cách sửa |
 |---|---|
 | `run.bat` báo *"thiếu thư viện"* | Lần cài trước chưa xong — nhấp đúp `setup.bat` để cài bù. |
+| Cuối setup báo *"Chưa cài được: …"* | Chỉ tính năng đó không dùng được (giọng Piper/XTTS/VieNeu, tách nhạc nền, OCR), phần còn lại vẫn chạy. Chạy lại `setup.bat` để thử lại. OCR cần có Git. |
+| Chọn giọng **XTTSv2 (nhái giọng)** thì báo thiếu mô hình | Setup cố ý không tải sẵn (nặng ~5.2 GB). Tải một lần: mở `cmd` trong thư mục `AIVoice` rồi chạy `.venv\Scripts\python.exe src\download_models.py --engine clone`. |
 | Cửa sổ app không mở, nó bật trình duyệt thay thế | Thiếu WebView2 → chạy `scripts\cai_webview2.bat`. |
 | Muốn xem app đang báo lỗi gì | `run.bat debug` — log hiện thẳng ra màn hình. Hoặc xem `logs\app.log`. |
 | Đã **di chuyển thư mục dự án** rồi lỗi lung tung | Chạy lại `setup.bat` (các file `.exe` trong môi trường Python nhúng đường dẫn cũ). |
