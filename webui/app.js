@@ -1245,11 +1245,13 @@ function toggleFormButtons(stepName, isRunning) {
     const btnStart = document.getElementById(`btnStartStep${stepName.slice(-1)}`);
     const btnStop = document.getElementById(`btnStopStep${stepName.slice(-1)}`);
     
+    // Hien lai bang "" (tra ve inline-flex cua .btn), khong gan "block":
+    // block lam icon ::before va chu tach thanh 2 dong.
     if (isRunning) {
         btnStart.style.display = "none";
-        btnStop.style.display = "block";
+        btnStop.style.display = "";
     } else {
-        btnStart.style.display = "block";
+        btnStart.style.display = "";
         btnStop.style.display = "none";
     }
 }

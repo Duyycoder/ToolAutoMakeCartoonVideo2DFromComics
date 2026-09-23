@@ -87,6 +87,8 @@
     --header-h: 60px;
     --control-h: 32px;
     --control-h-sm: 26px;
+    /* Khoang chua cho nut chat noi (44px + 12px ho) de khong de len log/nut cuoi trang */
+    --chat-fab-clear: 56px;
 
     /* --- Z-index --- */
     --z-decor: -1; --z-base: 0; --z-sticky: 10; --z-header: 20; --z-dropdown: 100;
@@ -591,6 +593,7 @@ input[type="number"],
     flex-direction: column;
     gap: var(--sp-5);
     padding: var(--sp-6);
+    padding-bottom: calc(var(--sp-6) + var(--chat-fab-clear));
     animation: panel-in var(--dur-base) var(--ease);
 }
 
@@ -1213,7 +1216,8 @@ output {
     /* bo height: 600px cung cua ban cu */
     height: auto;
     min-height: 420px;
-    max-height: calc(100vh - var(--header-h) - var(--sp-12));
+    /* tru them --chat-fab-clear: khi sticky, day panel khong chui duoi nut chat */
+    max-height: calc(100vh - var(--header-h) - var(--sp-12) - var(--chat-fab-clear));
     position: sticky;
     top: calc(var(--header-h) + var(--sp-5));
 }
