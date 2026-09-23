@@ -121,9 +121,13 @@ if not "%PYTHON_EXE%"=="python" (
 echo.
 
 :: 2. Setup AIVoice
+:: --skip-models: KHONG tai mo hinh ve anh cua luong truyen tranh (RealESRGAN,
+:: IP-Adapter, CLIP ViT-H ~2.5 GB, Hyper-SD). Cong cu video khong dung toi -
+:: da kiem adapter_autosub/adapter_download khong goi cai nao. Mo hinh giong doc
+:: (Piper/XTTS) van tai vi tab Dich co dung de long tieng.
 echo [INFO] Setting up TTS ^& Video Engines (AIVoice)...
 cd AIVoice
-call setup.bat
+call setup.bat --skip-models
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to setup AIVoice.
     pause
@@ -159,7 +163,19 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [INFO] Global Setup Completed successfully!
+echo ============================================================
+echo  [OK] Cai dat xong - Cao ^& Dich Video da san sang.
+echo ============================================================
 echo [LUU Y] Engine dich mac dinh la Ollama (chay tren may, khong can API key).
 echo         Cai Ollama tai https://ollama.com roi chay: ollama pull qwen2.5:3b-instruct
-pause
+echo.
+
+:: Duoc run.bat goi thi quay ve ngay de no mo app - khong bat bam phim.
+:: Phai "exit /b 0" ro rang: buoc tao cau hinh o tren co the de lai errorlevel 1
+:: (chi la canh bao), run.bat se tuong cai dat hong va dung lai.
+if defined CALLED_FROM_RUN exit /b 0
+
+echo  Bam phim bat ky de mo cong cu. Lan sau chi can nhay dup run.bat.
+pause >nul
+call "%~dp0run.bat"
+exit /b 0
