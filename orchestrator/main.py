@@ -120,7 +120,7 @@ class Step1Schema(BaseModel):
     continue_download: bool = False
     topic: Optional[str] = None  # nguồn "ai_write": chủ đề/ý tưởng để LLM sáng tác
     words_per_chapter: Optional[int] = None  # nguồn "ai_write": độ dài mỗi chương
-    glossary_extract_engine: Optional[str] = "gemini"
+    glossary_extract_engine: Optional[str] = None  # None -> translate.glossary_extract_engine trong config
     glossary_extract_ollama_model: Optional[str] = ""
 
 class Step2Schema(BaseModel):
@@ -156,10 +156,10 @@ class Step3Schema(BaseModel):
     use_semantic_split: Optional[bool] = True
     extract_characters: Optional[bool] = True
     enable_face_detailer: Optional[bool] = False
-    render_mode: Optional[str] = "classic"  # "classic" | "studio" (render theo lop)
+    render_mode: Optional[str] = "auto"  # "auto" (CPU->classic, CUDA->studio) | "classic" | "studio"
     hardware_profile: Optional[str] = "auto"
     device: Optional[str] = "cuda"
-    llm_engine: Optional[str] = "gemini_api"
+    llm_engine: Optional[str] = None  # None -> video.default_llm_engine trong config
     llm_api_key: Optional[str] = None
     llm_offline_base_url: Optional[str] = None
     llm_offline_model: Optional[str] = None
@@ -182,7 +182,7 @@ class Step4Schema(BaseModel):
     tts_voice: Optional[str] = ""
     auto_clone: Optional[bool] = False
     ducking_ratio: Optional[float] = 90.0
-    llm_engine: Optional[str] = "gemini_api"
+    llm_engine: Optional[str] = None  # None -> video.default_llm_engine trong config
     llm_api_key: Optional[str] = None
     llm_offline_base_url: Optional[str] = None
     llm_offline_model: Optional[str] = None
@@ -237,6 +237,28 @@ def rebuild_db_api():
     n = storage_mgr.rebuild_db()
     return {"synced": n}
 
+def _wmi_gpu() -> tuple[str, int]:
+    """(tên, VRAM MB) của card rời lớn nhất qua WMI — cho máy AMD/Intel không có
+    nvidia-smi. AdapterRAM là uint32 nên card >4GB bị báo trần ~4GB (thiên về an toàn)."""
+    import subprocess
+    try:
+        r = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-CimInstance Win32_VideoController | ForEach-Object { \"$($_.Name)|$($_.AdapterRAM)\" }"],
+            capture_output=True, text=True, timeout=10,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        best = ("", 0)
+        for line in r.stdout.splitlines():
+            name, _, ram = line.strip().rpartition("|")
+            mb = int(ram) // (1024 * 1024) if ram.isdigit() else 0
+            if name and mb > best[1]:
+                best = (name, mb)
+        return best
+    except Exception:
+        return ("", 0)
+
+
 @app.get("/api/system/gpu-info")
 def get_gpu_info():
     import subprocess
@@ -246,9 +268,12 @@ def get_gpu_info():
         if result.returncode == 0 and result.stdout.strip():
             parts = result.stdout.strip().split(', ')
             return {"name": parts[0], "vram": parts[1]}
-        return {"name": "No GPU found", "vram": "N/A"}
     except Exception:
-        return {"name": "No nvidia-smi", "vram": "N/A"}
+        pass
+    name, mb = _wmi_gpu()
+    if name:
+        return {"name": name, "vram": f"{mb} MiB" if mb else "N/A"}
+    return {"name": "No GPU found", "vram": "N/A"}
 
 @app.get("/api/ollama/models")
 def get_ollama_models():
@@ -376,6 +401,7 @@ def _build_step1_args(body: Step1Schema) -> dict:
     g_config = load_global_config()
     gemini_key = body.gemini_api_key or g_config.get("api_keys", {}).get("gemini", "")
     gemini_offline_base_url = body.gemini_offline_base_url or g_config.get("crawler", {}).get("gemini_offline_base_url", "http://localhost:7860/v1")
+    trans_cfg = g_config.get("translate", {})
 
     crawl_args = {
         "source": body.source_site,
@@ -390,14 +416,14 @@ def _build_step1_args(body: Step1Schema) -> dict:
     }
     trans_args = {
         "auto_translate": body.auto_translate,
-        "engine": body.engine or "gemini_api",
-        "ollama_model": body.ollama_model or "qwen2.5:7b-instruct",
+        "engine": body.engine or trans_cfg.get("default_engine") or "ollama",
+        "ollama_model": body.ollama_model or trans_cfg.get("ollama_model") or "qwen2.5:7b-instruct",
         "gemini_api_key": gemini_key,
         "gemini_offline_base_url": gemini_offline_base_url,
         "gemini_offline_model": body.gemini_offline_model or "gemini-2.5-flash",
         "genre": body.genre or "tien_hiep",
         "auto_extract": body.auto_extract,
-        "glossary_extract_engine": body.glossary_extract_engine or "gemini",
+        "glossary_extract_engine": body.glossary_extract_engine or trans_cfg.get("glossary_extract_engine") or "same_as_trans",
         "glossary_extract_ollama_model": body.glossary_extract_ollama_model or ""
     }
     return {"crawl_args": crawl_args, "trans_args": trans_args}
@@ -1064,7 +1090,7 @@ async def prewarm_chat_model():
         return {"status": "failed", "error": str(e)}
 
 def _gpu_total_mb() -> int:
-    """VRAM tổng theo MB, 0 nếu không có nvidia-smi."""
+    """VRAM tổng theo MB (nvidia-smi, fallback WMI cho AMD/Intel); 0 nếu không dò được."""
     import subprocess
     try:
         r = subprocess.run(
@@ -1076,7 +1102,7 @@ def _gpu_total_mb() -> int:
             return int(r.stdout.strip().splitlines()[0].strip())
     except Exception:
         pass
-    return 0
+    return _wmi_gpu()[1]
 
 
 def _ollama_root(cfg: dict) -> str:

@@ -576,8 +576,12 @@ class NovelPipeline:
         cmd.extend(["--hardware-profile", hw_profile])
 
         # Studio Compositing: "classic" (1 anh/canh) | "studio" (render theo lop roi ghep)
-        render_mode = video_args.get("render_mode") or "classic"
-        cmd.extend(["--render-mode", render_mode])
+        # | "auto" (mac dinh) = MediaComposer tu chon theo phan cung (CPU -> classic,
+        # CUDA -> studio). Chi truyen co khi user chon ro; "auto" thi bo co de
+        # MediaComposer giu render_mode trong config.toml.
+        render_mode = video_args.get("render_mode") or video_cfg.get("render_mode") or "auto"
+        if render_mode in ("classic", "studio"):
+            cmd.extend(["--render-mode", render_mode])
 
         # Set MC_STORAGE_TASKS environment variable to redirect MediaComposer outputs into the storage/tasks folder
         env_override = {

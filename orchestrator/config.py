@@ -44,14 +44,14 @@ def load_global_config() -> Dict[str, Any]:
             },
             # Bước 1 — mặc định dịch/sáng tác (dùng chung cho toàn dự án)
             "translate": {
-                "default_engine": "gemini_api",
+                "default_engine": "ollama",
                 "ollama_model": "qwen2.5:7b-instruct",
                 "gemini_offline_model": "gemini-2.5-flash",
                 "genre": "tien_hiep",
                 "words_per_chapter": 800,
                 "auto_translate": True,
                 "auto_extract": True,
-                "glossary_extract_engine": "gemini",
+                "glossary_extract_engine": "same_as_trans",
                 "glossary_extract_ollama_model": ""
             },
             "tts": {
@@ -78,8 +78,8 @@ def load_global_config() -> Dict[str, Any]:
                 "default_checkpoint": "anything-v5",
                 "bgm_path": "",
                 "bgm_volume": 0.15,
-                "default_llm_engine": "gemini_api",
-                "default_llm_model": DEFAULT_GEMINI_PROXY_MODEL,
+                "default_llm_engine": "ollama",
+                "default_llm_model": DEFAULT_OLLAMA_MODEL,
                 "downloader_cookies": "",
                 "genre": "tien_hiep",
                 "enable_upscale": True,
@@ -99,7 +99,7 @@ def load_global_config() -> Dict[str, Any]:
                 "sd_ip_adapter_scale": 0.6,
                 "sd_studio_render_steps": 0,
                 "sd_studio_render_guidance": 0.0,
-                "render_mode": "studio",
+                "render_mode": "auto",
                 "hardware_profile": "auto",
                 "device": "auto"
             },
@@ -115,8 +115,8 @@ def load_global_config() -> Dict[str, Any]:
                 "tts_voice": "vi-VN-NamMinhNeural",
                 "auto_clone": False,
                 "ducking_ratio": 90.0,
-                "llm_engine": "gemini_api",
-                "llm_model": "gemini-3-flash",
+                "llm_engine": "ollama",
+                "llm_model": DEFAULT_OLLAMA_MODEL,
                 "font_name": "",
                 "font_size": 45,
                 "text_color": "#ffffff",
