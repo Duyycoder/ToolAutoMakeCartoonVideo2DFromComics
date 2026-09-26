@@ -200,3 +200,22 @@ def test_bo_qua_video_mat_file_nhung_van_ghep_phan_con_lai(h):
 
     assert len(h.merges[0]["files"]) == 2
     assert "BỎ QUA" in h.pm.log()
+
+
+def test_thieu_api_key_luc_chuyen_sang_dich_van_dong_sse(h, monkeypatch):
+    """Tai xong -> dich luon, nhung engine thieu key: build_translate_cmd nem
+    ValueError ngay trong callback cua khuc tai. Truoc day exception bay ra,
+    khong ai goi finish_manual -> giao dien treo 'dang chay' mai."""
+    import orchestrator.pipeline as pipeline_mod
+    monkeypatch.setattr(pipeline_mod, "load_global_config", lambda: {})
+
+    def thieu_key(job, args, cfg):
+        raise ValueError("thieu API key")
+
+    monkeypatch.setattr(h.pipe, "build_translate_cmd", thieu_key)
+    entry = h.library.read_entry(h.add("v1", 1))
+
+    h.pipe.chain_after_entries("download", [entry], 0, {"llm_engine": "gemini"}, None, "lo_1")
+
+    assert h.pm.finished == [1]
+    assert "thieu API key" in h.pm.log()

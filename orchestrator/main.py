@@ -137,6 +137,7 @@ class DownloadSchema(ProbeSchema):
     batch_name: Optional[str] = ""
     batch_index: Optional[List[float]] = None   # chỗ đứng của từng link trong lô
     merge_after: Optional[MergeAfterSchema] = None
+    project_folder: Optional[str] = ""          # != "" = tải xong thì đưa vào dự án này
 
 
 class TranslateSchema(TranslateParams):
@@ -164,6 +165,13 @@ class ProjectCreateSchema(BaseModel):
     ten: str
 
 
+class ProjectTranslateSchema(TranslateParams):
+    """Chạy video của một dự án: sub từng video → (tuỳ chọn) ghép theo đúng thứ tự."""
+    folder: str
+    files: List[str]                             # tên file, ĐÚNG thứ tự người dùng sắp
+    merge_after: Optional[MergeAfterSchema] = None
+
+
 class ImportBatchItem(BaseModel):
     path: str
     title: Optional[str] = ""
@@ -178,6 +186,7 @@ class ImportBatchSchema(BaseModel):
     auto_translate: Optional[bool] = False
     translate: Optional[TranslateParams] = None
     merge_after: Optional[MergeAfterSchema] = None
+    project_folder: Optional[str] = ""   # != "" = CHÉP file vào dự án này thay vì thư viện
 
 
 class PickFilesSchema(BaseModel):
@@ -338,6 +347,20 @@ def import_batch(body: ImportBatchSchema):
     then_merge = _chain_merge(body.merge_after)
     batch_id = (body.batch_id or "").strip() or new_batch_id(body.batch_name or "")
 
+    folder = _du_an_dich(body.project_folder)
+    if folder:
+        then_du_an = None
+        if then_translate or then_merge:
+            def then_du_an(exit_code: int):
+                """Chép xong thì đi tiếp: sub → ghép → đánh dấu, trong dự án."""
+                pipeline.chain_du_an_sau_lo(TASK_IMPORT, folder, batch_id, exit_code,
+                                            then_translate, then_merge)
+        if not pipeline.start_import_project(TASK_IMPORT, folder, [it.model_dump() for it in items],
+                                             batch_id, then_du_an):
+            raise HTTPException(status_code=500, detail="Không khởi động được tác vụ nhập.")
+        return {"status": "success", "task_key": TASK_IMPORT,
+                "batch_id": batch_id, "count": len(items)}
+
     then = None
     if then_translate or then_merge:
         def then(exit_code: int, entries: List[dict]):
@@ -392,6 +415,20 @@ def _quen_du_an(folder: str) -> None:
     save_global_config(cfg)
 
 
+def _du_an_dich(folder: Optional[str]) -> str:
+    """Thư mục dự án đích của một lô (đường dẫn tuyệt đối), hoặc "" = thư viện chung.
+
+    Chặn ngay khi thư mục không phải dự án: tải/chép xong mới phát hiện thì video
+    đã nằm lung tung mà không có `.duan.json` nào ghi nhận.
+    """
+    folder = (folder or "").strip()
+    if not folder:
+        return ""
+    if not project.da_init(folder):
+        raise HTTPException(status_code=404, detail=f"Thư mục '{folder}' chưa phải là dự án.")
+    return os.path.abspath(folder)
+
+
 @app.post("/api/project/inspect")
 def project_inspect(body: ProjectFolderSchema):
     """Nhìn một thư mục TRƯỚC khi động vào nó.
@@ -442,6 +479,22 @@ def project_open(body: ProjectFolderSchema):
     return data
 
 
+@app.post("/api/project/close")
+def project_close():
+    """Đóng dự án đang mở — quay về thư viện chung (video lẻ ngoài dự án).
+
+    Trước đây không có đường nào ra: app tự mở lại dự án cũ mỗi lần khởi động và
+    ô chọn "— Chưa mở dự án nào —" không làm gì, nên đã mở một dự án là thư viện
+    chung biến mất vĩnh viễn. Giữ nguyên danh sách gần đây để mở lại nhanh.
+    """
+    cfg = load_global_config()
+    du_an = cfg.get("du_an") or {}
+    du_an["hien_tai"] = ""
+    cfg["du_an"] = du_an
+    save_global_config(cfg)
+    return {"status": "success"}
+
+
 @app.post("/api/project/undo-rename")
 def project_undo_rename(body: ProjectFolderSchema):
     """Trả tên file về y như trước khi init, rồi bỏ đánh dấu dự án."""
@@ -460,6 +513,51 @@ def project_videos(folder: str, ke_ca_da_ghep: bool = False):
     if not project.da_init(folder):
         raise HTTPException(status_code=404, detail=f"Thư mục '{folder}' chưa phải là dự án.")
     return project.danh_sach_video(folder, ke_ca_da_ghep)
+
+
+@app.post("/api/project/translate")
+def project_translate(body: ProjectTranslateSchema):
+    """Sub các video đã chọn của dự án theo đúng thứ tự, rồi (tuỳ chọn) ghép và
+    đánh dấu đã ghép. Đầu ra nằm ngay trong dự án: phu_de/, da_sub/, ban_ghep/."""
+    if not project.da_init(body.folder):
+        raise HTTPException(status_code=404, detail=f"Thư mục '{body.folder}' chưa phải là dự án.")
+    files = [f.strip() for f in body.files if f and f.strip()]
+    if not files:
+        raise HTTPException(status_code=400, detail="Chưa chọn video nào để dịch.")
+    if len(set(files)) != len(files):
+        raise HTTPException(status_code=400, detail="Một video bị chọn hai lần.")
+    if process_mgr.is_running(TASK_TRANSLATE):
+        raise HTTPException(status_code=400, detail="Tác vụ dịch đang chạy — dừng nó trước.")
+
+    # Chỉ nhận đúng video CỦA dự án: vừa chặn đường dẫn kiểu "..\\x", vừa bắt
+    # file đã bị xoá/đổi tên ngoài app trước khi chạy cả hàng đợi.
+    videos = {v["file"]: v for v in project.danh_sach_video(body.folder, ke_ca_da_ghep=True)}
+    for ten in files:
+        video = videos.get(ten)
+        if not video:
+            raise HTTPException(status_code=404, detail=f"'{ten}' không thuộc dự án này.")
+        if not video.get("exists"):
+            raise HTTPException(status_code=400, detail=f"File '{ten}' không còn trên đĩa.")
+
+    args = body.model_dump(exclude={"folder", "files", "merge_after"})
+    if args.get("sub_source") == "import":
+        if len(files) > 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Chế độ 'phụ đề có sẵn' chỉ áp dụng cho một video mỗi lượt.")
+        srt = (args.get("source_srt") or "").strip()
+        if not srt or not os.path.exists(srt):
+            raise HTTPException(status_code=400, detail=f"Không tìm thấy file phụ đề: {srt or '(trống)'}")
+    merge_opts = _chain_merge(body.merge_after)
+
+    try:
+        started = pipeline.start_translate_project(
+            TASK_TRANSLATE, body.folder, files, args, merge_opts)
+    except ValueError as e:  # thiếu API key cho engine đã chọn
+        raise HTTPException(status_code=400, detail=str(e))
+    if not started:
+        raise HTTPException(status_code=500, detail="Không khởi động được tác vụ dịch.")
+    return {"status": "success", "task_key": TASK_TRANSLATE, "count": len(files)}
 
 
 @app.get("/api/project/recent")
@@ -491,6 +589,26 @@ def open_video_folder(entry_id: str, kind: str = "root"):
         raise HTTPException(status_code=404, detail=f"Không có video '{entry_id}' trong thư viện.")
     path = {"output": library.output_dir(entry_id),
             "subs": library.subs_dir(entry_id)}.get(kind, library.entry_dir(entry_id))
+    try:
+        os.makedirs(path, exist_ok=True)
+        _reveal_in_file_manager(path)
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Không mở được thư mục '{path}': {e}")
+    return {"status": "success", "path": path}
+
+
+@app.post("/api/project/open-folder")
+def open_project_folder(body: ProjectFolderSchema, kind: str = "root"):
+    """Mở thư mục dự án (hoặc phu_de/ da_sub/ ban_ghep/) bằng File Explorer.
+
+    Dự án cố ý nằm trong thư mục thật của người dùng để "mở Explorer là thấy
+    đủ" — nhưng trước đây giao diện không có nút nào mở được nó.
+    """
+    if not project.da_init(body.folder):
+        raise HTTPException(status_code=404, detail=f"Thư mục '{body.folder}' chưa phải là dự án.")
+    sub = {"da_sub": project.OUT_DIR, "phu_de": project.SUB_DIR,
+           "ban_ghep": project.MERGE_DIR}.get(kind, "")
+    path = os.path.join(os.path.abspath(body.folder), sub) if sub else os.path.abspath(body.folder)
     try:
         os.makedirs(path, exist_ok=True)
         _reveal_in_file_manager(path)
@@ -649,6 +767,7 @@ def download_start(body: DownloadSchema):
     then_merge = _chain_merge(body.merge_after)
 
     args = body.model_dump()
+    args["project_folder"] = _du_an_dich(body.project_folder)
     args["batch_id"] = (body.batch_id or "").strip() or new_batch_id(body.batch_name or "")
     if not pipeline.start_download(TASK_DOWNLOAD, urls, args, then_translate, then_merge):
         raise HTTPException(status_code=500, detail="Không khởi động được tiến trình tải.")

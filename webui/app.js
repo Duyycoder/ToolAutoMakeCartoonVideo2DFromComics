@@ -462,7 +462,7 @@ function batchTail() {
     };
 }
 
-async function startDownloadLeg(urls, batchId, tail, batchName) {
+async function startDownloadLeg(urls, batchId, tail, batchName, duAn = '') {
     try {
         await api('/api/download/start', {
             method: 'POST',
@@ -471,6 +471,7 @@ async function startDownloadLeg(urls, batchId, tail, batchName) {
                 batch_index: urls.map((u) => u.index),
                 batch_id: batchId || '',
                 batch_name: batchName || '',
+                project_folder: duAn,
                 skip_existing: $('dlSkipExisting').checked,
                 stop_on_error: $('dlStopOnError').checked,
                 ...sourceParams(),
@@ -502,10 +503,11 @@ async function runBatch() {
 
     const batchName = $('bqName').value.trim();
     const tail = batchTail();
+    const duAn = duAnDichCuaLo();
     $('logConsole-batch').innerHTML = '';
 
     if (!files.length) {
-        startDownloadLeg(urls, '', tail, batchName);
+        startDownloadLeg(urls, '', tail, batchName, duAn);
         return;
     }
 
@@ -516,6 +518,7 @@ async function runBatch() {
                 items: files.map((f) => ({ path: f.value, title: f.title, index: f.index })),
                 copy_file: $('bqCopyFile').checked,
                 batch_name: batchName,
+                project_folder: duAn,
                 // Còn link phải tải thì để khúc tải mang theo phần dịch/ghép.
                 ...(urls.length ? {} : tail),
             }),
@@ -523,7 +526,7 @@ async function runBatch() {
         setRunning(TASKS.import, true);
         streamLogs(TASKS.import, 'logConsole-batch', () => {
             loadLibrary();
-            if (urls.length) startDownloadLeg(urls, res.batch_id, tail, batchName);
+            if (urls.length) startDownloadLeg(urls, res.batch_id, tail, batchName, duAn);
             else afterBatch();
         });
     } catch (e) {
@@ -599,10 +602,74 @@ async function moThuMucDuAn() {
     } catch (e) { toast(e.message, 'error'); }
 }
 
-async function taoDuAnMoi() {
+/** `opts.veTab`: tạo xong thì về tab nào (tạo từ tab Lô Video thì ở lại đó để chạy lô). */
+async function taoDuAnMoi(opts = {}) {
     const chon = await chonThuMuc();
     if (!chon) return;
-    moModalDuAn('tao', { folder: chon.folder, ten: '' });
+    moModalDuAn('tao', { folder: chon.folder, ten: '', veTab: opts.veTab || '' });
+}
+
+/** Lô đổ vào dự án đang mở (nếu có và người dùng không tắt), không thì "" = thư viện chung. */
+function duAnDichCuaLo() {
+    return state.duAn && $('bqVaoDuAn').checked ? state.duAn.folder : '';
+}
+
+/** Mọi chỗ trên giao diện phụ thuộc "có đang mở dự án không". */
+function refreshDuAnUI() {
+    const coDuAn = !!state.duAn;
+    // Thanh công cụ thư viện: tìm/lọc/ghép/XOÁ/nhập chỉ đúng với thư viện chung.
+    // Để hiện khi đang mở dự án là bấm vào sẽ thao tác lên lựa chọn ẩn của thư
+    // viện chung — nút Xoá còn xoá nhầm video người dùng không nhìn thấy.
+    document.querySelectorAll('.chi-thu-vien').forEach((el) => { el.style.display = coDuAn ? 'none' : ''; });
+    document.querySelectorAll('.chi-du-an').forEach((el) => { el.style.display = coDuAn ? '' : 'none'; });
+    $('btnDuAnHoanTac').style.display = coDuAn ? '' : 'none';
+    $('bqDichDuAn').style.display = coDuAn ? '' : 'none';
+    $('bqDichThuVien').style.display = coDuAn ? 'none' : '';
+    if (coDuAn) $('bqDuAnTen').textContent = state.duAn.name || state.duAn.folder;
+    const vaoDuAn = !!duAnDichCuaLo();
+    // Vào dự án thì file trên máy LUÔN được chép — ô "chép vào thư viện" vô nghĩa.
+    const oChep = $('bqCopyFile').closest('label');
+    if (oChep) oChep.style.display = vaoDuAn ? 'none' : '';
+    $('bqMergeName').placeholder = vaoDuAn
+        ? 'Để trống = tên dự án (lưu trong ban_ghep/)' : 'Để trống = ghep_ngày_giờ';
+}
+
+/** Mở thư mục dự án (kind: '' | 'da_sub' | 'phu_de' | 'ban_ghep') bằng File Explorer. */
+function moThuMucCuaDuAn(kind = '') {
+    if (!state.duAn) return;
+    api(`/api/project/open-folder${kind ? `?kind=${kind}` : ''}`, {
+        method: 'POST', body: JSON.stringify({ folder: state.duAn.folder }),
+    }).catch((e) => toast(e.message, 'error'));
+}
+
+/** Về thư viện chung. `daQuen`: backend đã tự quên dự án (vd sau hoàn tác). */
+async function dongDuAn(opts = {}) {
+    if (!opts.daQuen) {
+        try { await api('/api/project/close', { method: 'POST' }); }
+        catch (e) { toast(e.message, 'error'); return; }
+    }
+    state.duAn = null;
+    state.duAnChon = [];
+    state.duAnVideos = [];
+    refreshBuocTiepTheo();
+    refreshDuAnUI();
+    await loadDuAnGanDay();
+    await loadLibrary();   // không còn dự án → thư viện chung
+}
+
+async function hoanTacDuAn() {
+    if (!state.duAn) return;
+    const ok = confirm(
+        `Trả tên file về như trước khi tạo dự án "${state.duAn.name}" và bỏ đánh dấu dự án?\n\n`
+        + 'Danh sách "đã ghép" sẽ mất theo. Phụ đề, bản đã sub và bản ghép vẫn nằm nguyên trên đĩa.');
+    if (!ok) return;
+    try {
+        const res = await api('/api/project/undo-rename', {
+            method: 'POST', body: JSON.stringify({ folder: state.duAn.folder }),
+        });
+        toast(`Đã trả lại tên cho ${res.so_da_tra_lai} video.`, 'success');
+        await dongDuAn({ daQuen: true });
+    } catch (e) { toast(e.message, 'error'); }
 }
 
 async function xacNhanDuAn(doiTen) {
@@ -623,7 +690,7 @@ async function xacNhanDuAn(doiTen) {
             });
         }
         $('modalDuAn').classList.remove('open');
-        await moDuAn(data.folder);
+        await moDuAn(data.folder, { veTab: ctx.veTab });
         toast(`Đã mở dự án "${data.name}".`, 'success');
     } catch (e) { toast(e.message, 'error'); }
 }
@@ -638,9 +705,10 @@ async function moDuAn(folder, opts = {}) {
         return;
     }
     state.duAnChon = [];
+    refreshDuAnUI();
     await loadDuAnVideos();
     await loadDuAnGanDay();
-    if (!opts.im_lang) goTab('library');
+    if (!opts.im_lang) goTab(opts.veTab || 'library');
 }
 
 async function loadDuAnGanDay() {
@@ -712,6 +780,8 @@ function renderDuAnLibrary() {
           + (chon.length ? ' — thứ tự trên đây cũng là thứ tự ghép.' : ' — chọn video để đi tiếp.')
         : '';
     refreshBuocTiepTheo();
+    // Tab Dịch hiển thị đúng danh sách này — chọn/bỏ/sắp lại ở đây phải khớp ngay bên đó.
+    renderTranslateSelection();
 }
 
 /** Bước tinh chỉnh tham số chỉ mở ra khi đã chọn xong và sắp xong thứ tự. */
@@ -916,8 +986,29 @@ function refreshTranslateVisibility() {
 }
 
 function renderTranslateSelection() {
-    const ids = libSelectionIds();
     const box = $('trSelected');
+    const ghep = $('trDuAnGhep');
+    // Đang mở dự án: tab Dịch chạy ĐÚNG các video đã chọn ở thư viện dự án, theo
+    // thứ tự đã sắp. Trước đây tab này luôn đọc lựa chọn của thư viện cũ
+    // (storage/videos) nên chọn xong trong dự án vẫn báo "Chưa chọn video nào".
+    if (state.duAn) {
+        const ds = duAnVideoDaChon();
+        if (ghep) ghep.style.display = ds.length > 1 ? '' : 'none';
+        if (!ds.length) {
+            box.innerHTML = '<p class="help-text" style="text-align:center;">'
+                + `Chưa chọn video nào — sang tab Thư Viện (dự án <b>${esc(state.duAn.name || '')}</b>) và tích chọn.</p>`;
+            return;
+        }
+        box.innerHTML = ds.map((v, i) => `
+            <div class="list-row">
+                <span class="list-main"><b><span class="ok">[${i + 1}]</span> ${esc(v.file)}</b>
+                    <small>${v.exists ? human(v.size) : '<b class="bad">thiếu file trên đĩa</b>'}</small></span>
+                <button type="button" class="btn btn-secondary btn-sm" data-act="duan-unselect" data-file="${esc(v.file)}">bỏ</button>
+            </div>`).join('');
+        return;
+    }
+    if (ghep) ghep.style.display = 'none';
+    const ids = libSelectionIds();
     if (!ids.length) {
         box.innerHTML = '<p class="help-text" style="text-align:center;">'
             + 'Chưa chọn video nào — sang tab Thư Viện và tích chọn.</p>';
@@ -932,12 +1023,28 @@ function renderTranslateSelection() {
 }
 
 async function startTranslate() {
-    const ids = libSelectionIds();
-    if (!ids.length) { toast('Chưa chọn video nào để dịch.', 'warn'); goTab('library'); return; }
-    const payload = { entry_ids: ids, ...translateParams() };
+    let url, payload;
+    if (state.duAn) {
+        const files = state.duAnChon.slice();
+        if (!files.length) { toast('Chưa chọn video nào để dịch.', 'warn'); goTab('library'); return; }
+        url = '/api/project/translate';
+        payload = {
+            folder: state.duAn.folder, files, ...translateParams(),
+            merge_after: {
+                enabled: files.length > 1 && $('trDuAnGhepBat').checked,
+                output_name: $('trDuAnGhepTen').value.trim(),
+                prefer: 'output', normalize: true,
+            },
+        };
+    } else {
+        const ids = libSelectionIds();
+        if (!ids.length) { toast('Chưa chọn video nào để dịch.', 'warn'); goTab('library'); return; }
+        url = '/api/translate/start';
+        payload = { entry_ids: ids, ...translateParams() };
+    }
     $('logConsole-translate').innerHTML = '';
     try {
-        const res = await api('/api/translate/start', { method: 'POST', body: JSON.stringify(payload) });
+        const res = await api(url, { method: 'POST', body: JSON.stringify(payload) });
         setRunning(TASKS.translate, true);
         streamLogs(TASKS.translate, 'logConsole-translate', loadLibrary);
         toast(`Đã đưa ${res.count} video vào hàng đợi dịch.`, 'success');
@@ -945,13 +1052,21 @@ async function startTranslate() {
 }
 
 async function prepareRoi() {
-    const ids = libSelectionIds();
-    if (!ids.length) { toast('Chọn một video ở tab Thư Viện trước đã.', 'warn'); return; }
+    let nguon;
+    if (state.duAn) {
+        const dau = duAnVideoDaChon()[0];
+        if (!dau) { toast('Chọn một video ở tab Thư Viện trước đã.', 'warn'); return; }
+        nguon = { video_path: dau.path };
+    } else {
+        const ids = libSelectionIds();
+        if (!ids.length) { toast('Chọn một video ở tab Thư Viện trước đã.', 'warn'); return; }
+        nguon = { entry_id: ids[0] };
+    }
     const btn = $('btnTrPrepare');
     btn.disabled = true; btn.textContent = '⏳ Đang lấy khung hình…';
     try {
         const data = await api('/api/autosub/prepare', {
-            method: 'POST', body: JSON.stringify({ entry_id: ids[0] }),
+            method: 'POST', body: JSON.stringify(nguon),
         });
         state.prepared = data;
         $('trPreviewImg').src = data.preview_b64;
@@ -1195,7 +1310,12 @@ function bindEvents() {
     $('btnDuAnTao').addEventListener('click', taoDuAnMoi);
     $('duAnSelect').addEventListener('change', (event) => {
         if (event.target.value) moDuAn(event.target.value);
+        else if (state.duAn) dongDuAn();   // "— Chưa mở dự án nào —" = về thư viện chung
     });
+    $('btnDuAnHoanTac').addEventListener('click', hoanTacDuAn);
+    $('btnLibMoDuAn').addEventListener('click', () => moThuMucCuaDuAn());
+    $('bqVaoDuAn').addEventListener('change', refreshDuAnUI);
+    $('btnBqTaoDuAn').addEventListener('click', () => taoDuAnMoi({ veTab: 'download' }));
     $('btnDuAnXacNhan').addEventListener('click', () => xacNhanDuAn(true));
     $('btnDuAnGiuTen').addEventListener('click', () => xacNhanDuAn(false));
     $('btnDuAnHuy').addEventListener('click', () => $('modalDuAn').classList.remove('open'));
@@ -1210,15 +1330,25 @@ function bindEvents() {
     $('libSearch').addEventListener('input', renderLibrary);
     $('libFilter').addEventListener('change', renderLibrary);
     $('btnLibSelectAll').addEventListener('click', () => {
+        if (state.duAn) {
+            // Giữ thứ tự đã sắp của video đã chọn, thêm phần còn lại theo số thứ tự.
+            state.duAnVideos.forEach((v) => {
+                if (!state.duAnChon.includes(v.file)) state.duAnChon.push(v.file);
+            });
+            renderLibrary();
+            return;
+        }
         filteredLibrary().forEach((v) => state.selected.add(v.entry_id));
         renderLibrary(); renderTranslateSelection();
     });
     $('btnLibClearSel').addEventListener('click', () => {
+        if (state.duAn) { state.duAnChon = []; renderLibrary(); return; }
         state.selected.clear(); renderLibrary(); renderTranslateSelection();
     });
     $('btnLibDelete').addEventListener('click', deleteSelected);
     $('btnLibTranslate').addEventListener('click', () => {
-        if (!state.selected.size) { toast('Chưa chọn video nào.', 'warn'); return; }
+        const coChon = state.duAn ? state.duAnChon.length : state.selected.size;
+        if (!coChon) { toast('Chưa chọn video nào.', 'warn'); return; }
         goTab('translate');
     });
     $('btnLibMerge').addEventListener('click', () => {
@@ -1319,12 +1449,19 @@ function bindEvents() {
         $('trRoiInfo').textContent = 'Đã bỏ vùng chọn — sẽ quét cả khung hình.';
     });
     $('btnTrOpenOut').addEventListener('click', () => {
+        if (state.duAn) { moThuMucCuaDuAn('da_sub'); return; }
         const ids = libSelectionIds();
         if (!ids.length) { api('/api/system/open-folder?kind=videos', { method: 'POST' }); return; }
         api(`/api/videos/${encodeURIComponent(ids[0])}/open-folder?kind=output`, { method: 'POST' })
             .catch((e) => toast(e.message, 'error'));
     });
     $('trSelected').addEventListener('click', (event) => {
+        const boDuAn = event.target.closest('[data-act="duan-unselect"]');
+        if (boDuAn) {
+            state.duAnChon = state.duAnChon.filter((f) => f !== boDuAn.dataset.file);
+            renderLibrary();   // render cả thư viện dự án lẫn tab Dịch
+            return;
+        }
         const el = event.target.closest('[data-act="unselect"]');
         if (!el) return;
         state.selected.delete(el.dataset.id);
@@ -1428,6 +1565,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     syncMirrors();
     refreshTranslateVisibility();
     refreshBatchVisibility();
+    refreshDuAnUI();      // trạng thái "chưa mở dự án" cho tới khi loadDuAnGanDay mở lại
     renderBatch();
     loadOllamaModels();   // Ollama trả lời chậm vài giây — đừng chặn cả trang chờ nó
     loadGpu();

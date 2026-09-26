@@ -17,10 +17,11 @@ import threading
 import time
 from typing import Any, Callable, Dict, List, Optional
 
+from orchestrator import project
 from orchestrator.config import load_global_config
 from orchestrator.llm import resolve_llm
 from orchestrator.process_manager import ProcessManager
-from orchestrator.storage import VideoLibrary, slugify
+from orchestrator.storage import VideoLibrary, batch_order, slugify
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 AIVOICE_DIR = os.path.join(REPO_ROOT, "AIVoice")
@@ -92,14 +93,31 @@ class VideoPipeline:
         batch_id = args.get("batch_id") or ""
         known_before = {e["entry_id"] for e in self.library.list_entries()}
 
+        project_folder = args.get("project_folder") or ""
+
         def on_done(exit_code: int):
             new_entries = [e for e in self.library.list_entries()
                            if e["entry_id"] not in known_before]
             self.process_mgr.emit(
                 task_key,
-                f"[HỆ THỐNG] Tải xong, thư viện có thêm {len(new_entries)} video.")
+                f"[HỆ THỐNG] Tải xong {len(new_entries)} video.")
 
-            self.chain_after_entries(task_key, new_entries, exit_code,
+            if project_folder:
+                try:
+                    them = self._dua_ban_tai_vao_du_an(task_key, project_folder,
+                                                       new_entries, batch_id)
+                except Exception as e:
+                    self.process_mgr.emit(task_key, f"[LỖI] Không đưa được video vào dự án: {e}")
+                    self.process_mgr.finish_manual(task_key, 1)
+                    return False
+                self.chain_du_an_sau_lo(task_key, project_folder, batch_id, exit_code,
+                                        then_translate, then_merge, them)
+                return exit_code == 0
+
+            entries = new_entries
+            if then_translate and batch_id:
+                entries = self._them_muc_lo_chua_dich(batch_id, new_entries)
+            self.chain_after_entries(task_key, entries, exit_code,
                                      then_translate, then_merge, batch_id)
             return exit_code == 0
 
@@ -123,10 +141,18 @@ class VideoPipeline:
                 jobs = [self.make_job(e) for e in entries]
                 self.process_mgr.emit(
                     task_key, f"[HỆ THỐNG] Chuyển sang dịch {len(jobs)} video.")
-                if self._launch_chain(task_key, jobs, then_translate, reuse_queue=True,
-                                      then_merge=then_merge, batch_id=batch_id):
+                # Chạy trong callback của khúc tải/nhập: để exception (vd thiếu API
+                # key) bay ra là không ai đóng SSE — giao diện treo "đang chạy" mãi.
+                try:
+                    started = self._launch_chain(task_key, jobs, then_translate,
+                                                 reuse_queue=True, then_merge=then_merge,
+                                                 batch_id=batch_id)
+                    loi = ""
+                except Exception as e:
+                    started, loi = False, f": {e}"
+                if started:
                     return
-                self.process_mgr.emit(task_key, "[LỖI] Không khởi động được bước dịch.")
+                self.process_mgr.emit(task_key, f"[LỖI] Không khởi động được bước dịch{loi}")
                 exit_code = 1
         self._finish_or_merge(task_key, exit_code, then_merge, batch_id)
 
@@ -226,6 +252,132 @@ class VideoPipeline:
         threading.Thread(target=_run, daemon=True).start()
         return True
 
+    def start_import_project(self, task_key: str, folder: str, items: List[dict],
+                             batch_id: str,
+                             then: Optional[Callable[[int], None]] = None) -> bool:
+        """Chép video trên máy vào MỘT dự án, đánh số nối tiếp theo thứ tự hàng đợi.
+
+        Luôn CHÉP (không chuyển): file gốc nằm ngoài dự án là của người dùng. Chạy
+        nền kèm SSE vì chép video lớn có thể mất cả phút. `then(exit_code)` != None
+        thì nó chịu trách nhiệm đóng SSE, không thì hàm này tự `finish_manual`.
+        """
+        if not items:
+            return False
+        if not self.process_mgr.register_manual_task(task_key, queue.Queue()):
+            return False
+        total = len(items)
+        ten = (project.doc(folder) or {}).get("name") or os.path.basename(folder)
+
+        def _run():
+            ok = fail = 0
+            self.process_mgr.emit(task_key, f"[HỆ THỐNG] Chép {total} file vào dự án '{ten}'.")
+            try:
+                for i, item in enumerate(items):
+                    if self.process_mgr.was_user_stopped(task_key):
+                        self.process_mgr.emit(task_key, "[HỆ THỐNG] Đã dừng theo yêu cầu.")
+                        break
+                    path = (item.get("path") or "").strip()
+                    name = os.path.basename(path) or path or "(trống)"
+                    try:
+                        video = project.them_video(
+                            folder, path, item.get("title") or "", chep=True,
+                            batch_id=batch_id, batch_index=float(item.get("index") or (i + 1)))
+                    except (ValueError, OSError) as e:
+                        fail += 1
+                        self.process_mgr.emit(task_key, f"[LỖI] ({i + 1}/{total}) {name}: {e}")
+                        continue
+                    ok += 1
+                    self.process_mgr.emit(
+                        task_key, f"[THÀNH CÔNG] ({i + 1}/{total}) {name} → {video['file']}")
+            except Exception as e:  # không để SSE treo vĩnh viễn vì một lỗi lạ
+                fail += 1
+                self.process_mgr.emit(task_key, f"[LỖI] Chép vào dự án hỏng giữa chừng: {e}")
+            self.process_mgr.emit(
+                task_key, f"[HỆ THỐNG] Chép xong: {ok} thành công, {fail} lỗi trên tổng {total} file.")
+            code = 0 if (ok and not fail) else 1
+            if then:
+                then(code)
+            else:
+                self.process_mgr.finish_manual(task_key, code)
+
+        threading.Thread(target=_run, daemon=True).start()
+        return True
+
+    def _dua_ban_tai_vao_du_an(self, task_key: str, folder: str, entries: List[dict],
+                               batch_id: str) -> List[str]:
+        """Chuyển video vừa tải (đang nằm tạm trong thư viện) vào dự án.
+
+        Adapter tải chỉ biết ghi vào thư viện; thay vì sửa adapter, tải xong thì
+        chuyển file sang dự án theo đúng thứ tự hàng đợi rồi xoá mục tạm — để
+        lại là thư viện chung hiện một đống mục trỏ vào file đã đi mất.
+        """
+        them = []
+        for entry in sorted(entries, key=batch_order):
+            try:
+                video = project.them_video(
+                    folder, entry.get("file") or "", entry.get("title") or "", chep=False,
+                    batch_id=batch_id, batch_index=batch_order(entry))
+            except (ValueError, OSError) as e:
+                self.process_mgr.emit(
+                    task_key, f"[LỖI] Không đưa được '{entry.get('title')}' vào dự án: {e}")
+                continue
+            self.library.delete_entry(entry["entry_id"], delete_source_file=False)
+            them.append(video["file"])
+            self.process_mgr.emit(task_key, f"[HỆ THỐNG] Vào dự án: {video['file']}")
+        return them
+
+    def chain_du_an_sau_lo(self, task_key: str, folder: str, batch_id: str,
+                           exit_code: int, then_translate: Optional[dict],
+                           then_merge: Optional[dict], them: Optional[List[str]] = None) -> None:
+        """Khúc cuối của một lô đổ vào dự án: sub → ghép → đánh dấu, đúng thứ tự hàng đợi.
+
+        Lấy video theo `batch_id` chứ không chỉ theo khúc cuối: lô trộn (file trên
+        máy + link) chạy thành HAI khúc, video của khúc nhập phải được sub cùng.
+        Video đã có bản sub (chạy lại lô) thì không sub lại, nhưng vẫn được ghép.
+        Mọi nhánh đều kết thúc qua `_ket_thuc_du_an` — chốt đóng SSE duy nhất.
+        """
+        try:
+            da_ghep = {v["file"] for v in project.danh_sach_video(folder, ke_ca_da_ghep=True)
+                       if v.get("merged_into")}
+            lo = project.video_theo_lo(folder, batch_id) if batch_id else []
+            files = [f for f in (lo or them or []) if f not in da_ghep]
+            can_sub = [f for f in files
+                       if not os.path.exists(project.duong_dan_da_sub(folder, f))]
+            dung = self.process_mgr.was_user_stopped(task_key)
+            if then_translate and can_sub and not dung:
+                self.process_mgr.emit(
+                    task_key, f"[HỆ THỐNG] Chuyển sang sub {len(can_sub)} video của dự án.")
+                jobs = [self.make_project_job(folder, f) for f in can_sub]
+                try:
+                    if self._launch_chain(
+                            task_key, jobs, then_translate, reuse_queue=True,
+                            on_finish=lambda code: self._ket_thuc_du_an(
+                                task_key, folder, files, code, then_translate, then_merge)):
+                        return
+                    loi = ""
+                except Exception as e:
+                    loi = f": {e}"
+                self.process_mgr.emit(task_key, f"[LỖI] Không khởi động được bước sub{loi}")
+                exit_code = 1
+            self._ket_thuc_du_an(task_key, folder, files, exit_code,
+                                 then_translate or {}, then_merge)
+        except Exception as e:
+            self.process_mgr.emit(task_key, f"[LỖI] Khúc cuối của lô hỏng: {e}")
+            self.process_mgr.finish_manual(task_key, 1)
+
+    def _them_muc_lo_chua_dich(self, batch_id: str, entries: List[dict]) -> List[dict]:
+        """Video cần dịch ở khúc cuối của một lô trong thư viện chung.
+
+        Lô trộn chạy thành hai khúc (nhập file → tải link) và chỉ khúc CUỐI mang
+        phần dịch. Trước đây khúc tải chỉ dịch video vừa tải: file nhập ở khúc
+        trước bị bỏ qua mà vẫn bị đem ghép (rơi về bản gốc không phụ đề). Giờ gom
+        thêm các mục cùng lô chưa có bản dịch, theo đúng thứ tự lô.
+        """
+        co_roi = {e["entry_id"] for e in entries}
+        them = [e for e in self.library.list_batch(batch_id)
+                if e["entry_id"] not in co_roi and not e.get("outputs")]
+        return sorted(list(entries) + them, key=batch_order)
+
     # ----------------------------------------------------------------- DỊCH
     def make_job(self, entry: Dict[str, Any]) -> Dict[str, Any]:
         """Một mục thư viện -> một 'việc' cho adapter autosub."""
@@ -237,6 +389,52 @@ class VideoPipeline:
             "output_dir": self.library.output_dir(entry_id),
             "srt_dir": self.library.subs_dir(entry_id),
         }
+
+    @staticmethod
+    def make_project_job(folder: str, file: str) -> Dict[str, Any]:
+        """Một video trong thư mục dự án -> một 'việc' cho adapter autosub.
+
+        Mọi đầu ra nằm ngay trong dự án (quyết định đã chốt): phụ đề vào
+        `phu_de/`, bản đã sub vào `da_sub/`.
+        """
+        folder = os.path.abspath(folder)
+        ten = os.path.basename(file)
+        return {
+            "title": ten,
+            "video_path": os.path.join(folder, ten),
+            "output_dir": os.path.join(folder, project.OUT_DIR),
+            "srt_dir": os.path.join(folder, project.SUB_DIR),
+            "project_folder": folder,
+        }
+
+    def _chot_ban_da_sub(self, task_key: str, job: dict) -> None:
+        """Đổi bản adapter vừa xuất (`<tên>_autosub_<giờ>.mp4`) về `da_sub/<tên>.mp4`.
+
+        Chỉ nhận file sinh ra SAU lúc bắt đầu việc này — bản cũ từ lượt trước
+        không được đội tên bản mới. Không có file nào (chế độ chỉ xuất .srt)
+        thì thôi, không phải lỗi.
+        """
+        stem = os.path.splitext(os.path.basename(job["video_path"]))[0]
+        out_dir = job["output_dir"]
+        moc = job.get("_bat_dau", 0) - 2
+        try:
+            ung_vien = [os.path.join(out_dir, f) for f in os.listdir(out_dir)
+                        if f.startswith(stem + "_autosub_") and f.lower().endswith(".mp4")]
+        except OSError:
+            return
+        ung_vien = [p for p in ung_vien if os.path.getmtime(p) >= moc]
+        if not ung_vien:
+            return
+        moi_nhat = max(ung_vien, key=os.path.getmtime)
+        dich = project.duong_dan_da_sub(job["project_folder"], job["video_path"])
+        try:
+            os.replace(moi_nhat, dich)
+            self.process_mgr.emit(
+                task_key, f"[HỆ THỐNG] Bản đã sub: {project.OUT_DIR}/{os.path.basename(dich)}")
+        except OSError as e:
+            self.process_mgr.emit(
+                task_key, f"[CẢNH BÁO] Không đổi tên được bản đã sub ({e}) — "
+                          f"giữ nguyên {os.path.basename(moi_nhat)}.")
 
     def build_translate_cmd(self, job: dict, args: dict, g_config: dict) -> list:
         video_cfg = g_config.get("video") or {}
@@ -308,15 +506,111 @@ class VideoPipeline:
             return False
         self.process_mgr.emit(
             task_key, f"[HỆ THỐNG] Nhận {len(jobs)} video vào hàng đợi dịch.")
-        if not self._launch_chain(task_key, jobs, args, reuse_queue=True):
-            self.process_mgr.finish_manual(task_key, 1)
+        return self._start_chain_or_release(task_key, jobs, args)
+
+    def start_translate_project(self, task_key: str, folder: str, files: List[str],
+                                args: dict, merge_opts: Optional[dict] = None) -> bool:
+        """Chạy video của MỘT dự án theo đúng thứ tự đã sắp: sub từng video →
+        (tuỳ chọn) ghép theo đúng thứ tự đó → đánh dấu các video đã ghép.
+
+        Cả chuỗi chung một task_key với tab Dịch nên nút Dừng và khung log dùng
+        lại được nguyên vẹn.
+        """
+        jobs = [self.make_project_job(folder, f) for f in files]
+        if not jobs:
             return False
-        return True
+        if not self.process_mgr.register_manual_task(task_key, queue.Queue()):
+            return False
+        ten = (project.doc(folder) or {}).get("name") or os.path.basename(folder)
+        self.process_mgr.emit(
+            task_key, f"[HỆ THỐNG] Dự án '{ten}': {len(jobs)} video, xử lý theo đúng thứ tự đã sắp.")
+        return self._start_chain_or_release(
+            task_key, jobs, args,
+            on_finish=lambda code: self._ket_thuc_du_an(
+                task_key, folder, files, code, args, merge_opts))
+
+    def _start_chain_or_release(self, task_key: str, jobs: List[dict], args: dict,
+                                on_finish: Optional[Callable[[int], None]] = None) -> bool:
+        """Khởi động chuỗi; hỏng ngay từ đầu thì NHẢ task đã đăng ký.
+
+        `build_translate_cmd` ném ValueError khi engine LLM thiếu API key. Không
+        nhả task ở đây thì nó kẹt ở trạng thái "đang chạy" mãi: mọi lần bấm dịch
+        sau đó đều bị từ chối "Tác vụ dịch đang chạy" dù chẳng có gì chạy.
+        """
+        try:
+            started = self._launch_chain(task_key, jobs, args, reuse_queue=True,
+                                         on_finish=on_finish)
+        except Exception:
+            self.process_mgr.finish_manual(task_key, 1)
+            raise
+        if not started:
+            self.process_mgr.finish_manual(task_key, 1)
+        return started
+
+    def _ket_thuc_du_an(self, task_key: str, folder: str, files: List[str],
+                        exit_code: int, args: dict, merge_opts: Optional[dict]) -> None:
+        """Khúc cuối chuỗi dự án: ghép theo thứ tự rồi đánh dấu — hoặc đóng SSE.
+
+        Chốt chặn DUY NHẤT gọi `finish_manual` cho chuỗi dự án (trực tiếp, hoặc
+        qua `_merge_in_thread`): gọi hai lần là giao diện mất log của khúc sau.
+        """
+        emit = lambda msg: self.process_mgr.emit(task_key, msg)  # noqa: E731
+        try:
+            if not merge_opts or not merge_opts.get("enabled"):
+                self.process_mgr.finish_manual(task_key, exit_code)
+                return
+            if self.process_mgr.was_user_stopped(task_key):
+                self.process_mgr.finish_manual(task_key, exit_code)
+                return
+            if exit_code != 0:
+                # Ghép lẫn bản đã sub với bản gốc (của video lỗi) rồi đánh dấu
+                # "đã ghép" là giấu mất video lỗi khỏi danh sách — tệ hơn không ghép.
+                emit("[HỆ THỐNG] Có video xử lý lỗi — BỎ QUA bước ghép để khỏi ra bản "
+                     "thiếu phụ đề. Sửa lỗi rồi chạy lại các video đó.")
+                self.process_mgr.finish_manual(task_key, exit_code)
+                return
+            prefer = merge_opts.get("prefer") or "output"
+            if args.get("translate_only") and prefer != "source":
+                emit("[HỆ THỐNG] Chế độ chỉ xuất .srt không tạo bản đã sub — bỏ qua bước ghép.")
+                self.process_mgr.finish_manual(task_key, exit_code)
+                return
+
+            ghep, thieu = project.file_de_ghep(folder, files, prefer)
+            for ten in thieu:
+                emit(f"[BỎ QUA] {ten} — không còn file để ghép.")
+            if len(ghep) < 2:
+                emit("[HỆ THỐNG] Cần ít nhất 2 video để ghép — bỏ qua bước ghép.")
+                self.process_mgr.finish_manual(task_key, exit_code)
+                return
+
+            from orchestrator.video_merger import probe_sizes
+            paths = [g["path"] for g in ghep]
+            sizes = probe_sizes(paths) or None
+            out = project.duong_dan_ban_ghep(folder, merge_opts.get("output_name") or "")
+            emit(f"[HỆ THỐNG] Ghép {len(paths)} video của dự án theo đúng thứ tự đã sắp"
+                 + (" (bản đã gắn phụ đề)." if prefer != "source" else " (bản gốc)."))
+
+            def danh_dau():
+                project.danh_dau_da_ghep(folder, [g["file"] for g in ghep], out)
+                emit(f"[HỆ THỐNG] Đã đánh dấu {len(ghep)} video là đã ghép vào "
+                     f"{project.MERGE_DIR}/{os.path.basename(out)}.")
+
+            self._merge_in_thread(task_key, paths, out, sizes,
+                                  "auto" if merge_opts.get("normalize", True) else "never",
+                                  exit_code, on_success=danh_dau)
+        except Exception as e:
+            emit(f"[LỖI] Không ghép được dự án: {e}")
+            self.process_mgr.finish_manual(task_key, 1)
 
     def _launch_chain(self, task_key: str, jobs: List[dict], args: dict,
                       reuse_queue: bool, then_merge: Optional[dict] = None,
-                      batch_id: str = "") -> bool:
-        """Khởi động video đầu tiên; các video sau được nối trong callback."""
+                      batch_id: str = "",
+                      on_finish: Optional[Callable[[int], None]] = None) -> bool:
+        """Khởi động video đầu tiên; các video sau được nối trong callback.
+
+        `on_finish(exit_code)` thay cho `_finish_or_merge` khi chuỗi có khúc
+        cuối riêng (chuỗi dự án) — bên đó chịu trách nhiệm đóng SSE.
+        """
         g_config = load_global_config()
         total = len(jobs)
         state = {"ok": 0, "fail": 0}
@@ -326,12 +620,17 @@ class VideoPipeline:
                 task_key,
                 f"[HỆ THỐNG] Xong hàng đợi: {state['ok']} thành công, {state['fail']} lỗi "
                 f"trên tổng {total} video.")
-            self._finish_or_merge(task_key, exit_code, then_merge, batch_id)
+            if on_finish is not None:
+                on_finish(exit_code)
+            else:
+                self._finish_or_merge(task_key, exit_code, then_merge, batch_id)
 
         def on_item_done(idx: int, exit_code: int):
             job = jobs[idx]
             if exit_code == 0:
                 state["ok"] += 1
+                if job.get("project_folder"):
+                    self._chot_ban_da_sub(task_key, job)
                 self.process_mgr.emit(task_key, f"[THÀNH CÔNG] ({idx + 1}/{total}) {job['title']}")
             else:
                 state["fail"] += 1
@@ -366,6 +665,7 @@ class VideoPipeline:
             os.makedirs(job["output_dir"], exist_ok=True)
             os.makedirs(job["srt_dir"], exist_ok=True)
             cmd = self.build_translate_cmd(job, args, g_config)
+            job["_bat_dau"] = time.time()
             return self.process_mgr.start_process(
                 task_key=task_key, cmd=cmd, cwd=AIVOICE_DIR,
                 on_completed=lambda code, i=idx: on_item_done(i, code),
@@ -443,8 +743,13 @@ class VideoPipeline:
 
     def _merge_in_thread(self, task_key: str, files: List[str], out: str,
                          sizes: Optional[List[tuple]] = None, normalize: str = "auto",
-                         prev_code: int = 0) -> None:
-        """Chạy ffmpeg ở thread riêng, đẩy mọi dòng in của video_merger vào log SSE."""
+                         prev_code: int = 0,
+                         on_success: Optional[Callable[[], None]] = None) -> None:
+        """Chạy ffmpeg ở thread riêng, đẩy mọi dòng in của video_merger vào log SSE.
+
+        `on_success()` chỉ chạy khi ghép THÀNH CÔNG, trước khi đóng SSE — dùng để
+        ghi nhận kết quả (vd đánh dấu video dự án đã ghép).
+        """
         process_mgr = self.process_mgr
         tasks_dir = self.library.tasks_dir
 
@@ -466,6 +771,12 @@ class VideoPipeline:
                                      work_dir=tasks_dir)
                 process_mgr.emit(task_key, f"[HỆ THỐNG] Ghép xong: {out}" if ok
                                  else "[HỆ THỐNG] Ghép thất bại — xem chi tiết phía trên.")
+                if ok and on_success is not None:
+                    try:
+                        on_success()
+                    except Exception as e:
+                        process_mgr.emit(
+                            task_key, f"[LỖI] Ghép xong nhưng không ghi nhận được kết quả: {e}")
             except Exception as e:
                 process_mgr.emit(task_key, f"[LỖI] {e}")
             finally:

@@ -26,6 +26,8 @@
                 </select>
                 <button type="button" id="btnDuAnMo" class="btn btn-secondary btn-sm">📂 Mở thư mục có video…</button>
                 <button type="button" id="btnDuAnTao" class="btn btn-secondary btn-sm">➕ Tạo dự án trống…</button>
+                <button type="button" id="btnDuAnHoanTac" class="btn btn-secondary btn-sm" style="display:none;"
+                        title="Trả tên file về như trước khi tạo dự án, rồi bỏ đánh dấu dự án">↩️ Hoàn tác đổi tên</button>
             </div>
 
             <nav class="nav-menu">
@@ -265,6 +267,22 @@
                                 </label>
                             </div>
 
+                            <!-- Đích của lô: dự án đang mở hay thư viện chung (app.js: refreshDichLo) -->
+                            <div class="form-group" id="bqDichDuAn" style="grid-column:1/-1; display:none;">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="bqVaoDuAn" checked>
+                                    <span class="checkmark"></span> Đưa cả lô vào dự án đang mở: <b id="bqDuAnTen"></b>
+                                </label>
+                                <span class="help-text">File trên máy được <b>chép</b> vào (bản gốc giữ nguyên), link tải về
+                                    chuyển thẳng vào dự án — tất cả đánh số nối tiếp theo đúng thứ tự hàng đợi. Phụ đề,
+                                    bản đã sub và bản ghép cũng nằm luôn trong dự án.</span>
+                            </div>
+                            <div class="form-group" id="bqDichThuVien" style="grid-column:1/-1;">
+                                <span class="help-text">Lô đang đổ vào <b>thư viện chung</b>. Muốn gom thành một dự án riêng
+                                    trong thư mục bạn chọn:</span>
+                                <button type="button" id="btnBqTaoDuAn" class="btn btn-secondary btn-sm">📁 Tạo dự án mới cho lô này…</button>
+                            </div>
+
                             <div class="form-group" style="grid-column:1/-1; display:flex; gap:10px; flex-wrap:wrap;">
                                 <button type="submit" id="btnBatchRun" class="btn btn-primary">▶️ Chạy lô</button>
                                 <button type="button" id="btnBatchStop" class="btn btn-danger" style="display:none;">⛔ Dừng</button>
@@ -284,11 +302,12 @@
                 <div class="card glass-card">
                     <h3>📚 Thư Viện Video</h3>
                     <div class="form-grid" style="align-items:end;">
-                        <div class="form-group">
+                        <!-- chi-thu-vien / chi-du-an: ẩn hiện theo chế độ (app.js: refreshDuAnUI) -->
+                        <div class="form-group chi-thu-vien">
                             <label for="libSearch">Tìm theo tên</label>
                             <input type="text" id="libSearch" placeholder="Gõ để lọc…">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group chi-thu-vien">
                             <label for="libFilter">Lọc</label>
                             <select id="libFilter">
                                 <option value="all">Tất cả</option>
@@ -297,7 +316,7 @@
                                 <option value="missing">Thiếu file trên đĩa</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group chi-du-an">
                             <label class="checkbox-container" style="margin-top:26px;">
                                 <input type="checkbox" id="libHienDaGhep">
                                 <span class="checkmark"></span> Hiện cả video đã ghép
@@ -308,12 +327,13 @@
                             <button type="button" id="btnLibSelectAll" class="btn btn-secondary btn-sm">Chọn tất cả</button>
                             <button type="button" id="btnLibClearSel" class="btn btn-secondary btn-sm">Bỏ chọn</button>
                             <button type="button" id="btnLibTranslate" class="btn btn-primary btn-sm">🈯 Dịch các video đã chọn</button>
-                            <button type="button" id="btnLibMerge" class="btn btn-secondary btn-sm">🔗 Đưa sang tab Ghép</button>
-                            <button type="button" id="btnLibDelete" class="btn btn-danger btn-sm">🗑️ Xoá các video đã chọn</button>
+                            <button type="button" id="btnLibMerge" class="btn btn-secondary btn-sm chi-thu-vien">🔗 Đưa sang tab Ghép</button>
+                            <button type="button" id="btnLibMoDuAn" class="btn btn-secondary btn-sm chi-du-an">📂 Mở thư mục dự án</button>
+                            <button type="button" id="btnLibDelete" class="btn btn-danger btn-sm chi-thu-vien">🗑️ Xoá các video đã chọn</button>
                         </div>
                     </div>
 
-                    <div class="form-grid" style="margin-top:6px; align-items:end; border-top:1px solid rgba(255,255,255,.08); padding-top:14px;">
+                    <div class="form-grid chi-thu-vien" style="margin-top:6px; align-items:end; border-top:1px solid rgba(255,255,255,.08); padding-top:14px;">
                         <div class="form-group" style="grid-column:1/-1; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                             <button type="button" id="btnLibImport" class="btn btn-secondary">➕ Nhập video trên máy vào thư viện</button>
                             <span class="help-text" style="margin:0;">Mở hộp thoại chọn file. Muốn nhập nhiều video theo
@@ -345,6 +365,16 @@
                                 <div id="trSelected" class="list-box">
                                     <p class="help-text" style="text-align:center;">Chưa chọn video nào.</p>
                                 </div>
+                            </div>
+
+                            <!-- Chỉ hiện khi đang mở dự án và chọn >= 2 video (app.js: renderTranslateSelection) -->
+                            <div class="form-group" id="trDuAnGhep" style="grid-column:1/-1; display:none;">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="trDuAnGhepBat" checked>
+                                    <span class="checkmark"></span> Xong thì ghép các video theo đúng thứ tự trên, rồi đánh dấu là đã ghép
+                                </label>
+                                <input type="text" id="trDuAnGhepTen" placeholder="Tên bản ghép — để trống thì lấy tên dự án">
+                                <span class="help-text">Bản ghép nằm trong thư mục <b>ban_ghep/</b> của dự án, không đè bản ghép cũ. Có video nào lỗi thì bỏ qua bước ghép để khỏi ra bản thiếu phụ đề.</span>
                             </div>
 
                             <div class="form-group">

@@ -105,6 +105,21 @@ def probe_media(ffmpeg_exe: str, path: str) -> dict:
     }
 
 
+def probe_sizes(files: list[str]) -> list[tuple[int, int]]:
+    """[(w, h), ...] song song với `files`, hỏi thẳng ffmpeg.
+
+    Dùng khi không có sẵn kích thước trong `video.json` (vd video của dự án).
+    Thiếu kích thước thì `merge_files` sẽ thử nối thẳng — với video khác cỡ,
+    concat có thể "thành công" mà ra file hỏng, nên phải đo trước.
+    Không tìm thấy ffmpeg thì trả [] (bên gọi coi như chưa biết cỡ).
+    """
+    ffmpeg_exe = _ffmpeg_exe()
+    if not ffmpeg_exe:
+        return []
+    return [(m["width"], m["height"])
+            for m in (probe_media(ffmpeg_exe, f) for f in files)]
+
+
 def _concat_copy(ffmpeg_exe: str, files: list[str], output_file: str) -> bool:
     """Nối bằng concat demuxer, không mã hoá lại."""
     out_dir = os.path.dirname(os.path.abspath(output_file)) or "."
