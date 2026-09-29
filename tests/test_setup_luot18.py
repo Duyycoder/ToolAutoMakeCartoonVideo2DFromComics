@@ -91,3 +91,10 @@ def test_bo_cai_khong_ghi_de_bien_moi_truong_co_san():
     """Bộ cài chỉ đặt HF_HOME/OLLAMA_MODELS khi máy CHƯA có (ghi đè làm Ollama mất model; gỡ cài còn xoá biến gốc)."""
     iss = open(os.path.join(REPO_ROOT, "installer", "AutoCartoon.iss"), encoding="utf-8-sig").read()
     assert "BienTrong('HF_HOME')" in iss and "BienTrong('OLLAMA_MODELS')" in iss
+
+
+def test_bat_khong_co_cr_kep():
+    """`\r\r\n` (CR kép) lọt qua kiểm "không có LF trơn" — setup.bat lượt 18 từng có 387 dòng như vậy."""
+    for ten in ("setup.bat", "run.bat", "CAP-NHAT.bat", os.path.join("scripts", "cai_them.bat")):
+        b = open(os.path.join(REPO_ROOT, ten), "rb").read()
+        assert b"\r\r\n" not in b, f"{ten} có CR kép"

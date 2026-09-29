@@ -158,7 +158,8 @@ def get_ollama_models():
     """Model Ollama đã cài + vài model dịch khuyến nghị (nhẹ, hợp GPU 6GB)."""
     curated = {
         "qwen2.5:3b-instruct": "Nhẹ ~2-3GB VRAM — mặc định cho dịch phụ đề",
-        "hy-mt2:1.8b": "Chuyên dịch Trung/Anh → Việt, siêu nhẹ",
+        "hy-mt2:1.8b-q4": "Chuyên dịch 36 ngôn ngữ (Q4, 1,1 GB) — mặc định, nhanh nhất",
+        "hy-mt2:1.8b": "Chuyên dịch 36 ngôn ngữ (Q8, 1,9 GB)",
         "translategemma:4b": "Chuyên dịch, 55 ngôn ngữ",
         "qwen2.5:7b-instruct": "Chất lượng cao hơn, ~5GB VRAM",
     }

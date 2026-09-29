@@ -252,7 +252,7 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
     g_config = load_global_config()
     tr = g_config.get("translate", {})
     ollama_base_url = tr.get("ollama_base_url", "http://localhost:11434").replace("/v1", "") + "/api/generate"
-    model = tham_so.get("mt_model") or tr.get("mt_model") or "hy-mt2:1.8b"
+    model = tham_so.get("mt_model") or tr.get("mt_model") or "hy-mt2:1.8b-q4"
     model_du_phong = tr.get("mt_model_du_phong") or "qwen2.5:7b-instruct"
     
     lang_nguon = tham_so.get("source_lang", "Chinese")
@@ -292,7 +292,7 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
     dem = {"goi": 0, "xong": 0}
     ket_qua = [None] * len(cau_list)          # bản dịch theo vị trí câu (None = giữ nguyên câu gốc)
     trang_thai = [None] * len(cau_list)       # (ban_dich, lot, ly_do, is_clean, can_sua, dung_du_phong, nguon)
-    so_luong = 1 if dung_ngu_canh else max(1, int(tr.get("so_cau_song_song") or 4))
+    so_luong = 1 if dung_ngu_canh else max(1, int(tr.get("so_cau_song_song") or 8))   # 8 = OLLAMA_NUM_PARALLEL app đặt
 
     def dich_mot_cau(i, c, cac_lan):
         text_goc = c.get("text_goc", "")
@@ -449,7 +449,7 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
     # sinh chữ) lớn hơn nhiều so với chữ của một câu phụ đề ngắn → gộp 6 câu giảm số lần gọi ~6×. Tách lại theo số dòng rồi kiểm TỪNG câu
     # như cũ (lọt từ, chữ lạ, dịch thừa, thuật ngữ); câu nào không đạt / cả lô lệch số dòng → rơi xuống lượt 1 dịch riêng từng câu.
     # Bật ngữ cảnh thì không gộp (câu sau cần bản dịch câu trước).
-    so_moi_lo = 1 if dung_ngu_canh else max(1, int(tr.get("so_cau_moi_lan") or 6))
+    so_moi_lo = 1 if dung_ngu_canh else max(1, int(tr.get("so_cau_moi_lan") or 12))   # 12: nhanh nhất mà lọt không tăng (20 lọt hơn)
     ten_dich_zh = {"english": "英语", "japanese": "日语", "korean": "韩语", "thai": "泰语", "indonesian": "印尼语",
                    "spanish": "西班牙语", "chinese": "中文", "vietnamese": "越南语"}.get(lang_dich.lower(), lang_dich)
     la_zh = lang_nguon.lower() in ("chinese", "tiếng trung", "中文") or lang_dich.lower() in ("chinese", "tiếng trung", "中文")

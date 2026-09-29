@@ -102,6 +102,7 @@ def _env_ollama() -> dict:
                         pass
         except OSError:
             pass
+    env.setdefault("OLLAMA_NUM_PARALLEL", "8")
     return env
 
 
@@ -175,6 +176,38 @@ def has_model(model: str, base_url: str = "") -> bool:
     return any(same_tag(model, name) for name in list_installed(base_url))
 
 
+# Model dịch chuyên dụng HY-MT2 KHÔNG có trên kho Ollama: phải pull GGUF từ HuggingFace rồi `ollama create` với Modelfile có
+# template đã sửa (template tự sinh khi convert bị hỏng → model chỉ trả "onse"). Tên hiển thị → nguồn GGUF.
+HY_MT2_NGUON = {
+    "hy-mt2:1.8b-q4": "hf.co/tencent/Hy-MT2-1.8B-GGUF:Q4_K_M",   # mặc định: 1,1 GB, nhanh hơn ~1,3× so với Q8, lọt từ như nhau (đo 29/09)
+    "hy-mt2:1.8b": "hf.co/tencent/Hy-MT2-1.8B-GGUF:Q8_0",
+}
+MODELFILE_HY_MT2 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ollama_models", "Modelfile.hy-mt2")
+
+
+def _tao_hy_mt2(model: str, nguon: str) -> bool:
+    """`ollama create <model>` từ GGUF `nguon` đã pull, dùng template trong Modelfile.hy-mt2 (chỉ thay dòng FROM)."""
+    import re
+    import tempfile
+    exe = find_ollama_exe()
+    if not exe or not os.path.exists(MODELFILE_HY_MT2):
+        logger.error("[Ollama] Thiếu ollama.exe hoặc Modelfile.hy-mt2 — không tạo được model dịch.")
+        return False
+    noi_dung = open(MODELFILE_HY_MT2, encoding="utf-8").read()
+    noi_dung = re.sub(r"(?m)^FROM .*$", f"FROM {nguon}", noi_dung, count=1)
+    with tempfile.NamedTemporaryFile("w", suffix=".Modelfile", delete=False, encoding="utf-8") as tmp:
+        tmp.write(noi_dung)
+    try:
+        kq = subprocess.run([exe, "create", model, "-f", tmp.name], capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", env=_env_ollama(), timeout=600,
+                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if kq.returncode != 0:
+            logger.error(f"[Ollama] create '{model}' lỗi: {(kq.stderr or kq.stdout)[-300:]}")
+        return kq.returncode == 0
+    finally:
+        os.unlink(tmp.name)
+
+
 def pull_model(
     model: str,
     base_url: str = "",
@@ -194,6 +227,10 @@ def pull_model(
     with lock:
         if has_model(model, root):
             return True
+        nguon = HY_MT2_NGUON.get(model)
+        ten_pull = nguon or model
+        if nguon and has_model(nguon, root):
+            return _tao_hy_mt2(model, nguon) and has_model(model, root)
 
         _emit(progress_cb, f"Đang tải model '{model}' (lần đầu có thể mất vài phút)...", 0)
         logger.info(f"[Ollama] Bắt đầu pull model '{model}'.")
@@ -201,7 +238,7 @@ def pull_model(
         try:
             with httpx.Client(timeout=httpx.Timeout(timeout, connect=10.0)) as client:
                 with client.stream(
-                    "POST", f"{root}/api/pull", json={"model": model, "stream": True}
+                    "POST", f"{root}/api/pull", json={"model": ten_pull, "stream": True}
                 ) as response:
                     response.raise_for_status()
                     for line in response.iter_lines():
@@ -234,6 +271,9 @@ def pull_model(
 
         # Ollama báo "success" ở dòng cuối, nhưng vẫn xác nhận lại bằng /api/tags
         # để không báo thành công khi stream đứt giữa chừng.
+        if nguon:
+            _emit(progress_cb, f"Đang tạo model '{model}'…", 99)
+            _tao_hy_mt2(model, nguon)
         ok = has_model(model, root)
         if ok:
             logger.info(f"[Ollama] Đã tải xong model '{model}'.")

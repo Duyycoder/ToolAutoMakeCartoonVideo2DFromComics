@@ -48,7 +48,7 @@ Name: "tts\vieneu"; Description: "VieNeu TTS (~300MB)"; Types: full
 Name: "tts\clone"; Description: "Nhái giọng XTTSv2 (Cần GPU/RAM cao) (~5.2GB)"; Types: full
 Name: "demucs"; Description: "Tách giọng/nhạc nền Demucs (~100MB)"; Types: full
 Name: "lamnet"; Description: "Làm nét video/upscale RealESRGAN (~100MB)"; Types: full
-Name: "dich_offline"; Description: "Dịch offline Ollama + model hy-mt2 (~1.2GB)"; Types: full
+Name: "dich_offline"; Description: "Dịch offline Ollama + model dịch chuyên dụng hy-mt2 Q4 (~1.1GB)"; Types: full
 Name: "whisper"; Description: "Whisper Medium & PhoWhisper (~2.5GB)"; Types: full
 Name: "taoanh"; Description: "Tạo ảnh AI Dreamshaper (Cần GPU >= 4GB) (~2GB)"; Types: full
 Name: "minhhoa"; Description: "Minh họa video Pexels (Cần API Key miễn phí)"; Types: full
