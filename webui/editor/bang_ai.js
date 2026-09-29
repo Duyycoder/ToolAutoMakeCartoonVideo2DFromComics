@@ -309,7 +309,7 @@ export class BangAi {
             const kq = v.ket_qua || {};
             let moTaKq = v.trang_thai === 'xong' ? (kq.so_cau != null ? `${kq.so_cau} câu` : kq.file ? kq.file : '') : '';
             if (v.loai === 'dich' && kq.bao_cao && v.trang_thai === 'xong') {
-                moTaKq += ` (0% lọt, sửa ${kq.bao_cao.so_cau_sua} câu)`;
+                moTaKq += ` (lọt ${Math.round((kq.bao_cao.ti_le_lot_cuoi || 0) * 100)}%, sửa ${kq.bao_cao.so_cau_sua} câu)`;
             }
             return `<div class="the-tv ${v.trang_thai}" data-id="${esc(v.id)}">
                 <div class="tv-dau"><b>${esc(v.nhan || v.loai)}</b><span class="tv-tt">${TT[v.trang_thai] || v.trang_thai}${v.vi_tri && v.trang_thai === 'cho' ? ` (thứ ${v.vi_tri})` : ''}</span></div>

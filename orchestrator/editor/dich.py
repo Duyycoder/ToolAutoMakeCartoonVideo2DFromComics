@@ -18,6 +18,13 @@ VIETNAMESE_SYLLABLE_RE = re.compile(
 def is_cjk(text: str) -> bool:
     return bool(re.search(r'[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7a3\u0e00-\u0e7f\u0400-\u04ff]', text))
 
+def chu_la_trong_dich(ban_dich: str, lang_dich: str) -> list:
+    """Các cụm chữ khác hệ lẫn trong bản dịch khi ngôn ngữ ĐÍCH dùng chữ Latinh (Việt/Anh/Indonesia/Tây Ban Nha…)."""
+    if not is_latin_lang(lang_dich):
+        return []
+    return re.findall(r'[一-鿿぀-ヿ가-힣฀-๿Ѐ-ӿ]+', ban_dich or '')
+
+
 def is_latin_lang(lang: str) -> bool:
     return lang.lower() in ("vietnamese", "english", "tiếng việt", "tiếng anh", "indonesian")
 
@@ -276,23 +283,28 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
         if txt.strip():
             tap_tu_nguon_toan_bo.update([x.lower() for x in re.findall(r'[a-zA-Zà-ỹÀ-ỸđĐ]+', txt.strip())])
     
-    for i, c in enumerate(cau_list):
-        if ctx.viec.huy_event.is_set():
-            raise hang_doi.DaHuy()
-            
+    # Dịch SONG SONG theo câu: model 1,8B chỉ dùng ~10% GPU khi gửi tuần tự (1925 câu ≈ hơn 1 giờ). Mỗi câu vẫn là MỘT yêu cầu
+    # độc lập (không lọt ngữ cảnh). Bật ngữ cảnh thì câu sau cần bản dịch câu trước → chạy tuần tự.
+    # Model dự phòng (7B) để lượt RIÊNG ở cuối: GPU 6 GB không giữ được cả hai model — gọi xen kẽ từng câu làm Ollama gỡ/nạp model liên tục.
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    khoa = threading.Lock()
+    dem = {"goi": 0, "xong": 0}
+    ket_qua = [None] * len(cau_list)          # bản dịch theo vị trí câu (None = giữ nguyên câu gốc)
+    trang_thai = [None] * len(cau_list)       # (ban_dich, lot, ly_do, is_clean, can_sua, dung_du_phong, nguon)
+    so_luong = 1 if dung_ngu_canh else max(1, int(tr.get("so_cau_song_song") or 4))
+
+    def dich_mot_cau(i, c, cac_lan):
         text_goc = c.get("text_goc", "")
         text_hien_tai = c.get("text", "")
         
         if text_hien_tai.strip() and text_goc and text_hien_tai != text_goc and not tham_so.get("dich_lai_tat_ca"):
-            kq_cau.append(c)
-            continue
+            return None
             
         nguon = text_hien_tai if not text_goc else text_goc
         if not nguon.strip():
-            kq_cau.append(c)
-            continue
+            return None
             
-        tong_cau += 1
         num_newlines = nguon.count("\n")
         
         tn_cau = {}
@@ -340,7 +352,7 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
         ngu_canh_dich = []
         if dung_ngu_canh and i > 0:
             for j in range(max(0, i-2), i):
-                ngu_canh_dich.append(kq_cau[j].get("text", ""))
+                ngu_canh_dich.append((ket_qua[j] or cau_list[j]).get("text", ""))
 
         ban_dich = ""
         lot = []
@@ -349,7 +361,7 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
         dung_du_phong = False
         ly_do = None
         
-        for lan in range(3):
+        for lan in cac_lan:
             if ctx.viec.huy_event.is_set(): raise hang_doi.DaHuy()
             if lan > 0: can_sua = True
             if lan == 2: dung_du_phong = True
@@ -379,13 +391,19 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
                 if tn_cau:
                     prompt = "Dùng các thuật ngữ sau:\n" + "\n".join(f"{k} -> {v}" for k,v in tn_cau.items()) + "\n\n" + prompt
 
-            ctx.bao(tien_do=(i/len(cau_list))*100, thong_diep=f"Đang dịch câu {i+1}/{len(cau_list)} (lần {lan+1})")
-            so_lan_goi += 1
+            ctx.bao(tien_do=dem["xong"] / len(cau_list) * 100,
+                    thong_diep=f"Đã dịch {dem['xong']}/{len(cau_list)} câu" + (" — lượt sửa bằng model dự phòng" if lan == 2 else ""))
+            with khoa:
+                dem['goi'] += 1
             raw_dich = goi_ollama(prompt, ollama_base_url, cur_model, system, temp)
             ban_dich = lam_sach_ban_dich(raw_dich, num_newlines)
             
             kq_lot = do_lot_tu(nguon, ban_dich, lang_nguon, lang_dich, tn_dict, tap_tu_nguon_toan_bo)
             lot = kq_lot["lot"]
+            # Chữ khác hệ (Hán/Kana/Hangul/Thái/Kirin) trong bản dịch sang ngôn ngữ chữ Latinh = model chèn chữ lạ
+            # (chạy thật vi→en ra "the term \"解\""). do_lot_tu chỉ tìm từ NGUỒN nên không bắt được.
+            if not lot and chu_la_trong_dich(ban_dich, lang_dich):
+                lot = chu_la_trong_dich(ban_dich, lang_dich)
             
             ly_do = None
             if lot:
@@ -412,23 +430,46 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
                 is_clean = True
                 break
                 
+        return (ban_dich, lot, ly_do, is_clean, can_sua, dung_du_phong, nguon)
+
+    def chay(i, cac_lan):
+        if ctx.viec.huy_event.is_set():
+            raise hang_doi.DaHuy()
+        kq = dich_mot_cau(i, cau_list[i], cac_lan)
+        with khoa:
+            dem["xong"] += 1
+        if kq is not None:
+            trang_thai[i] = kq
+            c_moi = dict(cau_list[i])
+            c_moi["text"] = kq[0]
+            c_moi["text_goc"] = kq[6]
+            ket_qua[i] = c_moi
+
+    # Lượt 1: model chuyên dụng, lần 1–2.
+    with ThreadPoolExecutor(max_workers=so_luong) as ex:
+        list(ex.map(lambda i: chay(i, (0, 1)), range(len(cau_list))))
+    # Lượt 2: câu còn lỗi → model dự phòng, gom lại một lượt (một lần đổi model).
+    con_loi = [i for i, t in enumerate(trang_thai) if t is not None and not t[3]]
+    dem["xong"] = len(cau_list) - len(con_loi)
+    with ThreadPoolExecutor(max_workers=so_luong) as ex:
+        list(ex.map(lambda i: chay(i, (2,)), con_loi))
+    for i in con_loi:
+        t = trang_thai[i]
+        trang_thai[i] = t[:4] + (True, True, t[6])        # đã sửa + đã dùng dự phòng
+
+    kq_cau = []
+    for i, c in enumerate(cau_list):
+        kq_cau.append(ket_qua[i] if ket_qua[i] is not None else c)
+        t = trang_thai[i]
+        if t is None:
+            continue
+        ban_dich, lot, ly_do, is_clean, can_sua, dung_du_phong, nguon = t
+        tong_cau += 1
         if can_sua: so_cau_sua += 1
         if dung_du_phong: co_dung_du_phong = True
-                
         if not is_clean:
-            bao_cao_loi.append({
-                "id": c.get("id", str(i)),
-                "nguon": nguon,
-                "ban_dich": ban_dich,
-                "lot": lot,
-                "ly_do": ly_do
-            })
-            
-        c_moi = dict(c)
-        c_moi["text"] = ban_dich
-        c_moi["text_goc"] = nguon
-        kq_cau.append(c_moi)
-
+            bao_cao_loi.append({"id": c.get("id", str(i)), "nguon": nguon, "ban_dich": ban_dich, "lot": lot, "ly_do": ly_do})
+    so_lan_goi = dem["goi"]
 
     bao_cao = {
         "tong_cau": tong_cau,
@@ -451,7 +492,11 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
     if len(ids) > 0 and len(kq_cau) != len(ids):
         ctx.viec.ket_qua["lech_so_cau"] = True
     
+    # Dự án 1925 câu gần như chắc còn vài câu lọt — đánh LỖI cả việc (hơn nửa giờ) là bỏ phí hết bản dịch tốt.
+    # Ít câu lọt → XONG + cảnh báo + danh sách câu (bảng AI bấm nhảy tới); chỉ lỗi khi lọt quá nhiều (thường sai ngôn ngữ/model).
     if bao_cao_loi:
-        raise RuntimeError(f"Còn {len(bao_cao_loi)} câu bị lọt từ hoặc thiếu thuật ngữ.")
+        if bao_cao["ti_le_lot_cuoi"] > 0.2:
+            raise RuntimeError(f"Còn {len(bao_cao_loi)}/{tong_cau} câu bị lọt từ hoặc thiếu thuật ngữ — kiểm tra ngôn ngữ nguồn/đích và model dịch.")
+        ctx.viec.ket_qua["canh_bao"] = [f"Còn {len(bao_cao_loi)}/{tong_cau} câu bị lọt từ hoặc thiếu thuật ngữ — xem danh sách trong bảng AI để sửa tay."]
         
     return ctx.viec.ket_qua

@@ -227,6 +227,24 @@ export function thoiLuong(tl) {
  * Bản JS của orchestrator/editor/quy_doi.py — chạy chung ca test tests/js/ca_quy_doi.json. */
 export const laNeo = (c) => !!c.tu_media && c.t_vao != null && c.t_ra != null;
 
+/* Bảng media → clip chứa nó (cùng luật với clipChuaMedia), dựng MỘT lần cho cả lượt vẽ.
+   Gọi clipChuaMedia cho từng câu phụ đề là quét toàn bộ clip mỗi câu: dự án 1925 câu ≈ 3,7 triệu lượt mỗi lần vẽ
+   → timeline đứng ~0,5 s mỗi lần zoom/kéo, preview giật khi phát. */
+export function bangClipChuaMedia(tl) {
+    const loai = Object.fromEntries((tl.tracks || []).map((t) => [t.id, t.loai]));
+    const theoMedia = new Map();
+    for (const c of tl.clips || []) {
+        if (!c.media) continue;
+        const l = loai[c.track];
+        if (l !== 'video' && l !== 'audio') continue;
+        if (!theoMedia.has(c.media)) theoMedia.set(c.media, { video: [], audio: [] });
+        theoMedia.get(c.media)[l].push(c);
+    }
+    const bang = new Map();
+    for (const [mid, x] of theoMedia) bang.set(mid, x.video.length ? x.video : x.audio);
+    return bang;
+}
+
 export function clipChuaMedia(tl, mid) {
     const loai = Object.fromEntries((tl.tracks || []).map((t) => [t.id, t.loai]));
     const cac = (tl.clips || []).filter((c) => c.media === mid);
@@ -236,14 +254,14 @@ export function clipChuaMedia(tl, mid) {
 
 const tron6 = (x) => Math.round(x * 1e6) / 1e6;
 
-export function hienThiNeo(tl, c) {
+export function hienThiNeo(tl, c, bang = null) {
     if (!laNeo(c)) {
         if (c.bat_dau == null) return [];
         return [{ bd: Number(c.bat_dau), kt: ketThucClip(c), clip: null }];
     }
     const tv = Number(c.t_vao), tr = Number(c.t_ra);
     const out = [];
-    for (const v of clipChuaMedia(tl, c.tu_media)) {
+    for (const v of (bang ? (bang.get(c.tu_media) || []) : clipChuaMedia(tl, c.tu_media))) {
         const vao = Number(v.vao || 0), ra = Number(v.ra || 0);
         const lo = Math.max(tv, vao), hi = Math.min(tr, ra);
         if (hi - lo <= 1e-6) continue;
@@ -257,9 +275,10 @@ export function hienThiNeo(tl, c) {
 export function neoTai(tl, loai, t) {
     const an = new Set((tl.tracks || []).filter((x) => x.an).map((x) => x.id));
     const out = [];
+    const bang = bangClipChuaMedia(tl);
     for (const c of tl.clips || []) {
         if (c.loai !== loai || an.has(c.track)) continue;
-        for (const k of hienThiNeo(tl, c)) {
+        for (const k of hienThiNeo(tl, c, bang)) {
             if (t >= k.bd - 1e-6 && t < k.kt - 1e-6) out.push({ c, ...k });
         }
     }
@@ -404,9 +423,10 @@ export function cauCuaMedia(tl, mid) {
 /* Danh sách câu hiển thị (giờ TIMELINE) — mỗi lần hiện là một dòng, dùng cho bảng Phụ đề và xuất .srt. */
 export function dongPhuDe(tl) {
     const out = [];
+    const bang = bangClipChuaMedia(tl);
     for (const c of tl.clips || []) {
         if (c.loai !== 'phu_de') continue;
-        const hien = hienThiNeo(tl, c);
+        const hien = hienThiNeo(tl, c, bang);
         if (!hien.length) out.push({ c, bd: null, kt: null, clip: null });
         for (const k of hien) out.push({ c, ...k });
     }

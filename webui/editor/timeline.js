@@ -6,7 +6,7 @@
 import { $, esc, toast, fmtThoiGian, api, hoi } from './chung.js';
 import {
     tao, thoiLuong, ketThucClip, choTrong, idClipMoi, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, clipTai,
-    hienThiNeo, opsDatGio, opsThemTrack, opsKhepKhoang, opsXoaGon, opsChenGon, opsTiaToiDauPhat, idMoiNhieu,
+    hienThiNeo, bangClipChuaMedia, opsDatGio, opsThemTrack, opsKhepKhoang, opsXoaGon, opsChenGon, opsTiaToiDauPhat, idMoiNhieu,
     moRongNhom, opsTachAm, idNhomMoi, trackVideoTuDuoiLen, opsThemChuyenCanh, opsXoaChuyenCanh, nhanClip, viTriKeyframes,
     mucMenuChoClip, opsNhanDoi,
 } from './store.js';
@@ -95,6 +95,12 @@ export class Timeline {
             this.ui.cuon_timeline = { x: Math.round(this.cuon.scrollLeft), y: Math.round(this.cuon.scrollTop) };
             if (this._daKhoiPhucCuon) ctx.luuUi();
             document.querySelectorAll('.menu').forEach((mm) => mm.remove());
+            // Chỉ vẽ phần nhìn thấy (xem ve()) → cuộn gần mép vùng đã vẽ thì vẽ lại.
+            const v = this._vungVe;
+            if (v && !this._keo && (this.cuon.scrollLeft < v.x0 || this.cuon.scrollLeft + this.cuon.clientWidth > v.x1) && !this._choVe) {
+                // setTimeout thay rAF: cửa sổ/pane bị che thì rAF không chạy → timeline trống khi cuộn.
+                this._choVe = setTimeout(() => { this._choVe = null; this.ve(); }, 16);
+            }
         });
         this.cuon.addEventListener('wheel', (e) => {
             if (!e.ctrlKey) return;
@@ -475,7 +481,9 @@ export class Timeline {
         const x = neo ? neo.x : r.width / 2;
         const t = neo ? neo.t : (this.cuon.scrollLeft + x) / this.px;
         this.ui.zoom_timeline = Math.round(z * 1000) / 1000;
+        this._cuonDuKien = Math.max(0, t * this.px - x);
         this.ve();
+        this._cuonDuKien = null;
         this.cuon.scrollLeft = Math.max(0, t * this.px - x);
         this.ctx.luuUi();
     }
@@ -890,12 +898,22 @@ export class Timeline {
         const rongNhin = Math.max(200, this.cuon.clientWidth || 800);
         const rong = Math.max(rongNhin, (tong + 30) * px);
         this.noi.style.width = `${rong}px`;
+        // CHỈ VẼ PHẦN NHÌN THẤY ± 1 màn hình: video 41 phút zoom lớn rộng ~780 000 px → vẽ hết là 25 000 vạch thước + mọi clip
+        // (38 000 phần tử, 2 MB HTML) mỗi lần zoom/kéo → timeline đứng. Cuộn ra ngoài vùng này thì listener 'scroll' vẽ lại.
+        const cuonX = this._cuonDuKien ?? this.cuon.scrollLeft;
+        const x0 = Math.max(0, cuonX - rongNhin), x1 = cuonX + 2 * rongNhin;
+        this._vungVe = { x0: Math.max(0, x0 + rongNhin / 2 - 1), x1: x1 - rongNhin / 2 + 1 };
+        if (x0 <= 0) this._vungVe.x0 = -1;
+        if (x1 >= rong) this._vungVe.x1 = rong + 1;
+        const tDau = x0 / px, tCuoi = x1 / px;
+        const trongVung = (bd, kt) => kt >= tDau && bd <= tCuoi;
+        const dangChon = new Set(this.ui.dang_chon || []);
 
         const buoc = BUOC_NHAN.find((b) => b * px >= 90) || BUOC_NHAN[BUOC_NHAN.length - 1];
         const nho = buoc / 5;
         let thuoc = '';
-        const het = rong / px;
-        for (let i = 0, t = 0; t <= het; i += 1, t = i * nho) {
+        const het = Math.min(rong / px, tCuoi);
+        for (let i = Math.max(0, Math.floor(tDau / nho / 5) * 5), t = i * nho; t <= het; i += 1, t = i * nho) {
             const lon = i % 5 === 0;
             thuoc += `<i class="${lon ? 'lon' : ''}" style="left:${t * px}px"></i>`;
             if (lon) thuoc += `<span style="left:${t * px}px">${nhanGio(t, buoc)}</span>`;
@@ -918,9 +936,10 @@ export class Timeline {
         }).join('');
         const tracks = tl.tracks.map((tr) => {
             if (tr.loai === 'phu_de' || tr.loai === 'lop_phu') {
-                return `<div class="tl-track ${tr.an ? 'an-track' : ''} ${tr.khoa ? 'khoa-track' : ''}" data-track="${esc(tr.id)}">${this._veNeo(tr)}</div>`;
+                return `<div class="tl-track ${tr.an ? 'an-track' : ''} ${tr.khoa ? 'khoa-track' : ''}" data-track="${esc(tr.id)}">${this._veNeo(tr, trongVung)}</div>`;
             }
-            const clips = tl.clips.filter((c) => c.track === tr.id).map((c) => {
+            const clips = tl.clips.filter((c) => c.track === tr.id
+                && (dangChon.has(c.id) || trongVung(Number(c.bat_dau) || 0, ketThucClip(c)))).map((c) => {
                 const m = media[c.media] || {};
                 const bd = Number(c.bat_dau) || 0, kt = ketThucClip(c);
                 const toc = Number(c.toc_do) || 1;
@@ -937,7 +956,7 @@ export class Timeline {
                 const nhan = nhanClip(c, m);
                 const iconLk = c.lien_ket ? '<span style="font-size:10px;margin-right:4px">🔗</span>' : '';
                 const cham = viTriKeyframes(c, px).map(x => `<i style="position:absolute;bottom:0;left:${x-4}px;color:#00ffff;font-size:8px;line-height:8px;pointer-events:none">◆</i>`).join('');
-                return `<div class="clip ${LOP[tr.loai] || 'v'} ${(this.ui.dang_chon || []).includes(c.id) ? 'chon' : ''}"
+                return `<div class="clip ${LOP[tr.loai] || 'v'} ${dangChon.has(c.id) ? 'chon' : ''}"
                     data-id="${esc(c.id)}" style="left:${bd * px}px;width:${rongClip}px;${nen}"
                     title="${esc(nhan)} · ${fmtThoiGian(bd)} → ${fmtThoiGian(kt)}${c.media && !media[c.media] ? ' · MẤT MEDIA' : ''}">
                     ${trong}<span class="nhan-clip">${iconLk}${esc(nhan)}</span>${cham}<b class="mep trai"></b><b class="mep phai"></b></div>`;
@@ -982,12 +1001,14 @@ export class Timeline {
     }
 
     /* Câu phụ đề / vùng che: vẽ MỖI LẦN HIỆN (một câu neo media có thể hiện ở 2 clip sau khi cắt). */
-    _veNeo(tr) {
+    _veNeo(tr, trongVung = () => true) {
         const px = this.px;
-        const chon = this.ui.dang_chon || [];
-        return this.tl.clips.filter((c) => c.track === tr.id).map((c) => hienThiNeo(this.tl, c).map((k) => {
+        const chon = new Set(this.ui.dang_chon || []);          // Set: includes() trên mảng lớn cũng là O(n) mỗi câu
+        const bang = bangClipChuaMedia(this.tl);
+        return this.tl.clips.filter((c) => c.track === tr.id).map((c) => hienThiNeo(this.tl, c, bang)
+            .filter((k) => chon.has(c.id) || trongVung(k.bd, k.kt)).map((k) => {
             const nhan = nhanClip(c, null);
-            return `<div class="clip ${tr.loai === 'phu_de' ? 's' : 'o'} neo ${chon.includes(c.id) ? 'chon' : ''}" data-id="${esc(c.id)}"
+            return `<div class="clip ${tr.loai === 'phu_de' ? 's' : 'o'} neo ${chon.has(c.id) ? 'chon' : ''}" data-id="${esc(c.id)}"
                 data-vid="${esc(k.clip || '')}" data-bd="${k.bd}" data-kt="${k.kt}"
                 style="left:${k.bd * px}px;width:${Math.max(3, (k.kt - k.bd) * px)}px" title="${esc(nhan)}">
                 <span class="nhan-clip">${esc(nhan)}</span><b class="mep trai"></b><b class="mep phai"></b></div>`;
