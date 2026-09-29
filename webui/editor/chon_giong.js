@@ -68,7 +68,18 @@ export function veDieuKhien(engine, val, idPrefix = 'cg', speed = 1.0, pitch = 0
 }
 
 // Bind events and load voices
-export async function bindDieuKhien(container, engine, lang, currentVal, onChange) {
+export async function bindDieuKhien(container, engine, lang, currentVal, onChange, onSpeed = null, onPitch = null) {
+    // Thanh tốc độ/cao độ do veDieuKhien vẽ: cập nhật số hiển thị + báo ra ngoài (trước 29/09 không gắn → kéo không có tác dụng).
+    for (const [sel, cb, doi] of [['.cg-speed', onSpeed, parseFloat], ['.cg-pitch', onPitch, (x) => parseInt(x, 10)]]) {
+        const o = container.querySelector(sel);
+        if (!o) continue;
+        o.oninput = () => {
+            const gt = o.closest('label') && o.closest('label').querySelector('.gt');
+            if (gt) gt.textContent = o.value;
+        };
+        o.onchange = () => { if (cb) cb(doi(o.value)); };
+    }
+
     const notify = () => {
         let giong = '', cheDo = '', autoClone = false, fileMau = '';
         const q = (sel) => container.querySelector(sel);

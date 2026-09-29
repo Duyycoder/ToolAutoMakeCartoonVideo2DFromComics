@@ -73,7 +73,7 @@ export async function initHangLoat() {
     // Phục hồi từ localStorage và lấy mặc định
     try {
         const confRes = await api('/api/config');
-        const g = confRes.config || {};
+        const g = confRes || {};              // GET /api/config trả thẳng object cấu hình (không bọc trong .config)
         const tr = g.translate || {};
         const as = g.autosub || {};
         const vi = g.video || {};
@@ -101,18 +101,18 @@ export async function initHangLoat() {
             const lang = $('hlDichSang').value;
             const caLocal = JSON.parse(localStorage.getItem('hlCaiDat') || '{}');
             const curVal = caLocal[`hlGiongTen_${eng}`] || window.hlTtsVoiceVal || '';
-            $('hlAiChonGiong').innerHTML = veDieuKhien(eng, curVal, 'hlCg');
-            bindDieuKhien(hlAiChonGiong, eng, lang, curVal, (val) => {
-                this.cai.giong = val;
-                this.cai[giong_] = val;
-                this.ctx.luuUi();
-            }, (speed) => {
-                this.cai.tts_speed = speed;
-                this.ctx.luuUi();
-            }, (pitch) => {
-                this.cai.tts_pitch = pitch;
-                this.ctx.luuUi();
-            });
+            $('hlAiChonGiong').innerHTML = veDieuKhien(eng, curVal, 'hlCg', caLocal.hlTtsSpeed ?? as.tts_speed ?? 1.0, caLocal.hlTtsPitch ?? as.tts_pitch ?? 0);
+            // Hộp thoại hàng loạt lưu cài đặt vào localStorage 'hlCaiDat' (không có this.cai/ctx như bảng AI).
+            const luu = (doi) => {
+                const ca2 = JSON.parse(localStorage.getItem('hlCaiDat') || '{}');
+                doi(ca2);
+                localStorage.setItem('hlCaiDat', JSON.stringify(ca2));
+            };
+            bindDieuKhien($('hlAiChonGiong'), eng, lang, curVal, (val) => {
+                window.hlTtsVoiceVal = val;
+                luu((ca2) => { ca2.hlGiongTen = val; ca2[`hlGiongTen_${eng}`] = val; });
+            }, (speed) => luu((ca2) => { ca2.hlTtsSpeed = speed; }),
+               (pitch) => luu((ca2) => { ca2.hlTtsPitch = pitch; }));
         };
         $('hlGiongTTS').addEventListener('change', updateTtsUi);
         $('hlDichSang').addEventListener('change', updateTtsUi);
@@ -222,11 +222,12 @@ export async function initHangLoat() {
             buoc.dich = { target_lang: $('hlDichSang').value };
         }
         if ($('hlLongTieng').checked) {
+            const caTts = JSON.parse(localStorage.getItem('hlCaiDat') || '{}');
             buoc.long_tieng = {
                 tts_engine: $('hlGiongTTS').value,
                 tts_voice: window.hlTtsVoiceVal,
-                tts_speed: this.cai.tts_speed,
-                tts_pitch: this.cai.tts_pitch,
+                tts_speed: caTts.hlTtsSpeed,
+                tts_pitch: caTts.hlTtsPitch,
                 target_lang: $('hlDichSang').value,
                 auto_clone: $('hlGiongTTS').value === 'clone' && (!window.hlTtsVoiceVal || window.hlTtsVoiceVal === 'auto'),
                 ducking_ratio: 90

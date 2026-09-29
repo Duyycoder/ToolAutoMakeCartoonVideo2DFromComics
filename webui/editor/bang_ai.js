@@ -285,7 +285,7 @@ export class BangAi {
             const curVal = c[`giong_${eng}`] || c.giong;
             bindDieuKhien(aiChonGiong, eng, c.dich_sang || 'Vietnamese', curVal, (val) => {
                 c.giong = val;
-                c[giong_] = val;
+                c[`giong_${eng}`] = val;
                 this.ctx.luuUi();
             }, (speed) => {
                 c.tts_speed = speed;
@@ -302,7 +302,7 @@ export class BangAi {
             const curVal = c[`giong_van_ban_${eng}`] || c.giong_van_ban;
             bindDieuKhien(aiChonGiongVanBan, eng, 'Vietnamese', curVal, (val) => {
                 c.giong_van_ban = val;
-                c[giong_van_ban_] = val;
+                c[`giong_van_ban_${eng}`] = val;
                 this.ctx.luuUi();
             }, (speed) => {
                 c.tts_speed_vb = speed;
@@ -372,7 +372,7 @@ export class BangAi {
                 aiChonGiong.innerHTML = veDieuKhien(eng, curVal, 'cg', this.cai.tts_speed || 1.0, this.cai.tts_pitch || 0);
                 bindDieuKhien(aiChonGiong, eng, lang, curVal, (val) => {
                     this.cai.giong = val;
-                    this.cai[giong_] = val;
+                    this.cai[`giong_${eng}`] = val;
                     this.ctx.luuUi();
                 }, (speed) => {
                     this.cai.tts_speed = speed;

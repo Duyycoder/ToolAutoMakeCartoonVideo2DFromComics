@@ -49,15 +49,14 @@ async function loadConfig() {
             const eng = ttsEngineEl.value || 'edge';
             const lang = getByPath(configData, 'translate.target_lang') || 'Vietnamese';
             const curVal = getByPath(configData, `autosub.tts_voice_${eng}`) || getByPath(configData, 'autosub.tts_voice') || '';
-            ttsVoiceEl.innerHTML = veDieuKhien(eng, curVal, 'cfgCg');
+            ttsVoiceEl.innerHTML = veDieuKhien(eng, curVal, 'cfgCg',
+                getByPath(configData, 'autosub.tts_speed') ?? 1.0, getByPath(configData, 'autosub.tts_pitch') ?? 0);
+            // Ghi vào configData: saveAllSettings lấy configData làm gốc nên bấm Lưu là lưu cả giọng/tốc độ/cao độ.
             bindDieuKhien(ttsVoiceEl, eng, lang, curVal, (val) => {
-                this.cai.giong = val;
-                this.cai[giong_] = val;
-            }, (speed) => {
-                this.cai.tts_speed = speed;
-            }, (pitch) => {
-                this.cai.tts_pitch = pitch;
-            });
+                setByPath(configData, 'autosub.tts_voice', val);
+                setByPath(configData, `autosub.tts_voice_${eng}`, val);
+            }, (speed) => setByPath(configData, 'autosub.tts_speed', speed),
+               (pitch) => setByPath(configData, 'autosub.tts_pitch', pitch));
         };
         ttsEngineEl.addEventListener('change', updateVoiceUI);
         updateVoiceUI();
