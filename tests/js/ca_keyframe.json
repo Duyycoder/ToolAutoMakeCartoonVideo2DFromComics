@@ -1,0 +1,102 @@
+[
+    {
+        "ten": "Không có keyframe -> trả tĩnh",
+        "clip": {
+            "bien_doi": { "ti_le": 1.5 },
+            "keyframes": {}
+        },
+        "duongDan": "bien_doi.ti_le",
+        "t": 1.0,
+        "kq": 1.5
+    },
+    {
+        "ten": "Trước điểm đầu -> giá trị đầu",
+        "clip": {
+            "bien_doi": { "ti_le": 1.0 },
+            "keyframes": {
+                "bien_doi.ti_le": [
+                    { "t": 1.0, "v": 1.2, "em": "tuyen_tinh" },
+                    { "t": 2.0, "v": 2.0, "em": "tuyen_tinh" }
+                ]
+            }
+        },
+        "duongDan": "bien_doi.ti_le",
+        "t": 0.5,
+        "kq": 1.2
+    },
+    {
+        "ten": "Sau điểm cuối -> giá trị cuối",
+        "clip": {
+            "bien_doi": { "ti_le": 1.0 },
+            "keyframes": {
+                "bien_doi.ti_le": [
+                    { "t": 1.0, "v": 1.2, "em": "tuyen_tinh" },
+                    { "t": 2.0, "v": 2.0, "em": "tuyen_tinh" }
+                ]
+            }
+        },
+        "duongDan": "bien_doi.ti_le",
+        "t": 2.5,
+        "kq": 2.0
+    },
+    {
+        "ten": "Nội suy tuyến tính giữa",
+        "clip": {
+            "bien_doi": { "ti_le": 1.0 },
+            "keyframes": {
+                "bien_doi.ti_le": [
+                    { "t": 1.0, "v": 1.0, "em": "tuyen_tinh" },
+                    { "t": 3.0, "v": 3.0, "em": "tuyen_tinh" }
+                ]
+            }
+        },
+        "duongDan": "bien_doi.ti_le",
+        "t": 1.5,
+        "kq": 1.5
+    },
+    {
+        "ten": "Nội suy bậc thang (giữ)",
+        "clip": {
+            "bien_doi": { "x": 0.5 },
+            "keyframes": {
+                "bien_doi.x": [
+                    { "t": 0.0, "v": 0.2, "em": "giu" },
+                    { "t": 2.0, "v": 0.8, "em": "tuyen_tinh" }
+                ]
+            }
+        },
+        "duongDan": "bien_doi.x",
+        "t": 1.5,
+        "kq": 0.2
+    },
+    {
+        "ten": "Nội suy vao_ra smoothstep",
+        "clip": {
+            "bien_doi": { "xoay": 0 },
+            "keyframes": {
+                "bien_doi.xoay": [
+                    { "t": 0.0, "v": 0.0, "em": "vao_ra" },
+                    { "t": 1.0, "v": 100.0, "em": "tuyen_tinh" }
+                ]
+            }
+        },
+        "duongDan": "bien_doi.xoay",
+        "t": 0.5,
+        "kq": 50.0
+    },
+    {
+        "ten": "Nội suy vao_ra smoothstep 0.25",
+        "clip": {
+            "bien_doi": { "xoay": 0 },
+            "keyframes": {
+                "bien_doi.xoay": [
+                    { "t": 0.0, "v": 0.0, "em": "vao_ra" },
+                    { "t": 1.0, "v": 100.0, "em": "tuyen_tinh" }
+                ]
+            }
+        },
+        "duongDan": "bien_doi.xoay",
+        "t": 0.25,
+        "kq": 15.625
+    }
+]

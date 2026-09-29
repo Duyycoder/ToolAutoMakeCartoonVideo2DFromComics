@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor — Cào &amp; Dịch Video</title>
+    <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;🎬&lt;/text&gt;&lt;/svg&gt;">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="editor/editor.css">
+</head>
+<body>
+<div class="ed">
+    <header class="ed-dau">
+        <button class="nut-icon" id="btnVe" title="Về trang chủ (lưu trước khi rời)">←</button>
+        <span class="ten-da" id="tenDuAn">…</span>
+        <span class="thong-so so" id="thongSo"></span>
+        <div class="gian"></div>
+        <button class="nut-icon" id="btnCaiDat" title="Cấu hình chung">⚙</button>
+        <button class="nut nut-nho" id="btnPhienBan" title="Các bản lưu tự động và bản lưu tay">🕘 Phiên bản</button>
+        <button class="nut nut-nho nut-luu" id="btnLuu" title="Lưu (Ctrl+S)"><span class="cham"></span><span id="chuLuu">Lưu</span></button>
+        <button class="nut nut-chinh nut-nho" id="btnXuat" disabled title="Xuất video — có ở GĐ 1">Xuất video ▾</button>
+    </header>
+    <div id="bangChiDoc" class="bang-chi-doc an"></div>
+
+    <div class="ed-than" id="edThan">
+        <nav class="thanh-icon" id="thanhIcon" aria-label="Công cụ">
+            <button data-bang="media" title="Tệp phương tiện">🎞</button>
+            <button data-bang="phu_de" title="Phụ đề">▭</button>
+            <button data-bang="ai" title="AI: phụ đề, OCR, dịch, lồng tiếng…">🪄</button>
+            <button data-bang="che" title="Hình dạng &amp; Che phụ đề">⬠</button>
+            <button data-bang="chu" title="Chữ">T</button>
+            <button data-bang="dieu_chinh" title="Điều chỉnh màu">☰</button>
+            <button data-bang="hieu_ung" title="Hiệu ứng">◈</button>
+            <button data-bang="chuyen_canh" title="Chuyển cảnh">⊘</button>
+            <div class="gian"></div>
+            <button id="btnCaiDat2" title="Cấu hình chung">⚙</button>
+        </nav>
+
+        <aside class="bang-trai" id="bangTrai"></aside>
+        <div class="keo keo-doc" id="keoTrai" data-keo="trai"></div>
+
+        <section class="vung-preview">
+            <div class="preview-khung" id="previewKhung">
+                <div class="preview-man" id="previewMan"><div class="goi-y">Chọn một media hoặc một clip để xem trước</div></div>
+            </div>
+            <div class="dieu-khien">
+                <span class="gio so"><b id="gioHienTai">00:00:00:00</b> / <span id="gioTong">00:00:00:00</span></span>
+                <div class="nhom-nut">
+                    <button class="nut-icon" id="btnVeDau" title="Về đầu (Home)">⏮</button>
+                    <button class="nut-icon" id="btnLuiKhung" title="Lùi 1 khung (←)">◀</button>
+                    <button class="nut-phat" id="btnPhat" title="Phát/Dừng (Space)">▶</button>
+                    <button class="nut-icon" id="btnToiKhung" title="Tiến 1 khung (→)">▶</button>
+                    <button class="nut-icon" id="btnVeCuoi" title="Về cuối (End)">⏭</button>
+                    <button class="nut-icon" id="btnXemChinhXac" title="Xem chính xác (📷) quanh đây">📷</button>
+                </div>
+                <label class="am-luong" title="Âm lượng xem trước">🔊<input type="range" id="amLuong" min="0" max="1" step="0.05" value="1"></label>
+            </div>
+        </section>
+
+        <div class="keo keo-doc" id="keoPhai" data-keo="phai"></div>
+        <aside class="bang-phai" id="bangPhai"></aside>
+
+        <div class="keo keo-ngang" id="keoDuoi" data-keo="timeline"></div>
+        <section class="vung-timeline" id="vungTimeline"></section>
+    </div>
+</div>
+<script type="module" src="editor/main.js"></script>
+</body>
+</html>

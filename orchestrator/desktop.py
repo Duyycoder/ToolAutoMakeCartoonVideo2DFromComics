@@ -163,6 +163,52 @@ def _wait_until_ready(timeout: float = 30.0) -> bool:
     return False
 
 
+# Luon tra Promise: evaluate_js cua pywebview CHI goi callback khi ket qua la Promise,
+# gia tri thuong (vd trang chu khong co editor) thi callback khong bao gio chay.
+FLUSH_JS = "Promise.resolve((window.editor && window.editor.dong) ? window.editor.dong() : true)"
+FLUSH_TIMEOUT = 5.0
+
+
+def _gan_flush_khi_dong(window, timeout=FLUSH_TIMEOUT):
+    """Dong cua so = luu not tien do editor (timeline, ui, hoan tac) roi moi dong that.
+
+    Su kien `closing` cua pywebview chay DONG BO tren luong giao dien: goi
+    evaluate_js ngay trong do se treo (evaluate_js cung can luong giao dien).
+    Nen lan dong dau tien: HUY dong, flush o luong rieng (cho Promise cua
+    editor.flush() toi `timeout` giay), roi destroy() -> lan closing thu hai
+    duoc cho qua (confirm_close van hoi nhu cu).
+    """
+    trang_thai = {"cho_phep": False}
+
+    def _flush():
+        xong = threading.Event()
+        try:
+            window.evaluate_js(FLUSH_JS, callback=lambda _kq: xong.set())
+        except Exception as e:  # trang chua tai xong / da dong
+            print(f"[WARN] Khong flush duoc editor truoc khi dong: {e}")
+            return
+        if not xong.wait(timeout):
+            print(f"[WARN] editor.flush() qua {timeout:.0f}s chua xong - dong luon.")
+
+    def _flush_roi_dong():
+        _flush()
+        trang_thai["cho_phep"] = True
+        try:
+            window.destroy()
+        except Exception:
+            pass
+
+    def on_closing():
+        if trang_thai["cho_phep"]:
+            trang_thai["cho_phep"] = False
+            return None
+        threading.Thread(target=_flush_roi_dong, daemon=True).start()
+        return False
+
+    window.events.closing += on_closing
+    return on_closing
+
+
 def _shutdown(server, thread, gemini_proc):
     """Dong app = diet sach: tien trinh AI con -> Gemini proxy -> uvicorn."""
     from orchestrator.process_manager import ProcessManager
@@ -243,6 +289,7 @@ def main() -> int:
             text_select=True,
         )
         window.events.loaded += lambda: loaded.set()
+        _gan_flush_khi_dong(window)
 
         if smoke:
             def _auto_close():

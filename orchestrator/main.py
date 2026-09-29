@@ -14,7 +14,7 @@ from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 
@@ -77,145 +77,41 @@ class GlobalConfigSchema(BaseModel):
     storage_dir: str
 
 
-class ProbeSchema(BaseModel):
-    urls: List[str]
-    platform: Optional[str] = "generic"
-    cookies_file: Optional[str] = None
-    max_items: Optional[int] = 0
 
 
-class TranslateParams(BaseModel):
-    """Tham số dịch/gắn phụ đề — dùng chung cho tab Dịch và ô 'dịch luôn sau khi tải'."""
-    source_lang: Optional[str] = "English"
-    target_lang: Optional[str] = "Vietnamese"
-    sub_source: Optional[str] = "whisper"   # whisper | ocr | import
-    source_srt: Optional[str] = None        # dùng khi sub_source = import
-    translate_only: Optional[bool] = False  # chỉ xuất .srt, không ghi vào video
-    no_translate: Optional[bool] = False    # ghi thẳng phụ đề nguồn, bỏ bước dịch
-    burn_method: Optional[str] = "ffmpeg"
-    clean_audio: Optional[bool] = False
-    enable_voiceover: Optional[bool] = False
-    tts_engine: Optional[str] = "edge"
-    tts_voice: Optional[str] = ""
-    auto_clone: Optional[bool] = False
-    ducking_ratio: Optional[float] = 90.0
-    llm_engine: Optional[str] = None
-    llm_api_key: Optional[str] = None
-    llm_offline_base_url: Optional[str] = None
-    llm_offline_model: Optional[str] = None
-    crop_x: Optional[int] = -1
-    crop_y: Optional[int] = -1
-    crop_w: Optional[int] = -1
-    crop_h: Optional[int] = -1
-    ocr_use_gpu: Optional[bool] = None
-    font_name: Optional[str] = None
-    font_size: Optional[int] = None
-    text_color: Optional[str] = None
-    stroke_color: Optional[str] = None
-    stroke_width: Optional[float] = None
-    bg_style: Optional[str] = None
-    bg_color: Optional[str] = None
-    bg_alpha: Optional[int] = None
-    sub_position: Optional[str] = None
-    custom_position: Optional[float] = None
 
 
-class MergeAfterSchema(BaseModel):
-    """Khúc ghép nối vào cuối chuỗi tải/nhập → dịch → ghép."""
-    enabled: Optional[bool] = False
-    output_name: Optional[str] = ""
-    prefer: Optional[str] = "output"    # output = ưu tiên bản đã gắn phụ đề | source = bản gốc
-    normalize: Optional[bool] = True    # tự chuẩn hoá khi các video khác cỡ nhau
 
 
-class DownloadSchema(ProbeSchema):
-    skip_existing: Optional[bool] = True
-    stop_on_error: Optional[bool] = False
-    auto_translate: Optional[bool] = False
-    translate: Optional[TranslateParams] = None
-    batch_id: Optional[str] = ""
-    batch_name: Optional[str] = ""
-    batch_index: Optional[List[float]] = None   # chỗ đứng của từng link trong lô
-    merge_after: Optional[MergeAfterSchema] = None
-    project_folder: Optional[str] = ""          # != "" = tải xong thì đưa vào dự án này
 
 
-class TranslateSchema(TranslateParams):
-    entry_ids: List[str]
 
 
-class ImportSchema(BaseModel):
-    path: str
-    title: Optional[str] = ""
-    copy_file: Optional[bool] = False
 
 
-class ProjectFolderSchema(BaseModel):
-    folder: str
 
 
-class ProjectInitSchema(BaseModel):
-    folder: str
-    name: Optional[str] = ""
-    doi_ten: Optional[bool] = True   # False = chỉ đánh dấu dự án, giữ nguyên tên file
 
 
-class ProjectCreateSchema(BaseModel):
-    thu_muc_cha: str
-    ten: str
 
 
-class ProjectTranslateSchema(TranslateParams):
-    """Chạy video của một dự án: sub từng video → (tuỳ chọn) ghép theo đúng thứ tự."""
-    folder: str
-    files: List[str]                             # tên file, ĐÚNG thứ tự người dùng sắp
-    merge_after: Optional[MergeAfterSchema] = None
 
 
-class ImportBatchItem(BaseModel):
-    path: str
-    title: Optional[str] = ""
-    index: Optional[float] = None   # chỗ đứng trong lô; để trống = theo thứ tự gửi lên
 
 
-class ImportBatchSchema(BaseModel):
-    items: List[ImportBatchItem]
-    copy_file: Optional[bool] = False
-    batch_id: Optional[str] = ""    # có sẵn = nhập thêm vào lô đang dựng
-    batch_name: Optional[str] = ""
-    auto_translate: Optional[bool] = False
-    translate: Optional[TranslateParams] = None
-    merge_after: Optional[MergeAfterSchema] = None
-    project_folder: Optional[str] = ""   # != "" = CHÉP file vào dự án này thay vì thư viện
 
 
 class PickFilesSchema(BaseModel):
-    mode: Optional[str] = "files"   # files = chọn nhiều video | folder = chọn cả thư mục
+    # files = chọn nhiều video | folder = chọn cả thư mục | media = video/âm thanh/ảnh/phụ đề (editor)
+    mode: Optional[str] = "files"
 
 
-class SubSaveSchema(BaseModel):
-    name: str
-    content: str
 
 
-class MergeItem(BaseModel):
-    entry_id: str
-    kind: Optional[str] = "output"   # output | source
-    name: Optional[str] = ""
 
 
-class MergeSchema(BaseModel):
-    items: List[MergeItem]
-    output_name: Optional[str] = ""
-    normalize: Optional[bool] = True   # tự chuẩn hoá khi các video khác cỡ nhau
 
 
-class PrepareSchema(BaseModel):
-    entry_id: Optional[str] = None
-    video_path: Optional[str] = None
-    download_url: Optional[str] = None
-    platform: Optional[str] = "generic"
-    cookies_file: Optional[str] = None
 
 
 # ------------------------------------------------------------- Cấu hình
@@ -276,11 +172,6 @@ def get_ollama_models():
     return {"ollama_online": online, "models": models}
 
 
-@app.get("/api/stats")
-def get_stats():
-    stats = library.stats()
-    stats["running_tasks"] = process_mgr.list_running()
-    return stats
 
 
 @app.post("/api/maintenance/cleanup-tasks")
@@ -290,286 +181,43 @@ def cleanup_tasks_api(dry_run: bool = True, days: float = 0):
 
 
 # ------------------------------------------------------------- Thư viện
-@app.get("/api/videos")
-def list_videos():
-    return library.list_entries()
 
 
-@app.get("/api/videos/{entry_id}")
-def get_video(entry_id: str):
-    entry = library.read_entry(entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail=f"Không có video '{entry_id}' trong thư viện.")
-    return entry
 
 
-@app.delete("/api/videos/{entry_id}")
-def delete_video(entry_id: str):
-    if not library.read_entry(entry_id):
-        raise HTTPException(status_code=404, detail=f"Không có video '{entry_id}' trong thư viện.")
-    if library.delete_entry(entry_id):
-        return {"status": "success"}
-    raise HTTPException(status_code=500, detail="Không xoá được thư mục video (file đang mở?).")
 
 
-@app.post("/api/videos/import")
-def import_video(body: ImportSchema):
-    """Đưa video có sẵn trên máy vào thư viện để dịch (mặc định không chép file)."""
-    try:
-        entry = library.register_local(body.path, body.title or "", bool(body.copy_file))
-    except (FileNotFoundError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    # Đọc W/H/thời lượng để thư viện hiện đủ thông tin như video tải về. Không đọc
-    # được (file hỏng, thiếu codec) thì vẫn giữ mục lại — người dùng vẫn dịch được.
-    meta = pipeline.probe_media(entry["file"])
-    if meta:
-        entry.update(meta)
-        library.write_entry(entry["entry_id"], entry)
-        entry = library.read_entry(entry["entry_id"])
-    return entry
 
 
-@app.post("/api/videos/import-batch")
-def import_batch(body: ImportBatchSchema):
-    """Nhập nhiều video có sẵn trên máy vào thư viện, giữ đúng thứ tự đã sắp.
-
-    Chạy nền (task_key "import") vì mỗi file phải đọc W/H bằng một tiến trình
-    con; giao diện theo dõi qua SSE như các tác vụ nặng khác.
-    """
-    items = [it for it in body.items if (it.path or "").strip()]
-    if not items:
-        raise HTTPException(status_code=400, detail="Chưa chọn file video nào.")
-    if process_mgr.is_running(TASK_IMPORT):
-        raise HTTPException(status_code=400, detail="Đang có lượt nhập khác chạy — chờ nó xong đã.")
-
-    then_translate = _chain_translate(body.auto_translate, body.translate)
-    then_merge = _chain_merge(body.merge_after)
-    batch_id = (body.batch_id or "").strip() or new_batch_id(body.batch_name or "")
-
-    folder = _du_an_dich(body.project_folder)
-    if folder:
-        then_du_an = None
-        if then_translate or then_merge:
-            def then_du_an(exit_code: int):
-                """Chép xong thì đi tiếp: sub → ghép → đánh dấu, trong dự án."""
-                pipeline.chain_du_an_sau_lo(TASK_IMPORT, folder, batch_id, exit_code,
-                                            then_translate, then_merge)
-        if not pipeline.start_import_project(TASK_IMPORT, folder, [it.model_dump() for it in items],
-                                             batch_id, then_du_an):
-            raise HTTPException(status_code=500, detail="Không khởi động được tác vụ nhập.")
-        return {"status": "success", "task_key": TASK_IMPORT,
-                "batch_id": batch_id, "count": len(items)}
-
-    then = None
-    if then_translate or then_merge:
-        def then(exit_code: int, entries: List[dict]):
-            """Nhập xong thì đi tiếp: dịch từng video rồi ghép cả lô."""
-            pipeline.chain_after_entries(TASK_IMPORT, entries, exit_code,
-                                         then_translate, then_merge, batch_id)
-
-    if not pipeline.start_import(TASK_IMPORT, [it.model_dump() for it in items],
-                                 bool(body.copy_file), batch_id, then):
-        raise HTTPException(status_code=500, detail="Không khởi động được tác vụ nhập.")
-    return {"status": "success", "task_key": TASK_IMPORT,
-            "batch_id": batch_id, "count": len(items)}
 
 
-@app.get("/api/batches")
-def list_batches():
-    """Các lô đã chạy — để tab Ghép nạp lại cả lô đúng thứ tự."""
-    return library.list_batches()
 
 
-@app.get("/api/batches/{batch_id}")
-def get_batch(batch_id: str):
-    entries = library.list_batch(batch_id)
-    if not entries:
-        raise HTTPException(status_code=404, detail=f"Không có lô '{batch_id}'.")
-    return entries
 
 
 # ------------------------------------------------------------- Dự án video
-def _nho_du_an(folder: str, name: str) -> None:
-    """Ghi vào danh sách dự án gần đây để sidebar chọn lại nhanh."""
-    cfg = load_global_config()
-    du_an = cfg.get("du_an") or {}
-    gan_day = [r for r in (du_an.get("gan_day") or [])
-               if (r.get("folder") or "").lower() != folder.lower()]
-    gan_day.insert(0, {"folder": folder, "name": name,
-                       "at": datetime.datetime.now().isoformat(timespec="seconds")})
-    du_an["gan_day"] = gan_day[:10]
-    du_an["hien_tai"] = folder
-    cfg["du_an"] = du_an
-    save_global_config(cfg)
 
 
-def _quen_du_an(folder: str) -> None:
-    cfg = load_global_config()
-    du_an = cfg.get("du_an") or {}
-    du_an["gan_day"] = [r for r in (du_an.get("gan_day") or [])
-                        if (r.get("folder") or "").lower() != folder.lower()]
-    if (du_an.get("hien_tai") or "").lower() == folder.lower():
-        du_an["hien_tai"] = ""
-    cfg["du_an"] = du_an
-    save_global_config(cfg)
 
 
-def _du_an_dich(folder: Optional[str]) -> str:
-    """Thư mục dự án đích của một lô (đường dẫn tuyệt đối), hoặc "" = thư viện chung.
-
-    Chặn ngay khi thư mục không phải dự án: tải/chép xong mới phát hiện thì video
-    đã nằm lung tung mà không có `.duan.json` nào ghi nhận.
-    """
-    folder = (folder or "").strip()
-    if not folder:
-        return ""
-    if not project.da_init(folder):
-        raise HTTPException(status_code=404, detail=f"Thư mục '{folder}' chưa phải là dự án.")
-    return os.path.abspath(folder)
 
 
-@app.post("/api/project/inspect")
-def project_inspect(body: ProjectFolderSchema):
-    """Nhìn một thư mục TRƯỚC khi động vào nó.
-
-    Chỉ đọc: trả về có video không, đã là dự án chưa, và bảng đổi tên dự kiến để
-    giao diện cho người dùng duyệt. Đổi tên file là việc không Ctrl+Z được nên
-    không bao giờ làm mà chưa hỏi.
-    """
-    try:
-        return project.xem_xet(body.folder)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/api/project/init")
-def project_init(body: ProjectInitSchema):
-    """Biến thư mục thành dự án — đổi tên file THẬT khi `doi_ten` bật."""
-    try:
-        data = project.init(body.folder, body.name or "", bool(body.doi_ten))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except OSError as e:
-        raise HTTPException(status_code=500, detail=f"Không đổi tên được file: {e}")
-    _nho_du_an(data["folder"], data["name"])
-    return data
 
 
-@app.post("/api/project/create")
-def project_create(body: ProjectCreateSchema):
-    """Tạo thư mục dự án rỗng để tải video về (luồng dán link)."""
-    try:
-        data = project.tao_moi(body.thu_muc_cha, body.ten)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except OSError as e:
-        raise HTTPException(status_code=500, detail=f"Không tạo được thư mục dự án: {e}")
-    _nho_du_an(data["folder"], data["name"])
-    return data
 
 
-@app.post("/api/project/open")
-def project_open(body: ProjectFolderSchema):
-    data = project.doc(body.folder)
-    if not data:
-        raise HTTPException(status_code=404,
-                            detail=f"Thư mục '{body.folder}' chưa phải là dự án.")
-    _nho_du_an(data["folder"], data.get("name") or "")
-    return data
 
 
-@app.post("/api/project/close")
-def project_close():
-    """Đóng dự án đang mở — quay về thư viện chung (video lẻ ngoài dự án).
-
-    Trước đây không có đường nào ra: app tự mở lại dự án cũ mỗi lần khởi động và
-    ô chọn "— Chưa mở dự án nào —" không làm gì, nên đã mở một dự án là thư viện
-    chung biến mất vĩnh viễn. Giữ nguyên danh sách gần đây để mở lại nhanh.
-    """
-    cfg = load_global_config()
-    du_an = cfg.get("du_an") or {}
-    du_an["hien_tai"] = ""
-    cfg["du_an"] = du_an
-    save_global_config(cfg)
-    return {"status": "success"}
 
 
-@app.post("/api/project/undo-rename")
-def project_undo_rename(body: ProjectFolderSchema):
-    """Trả tên file về y như trước khi init, rồi bỏ đánh dấu dự án."""
-    try:
-        res = project.hoan_tac(body.folder)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except OSError as e:
-        raise HTTPException(status_code=500, detail=f"Không trả lại tên file được: {e}")
-    _quen_du_an(res["folder"])
-    return res
 
 
-@app.get("/api/project/videos")
-def project_videos(folder: str, ke_ca_da_ghep: bool = False):
-    if not project.da_init(folder):
-        raise HTTPException(status_code=404, detail=f"Thư mục '{folder}' chưa phải là dự án.")
-    return project.danh_sach_video(folder, ke_ca_da_ghep)
 
 
-@app.post("/api/project/translate")
-def project_translate(body: ProjectTranslateSchema):
-    """Sub các video đã chọn của dự án theo đúng thứ tự, rồi (tuỳ chọn) ghép và
-    đánh dấu đã ghép. Đầu ra nằm ngay trong dự án: phu_de/, da_sub/, ban_ghep/."""
-    if not project.da_init(body.folder):
-        raise HTTPException(status_code=404, detail=f"Thư mục '{body.folder}' chưa phải là dự án.")
-    files = [f.strip() for f in body.files if f and f.strip()]
-    if not files:
-        raise HTTPException(status_code=400, detail="Chưa chọn video nào để dịch.")
-    if len(set(files)) != len(files):
-        raise HTTPException(status_code=400, detail="Một video bị chọn hai lần.")
-    if process_mgr.is_running(TASK_TRANSLATE):
-        raise HTTPException(status_code=400, detail="Tác vụ dịch đang chạy — dừng nó trước.")
-
-    # Chỉ nhận đúng video CỦA dự án: vừa chặn đường dẫn kiểu "..\\x", vừa bắt
-    # file đã bị xoá/đổi tên ngoài app trước khi chạy cả hàng đợi.
-    videos = {v["file"]: v for v in project.danh_sach_video(body.folder, ke_ca_da_ghep=True)}
-    for ten in files:
-        video = videos.get(ten)
-        if not video:
-            raise HTTPException(status_code=404, detail=f"'{ten}' không thuộc dự án này.")
-        if not video.get("exists"):
-            raise HTTPException(status_code=400, detail=f"File '{ten}' không còn trên đĩa.")
-
-    args = body.model_dump(exclude={"folder", "files", "merge_after"})
-    if args.get("sub_source") == "import":
-        if len(files) > 1:
-            raise HTTPException(
-                status_code=400,
-                detail="Chế độ 'phụ đề có sẵn' chỉ áp dụng cho một video mỗi lượt.")
-        srt = (args.get("source_srt") or "").strip()
-        if not srt or not os.path.exists(srt):
-            raise HTTPException(status_code=400, detail=f"Không tìm thấy file phụ đề: {srt or '(trống)'}")
-    merge_opts = _chain_merge(body.merge_after)
-
-    try:
-        started = pipeline.start_translate_project(
-            TASK_TRANSLATE, body.folder, files, args, merge_opts)
-    except ValueError as e:  # thiếu API key cho engine đã chọn
-        raise HTTPException(status_code=400, detail=str(e))
-    if not started:
-        raise HTTPException(status_code=500, detail="Không khởi động được tác vụ dịch.")
-    return {"status": "success", "task_key": TASK_TRANSLATE, "count": len(files)}
 
 
-@app.get("/api/project/recent")
-def project_recent():
-    """Dự án gần đây — bỏ qua cái đã bị xoá hoặc chuyển đi chỗ khác."""
-    du_an = (load_global_config().get("du_an") or {})
-    gan_day = [r for r in (du_an.get("gan_day") or [])
-               if r.get("folder") and project.da_init(r["folder"])]
-    hien_tai = du_an.get("hien_tai") or ""
-    if hien_tai and not project.da_init(hien_tai):
-        hien_tai = ""
-    return {"hien_tai": hien_tai, "gan_day": gan_day}
 
 
 def _reveal_in_file_manager(path: str) -> None:
@@ -582,39 +230,8 @@ def _reveal_in_file_manager(path: str) -> None:
         subprocess.Popen(["xdg-open", path])
 
 
-@app.post("/api/videos/{entry_id}/open-folder")
-def open_video_folder(entry_id: str, kind: str = "root"):
-    entry = library.read_entry(entry_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail=f"Không có video '{entry_id}' trong thư viện.")
-    path = {"output": library.output_dir(entry_id),
-            "subs": library.subs_dir(entry_id)}.get(kind, library.entry_dir(entry_id))
-    try:
-        os.makedirs(path, exist_ok=True)
-        _reveal_in_file_manager(path)
-    except OSError as e:
-        raise HTTPException(status_code=500, detail=f"Không mở được thư mục '{path}': {e}")
-    return {"status": "success", "path": path}
 
 
-@app.post("/api/project/open-folder")
-def open_project_folder(body: ProjectFolderSchema, kind: str = "root"):
-    """Mở thư mục dự án (hoặc phu_de/ da_sub/ ban_ghep/) bằng File Explorer.
-
-    Dự án cố ý nằm trong thư mục thật của người dùng để "mở Explorer là thấy
-    đủ" — nhưng trước đây giao diện không có nút nào mở được nó.
-    """
-    if not project.da_init(body.folder):
-        raise HTTPException(status_code=404, detail=f"Thư mục '{body.folder}' chưa phải là dự án.")
-    sub = {"da_sub": project.OUT_DIR, "phu_de": project.SUB_DIR,
-           "ban_ghep": project.MERGE_DIR}.get(kind, "")
-    path = os.path.join(os.path.abspath(body.folder), sub) if sub else os.path.abspath(body.folder)
-    try:
-        os.makedirs(path, exist_ok=True)
-        _reveal_in_file_manager(path)
-    except OSError as e:
-        raise HTTPException(status_code=500, detail=f"Không mở được thư mục '{path}': {e}")
-    return {"status": "success", "path": path}
 
 
 @app.post("/api/system/open-folder")
@@ -637,7 +254,7 @@ def pick_files(body: PickFilesSchema):
     thì không upload được — nên hộp thoại phải mở ở phía máy chủ. Chạy tiến
     trình riêng vì tkinter đòi luồng chính (xem `orchestrator/file_picker.py`).
     """
-    mode = "folder" if (body.mode or "") == "folder" else "files"
+    mode = body.mode if (body.mode or "") in ("folder", "media") else "files"
     env = os.environ.copy()
     env["PYTHONPATH"] = REPO_ROOT
     env["PYTHONIOENCODING"] = "utf-8"
@@ -679,235 +296,29 @@ def pick_files(body: PickFilesSchema):
     return {"paths": paths, "folder": folder, "cancelled": cancelled}
 
 
-@app.get("/api/videos/{entry_id}/play")
-def play_video(entry_id: str, kind: str = "source", name: str = ""):
-    """Phát video ngay trong giao diện (FileResponse của Starlette có hỗ trợ Range)."""
-    try:
-        path = library.find_file(entry_id, kind, name)
-    except (FileNotFoundError, ValueError) as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    return FileResponse(path, media_type="video/mp4", filename=os.path.basename(path))
 
 
-@app.get("/api/videos/{entry_id}/sub")
-def read_sub(entry_id: str, name: str, download: bool = False):
-    """Nội dung một file phụ đề — để sửa tay trên giao diện hoặc tải về."""
-    try:
-        path = library.find_file(entry_id, "sub", name)
-    except (FileNotFoundError, ValueError) as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    if download:
-        return FileResponse(path, media_type="application/x-subrip", filename=os.path.basename(path))
-    try:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
-            return PlainTextResponse(fh.read())
-    except OSError as e:
-        raise HTTPException(status_code=500, detail=f"Không đọc được file phụ đề: {e}")
 
 
-@app.post("/api/videos/{entry_id}/sub")
-def save_sub(entry_id: str, body: SubSaveSchema):
-    """Lưu phụ đề đã sửa/tải lên; dùng lại được ngay ở chế độ 'phụ đề có sẵn'."""
-    try:
-        saved = library.add_sub(entry_id, body.name, body.content)
-    except (FileNotFoundError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return {"status": "success", **saved}
 
 
 # ------------------------------------------------------------- Cào video
-def _chain_translate(enabled: bool, params: Optional[TranslateParams]) -> Optional[dict]:
-    """Tham số cho khúc dịch nối sau khi tải/nhập (None = không bật)."""
-    if not enabled:
-        return None
-    if process_mgr.is_running(TASK_TRANSLATE):
-        raise HTTPException(
-            status_code=400,
-            detail="Đang có tác vụ dịch chạy — không thể bật 'dịch luôn sau khi tải'.")
-    return (params or TranslateParams()).model_dump()
 
 
-def _chain_merge(opts: Optional[MergeAfterSchema]) -> Optional[dict]:
-    """Tham số cho khúc ghép ở cuối chuỗi (None = không bật).
-
-    Chặn ngay tại đây nếu đang có lượt ghép khác: cả chuỗi chạy dưới task_key
-    của khúc đầu nên tới lúc ghép mới phát hiện xung đột là đã muộn.
-    """
-    if not opts or not opts.enabled:
-        return None
-    if process_mgr.is_running(TASK_MERGE):
-        raise HTTPException(
-            status_code=400,
-            detail="Đang có tác vụ ghép chạy — không thể bật 'ghép lại khi xong'.")
-    return opts.model_dump()
 
 
-@app.post("/api/download/probe")
-def download_probe(body: ProbeSchema):
-    urls = [u.strip() for u in body.urls if u and u.strip()]
-    if not urls:
-        raise HTTPException(status_code=400, detail="Chưa nhập link video nào.")
-    try:
-        return pipeline.probe(urls, body.model_dump())
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Quá 5 phút vẫn chưa đọc xong danh sách — kiểm tra mạng/link.")
-    except RuntimeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/api/download/start")
-def download_start(body: DownloadSchema):
-    urls = [u.strip() for u in body.urls if u and u.strip()]
-    if not urls:
-        raise HTTPException(status_code=400, detail="Chưa nhập link video nào.")
-    if process_mgr.is_running(TASK_DOWNLOAD):
-        raise HTTPException(status_code=400, detail="Đang có lượt tải khác chạy — dừng nó trước.")
-
-    then_translate = _chain_translate(body.auto_translate, body.translate)
-    then_merge = _chain_merge(body.merge_after)
-
-    args = body.model_dump()
-    args["project_folder"] = _du_an_dich(body.project_folder)
-    args["batch_id"] = (body.batch_id or "").strip() or new_batch_id(body.batch_name or "")
-    if not pipeline.start_download(TASK_DOWNLOAD, urls, args, then_translate, then_merge):
-        raise HTTPException(status_code=500, detail="Không khởi động được tiến trình tải.")
-    return {"status": "success", "task_key": TASK_DOWNLOAD, "batch_id": args["batch_id"]}
 
 
 # ------------------------------------------------------------- Dịch video
-@app.post("/api/translate/start")
-def translate_start(body: TranslateSchema):
-    if not body.entry_ids:
-        raise HTTPException(status_code=400, detail="Chưa chọn video nào để dịch.")
-    if process_mgr.is_running(TASK_TRANSLATE):
-        raise HTTPException(status_code=400, detail="Tác vụ dịch đang chạy — dừng nó trước.")
-
-    jobs = []
-    for entry_id in body.entry_ids:
-        entry = library.read_entry(entry_id)
-        if not entry:
-            raise HTTPException(status_code=404, detail=f"Không có video '{entry_id}' trong thư viện.")
-        if not entry.get("exists"):
-            raise HTTPException(status_code=400,
-                                detail=f"File video của '{entry.get('title')}' không còn trên đĩa.")
-        jobs.append(pipeline.make_job(entry))
-
-    args = body.model_dump()
-    if args.get("sub_source") == "import":
-        # Phụ đề nạp vào phải áp cho ĐÚNG một video: dùng chung một file .srt cho
-        # cả hàng đợi thì mọi video sau đều lệch tiếng.
-        if len(jobs) > 1:
-            raise HTTPException(
-                status_code=400,
-                detail="Chế độ 'phụ đề có sẵn' chỉ áp dụng cho một video mỗi lượt.")
-        srt = (args.get("source_srt") or "").strip()
-        if not srt or not os.path.exists(srt):
-            raise HTTPException(status_code=400, detail=f"Không tìm thấy file phụ đề: {srt or '(trống)'}")
-
-    try:
-        started = pipeline.start_translate(TASK_TRANSLATE, jobs, args)
-    except ValueError as e:  # thiếu API key cho engine đã chọn
-        raise HTTPException(status_code=400, detail=str(e))
-    if not started:
-        raise HTTPException(status_code=500, detail="Không khởi động được tác vụ dịch.")
-    return {"status": "success", "task_key": TASK_TRANSLATE, "count": len(jobs)}
 
 
-@app.post("/api/autosub/prepare")
-def autosub_prepare(body: PrepareSchema):
-    """Tải/đọc video rồi trả một khung hình để người dùng khoanh vùng phụ đề (OCR)."""
-    import base64
-    import uuid
-
-    video_path = body.video_path
-    if body.entry_id:
-        entry = library.read_entry(body.entry_id)
-        if not entry:
-            raise HTTPException(status_code=404, detail=f"Không có video '{body.entry_id}' trong thư viện.")
-        video_path = entry.get("file")
-    if not video_path and not body.download_url:
-        raise HTTPException(status_code=400, detail="Cần chọn video trong thư viện, hoặc nhập đường dẫn/link.")
-
-    task_id = uuid.uuid4().hex[:8]
-    work_dir = os.path.join(library.tasks_dir, f"prepare_{task_id}")
-    os.makedirs(work_dir, exist_ok=True)
-
-    cmd = [PYTHON_EXE, AUTOSUB_ADAPTER, "--prepare-only", "--output-dir", work_dir]
-    if body.download_url:
-        cmd += ["--download-url", body.download_url, "--platform", body.platform or "generic"]
-    else:
-        cmd += ["--video-path", video_path]
-    g_config = load_global_config()
-    cookies = (body.cookies_file
-               or (g_config.get("download") or {}).get("cookies_file")
-               or (g_config.get("video") or {}).get("downloader_cookies") or "")
-    if cookies:
-        cmd += ["--cookies-file", cookies]
-
-    try:
-        res = subprocess.run(cmd, cwd=AIVOICE_DIR, capture_output=True, text=True,
-                             encoding="utf-8", timeout=900, creationflags=NO_WINDOW)
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Tải/chuẩn bị video quá 15 phút — kiểm tra link hoặc mạng.")
-
-    info = None
-    for line in (res.stdout or "").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            data = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if data.get("event") == "prepare_done":
-            info = data
-            break
-    if not info:
-        detail = (res.stderr or res.stdout or "không có output")[-1000:]
-        raise HTTPException(status_code=500, detail=f"Không chuẩn bị được video. Log: {detail}")
-
-    preview = info.get("preview_image")
-    if not preview or not os.path.exists(preview):
-        raise HTTPException(status_code=500, detail="Không tạo được ảnh xem trước.")
-    with open(preview, "rb") as fh:
-        img_b64 = base64.b64encode(fh.read()).decode("utf-8")
-    return {
-        "prepared_path": info.get("prepared_path"),
-        "width": info.get("width"),
-        "height": info.get("height"),
-        "duration": info.get("duration"),
-        "preview_b64": f"data:image/jpeg;base64,{img_b64}",
-    }
 
 
 # ------------------------------------------------------------- Ghép video
-@app.post("/api/merge/start")
-def merge_start(body: MergeSchema):
-    if not body.items:
-        raise HTTPException(status_code=400, detail="Chưa chọn video nào để ghép.")
-    if process_mgr.is_running(TASK_MERGE):
-        raise HTTPException(status_code=400, detail="Tác vụ ghép đang chạy.")
-
-    files, sizes = [], []
-    for item in body.items:
-        try:
-            files.append(library.find_file(item.entry_id, item.kind or "output", item.name or ""))
-        except (FileNotFoundError, ValueError) as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        # W/H đọc sẵn từ video.json: máy đích không có ffprobe nên đây là cách
-        # rẻ nhất để biết có phải chuẩn hoá trước khi nối hay không.
-        entry = library.read_entry(item.entry_id) or {}
-        sizes.append((entry.get("width") or 0, entry.get("height") or 0))
-
-    if not pipeline.start_merge(TASK_MERGE, files, body.output_name or "", sizes,
-                                "auto" if body.normalize else "never"):
-        raise HTTPException(status_code=500, detail="Không khởi động được tác vụ ghép.")
-    return {"status": "success", "task_key": TASK_MERGE, "count": len(files)}
 
 
-@app.get("/api/merged")
-def list_merged():
-    return library._list_files(library.merged_dir, (".mp4",))
 
 
 # ------------------------------------------------------------- Tác vụ chung
@@ -937,6 +348,19 @@ def stop_task(task_key: str):
         return {"status": "success",
                 "message": f"Đã yêu cầu dừng '{task_key}' — sẽ dừng sau khi xong việc đang dở."}
     raise HTTPException(status_code=404, detail=f"Không có tác vụ '{task_key}' đang chạy.")
+
+
+# ------------------------------------------------------------- Editor (GĐ 0)
+from orchestrator.editor import api as editor_api  # noqa: E402
+
+editor_router = editor_api.tao_router(process_mgr, pipeline)
+app.include_router(editor_router)
+
+
+@app.get("/", include_in_schema=False)
+def trang_chu():
+    """Mở app là vào trang chủ dự án; giao diện cũ đã bị gỡ."""
+    return RedirectResponse("/home.html")
 
 
 # Giao diện web (đặt CUỐI để không nuốt mất các route /api/*)

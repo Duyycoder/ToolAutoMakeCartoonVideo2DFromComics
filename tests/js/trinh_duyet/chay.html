@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<!-- Chạy tests/js/*.test.mjs trong trình duyệt khi máy không có Node.
+     Chạy `python tests/js/trinh_duyet/phuc_vu.py` rồi mở
+     http://127.0.0.1:8210/tests/js/trinh_duyet/chay.html — có Node thì dùng `node --test tests/js/`. -->
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Test JS editor</title>
+    <script type="importmap">
+        { "imports": { "node:test": "./test.js", "node:assert/strict": "./assert.js" } }
+    </script>
+</head>
+<body style="font-family:system-ui;padding:16px">
+    Đang chạy…
+    <script type="module" src="../store.test.mjs"></script>
+</body>
+</html>

@@ -299,46 +299,11 @@ def _goi(folder, files, **kw):
     return main.project_translate(main.ProjectTranslateSchema(folder=folder, files=files, **kw))
 
 
-def test_endpoint_chay_dung_thu_tu_va_truyen_tuy_chon_ghep(api):
-    folder, files, calls = api
-    res = _goi(folder, [files[2], files[0]],
-               merge_after=main.MergeAfterSchema(enabled=True, output_name="x"))
-    assert res["count"] == 2
-    task_key, got_folder, got_files, args, merge_opts = calls[0]
-    assert got_files == [files[2], files[0]]
-    assert merge_opts["enabled"] is True and merge_opts["output_name"] == "x"
-    assert "folder" not in args and "files" not in args and "merge_after" not in args
 
 
-@pytest.mark.parametrize("files, code", [
-    ([], 400),                                  # chưa chọn gì
-    (["khong_co.mp4"], 404),                    # không thuộc dự án
-    (["..\\..\\Windows\\win.ini"], 404),        # thoát khỏi thư mục dự án
-])
-def test_endpoint_tu_choi_dau_vao_sai(api, files, code):
-    folder, _, calls = api
-    with pytest.raises(HTTPException) as e:
-        _goi(folder, files)
-    assert e.value.status_code == code
-    assert calls == []
 
 
-def test_endpoint_tu_choi_chon_trung(api):
-    folder, files, _ = api
-    with pytest.raises(HTTPException) as e:
-        _goi(folder, [files[0], files[0]])
-    assert e.value.status_code == 400
 
 
-def test_endpoint_tu_choi_file_da_mat_tren_dia(api):
-    folder, files, _ = api
-    os.remove(os.path.join(folder, files[0]))
-    with pytest.raises(HTTPException) as e:
-        _goi(folder, [files[0]])
-    assert e.value.status_code == 400
 
 
-def test_endpoint_tu_choi_thu_muc_chua_phai_du_an(api, tmp_path):
-    with pytest.raises(HTTPException) as e:
-        _goi(str(tmp_path), ["a.mp4"])
-    assert e.value.status_code == 404

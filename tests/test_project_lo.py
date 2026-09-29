@@ -256,64 +256,15 @@ def test_lo_tron_khong_dich_lai_muc_da_co_ban_dich(h):
 
 
 # ------------------------------------------------------------------- Endpoint
-def test_endpoint_tai_vao_thu_muc_chua_phai_du_an_bi_chan(tmp_path, monkeypatch):
-    monkeypatch.setattr(main.process_mgr, "is_running", lambda key: False)
-    with pytest.raises(HTTPException) as e:
-        main.download_start(main.DownloadSchema(urls=["https://x/1"], project_folder=str(tmp_path)))
-    assert e.value.status_code == 404
 
 
-def test_endpoint_nhap_vao_du_an_di_duong_du_an(tmp_path, monkeypatch):
-    folder = _du_an_rong(tmp_path)
-    goi = []
-    monkeypatch.setattr(main.process_mgr, "is_running", lambda key: False)
-    monkeypatch.setattr(main.pipeline, "start_import_project",
-                        lambda *a, **k: goi.append(a) or True)
-    monkeypatch.setattr(main.pipeline, "start_import",
-                        lambda *a, **k: pytest.fail("không được nhập vào thư viện chung"))
-    res = main.import_batch(main.ImportBatchSchema(
-        items=[main.ImportBatchItem(path="C:/a.mp4")], project_folder=folder))
-    assert res["count"] == 1
-    assert goi[0][1] == os.path.abspath(folder)
 
 
-def test_endpoint_nhap_vao_thu_muc_chua_phai_du_an_bi_chan(tmp_path, monkeypatch):
-    monkeypatch.setattr(main.process_mgr, "is_running", lambda key: False)
-    with pytest.raises(HTTPException) as e:
-        main.import_batch(main.ImportBatchSchema(
-            items=[main.ImportBatchItem(path="C:/a.mp4")], project_folder=str(tmp_path)))
-    assert e.value.status_code == 404
 
 
 # ----------------------------------------------------------- Đóng dự án
-def test_dong_du_an_xoa_hien_tai_nhung_giu_danh_sach_gan_day(monkeypatch):
-    """Trước đây không có đường về thư viện chung: app tự mở lại dự án cũ mỗi lần
-    khởi động, còn chọn "— Chưa mở dự án nào —" thì không làm gì."""
-    cfg = {"du_an": {"hien_tai": "D:/phim", "gan_day": [{"folder": "D:/phim", "name": "Phim"}]}}
-    luu = []
-    monkeypatch.setattr(main, "load_global_config", lambda: cfg)
-    monkeypatch.setattr(main, "save_global_config", lambda c: luu.append(c))
-
-    assert main.project_close()["status"] == "success"
-    assert luu[-1]["du_an"]["hien_tai"] == ""
-    assert luu[-1]["du_an"]["gan_day"] == [{"folder": "D:/phim", "name": "Phim"}]
 
 
 # ------------------------------------------------------- Mở thư mục dự án
-@pytest.mark.parametrize("kind, con", [("root", ""), ("da_sub", "da_sub"),
-                                       ("phu_de", "phu_de"), ("ban_ghep", "ban_ghep"),
-                                       ("../../Windows", "")])
-def test_mo_thu_muc_du_an_chi_trong_du_an(tmp_path, monkeypatch, kind, con):
-    folder = _du_an_rong(tmp_path)
-    mo = []
-    monkeypatch.setattr(main, "_reveal_in_file_manager", mo.append)
-    res = main.open_project_folder(main.ProjectFolderSchema(folder=folder), kind=kind)
-    mong = os.path.join(os.path.abspath(folder), con) if con else os.path.abspath(folder)
-    assert res["path"] == mong == mo[0], "kind lạ thì mở gốc dự án, không đi ra ngoài"
 
 
-def test_mo_thu_muc_khong_phai_du_an_bi_tu_choi(tmp_path, monkeypatch):
-    monkeypatch.setattr(main, "_reveal_in_file_manager", lambda p: pytest.fail("không được mở"))
-    with pytest.raises(HTTPException) as e:
-        main.open_project_folder(main.ProjectFolderSchema(folder=str(tmp_path)))
-    assert e.value.status_code == 404

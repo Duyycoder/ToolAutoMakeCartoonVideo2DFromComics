@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dự án — Cào &amp; Dịch Video</title>
+    <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;🎬&lt;/text&gt;&lt;/svg&gt;">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="editor/editor.css">
+</head>
+<body>
+<div class="tc">
+    <header class="tc-dau">
+        <div class="tc-logo">🎬 Cào &amp; Dịch Video</div>
+        <nav class="tc-tab" id="tcTab">
+            <button class="bat" data-tab="du-an">Dự án</button>
+            <button data-tab="hang-loat">Hàng loạt</button>
+            <button data-tab="huong-dan">Hướng dẫn</button>
+        </nav>
+        <div class="gian"></div>
+        <button class="nut-icon" id="btnCaiDat" title="Cấu hình chung">⚙</button>
+        <button class="nut" id="btnMoNoiLam" title="Mở thư mục Nơi làm việc bằng File Explorer">📂 Mở thư mục</button>
+        <button class="nut" id="btnNhapDuAn" title="Thêm một thư mục dự án (hoặc thư mục video) có sẵn">⤓ Nhập dự án</button>
+        <button class="nut nut-chinh" id="btnDuAnMoi">＋ Dự án mới</button>
+    </header>
+
+    <main class="tc-than">
+        <section id="tabDuAn">
+            <div class="tc-noi-lam">
+                Nơi làm việc: <code id="noiLam">…</code>
+                <button class="nut nut-nho" id="btnDoiNoiLam">Đổi…</button>
+            </div>
+            <div class="tc-loc">
+                <input type="search" id="timDuAn" placeholder="Tìm dự án…">
+                <select id="locDoPhanGiai" title="Lọc độ phân giải">
+                    <option value="">Mọi khung hình</option>
+                    <option value="ngang">Ngang (16:9…)</option>
+                    <option value="doc">Dọc (9:16…)</option>
+                    <option value="vuong">Vuông</option>
+                </select>
+                <select id="locFps" title="Lọc FPS"><option value="">Mọi FPS</option></select>
+                <select id="sapXep" title="Sắp xếp">
+                    <option value="sua">Sửa gần nhất</option>
+                    <option value="ten">Tên</option>
+                    <option value="tao">Ngày tạo</option>
+                </select>
+            </div>
+            <div class="tc-luoi" id="luoiDuAn"></div>
+        </section>
+
+        <!-- ------------------------------------------------ TAB: LÔ VIDEO -->
+        <section id="tabHangLoat" class="an tc-huong-dan">
+            <h2>Chạy Hàng Loạt</h2>
+            <div class="o-form">
+                <div class="hang">
+                    <button class="nut" id="hlChonFile">📁 Chọn file/thư mục…</button>
+                    <span id="hlSoFile">0 file đã chọn</span>
+                </div>
+                <label>Hoặc dán link (mỗi dòng một link)<textarea id="hlUrls" rows="3" placeholder="https://..."></textarea></label>
+                
+                <div class="hang">
+                    <label>Chế độ
+                        <select id="hlCheDo">
+                            <option value="moi_video_mot_du_an">Mỗi video một dự án riêng</option>
+                            <option value="gom_mot_du_an">Gom chung vào một dự án (nối đuôi)</option>
+                        </select>
+                    </label>
+                    <label>Tên / Tiền tố<input type="text" id="hlTen" placeholder="Lô video"></label>
+                </div>
+                
+                <div class="hang">
+                    <label>Khung hình
+                        <select id="hlKhungHinh">
+                            <option value="theo_video_dau">Theo video đầu</option>
+                            <option value="16:9">16:9 (Ngang)</option>
+                            <option value="9:16">9:16 (Dọc)</option>
+                            <option value="1:1">1:1 (Vuông)</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <h3>Mẫu xử lý AI</h3>
+                <label class="check"><input type="checkbox" id="hlTaoPhuDe"> Tạo phụ đề</label>
+                <div id="hlPhuDeVung" style="display:none; margin-left:20px;">
+                    <label>Loại<select id="hlPhuDeLoai"><option value="whisper">Whisper (Âm thanh)</option><option value="ocr">OCR (Chữ trên hình)</option></select></label>
+                    <div id="hlOcrVung" style="display:none;">
+                        <label>Vùng OCR (x, y, w, h theo %):
+                            <input type="text" id="hlVungOcr" value="0, 80, 100, 20" placeholder="vd 0,80,100,20">
+                        </label>
+                        <label class="check"><input type="checkbox" id="hlChePhuDe"> Tự tạo vùng che sub gốc đúng khung này</label>
+                    </div>
+                </div>
+                
+                <label class="check"><input type="checkbox" id="hlDich"> Dịch phụ đề</label>
+                <div id="hlDichVung" style="display:none; margin-left:20px;">
+                    <label>Ngôn ngữ dịch sang
+                        <select id="hlDichSang">
+                            <option value="Vietnamese">Tiếng Việt</option>
+                            <option value="English">Tiếng Anh</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <label class="check"><input type="checkbox" id="hlLongTieng"> Lồng tiếng</label>
+                <div id="hlLongTiengVung" style="display:none; margin-left:20px;">
+                    <label>Giọng đọc (TTS)
+                        <select id="hlGiongTTS">
+                            <option value="edge">Edge TTS (online, nhanh)</option>
+                            <option value="piper">Piper (offline)</option>
+                            <option value="kokoro">Kokoro (offline)</option>
+                            <option value="vieneu">VieNeu (tiếng Việt)</option>
+                            <option value="clone">Clone giọng gốc</option>
+                        </select>
+                    </label>
+                    <div id="hlAiChonGiong"></div>
+                </div>
+                
+                <label class="check"><input type="checkbox" id="hlXuat"> Xuất video</label>
+                <div id="hlXuatVung" class="hang" style="display:none; padding-left:25px; margin-top:-5px; margin-bottom:15px; gap:10px;">
+                    <label>Chất lượng<select id="hlXuatChatLuong">
+                        <option value="16">Rất cao</option>
+                        <option value="19" selected>Cao</option>
+                        <option value="22">Vừa</option>
+                        <option value="26">Nhẹ</option>
+                    </select></label>
+                    <label>Bộ mã hoá<select id="hlXuatBoMaHoa">
+                        <option value="auto">Tự chọn (NVENC nếu có GPU)</option>
+                        <option value="nvenc">NVENC (GPU NVIDIA)</option>
+                        <option value="x264">x264 (CPU)</option>
+                    </select></label>
+                </div>
+                
+                <div style="margin-top:20px;">
+                    <button class="nut nut-chinh" id="hlChay">▶ Chạy lô</button>
+                </div>
+            </div>
+            
+            <h3 style="margin-top:30px;">Danh sách lô đang chạy / đã xong</h3>
+            <div id="hlDanhSach" class="tc-luoi" style="margin-top:10px;"></div>
+        </section>
+
+        <section id="tabHuongDan" class="an tc-huong-dan">
+            <h2>Bắt đầu</h2>
+            <ol>
+                <li><b>＋ Dự án mới</b>: đặt tên, chọn khung hình (16:9 ngang, 9:16 dọc…) và FPS.</li>
+                <li>Trong editor, bảng <b>🎞 Tệp phương tiện</b> → <b>Nhập</b> để chọn video/âm thanh/ảnh/phụ đề,
+                    hoặc <b>URL</b> để tải từ TikTok/YouTube/Bilibili. File được <b>chép</b> vào thư mục <code>media/</code>
+                    của dự án, giữ nguyên tên — file gốc của bạn không bị động tới.</li>
+                <li>Kéo media xuống timeline.</li>
+            </ol>
+            <h2>Lưu tiến độ</h2>
+            <ul>
+                <li>Mọi thay đổi tự lưu sau 1,5 giây. Chấm cam trên nút <b>Lưu</b> nghĩa là còn thay đổi chưa ghi.</li>
+                <li>Đóng app lúc nào (kể cả tắt ngang) mở lại vẫn thấy đúng như cũ: timeline, bảng đang mở, cỡ các cột, hoàn tác.</li>
+                <li><b>Ctrl+S</b> tạo một bản lưu có tên trong menu <b>Phiên bản</b>; app cũng tự lưu một bản mỗi 5 phút.</li>
+            </ul>
+            <h2>Dự án có sẵn</h2>
+            <p><b>⤓ Nhập dự án</b> nhận cả dự án làm ở giao diện cũ (tự nâng cấp, không di chuyển file nào)
+                lẫn một thư mục video thường.</p>
+        </section>
+    </main>
+</div>
+<script type="module" src="editor/home.js"></script>
+</body>
+</html>

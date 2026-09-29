@@ -40,6 +40,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "target_lang": "Vietnamese",
         "ollama_base_url": "http://localhost:11434/v1",
         "ollama_model": DEFAULT_OLLAMA_MODEL,
+        "mt_model": "hy-mt2:1.8b",
+        "mt_model_du_phong": "qwen2.5:7b-instruct",
         "autostart_ollama": True,
         "gemini_offline_base_url": "http://localhost:7860/v1",
         "gemini_offline_key": "",
@@ -78,6 +80,14 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "video": {
         "downloader_cookies": "",
         "ocr_use_gpu": True
+    },
+
+    # Trình edit video (xem docs/PLAN-editor.md). workspace trống = ~/CaoDichVideo (KHÔNG để trong Videos: Controlled Folder Access chặn)
+    "editor": {
+        "workspace": "",
+        "tu_luu_giay": 1.5,
+        "so_ban_lich_su": 20,
+        "du_an_ngoai": []
     },
 
     "tts": {

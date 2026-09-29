@@ -39,6 +39,17 @@ def pick(mode: str, title: str = "") -> dict:
             chosen = filedialog.askdirectory(
                 parent=root, title=title or "Chọn thư mục chứa video")
             paths = [chosen] if chosen else []
+        elif mode == "media":
+            from orchestrator.editor.media import ANH_EXTS, AUDIO_EXTS, PHU_DE_EXTS
+            nhom = [("Video", VIDEO_EXTS), ("Âm thanh", AUDIO_EXTS), ("Ảnh", ANH_EXTS),
+                    ("Phụ đề", PHU_DE_EXTS)]
+            tat_ca = " ".join("*" + e for _, exts in nhom for e in exts)
+            chosen = filedialog.askopenfilenames(
+                parent=root, title=title or "Nhập media (giữ Ctrl/Shift để chọn nhiều)",
+                filetypes=[("Mọi media", tat_ca)]
+                + [(ten, " ".join("*" + e for e in exts)) for ten, exts in nhom]
+                + [("Tất cả các file", "*.*")])
+            paths = list(chosen or ())
         else:
             patterns = " ".join("*" + ext for ext in VIDEO_EXTS)
             chosen = filedialog.askopenfilenames(
@@ -52,7 +63,7 @@ def pick(mode: str, title: str = "") -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Hộp thoại chọn video của hệ điều hành")
-    parser.add_argument("--mode", default="files", choices=("files", "folder"))
+    parser.add_argument("--mode", default="files", choices=("files", "folder", "media"))
     parser.add_argument("--title", default="")
     args = parser.parse_args()
 

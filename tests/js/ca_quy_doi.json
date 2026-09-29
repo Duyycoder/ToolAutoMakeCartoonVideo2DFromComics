@@ -1,0 +1,28 @@
+{
+  "_ghi_chu": "Ca test DÙNG CHUNG cho orchestrator/editor/quy_doi.py (pytest) và webui/editor/store.js (node --test / trình duyệt).",
+  "timeline": {
+    "tracks": [
+      {"id": "V1", "loai": "video"}, {"id": "S1", "loai": "phu_de"},
+      {"id": "O1", "loai": "lop_phu"}, {"id": "A1", "loai": "audio"}
+    ],
+    "clips": [
+      {"id": "c_1", "track": "V1", "media": "m_01", "bat_dau": 0, "vao": 0, "ra": 4, "toc_do": 1},
+      {"id": "c_2", "track": "V1", "media": "m_01", "bat_dau": 6, "vao": 5, "ra": 9, "toc_do": 2},
+      {"id": "c_3", "track": "A1", "media": "m_09", "bat_dau": 1, "vao": 10, "ra": 20, "toc_do": 1}
+    ]
+  },
+  "ca": [
+    {"ten": "câu nằm trọn trong clip đầu", "clip": {"id": "s_1", "loai": "phu_de", "tu_media": "m_01", "t_vao": 1, "t_ra": 2},
+     "ket_qua": [{"bd": 1, "kt": 2, "clip": "c_1"}]},
+    {"ten": "câu vắt qua chỗ cắt: phần đầu ở c_1, phần sau ở c_2 (tốc 2x)", "clip": {"id": "s_2", "loai": "phu_de", "tu_media": "m_01", "t_vao": 3, "t_ra": 7},
+     "ket_qua": [{"bd": 3, "kt": 4, "clip": "c_1"}, {"bd": 6, "kt": 7, "clip": "c_2"}]},
+    {"ten": "câu nằm trong đoạn đã cắt bỏ (4-5s) thì ẩn", "clip": {"id": "s_3", "loai": "phu_de", "tu_media": "m_01", "t_vao": 4.2, "t_ra": 4.8},
+     "ket_qua": []},
+    {"ten": "media chỉ có trên track âm thanh", "clip": {"id": "s_4", "loai": "phu_de", "tu_media": "m_09", "t_vao": 12, "t_ra": 13},
+     "ket_qua": [{"bd": 3, "kt": 4, "clip": "c_3"}]},
+    {"ten": "media không có trên timeline", "clip": {"id": "s_5", "loai": "phu_de", "tu_media": "m_77", "t_vao": 0, "t_ra": 1},
+     "ket_qua": []},
+    {"ten": "câu tự gõ, thời gian tuyệt đối", "clip": {"id": "s_6", "loai": "phu_de", "bat_dau": 2.5, "ket_thuc": 3.5},
+     "ket_qua": [{"bd": 2.5, "kt": 3.5, "clip": null}]}
+  ]
+}

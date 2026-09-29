@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cấu hình - Editor</title>
+    <link rel="stylesheet" href="/editor/editor.css">
+    <style>
+        body { padding: 20px; background: transparent; overflow-y: auto; color: #e2e8f0; font-family: sans-serif; }
+        .settings-section { margin-bottom: 24px; padding: 16px; background: #1e222a; border-radius: 8px; border: 1px solid #2d333b; }
+        .settings-section h3 { margin-top: 0; color: #f8fafc; font-size: 1.1rem; margin-bottom: 16px; border-bottom: 1px solid #2d333b; padding-bottom: 8px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group.full { grid-column: 1 / -1; }
+        label { font-size: 0.9rem; font-weight: 500; color: #cbd5e1; }
+        input[type="text"], input[type="password"], input[type="number"], select {
+            background: #0f1115; border: 1px solid #334155; padding: 8px 12px; color: #f8fafc; border-radius: 4px;
+        }
+        .help-text { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
+        .checkbox-container { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; }
+        .btn-primary { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 500; }
+        .btn-primary:hover { background: #2563eb; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; position: sticky; top: 0; background: #12141a; padding: 10px 0; z-index: 10; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <h2>⚙ Cấu hình hệ thống</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <span id="gpuInfo" class="help-text"></span>
+            <button id="btnSaveSettings" class="btn-primary">💾 Lưu cấu hình</button>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Hệ thống & AI</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Thư mục dữ liệu</label>
+                <input type="text" data-cfg="storage_dir" placeholder="storage">
+            </div>
+            <div class="form-group">
+                <label>Gemini API Key</label>
+                <input type="password" data-cfg="api_keys.gemini">
+            </div>
+            <div class="form-group">
+                <label>Pexels API Key <a href="https://www.pexels.com/api/" target="_blank" style="font-size: 0.8em; color: #3498db; text-decoration: none;">(Miễn phí)</a></label>
+                <input type="password" data-cfg="api_keys.pexels">
+            </div>
+            <div class="form-group">
+                <label>Pixabay API Key <a href="https://pixabay.com/api/docs/" target="_blank" style="font-size: 0.8em; color: #3498db; text-decoration: none;">(Miễn phí)</a></label>
+                <input type="password" data-cfg="api_keys.pixabay">
+            </div>
+            <div class="form-group">
+                <label>Coverr API Key <a href="https://coverr.co/api" target="_blank" style="font-size: 0.8em; color: #3498db; text-decoration: none;">(Miễn phí)</a></label>
+                <input type="password" data-cfg="api_keys.coverr">
+            </div>
+            <div class="form-group">
+                <label>Engine dịch mặc định</label>
+                <select data-cfg="translate.engine">
+                    <option value="ollama">Ollama (cục bộ)</option>
+                    <option value="gemini_api">Gemini proxy cục bộ</option>
+                    <option value="gemini">Gemini Online</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Ollama base URL</label>
+                <input type="text" data-cfg="translate.ollama_base_url">
+            </div>
+            <div class="form-group">
+                <label>Model Ollama mặc định</label>
+                <select id="cfgOllamaModel" data-cfg="translate.ollama_model"></select>
+            </div>
+            <div class="form-group">
+                <label>Model Dịch chuyên dụng (MT)</label>
+                <select id="cfgMtModel" data-cfg="translate.mt_model"></select>
+            </div>
+            <div class="form-group">
+                <label>Model Dịch dự phòng</label>
+                <select id="cfgMtModelDuPhong" data-cfg="translate.mt_model_du_phong"></select>
+            </div>
+            <div class="form-group">
+                <label>Base URL proxy Gemini</label>
+                <input type="text" data-cfg="translate.gemini_offline_base_url">
+            </div>
+            <div class="form-group full">
+                <label>Đường dẫn start_server.bat của proxy Gemini</label>
+                <input type="text" data-cfg="translate.gemini_proxy_bat">
+            </div>
+            <div class="form-group">
+                <label class="checkbox-container">
+                    <input type="checkbox" data-cfg="translate.autostart_ollama"> Tự bật Ollama khi cần
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-container">
+                    <input type="checkbox" data-cfg="video.ocr_use_gpu"> Dùng GPU cho OCR (PaddleOCR)
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Editor</h3>
+        <div class="form-grid">
+            <div class="form-group full">
+                <label>Thư mục Nơi làm việc</label>
+                <input type="text" data-cfg="editor.workspace" placeholder="Mặc định: ~/CaoDichVideo">
+            </div>
+            <div class="form-group">
+                <label>Tự lưu sau khi ngừng thao tác (giây)</label>
+                <input type="number" data-cfg="editor.tu_luu_giay" step="0.5">
+            </div>
+            <div class="form-group">
+                <label>Số bản lịch sử tự động giữ lại</label>
+                <input type="number" data-cfg="editor.so_ban_lich_su">
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Mặc định: Dịch & Lồng tiếng (cho Hàng loạt / AI)</h3>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Ngôn ngữ gốc</label>
+                <select data-cfg="autosub.source_lang">
+                    <option value="English">Tiếng Anh</option>
+                    <option value="Chinese">Tiếng Trung</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Ngôn ngữ đích</label>
+                <select data-cfg="translate.target_lang">
+                    <option value="Vietnamese">Tiếng Việt</option>
+                    <option value="English">Tiếng Anh</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Nguồn phụ đề</label>
+                <select data-cfg="autosub.sub_source">
+                    <option value="whisper">Whisper</option>
+                    <option value="ocr">OCR</option>
+                    <option value="import">Có sẵn</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-container"><input type="checkbox" data-cfg="autosub.clean_audio"> Tách nhạc nền trước (Demucs)</label>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-container"><input type="checkbox" data-cfg="autosub.translate_only"> Chỉ xuất .srt</label>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-container"><input type="checkbox" data-cfg="autosub.enable_voiceover"> Bật lồng tiếng mặc định</label>
+            </div>`n            <div class="form-group">`n                <label class="checkbox-container"><input type="checkbox" data-cfg="autosub.auto_clone"> Tự clone giọng bằng AI</label>`n            </div>
+            <div class="form-group">
+                <label>Bộ máy đọc (TTS)</label>
+                <select id="cfgTtsEngine" data-cfg="autosub.tts_engine">
+                    <option value="edge">Edge-TTS</option>
+                    <option value="piper">Piper</option>
+                    <option value="kokoro">Kokoro</option>
+                    <option value="vieneu">VieNeu</option>
+                    <option value="clone">XTTSv2 (clone)</option>
+                </select>
+            </div>
+            <div class="form-group" id="cfgAiChonGiong"></div>
+            <div class="form-group">
+                <label>Giảm âm gốc (%)</label>
+                <input type="number" data-cfg="autosub.ducking_ratio">
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Mặc định: Định dạng phụ đề cứng</h3>
+        <div class="form-grid">
+            <div class="form-group"><label>Cách ghi</label><select data-cfg="autosub.burn_method"><option value="ffmpeg">FFmpeg</option><option value="moviepy">MoviePy</option></select></div>
+            <div class="form-group"><label>Phông</label><select data-cfg="autosub.font_name">
+                <option value="Montserrat-Bold.ttf">Montserrat Bold</option>
+                <option value="BeVietnamPro-Bold.ttf">BeVietnam Pro Bold</option>
+                <option value="Arial-Bold.ttf">Arial Bold</option>
+            </select></div>
+            <div class="form-group"><label>Cỡ chữ</label><input type="number" data-cfg="autosub.font_size"></div>
+            <div class="form-group"><label>Màu chữ</label><input type="color" data-cfg="autosub.text_color"></div>
+            <div class="form-group"><label>Màu viền</label><input type="color" data-cfg="autosub.stroke_color"></div>
+            <div class="form-group"><label>Độ dày viền</label><input type="number" data-cfg="autosub.stroke_width" step="0.5"></div>
+            <div class="form-group"><label>Kiểu nền</label><select data-cfg="autosub.bg_style"><option value="None">Không</option><option value="Box">Hộp</option></select></div>
+            <div class="form-group"><label>Màu nền</label><input type="color" data-cfg="autosub.bg_color"></div>
+            <div class="form-group"><label>Độ mờ nền</label><input type="number" data-cfg="autosub.bg_alpha"></div>
+            <div class="form-group"><label>Vị trí</label><select data-cfg="autosub.sub_position"><option value="bottom">Dưới</option><option value="top">Trên</option><option value="center">Giữa</option><option value="custom">Tuỳ chỉnh</option></select></div>
+            <div class="form-group"><label>Vị trí Y (%)</label><input type="number" data-cfg="autosub.custom_position"></div>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Mặc định: Lô Video (Tải về)</h3>
+        <div class="form-grid">
+            <div class="form-group"><label>Nền tảng ưu tiên</label><select data-cfg="download.platform"><option value="generic">Tự nhận</option><option value="youtube">YouTube</option><option value="tiktok">TikTok</option><option value="douyin">Douyin</option><option value="bilibili">Bilibili</option></select></div>
+            <div class="form-group"><label>Giới hạn video</label><input type="number" data-cfg="download.max_items"></div>
+            <div class="form-group full"><label>File Cookies (.txt)</label><input type="text" data-cfg="download.cookies_file"></div>
+            <div class="form-group"><label class="checkbox-container"><input type="checkbox" data-cfg="download.skip_existing"> Bỏ qua file có sẵn</label></div>
+            <div class="form-group"><label class="checkbox-container"><input type="checkbox" data-cfg="download.stop_on_error"> Dừng khi lỗi</label></div>
+            <div class="form-group"><label class="checkbox-container"><input type="checkbox" data-cfg="download.auto_translate"> Lồng tiếng/Dịch sau tải</label></div>
+        </div>
+    </div>
+
+    <script type="module" src="/editor/cai_dat_trang.js"></script>
+</body>
+</html>
+

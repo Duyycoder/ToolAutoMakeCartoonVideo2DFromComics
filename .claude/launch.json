@@ -6,6 +6,18 @@
       "runtimeExecutable": "AIVoice/.venv/Scripts/python.exe",
       "runtimeArgs": ["-m", "uvicorn", "orchestrator.main:app", "--host", "127.0.0.1", "--port", "8100"],
       "port": 8100
+    },
+    {
+      "name": "webui-thu",
+      "runtimeExecutable": "AIVoice/.venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "orchestrator.main:app", "--host", "127.0.0.1", "--port", "8110"],
+      "port": 8110
+    },
+    {
+      "name": "js-test",
+      "runtimeExecutable": "AIVoice/.venv/Scripts/python.exe",
+      "runtimeArgs": ["tests/js/trinh_duyet/phuc_vu.py"],
+      "port": 8210
     }
   ]
 }
