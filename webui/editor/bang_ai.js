@@ -323,6 +323,9 @@ export class BangAi {
             if (v.loai === 'dich' && kq.bao_cao && v.trang_thai === 'xong') {
                 moTaKq += ` (lọt ${Math.round((kq.bao_cao.ti_le_lot_cuoi || 0) * 100)}%, sửa ${kq.bao_cao.so_cau_sua} câu)`;
             }
+            // Dịch bị huỷ giữa chừng vẫn giữ các câu đã dịch: áp dụng phần đó rồi dịch tiếp phần còn lại.
+            const dangDo = v.loai === 'dich' && v.trang_thai === 'da_huy' && kq.dang_do && (kq.cau || []).length;
+            if (dangDo) moTaKq = `${kq.cau.length}/${kq.tong_cau} câu đã dịch trước khi huỷ`;
             return `<div class="the-tv ${v.trang_thai}" data-id="${esc(v.id)}">
                 <div class="tv-dau"><b>${esc(v.nhan || v.loai)}</b><span class="tv-tt">${TT[v.trang_thai] || v.trang_thai}${v.vi_tri && v.trang_thai === 'cho' ? ` (thứ ${v.vi_tri})` : ''}</span></div>
                 ${dang ? `<div class="thanh-tien-do" style="width:100%"><i style="width:${v.tien_do || 0}%"></i></div>` : ''}
@@ -342,7 +345,9 @@ export class BangAi {
                     ${v.loai === 'xuat' && v.trang_thai === 'xong' ? '<button class="nut nut-nho" data-l="mo-xuat">📂 Mở thư mục</button>' : ''}
                     ${v.loai !== 'xuat' && v.trang_thai === 'xong' && !v.da_ap_dung ? '<button class="nut nut-chinh nut-nho" data-l="ap-dung">Áp dụng</button>' : ''}
                     ${v.loai !== 'xuat' && v.trang_thai === 'xong' && v.da_ap_dung ? '<span class="goi-y-nho">đã áp dụng</span>' : ''}
-                    ${v.loai !== 'xuat' && ['loi', 'bi_ngat', 'da_huy'].includes(v.trang_thai) ? '<button class="nut nut-nho" data-l="chay-lai">↻ Chạy lại</button>' : ''}
+                    ${dangDo && !v.da_ap_dung ? `<button class="nut nut-chinh nut-nho" data-l="ap-dung">Áp dụng ${kq.cau.length} câu đã dịch</button>` : ''}
+                    ${dangDo && v.da_ap_dung ? '<button class="nut nut-chinh nut-nho" data-l="dich-tiep">↻ Dịch tiếp phần còn lại</button>' : ''}
+                    ${v.loai !== 'xuat' && ['loi', 'bi_ngat', 'da_huy'].includes(v.trang_thai) && !(dangDo && v.da_ap_dung) ? '<button class="nut nut-nho" data-l="chay-lai">↻ Chạy lại</button>' : ''}
                     ${!dang ? '<button class="nut nut-nho" data-l="an-tv">Ẩn</button>' : ''}
                 </div></div>`;
         }).join('');
@@ -406,6 +411,8 @@ export class BangAi {
             else if (l === 'huy-tv' && v) await api(`/api/hang-doi/${v.id}/huy`, { method: 'POST' });
             else if (l === 'an-tv' && v) await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/tac-vu/${v.id}/an`, { method: 'POST', body: { phien: this.ctx.boLuu.phien } });
             else if (l === 'chay-lai' && v) await this.chay(v.loai, v.media, v.tham_so || {});
+            // Câu đã áp dụng có text ≠ text_goc → dich_lai_tat_ca=false để server bỏ qua, chỉ dịch câu chưa dịch.
+            else if (l === 'dich-tiep' && v) await this.chay('dich', v.media, { ...(v.tham_so || {}), dich_lai_tat_ca: false });
             else if (l === 'ap-dung' && v) await this.apDung(v);
             else if (l === 'mo-xuat') await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/mo-thu-muc-con?ten=xuat`, { method: 'POST' });
                                     else if (l === 'mo-thuat-ngu') {

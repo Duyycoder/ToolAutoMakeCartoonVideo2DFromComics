@@ -390,17 +390,29 @@ def test_ngu_canh_prompt(fake_ollama, tmp_path, monkeypatch):
 
     dich.dich(ctx, str(tmp_path), "dich", {"id": "m1"}, tham_so)
 
-    assert "success 1" not in fake_ollama[1]["prompt"]
-
-    
+    # Chạy song song → thứ tự lần gọi không cố định: tìm prompt của câu 2 theo nội dung.
+    p2 = [c["prompt"] for c in fake_ollama if "success 2" in c["prompt"]]
+    assert p2 and all("success 1" not in p for p in p2)
 
     fake_ollama.clear()
 
+    # Tiếng Trung + ngữ cảnh: prompt câu 2 có câu GỐC câu 1 (mẫu ngữ cảnh chính thức của hy-mt2).
+    tham_so = {"cau": [{"id": "1", "text_goc": "success 1", "text": "success 1"}, {"id": "2", "text_goc": "success 2", "text": "success 2"}], "ids": ["1", "2"], "source_lang": "Chinese", "target_lang": "Vietnamese", "ngu_canh": True}
+
+    dich.dich(ctx, str(tmp_path), "dich", {"id": "m1"}, tham_so)
+
+    p2 = [c["prompt"] for c in fake_ollama if c["prompt"].endswith("success 2")]
+    assert p2 and "success 1" in p2[0]
+
+    fake_ollama.clear()
+
+    # Tiếng Anh: hy-mt2 không có mẫu prompt ngữ cảnh → không đưa câu trước vào.
     tham_so = {"cau": [{"id": "1", "text_goc": "success 1", "text": "success 1"}, {"id": "2", "text_goc": "success 2", "text": "success 2"}], "ids": ["1", "2"], "source_lang": "English", "target_lang": "Vietnamese", "ngu_canh": True}
 
     dich.dich(ctx, str(tmp_path), "dich", {"id": "m1"}, tham_so)
 
-    assert "success 1" not in fake_ollama[1]["prompt"]
+    p2 = [c["prompt"] for c in fake_ollama if "success 2" in c["prompt"]]
+    assert p2 and all("success 1" not in p for p in p2)
 
 
 def test_thuat_ngu_nguon(tmp_path, monkeypatch):
@@ -524,3 +536,42 @@ def test_dich_gop_lo_tach_theo_so_dong(tmp_path, monkeypatch):
                                                               "source_lang": "English", "target_lang": "Vietnamese"})
     assert [c["text"] for c in kq["cau"]] == ["dịch riêng"] * 3, "lô lệch số dòng phải dịch lại từng câu"
     assert len(goi) == 4
+
+    # Bật ngữ cảnh VẪN gộp lô (trước 29/09 ép từng câu, tuần tự → 1925 câu > 1,5 giờ).
+    goi.clear()
+    cau = [{"id": str(k), "text_goc": f"hello {k}", "text": f"hello {k}"} for k in range(1, 4)]
+    kq = dich.dich(ctx, str(tmp_path), "dich", {"id": "m1"}, {"cau": cau, "ids": [c["id"] for c in cau], "ngu_canh": True,
+                                                              "source_lang": "English", "target_lang": "Vietnamese"})
+    assert [c["text"] for c in kq["cau"]] == ["câu 1 đã dịch", "câu 2 đã dịch", "câu 3 đã dịch"]
+    assert len(goi) == 1
+
+
+def test_dich_huy_giua_chung_giu_cau_da_dich(tmp_path, monkeypatch):
+    """Huỷ giữa chừng: các câu đã dịch đạt nằm lại trong viec.ket_qua (dang_do) để bảng AI cho áp dụng."""
+    class FakeViec:
+        def __init__(self):
+            self.huy_event = hang_doi.threading.Event()
+            self.ket_qua = None
+    viec = FakeViec()
+
+    def post(url, json, timeout):
+        viec.huy_event.set()                      # người dùng bấm Huỷ khi lô đầu đang chạy
+        class R:
+            def raise_for_status(self): pass
+            def json(self):
+                so = [ln.split(".", 1)[0] for ln in json["prompt"].splitlines() if ln[:1].isdigit()]
+                return {"response": "\n".join(f"{k}. câu {k} đã dịch" for k in so)}
+        return R()
+
+    monkeypatch.setattr(dich.requests, "post", post)
+    monkeypatch.setattr(dich, "doc_thuat_ngu", lambda f: {})
+    monkeypatch.setattr(dich, "load_global_config", lambda: {"translate": {"so_cau_moi_lan": 2, "so_cau_song_song": 1}})
+    ctx = hang_doi.NguCanh(viec, None)
+    ctx.bao = lambda *a, **k: None
+    cau = [{"id": f"c{k}", "text_goc": f"hello {k}", "text": f"hello {k}"} for k in range(1, 5)]
+    with pytest.raises(hang_doi.DaHuy):
+        dich.dich(ctx, str(tmp_path), "dich", {"id": "m1"}, {"cau": cau, "ids": [c["id"] for c in cau],
+                                                             "source_lang": "English", "target_lang": "Vietnamese"})
+    kq = viec.ket_qua
+    assert kq["dang_do"] and kq["tong_cau"] == 4
+    assert kq["ids"] == ["c1", "c2"] and [c["text"] for c in kq["cau"]] == ["câu 1 đã dịch", "câu 2 đã dịch"]

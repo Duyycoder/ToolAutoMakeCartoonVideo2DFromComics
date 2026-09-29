@@ -284,7 +284,8 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
             tap_tu_nguon_toan_bo.update([x.lower() for x in re.findall(r'[a-zA-Zà-ỹÀ-ỸđĐ]+', txt.strip())])
     
     # Dịch SONG SONG theo câu: model 1,8B chỉ dùng ~10% GPU khi gửi tuần tự (1925 câu ≈ hơn 1 giờ). Mỗi câu vẫn là MỘT yêu cầu
-    # độc lập (không lọt ngữ cảnh). Bật ngữ cảnh thì câu sau cần bản dịch câu trước → chạy tuần tự.
+    # độc lập. Bật ngữ cảnh VẪN song song: ngữ cảnh là CÂU GỐC của 2 câu trước (có sẵn), không phải bản dịch — trước đây ép tuần tự
+    # làm 1925 câu mất > 1,5 giờ (29/09).
     # Model dự phòng (7B) để lượt RIÊNG ở cuối: GPU 6 GB không giữ được cả hai model — gọi xen kẽ từng câu làm Ollama gỡ/nạp model liên tục.
     import threading
     from concurrent.futures import ThreadPoolExecutor
@@ -292,7 +293,7 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
     dem = {"goi": 0, "xong": 0}
     ket_qua = [None] * len(cau_list)          # bản dịch theo vị trí câu (None = giữ nguyên câu gốc)
     trang_thai = [None] * len(cau_list)       # (ban_dich, lot, ly_do, is_clean, can_sua, dung_du_phong, nguon)
-    so_luong = 1 if dung_ngu_canh else max(1, int(tr.get("so_cau_song_song") or 8))   # 8 = OLLAMA_NUM_PARALLEL app đặt
+    so_luong = max(1, int(tr.get("so_cau_song_song") or 8))   # 8 = OLLAMA_NUM_PARALLEL app đặt
 
     def dich_mot_cau(i, c, cac_lan):
         text_goc = c.get("text_goc", "")
@@ -448,8 +449,9 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
     # Lượt 0: GỘP nhiều câu một dòng vào MỘT lần gọi (đánh số dòng). Mỗi lần gọi Ollama tốn phần cố định (xử lý prompt, khởi động
     # sinh chữ) lớn hơn nhiều so với chữ của một câu phụ đề ngắn → gộp 6 câu giảm số lần gọi ~6×. Tách lại theo số dòng rồi kiểm TỪNG câu
     # như cũ (lọt từ, chữ lạ, dịch thừa, thuật ngữ); câu nào không đạt / cả lô lệch số dòng → rơi xuống lượt 1 dịch riêng từng câu.
-    # Bật ngữ cảnh thì không gộp (câu sau cần bản dịch câu trước).
-    so_moi_lo = 1 if dung_ngu_canh else max(1, int(tr.get("so_cau_moi_lan") or 12))   # 12: nhanh nhất mà lọt không tăng (20 lọt hơn)
+    # Bật ngữ cảnh vẫn gộp: 12 câu liền nhau trong một lô chính là ngữ cảnh cho nhau (đo 29/09: xưng hô đều hơn dịch lẻ).
+    # 12: nhanh nhất; 20/30/50 câu chậm hơn (0,29/0,34/0,41 s/câu so với 0,24) và lô lệch số dòng tăng 6% → 37% (đo 800 câu, 29/09).
+    so_moi_lo = max(1, int(tr.get("so_cau_moi_lan") or 12))
     ten_dich_zh = {"english": "英语", "japanese": "日语", "korean": "韩语", "thai": "泰语", "indonesian": "印尼语",
                    "spanish": "西班牙语", "chinese": "中文", "vietnamese": "越南语"}.get(lang_dich.lower(), lang_dich)
     la_zh = lang_nguon.lower() in ("chinese", "tiếng trung", "中文") or lang_dich.lower() in ("chinese", "tiếng trung", "中文")
@@ -501,22 +503,35 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
             with khoa:
                 dem["xong"] += 1
 
-    if so_moi_lo > 1:
-        can = [i for i, c in enumerate(cau_list) if (n := nguon_cua(c)) and "\n" not in n]
-        # Lô chỉ 1 câu thì gộp vô ích (thêm một lần gọi) → để lượt 1 dịch thẳng.
-        cac_lo = [lo for lo in (can[j:j + so_moi_lo] for j in range(0, len(can), so_moi_lo)) if len(lo) > 1]
-        with ThreadPoolExecutor(max_workers=so_luong) as ex:
-            list(ex.map(dich_lo, cac_lo))
+    def cac_luot():
+        if so_moi_lo > 1:
+            can = [i for i, c in enumerate(cau_list) if (n := nguon_cua(c)) and "\n" not in n]
+            # Lô chỉ 1 câu thì gộp vô ích (thêm một lần gọi) → để lượt 1 dịch thẳng.
+            cac_lo = [lo for lo in (can[j:j + so_moi_lo] for j in range(0, len(can), so_moi_lo)) if len(lo) > 1]
+            with ThreadPoolExecutor(max_workers=so_luong) as ex:
+                list(ex.map(dich_lo, cac_lo))
 
-    # Lượt 1: model chuyên dụng, lần 1–2 — chỉ câu CHƯA đạt ở lượt 0 (câu bỏ qua trả None ngay, không gọi model).
-    con_lai = [i for i in range(len(cau_list)) if trang_thai[i] is None]
-    with ThreadPoolExecutor(max_workers=so_luong) as ex:
-        list(ex.map(lambda i: chay(i, (0, 1)), con_lai))
-    # Lượt 2: câu còn lỗi → model dự phòng, gom lại một lượt (một lần đổi model).
-    con_loi = [i for i, t in enumerate(trang_thai) if t is not None and not t[3]]
-    dem["xong"] = len(cau_list) - len(con_loi)
-    with ThreadPoolExecutor(max_workers=so_luong) as ex:
-        list(ex.map(lambda i: chay(i, (2,)), con_loi))
+        # Lượt 1: model chuyên dụng, lần 1–2 — chỉ câu CHƯA đạt ở lượt 0 (câu bỏ qua trả None ngay, không gọi model).
+        con_lai = [i for i in range(len(cau_list)) if trang_thai[i] is None]
+        with ThreadPoolExecutor(max_workers=so_luong) as ex:
+            list(ex.map(lambda i: chay(i, (0, 1)), con_lai))
+        # Lượt 2: câu còn lỗi → model dự phòng, gom lại một lượt (một lần đổi model).
+        con_loi = [i for i, t in enumerate(trang_thai) if t is not None and not t[3]]
+        dem["xong"] = len(cau_list) - len(con_loi)
+        with ThreadPoolExecutor(max_workers=so_luong) as ex:
+            list(ex.map(lambda i: chay(i, (2,)), con_loi))
+        return con_loi
+
+    try:
+        con_loi = cac_luot()
+    except hang_doi.DaHuy:
+        # Huỷ giữa chừng: GIỮ các câu đã dịch đạt (29/09 huỷ ở 1011/1925 câu là mất sạch) — bảng AI cho áp dụng phần này.
+        da_xong = [i for i, t in enumerate(trang_thai) if t is not None and t[3] and ket_qua[i] is not None]
+        if da_xong:
+            ctx.viec.ket_qua = {"loai": loai, "media": m["id"], "dang_do": True, "tong_cau": len(cau_list),
+                                "cau": [ket_qua[i] for i in da_xong],
+                                "ids": [ids[i] if len(ids) == len(cau_list) else cau_list[i].get("id") for i in da_xong]}
+        raise
     for i in con_loi:
         t = trang_thai[i]
         trang_thai[i] = t[:4] + (True, True, t[6])        # đã sửa + đã dùng dự phòng
