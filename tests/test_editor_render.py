@@ -28,6 +28,23 @@ def _v(cid, mid, bd, vao, ra, toc=1, **kw):
     return {"id": cid, "track": "V1", "media": mid, "bat_dau": bd, "vao": vao, "ra": ra, "toc_do": toc, **kw}
 
 
+def test_xuat_bo_scale_hwaccel_va_r_chi_khi_can(tmp_path):
+    """Lượt 24: clip đúng khung → không scale; NVENC → giải mã -hwaccel cuda; luôn có -r (fps dự án)."""
+    da = _du_an()
+    da["media"].append({"id": "m_hd", "loai": "video", "file": "media/hd.mp4", "co_am_thanh": True, "rong": 1280, "cao": 720, "fps": 30})
+    kq = render.dung_lenh_xuat(str(tmp_path), da, _tl(_v("c_1", "m_hd", 0, 0, 5)), {"bo_ma_hoa": "nvenc"}, "ra.mp4")
+    i = kq["cmd"].index("-hwaccel")
+    assert kq["cmd"][i + 1] == "cuda" and kq["cmd"].index("-i") > i
+    assert "scale=" not in kq["loc"] and "fps=30" in kq["loc"]
+    assert kq["cmd"][kq["cmd"].index("-r") + 1] == "30"
+
+    kq = render.dung_lenh_xuat(str(tmp_path), da, _tl(_v("c_1", "m_hd", 0, 0, 5)), {"bo_ma_hoa": "x264"}, "ra.mp4")
+    assert "-hwaccel" not in kq["cmd"]
+
+    kq = render.dung_lenh_xuat(str(tmp_path), da, _tl(_v("c_1", "m_v", 0, 0, 5)), {"bo_ma_hoa": "nvenc"}, "ra.mp4")
+    assert "scale=1280:720" in kq["loc"], "clip 640x360 vẫn phải co giãn + pad"
+
+
 def test_khung_xuat_theo_du_an_hoac_canh_ngan():
     assert render.kich_thuoc_xuat({"rong": 1920, "cao": 1080}, "") == (1920, 1080)
     assert render.kich_thuoc_xuat({"rong": 1080, "cao": 1920}, "720p") == (720, 1280), "dọc: cạnh ngắn là chiều rộng"

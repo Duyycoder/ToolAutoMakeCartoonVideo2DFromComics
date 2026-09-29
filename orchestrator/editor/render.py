@@ -298,12 +298,15 @@ class DungLenh:
             ratio = min(self.W / mr, self.H / mc)
             cw, ch = _chan(mr * ratio), _chan(mc * ratio)
             
-            chuoi_loc = f"scale={self.W}:{self.H}:force_original_aspect_ratio=decrease:flags=bicubic"
             cac_loc = hieu_ung.loc_mau(c.get("mau") or {}) + hieu_ung.loc_hieu_ung(c.get("hieu_ung") or [], cw, ch)
-            if cac_loc:
-                chuoi_loc += "," + ",".join(cac_loc)
-            # fps= ở cuối: setpts phía trước làm luồng mất tốc độ khung (1/0) — xfade từ chối đầu vào như vậy.
-            chuoi_loc += f",pad={self.W}:{self.H}:(ow-iw)/2:(oh-ih)/2:color={self.nen},setsar=1,format=yuv420p,fps={_so(self.fps)}"
+            if not cac_loc and abs(mr - self.W) < 1e-3 and abs(mc - self.H) < 1e-3:
+                chuoi_loc = f"setsar=1,format=yuv420p,fps={_so(self.fps)}"
+            else:
+                chuoi_loc = f"scale={self.W}:{self.H}:force_original_aspect_ratio=decrease:flags=bicubic"
+                if cac_loc:
+                    chuoi_loc += "," + ",".join(cac_loc)
+                # fps= ở cuối: setpts phía trước làm luồng mất tốc độ khung (1/0) — xfade từ chối đầu vào như vậy.
+                chuoi_loc += f",pad={self.W}:{self.H}:(ow-iw)/2:(oh-ih)/2:color={self.nen},setsar=1,format=yuv420p,fps={_so(self.fps)}"
             self.loc.append(f"[{nhan}]{chuoi_loc}[{nv}]")
         else:
             lop, x, y = self._lop(c, nhan, str(i), lech_t=0.0)
@@ -339,7 +342,10 @@ class DungLenh:
             k = self._input("-loop", "1", "-framerate", _so(self.fps), "-t", _so(dai_xuat), "-i", self._file(m))
             self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS[{cur}]")
         else:
-            k = self._input("-ss", _so(vao), "-t", _so(ra - vao), "-i", self._file(m))
+            if self.tc.get("bo_ma_hoa") == "nvenc":
+                k = self._input("-hwaccel", "cuda", "-ss", _so(vao), "-t", _so(ra - vao), "-i", self._file(m))
+            else:
+                k = self._input("-ss", _so(vao), "-t", _so(ra - vao), "-i", self._file(m))
             self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS[{cur}]")
             for j, che in enumerate(self._che_cho(m["id"])):
                 a, b = max(0.0, float(che["t_vao"]) - vao), min(float(che["t_ra"]) - vao, ra - vao)
@@ -673,6 +679,7 @@ class DungLenh:
         if chi_tieng:
             cmd += ["-map", f"[{aout}]", "-c:a", "aac", "-b:a", "192k"]
         else:
+            # Giữ -r: mỗi clip đã qua fps= nên -r gần như không tốn; bản lượt 24 bỏ -r theo c["loai"] (clip không có khoá này) → không bao giờ thêm.
             cmd += ["-map", f"[{vc}]", "-map", f"[{aout}]"] + self._ma_hoa() + [
                 "-r", _so(self.fps), "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]
         # Vùng xuất [ ]: cắt sau cùng (seek đầu ra) — timeline vẫn dựng đủ để giờ mọi thứ khớp.

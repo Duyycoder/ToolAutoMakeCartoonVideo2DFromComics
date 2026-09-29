@@ -193,6 +193,22 @@ def test_ocr_truyen_so_khung_va_model(c):
     assert (c.pl.args[-1]["ocr_fps"], c.pl.args[-1]["ocr_model"]) == (15.0, "small")
 
 
+def test_bat_su_kien_long_tieng_bao_cau_va_loc_lenh_ffmpeg():
+    """Lượt 24: thẻ Lồng tiếng hiện 'Đang đọc câu x/y' + %, dòng lệnh ffmpeg thô không đè lên thông điệp."""
+    from orchestrator.editor import ai_bridge
+    bao = []
+
+    class Ctx:
+        def bao(self, pct, msg):
+            bao.append((pct, msg))
+    sk = ai_bridge.BatSuKien(Ctx())
+    sk('2026-09-29 | INFO | Extracting optimized audio track: F:\\x\\ffmpeg.exe -y -i v.mp4 -vn -ac 1 -ar 16000 -acodec pcm_s16le a.wav')
+    sk('F:\\programfiles\\AIVoice\\ffmpeg.exe -y -i a.wav b.wav')
+    sk('{"event": "autosub_progress", "message": "Đang đọc câu 11/1925", "percent": 10}')
+    sk('Segment 12: Target duration = 2.00s, TTS actual = 1.50s')
+    assert bao == [(10.0, "Đang đọc câu 11/1925"), (None, "Segment 12: Target duration = 2.00s, TTS actual = 1.50s")]
+
+
 def test_lenh_pipeline_co_ocr_fps():
     from orchestrator import pipeline
     pl = pipeline.VideoPipeline.__new__(pipeline.VideoPipeline)      # chỉ cần dựng lệnh, không cần thư viện/tiến trình

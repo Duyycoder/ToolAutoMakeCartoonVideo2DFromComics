@@ -261,7 +261,12 @@ class BatSuKien:
             # Dòng log thường (loguru) — hiện dòng cuối cho người dùng biết còn đang chạy.
             if "Translation attempt" in dong and "failed" in dong:
                 self.log_loi_dich = dong.split("failed:", 1)[-1].strip() if "failed:" in dong else dong
-            self.ctx.bao(None, dong[-160:])
+                
+            # Lọc bỏ dòng bắt đầu bằng đường dẫn ffmpeg hoặc chứa " -acodec "
+            import re
+            is_ffmpeg_cmd = " -acodec " in dong or re.match(r'^[\'"]?(?:[a-zA-Z]:[\\/]|/).*?ffmpeg', dong, re.IGNORECASE)
+            if not is_ffmpeg_cmd:
+                self.ctx.bao(None, dong[-160:])
 
 
 def chay(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], ke_hoach: Dict[str, Any], cwd: str,

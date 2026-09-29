@@ -575,3 +575,70 @@ def test_dich_huy_giua_chung_giu_cau_da_dich(tmp_path, monkeypatch):
     kq = viec.ket_qua
     assert kq["dang_do"] and kq["tong_cau"] == 4
     assert kq["ids"] == ["c1", "c2"] and [c["text"] for c in kq["cau"]] == ["câu 1 đã dịch", "câu 2 đã dịch"]
+
+def test_lot_tu_ten_rieng_that_29_09():
+    """Ví dụ THẬT từ bảng AI 29/09. Danh sách lọt giữ nguyên hoa/thường → so chữ thường (assert 'skeppy' not in lot luôn đúng)."""
+    from orchestrator.editor.dich import do_lot_tu
+    cac_cau = ["Bob", "Skeppy's behind me", "Fernando", "Beverly like I'm kind of being camped", "Francis probably low here",
+               "It's always an opi loot video with Bob", "The server is so glitched", "that sounds like scabby", "We're like homeless"]
+    # dựng tập tên viết hoa GIỮA câu như dich() làm
+    viet_hoa = {w.strip(".,!?'s").lower() for c in cac_cau for i, w in enumerate(c.split()) if i > 0 and w[:1].isupper()}
+    lot = lambda n, d: [x.lower() for x in do_lot_tu(n, d, "English", "Vietnamese", {}, None, viet_hoa)["lot"]]
+    assert lot("Bob", "Bob") == [], "câu chỉ có 1 tên riêng không phải TOÀN_BỘ"
+    assert lot("Skeppy's behind me", "Skeppy ở phía sau tôi") == []
+    assert lot("Fernando", "Fernando (Phát âm: Phân Đào)") == []
+    assert lot("Beverly like I'm kind of being camped", "Beverly như đang bị canh gác") == []
+    assert lot("Francis probably low here", "Francis có thể đang ở đây") == []
+    assert lot("It's always an opi loot video with Bob", "Đó luôn là một đoạn video trộm cắp với Bob.") == []
+    assert lot("The server is so glitched", "Server này quá lỗi.") == []
+    # vẫn phải báo lọt
+    assert {"sounds", "like"} <= set(lot("that sounds like scabby", "那听起来像是sounds like sẹo lở"))
+    from orchestrator.editor.dich import chu_la_trong_dich          # dich() gọi ngay sau do_lot_tu
+    assert chu_la_trong_dich("Chúng tôi giống như无家可归的人。", "Vietnamese") == ["无家可归的人"]
+    assert lot("hello world", "hello world") == ["toàn_bộ"]
+    assert "bucket" in lot("My boys lava bucket", "Cái bucket lava của các cậu")
+
+
+def test_lot_tu_ten_rieng_luot24():
+    from orchestrator.editor.dich import do_lot_tu
+    tn = {}
+    tap_tu_viet_hoa = {"bob", "skeppy", "fernando", "beverly", "francis"}
+    # Không lọt
+    # 1. Tên riêng đứng đầu câu, dịch viết hoa
+    res = do_lot_tu("Bob", "Bob (bó bễ)", "English", "Vietnamese", tn, tap_tu_viet_hoa=tap_tu_viet_hoa)
+    assert not res["lot"] 
+
+    res = do_lot_tu("Skeppy's behind me", "Skeppy ở phía sau tôi", "English", "Vietnamese", tn, tap_tu_viet_hoa=tap_tu_viet_hoa)
+    assert "skeppy" not in res["lot"]
+
+    res = do_lot_tu("Fernando", "Fernando (Phát âm: Phân Đào)", "English", "Vietnamese", tn, tap_tu_viet_hoa=tap_tu_viet_hoa)
+    assert "fernando" not in res["lot"]
+
+    res = do_lot_tu("Beverly like I'm kind of being camped", "Beverly như đang bị canh gác...", "English", "Vietnamese", tn, tap_tu_viet_hoa=tap_tu_viet_hoa)
+    assert "beverly" not in res["lot"]
+
+    res = do_lot_tu("Francis probably low here", "Francis có thể...", "English", "Vietnamese", tn, tap_tu_viet_hoa=tap_tu_viet_hoa)
+    assert "francis" not in res["lot"]
+
+    # 2. Từ mượn keep_list
+    res = do_lot_tu("The server is so glitched", "Server này quá lỗi lầm.", "English", "Vietnamese", tn)
+    assert not res["lot"]
+
+    # Vẫn lọt
+    res = do_lot_tu("It's always an opi loot video with Bob", "Đó luôn là một đoạn video trộm cắp với Bob.", "English", "Vietnamese", tn, tap_tu_viet_hoa=tap_tu_viet_hoa)
+    assert "video" not in res["lot"] # video trong keep_list
+    assert "bob" not in res["lot"]   # bob là tên riêng
+
+    # TOÀN_BỘ
+    res = do_lot_tu("hello world", "hello world", "English", "Vietnamese", tn)
+    assert res["lot"] == ["TOÀN_BỘ"]
+
+    # Chữ Hán trong bản dịch Việt
+    res = do_lot_tu("Chúng tôi giống như homeless people", "Chúng tôi giống như无家可归的人。", "English", "Vietnamese", tn)
+
+    # Từ tiếng Anh thường (lọt do không phải tên riêng)
+    res = do_lot_tu("sounds like", "sounds like", "English", "Vietnamese", tn)
+    assert "sounds" in res["lot"] or res["lot"] == ["TOÀN_BỘ"]
+
+    res = do_lot_tu("hey hopper", "này hopper", "English", "Vietnamese", tn)
+    assert "hopper" in res["lot"]

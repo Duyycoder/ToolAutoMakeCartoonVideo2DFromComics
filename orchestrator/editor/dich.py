@@ -57,11 +57,30 @@ def kiem_do_dai(nguon: str, ban_dich: str, lang_nguon: str, lang_dich: str) -> b
         
     return (len_dich / len_nguon) > 2.2 and (len_dich - len_nguon) >= 6
 
-def do_lot_tu(nguon: str, ban_dich: str, lang_nguon: str, lang_dich: str, thuat_ngu: dict, tap_tu_nguon: set = None) -> dict:
+COMMON_ENGLISH_WORDS = set()
+try:
+    with open(os.path.join(os.path.dirname(__file__), "tu_tieng_anh.txt"), "r", encoding="utf-8") as f:
+        COMMON_ENGLISH_WORDS = set(f.read().split())
+except:
+    pass
+
+def _tu_chinh(w: str) -> str:
+    """Phần chữ cái đầu của một từ tách theo khoảng trắng: "Skeppy's" → "Skeppy" (bản dịch tách theo [a-zA-Z…]+ nên phải khớp)."""
+    m = re.match(r'[a-zA-Zà-ỹÀ-ỸđĐ]+', re.sub(r'^[^\w]+', '', w))
+    return m.group(0) if m else ""
+
+
+def do_lot_tu(nguon: str, ban_dich: str, lang_nguon: str, lang_dich: str, thuat_ngu: dict, tap_tu_nguon: set = None, tap_tu_viet_hoa: set = None) -> dict:
     nguon_strip = nguon.strip()
     ban_dich_strip = ban_dich.strip()
     if not ban_dich_strip or (ban_dich_strip.lower() == nguon_strip.lower() and re.search(r'[a-zA-Zà-ỹÀ-ỸđĐ\u4e00-\u9fff]', nguon_strip)):
-        return {"lot": ["TOÀN_BỘ"], "ti_le": 1.0}
+        # Câu chỉ là MỘT tên riêng ("Bob", "Miles") thì giữ nguyên là đúng — không phải cả câu chưa dịch.
+        mot = re.sub(r'^[^\w]+|[^\w]+$', '', nguon_strip)
+        la_ten = bool(mot) and " " not in mot and mot[0].isupper() and (
+            mot.lower() not in COMMON_ENGLISH_WORDS or mot.lower() in (tap_tu_viet_hoa or ()))
+        if not ban_dich_strip or not la_ten:
+            return {"lot": ["TOÀN_BỘ"], "ti_le": 1.0}
+        return {"lot": [], "ti_le": 0.0}
 
     lot = []
     
@@ -78,23 +97,19 @@ def do_lot_tu(nguon: str, ban_dich: str, lang_nguon: str, lang_dich: str, thuat_
     if tap_tu_nguon is None:
         tap_tu_nguon = set(tokens_nguon)
     
-    proper_nouns = set()
     words_in_source = nguon_strip.split()
+    source_caps = set()
+    source_caps_mid = set()
     for i, w in enumerate(words_in_source):
-        clean_w = re.sub(r'^[^\w]+|[^\w]+$', '', w)
-        if clean_w and clean_w[0].isupper() and i > 0:
-            proper_nouns.add(clean_w.lower())
+        clean_w = _tu_chinh(w)
+        if clean_w and clean_w[0].isupper():
+            source_caps.add(clean_w.lower())
+            if i > 0:
+                source_caps_mid.add(clean_w.lower())
             
-    keep_list = {"tiktok", "ok", "youtube", "facebook"}
+    keep_list = {"tiktok", "ok", "youtube", "facebook", "video", "server", "game", "online", "livestream", "stream", "gg"}
     thuat_ngu_vals = [str(v).lower() for v in thuat_ngu.values()]
     
-    COMMON_ENGLISH_WORDS = set()
-    try:
-        with open(os.path.join(os.path.dirname(__file__), "tu_tieng_anh.txt"), "r", encoding="utf-8") as f:
-            COMMON_ENGLISH_WORDS = set(f.read().split())
-    except:
-        pass
-        
     OVERLAPPING_VN_SYLLABLES = {"an", "me", "to", "ban", "hat", "he", "do", "am", "in", "on", "no", "so", "be", "we"}
     
     is_eng_target = lang_dich.lower() in ("english", "tiếng anh")
@@ -127,7 +142,19 @@ def do_lot_tu(nguon: str, ban_dich: str, lang_nguon: str, lang_dich: str, thuat_
 
     for idx, t in enumerate(tokens_dich):
         t_lower = t.lower()
-        if t_lower in keep_list or t_lower in proper_nouns:
+        if t_lower in keep_list:
+            continue
+        
+        # Tên riêng logic:
+        # 1. Viết hoa trong bản dịch (t[0].isupper()) VÀ viết hoa trong nguồn (source_caps) VÀ không nằm trong tu_tieng_anh.txt
+        # HOẶC 2. Xuất hiện viết hoa ở vị trí không đầu câu ở bất kỳ đâu trong lô (tap_tu_viet_hoa)
+        is_proper = False
+        if t[0].isupper() and t_lower in source_caps and t_lower not in COMMON_ENGLISH_WORDS:
+            is_proper = True
+        elif (tap_tu_viet_hoa and t_lower in tap_tu_viet_hoa) or (t_lower in source_caps_mid):
+            is_proper = True
+            
+        if is_proper:
             continue
         if t_lower in thuat_ngu_vals:
             continue
@@ -164,7 +191,13 @@ def do_lot_tu(nguon: str, ban_dich: str, lang_nguon: str, lang_dich: str, thuat_
             for idx, t in enumerate(tokens_dich):
                 if idx in lot_indices: continue
                 t_lower = t.lower()
-                if t_lower in keep_list or t_lower in proper_nouns: continue
+                if t_lower in keep_list: continue
+                is_proper = False
+                if t[0].isupper() and t_lower in source_caps and t_lower not in COMMON_ENGLISH_WORDS:
+                    is_proper = True
+                elif tap_tu_viet_hoa and t_lower in tap_tu_viet_hoa:
+                    is_proper = True
+                if is_proper: continue
                 if t_lower in thuat_ngu_vals: continue
                 
                 in_quote = is_in_quotes(idx)
@@ -278,10 +311,16 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
     dung_ngu_canh = tham_so.get("ngu_canh", False)
     
     tap_tu_nguon_toan_bo = set()
+    tap_tu_viet_hoa = set()
     for c in cau_list:
         txt = c.get("text_goc") or c.get("text", "")
         if txt.strip():
             tap_tu_nguon_toan_bo.update([x.lower() for x in re.findall(r'[a-zA-Zà-ỹÀ-ỸđĐ]+', txt.strip())])
+            words = txt.strip().split()
+            for i, w in enumerate(words):
+                clean_w = _tu_chinh(w)
+                if clean_w and clean_w[0].isupper() and i > 0:
+                    tap_tu_viet_hoa.add(clean_w.lower())
     
     # Dịch SONG SONG theo câu: model 1,8B chỉ dùng ~10% GPU khi gửi tuần tự (1925 câu ≈ hơn 1 giờ). Mỗi câu vẫn là MỘT yêu cầu
     # độc lập. Bật ngữ cảnh VẪN song song: ngữ cảnh là CÂU GỐC của 2 câu trước (có sẵn), không phải bản dịch — trước đây ép tuần tự
@@ -399,7 +438,7 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
             raw_dich = goi_ollama(prompt, ollama_base_url, cur_model, system, temp)
             ban_dich = lam_sach_ban_dich(raw_dich, num_newlines)
             
-            kq_lot = do_lot_tu(nguon, ban_dich, lang_nguon, lang_dich, tn_dict, tap_tu_nguon_toan_bo)
+            kq_lot = do_lot_tu(nguon, ban_dich, lang_nguon, lang_dich, tn_dict, tap_tu_nguon_toan_bo, tap_tu_viet_hoa)
             lot = kq_lot["lot"]
             # Chữ khác hệ (Hán/Kana/Hangul/Thái/Kirin) trong bản dịch sang ngôn ngữ chữ Latinh = model chèn chữ lạ
             # (chạy thật vi→en ra "the term \"解\""). do_lot_tu chỉ tìm từ NGUỒN nên không bắt được.
@@ -492,7 +531,7 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
             nguon = cac_nguon[k]
             ban_dich = lam_sach_ban_dich(theo_so[k + 1], 0)
             tn_cau = {t: v for t, v in tn_lo.items() if t in nguon}
-            if not ban_dich or do_lot_tu(nguon, ban_dich, lang_nguon, lang_dich, tn_dict, tap_tu_nguon_toan_bo)["lot"] \
+            if not ban_dich or do_lot_tu(nguon, ban_dich, lang_nguon, lang_dich, tn_dict, tap_tu_nguon_toan_bo, tap_tu_viet_hoa)["lot"] \
                     or chu_la_trong_dich(ban_dich, lang_dich) or kiem_do_dai(nguon, ban_dich, lang_nguon, lang_dich) \
                     or any(v.lower() not in ban_dich.lower() for v in tn_cau.values()):
                 continue                              # câu này dịch riêng ở lượt 1

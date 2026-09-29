@@ -842,6 +842,25 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                 if os.path.exists(ra):
                     os.remove(ra)
                 raise
+
+            if code != 0 and "-hwaccel" in kq["cmd"]:
+                cmd2 = []
+                skip_next = False
+                for x in kq["cmd"]:
+                    if skip_next:
+                        skip_next = False
+                        continue
+                    if x == "-hwaccel":
+                        skip_next = True
+                        continue
+                    cmd2.append(x)
+                try:
+                    code = ctx.chay_doc_dong(cmd2, thu_muc, dong, log=os.path.join(thu_muc, "log.txt"))
+                except hang_doi.DaHuy:
+                    if os.path.exists(ra):
+                        os.remove(ra)
+                    raise
+
             if code != 0 or not os.path.exists(ra):
                 if os.path.exists(ra):
                     os.remove(ra)
