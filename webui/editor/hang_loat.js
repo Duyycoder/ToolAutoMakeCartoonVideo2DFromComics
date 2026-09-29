@@ -102,12 +102,16 @@ export async function initHangLoat() {
             const caLocal = JSON.parse(localStorage.getItem('hlCaiDat') || '{}');
             const curVal = caLocal[`hlGiongTen_${eng}`] || window.hlTtsVoiceVal || '';
             $('hlAiChonGiong').innerHTML = veDieuKhien(eng, curVal, 'hlCg');
-            bindDieuKhien($('hlAiChonGiong'), eng, lang, curVal, (val) => {
-                window.hlTtsVoiceVal = val;
-                const caUp = JSON.parse(localStorage.getItem('hlCaiDat') || '{}');
-                caUp[`hlGiongTen_${eng}`] = val;
-                localStorage.setItem('hlCaiDat', JSON.stringify(caUp));
-                uiUpdate();
+            bindDieuKhien(hlAiChonGiong, eng, lang, curVal, (val) => {
+                this.cai.giong = val;
+                this.cai[giong_] = val;
+                this.ctx.luuUi();
+            }, (speed) => {
+                this.cai.tts_speed = speed;
+                this.ctx.luuUi();
+            }, (pitch) => {
+                this.cai.tts_pitch = pitch;
+                this.ctx.luuUi();
             });
         };
         $('hlGiongTTS').addEventListener('change', updateTtsUi);
@@ -221,6 +225,8 @@ export async function initHangLoat() {
             buoc.long_tieng = {
                 tts_engine: $('hlGiongTTS').value,
                 tts_voice: window.hlTtsVoiceVal,
+                tts_speed: this.cai.tts_speed,
+                tts_pitch: this.cai.tts_pitch,
                 target_lang: $('hlDichSang').value,
                 auto_clone: $('hlGiongTTS').value === 'clone' && (!window.hlTtsVoiceVal || window.hlTtsVoiceVal === 'auto'),
                 ducking_ratio: 90
@@ -276,3 +282,5 @@ export async function initHangLoat() {
         }
     });
 }
+
+

@@ -1009,3 +1009,14 @@ def test_xuat_that_keyframe_mo_am_luong_nen_bien_doi(media_mau):
     am_dau = _am_luong(0.0, 0.5)
     am_cuoi = _am_luong(1.5, 0.5)
     assert am_dau < am_cuoi - 10, f"Am luong dau ({am_dau}) phai nho hon cuoi ({am_cuoi})"
+
+
+def test_nhac_nen_tu_giam(tmp_path):
+    tl = _tl(_v("c_1", "m_v", 0, 0, 5))
+    tl["tracks"].extend([{"id": "A1", "loai": "audio", "vai": "nhac_nen"}, {"id": "A2", "loai": "audio", "vai": "long_tieng"}])
+    tl["clips"].extend([
+        {"id": "n", "track": "A1", "media": "m_n", "bat_dau": 0, "vao": 0, "ra": 5},
+        {"id": "g", "track": "A2", "media": "m_g", "bat_dau": 1, "vao": 0, "ra": 3}
+    ])
+    loc = render.dung_lenh_xuat(str(tmp_path), _du_an(), tl, {}, "ra.mp4")["loc"]
+    assert "sidechaincompress" in loc and "[giong]asplit=2" in loc

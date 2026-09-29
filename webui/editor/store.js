@@ -1025,3 +1025,43 @@ export function bienDoiSauKeo(b0, loai, nam, dx, dy, W, H, shift) {
     }
     return moi;
 }
+
+export function opsNhacNen(tl, mid, daiBai, tongDai) {
+    if (daiBai <= 0 || tongDai <= 0) return [];
+    const ops = [];
+    let batDau = 0;
+    let indexClip = (tl.clips || []).length;
+    const clipSo = (tl.clips || []).map((c) => /^c_(\d+)$/.exec(c.id || '')).filter(Boolean).map((m) => Number(m[1]));
+    let soHienTai = (clipSo.length ? Math.max(...clipSo) : 0);
+
+    while (batDau < tongDai) {
+        soHienTai++;
+        const id = "c_" + soHienTai;
+        let ra = daiBai;
+        if (batDau + daiBai > tongDai) {
+            ra = tongDai - batDau;
+        }
+        
+        ops.push({
+            op: 'them',
+            path: ['clips'],
+            vi_tri: indexClip,
+            gia_tri: {
+                id,
+                track: '',
+                media: mid,
+                bat_dau: batDau,
+                vao: 0,
+                ra,
+                toc_do: 1,
+                am_luong: 0.25,
+                am_vao: batDau === 0 ? 1 : 0,                       // chỉ fade vào ở đoạn đầu
+                am_ra: batDau + ra >= tongDai - 1e-6 ? 2 : 0        // chỉ fade ra ở đoạn cuối (fade mọi đoạn lặp = chìm/nổi ở chỗ nối)
+            }
+        });
+        
+        batDau += ra;
+        indexClip++;
+    }
+    return ops;
+}

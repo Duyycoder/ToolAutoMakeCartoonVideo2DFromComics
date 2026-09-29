@@ -30,7 +30,7 @@ export function taoTtsVoice(engine, giong, cheDo, autoClone, fileMau) {
 }
 
 // Render HTML for the controls
-export function veDieuKhien(engine, val, idPrefix = 'cg') {
+export function veDieuKhien(engine, val, idPrefix = 'cg', speed = 1.0, pitch = 0) {
     let ttsVoice = val || '';
     let html = '';
     
@@ -38,38 +38,32 @@ export function veDieuKhien(engine, val, idPrefix = 'cg') {
         const parts = ttsVoice.split('|');
         const v = parts[0] || '';
         const m = parts[1] || 'v3turbo';
-        html = `
-            <label>Tên giọng 
-                <select id="${idPrefix}_giong" class="cg-giong"></select>
-            </label>
-            <label>Chế độ
-                <select id="${idPrefix}_chedo" class="cg-chedo">
-                    <option value="v3turbo" ${m === 'v3turbo' ? 'selected' : ''}>v3turbo</option>
-                    <option value="standard" ${m === 'standard' ? 'selected' : ''}>standard</option>
-                </select>
-            </label>
-        `;
+        html = '<label>Tên giọng <select id="' + idPrefix + '_giong" class="cg-giong"></select></label>' +
+               '<label>Chế độ <select id="' + idPrefix + '_chedo" class="cg-chedo">' +
+               '<option value="v3turbo" ' + (m === 'v3turbo' ? 'selected' : '') + '>v3turbo</option>' +
+               '<option value="standard" ' + (m === 'standard' ? 'selected' : '') + '>standard</option>' +
+               '</select></label>';
     } else if (engine === 'clone') {
         const cleanVal = layGiongMacDinh(engine, ttsVoice, [], '');
         const auto = cleanVal === 'auto';
         const file = auto ? '' : cleanVal;
-        html = `
-            <label class="check"><input type="checkbox" id="${idPrefix}_auto" class="cg-auto" ${auto ? 'checked' : ''}> Tự clone giọng nhân vật từ video gốc</label>
-            <label id="${idPrefix}_file_wrap" style="display: ${auto ? 'none' : 'block'}">
-                File mẫu .wav
-                <div style="display:flex;gap:5px">
-                    <input type="text" id="${idPrefix}_file" class="cg-file" value="${esc(file)}" placeholder="đường dẫn...">
-                    <button type="button" class="nut cg-btn-file">📂</button>
-                </div>
-            </label>
-        `;
+        html = '<label class="check"><input type="checkbox" id="' + idPrefix + '_auto" class="cg-auto" ' + (auto ? 'checked' : '') + '> Tự clone giọng nhân vật từ video gốc</label>' +
+               '<label id="' + idPrefix + '_file_wrap" style="display: ' + (auto ? 'none' : 'block') + '">' +
+               'File mẫu .wav <div style="display:flex;gap:5px"><input type="text" id="' + idPrefix + '_file" class="cg-file" value="' + esc(file) + '" placeholder="đường dẫn...">' +
+               '<button type="button" class="nut cg-btn-file">📂</button></div></label>';
     } else {
-        html = `
-            <label>Tên giọng 
-                <select id="${idPrefix}_giong" class="cg-giong"></select>
-            </label>
-        `;
+        html = '<label>Tên giọng <select id="' + idPrefix + '_giong" class="cg-giong"></select></label>';
     }
+
+    if (['edge', 'piper', 'clone'].includes(engine)) {
+        html += '<label>Tốc độ <span id="' + idPrefix + '_speed_val" class="gt">' + speed + '</span>' +
+                '<input type="range" id="' + idPrefix + '_speed" class="cg-speed" min="0.5" max="2.0" step="0.1" value="' + speed + '"></label>';
+    }
+    if (engine === 'edge') {
+        html += '<label>Cao độ <span id="' + idPrefix + '_pitch_val" class="gt">' + pitch + '</span>' +
+                '<input type="range" id="' + idPrefix + '_pitch" class="cg-pitch" min="-12" max="12" step="1" value="' + pitch + '"></label>';
+    }
+    
     return html;
 }
 
@@ -144,3 +138,5 @@ export async function bindDieuKhien(container, engine, lang, currentVal, onChang
         };
     }
 }
+
+

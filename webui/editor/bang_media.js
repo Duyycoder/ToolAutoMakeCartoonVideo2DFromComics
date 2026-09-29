@@ -5,6 +5,7 @@
  * Extensions thì .mov iPhone phát được). Không phát được → báo server tạo proxy H.264.
  */
 import { api, esc, toast, hoi, chonFile, fmtNgan, coFile } from './chung.js';
+import { opsThemTrack, opsNhacNen, thoiLuong } from './store.js';
 
 const ICON = { video: '🎬', audio: '🎵', anh: '🖼', phu_de: '💬' };
 const TEN_LOAI = { video: 'Video', audio: 'Âm thanh', anh: 'Ảnh', phu_de: 'Phụ đề' };
@@ -26,7 +27,7 @@ export class BangMedia {
                 <button class="nut nut-chinh nut-nho" data-l="nhap" title="Chọn video/âm thanh/ảnh/phụ đề — file được CHÉP vào dự án">＋ Nhập</button>
                 <button class="nut nut-nho" data-l="dc-mo" style="display:none">📂 Mở thư mục</button>
                 <button class="nut nut-nho" data-l="dc-lam-moi" style="display:none">↻ Làm mới</button></div>
-            <div class="tab-nho" data-khu="tab"><button data-tab="media">Media</button><button data-tab="dung_chung">Dùng chung</button></div>
+            <div class="tab-nho" data-khu="tab"><button data-tab="media">Media</button><button data-tab="dung_chung">Dùng chung</button><button data-tab="nhac_nen">Nhạc nền</button></div>
             <div class="media-cong-cu">
                 <input type="search" data-o="tim" placeholder="Tìm…">
                 <select data-o="loc" title="Lọc loại"><option value="tat_ca">Tất cả</option><option value="video">Video</option>
@@ -76,6 +77,7 @@ export class BangMedia {
         }));
         this.noi.addEventListener('click', (e) => {
             const l = e.target.closest('[data-l]');
+            if (l && l.dataset.l === 'nhac-nen') return this.themNhacNen(l.dataset.ten);
             if (l && l.dataset.l === 'nhap') return this.nhap();
             if (l && l.dataset.l === 'url') return this.nhapUrl();
             if (l && l.dataset.l === 'nhap-lai') return this.nhapLai(l.closest('.the-media').dataset.mid);
@@ -303,6 +305,47 @@ export class BangMedia {
     }
 
     // ------------------------------------------------------------ vẽ
+    /* Tab Nhạc nền: thư viện bài có sẵn (AIVoice/apps/MediaComposer/resource/songs — "BGM Settings" của công cụ cũ). */
+    _veNhacNen() {
+        if (!this._nhacNen) {
+            this.noi.innerHTML = '<p class="sap-co">Đang tải…</p>';
+            api('/api/nhac-nen').then((ds) => { this._nhacNen = ds; this.ve(); })
+                .catch((e) => { this.noi.innerHTML = `<div class="sap-co">Lỗi tải nhạc nền: ${esc(e.message)}</div>`; });
+            return;
+        }
+        if (!this._nhacNen.length) { this.noi.innerHTML = '<p class="sap-co">Chưa có bài nào trong thư viện nhạc nền.</p>'; return; }
+        this.noi.innerHTML = `<p class="goi-y-nho" style="margin:6px 8px">Bài ngắn hơn video sẽ được lặp lại; âm lượng 25%, tự giảm khi có giọng nói.</p>`
+            + this._nhacNen.map((b) => `<div class="the-nhac" style="display:flex;flex-direction:column;gap:4px;padding:6px 8px;border-bottom:1px solid var(--vien)">
+                <div style="display:flex;justify-content:space-between;gap:6px;align-items:center">
+                    <b style="font-size:12px">${esc(b.ten)}</b><span class="goi-y-nho">${fmtNgan(b.thoi_luong || 0)}</span></div>
+                <audio controls preload="none" style="width:100%;height:28px" src="/api/nhac-nen/${encodeURIComponent(b.ten)}"></audio>
+                <button class="nut nut-nho" data-l="nhac-nen" data-ten="${esc(b.ten)}">＋ Làm nhạc nền cho cả video</button></div>`).join('');
+    }
+
+    /* Nhập bài vào dự án rồi đặt lên track âm thanh MỚI (vai nhac_nen) từ 0 tới hết timeline, lặp nếu bài ngắn — MỘT lệnh hoàn tác. */
+    async themNhacNen(ten) {
+        if (this.ctx.store.chiDoc) { toast('Cửa sổ này chỉ xem.', 'warn'); return; }
+        const bai = (this._nhacNen || []).find((b) => b.ten === ten);
+        if (!bai) return;
+        const tl = this.ctx.store.timeline;
+        const tong = thoiLuong(tl);
+        if (!(tong > 0)) { toast('Timeline đang trống — thêm video trước rồi mới thêm nhạc nền.', 'warn'); return; }
+        try {
+            const r = await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/nhap`,
+                { method: 'POST', body: { phien: this.ctx.boLuu.phien, files: [bai.duong_dan] } });
+            const m = (r.media || [])[0];
+            if (!m) throw new Error('Không nhập được bài nhạc.');
+            const tr = opsThemTrack(tl, 'audio');                 // trả {id, ops}
+            tr.ops[0].gia_tri = { ...tr.ops[0].gia_tri, ten: 'Nhạc nền', vai: 'nhac_nen' };
+            const cl = opsNhacNen(tl, m.id, Number(bai.thoi_luong) || 0, tong);
+            cl.forEach((op) => { op.gia_tri.track = tr.id; });
+            if (this.ctx.sua(`Thêm nhạc nền ${ten}`, [...tr.ops, ...cl])) {
+                toast(`Đã thêm nhạc nền (${cl.length} đoạn) — Ctrl+Z để bỏ.`, 'success', 4000);
+                this.ctx.bus.emit('media_can_tai');
+            }
+        } catch (e) { toast(e.message, 'error'); }
+    }
+
     ve() {
         const km = this.km, el = this.el;
         el.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('bat', b.dataset.tab === km.tab));
@@ -314,8 +357,10 @@ export class BangMedia {
         });
         
         const isDc = km.tab === 'dung_chung';
-        el.querySelector('[data-l=nhap]').style.display = isDc ? 'none' : '';
-        el.querySelector('[data-l=url]').style.display = isDc ? 'none' : '';
+        const laNhac = km.tab === 'nhac_nen';
+        el.querySelector('[data-l=nhap]').style.display = isDc || laNhac ? 'none' : '';
+        el.querySelector('[data-l=url]').style.display = isDc || laNhac ? 'none' : '';
+        if (laNhac) { this._veNhacNen(); return; }
         el.querySelector('[data-l=dc-mo]').style.display = isDc ? '' : 'none';
         el.querySelector('[data-l=dc-lam-moi]').style.display = isDc ? '' : 'none';
 
@@ -451,3 +496,4 @@ export function thuPhat(url, codec, timeout = 4000) {
         v.src = url;
     });
 }
+

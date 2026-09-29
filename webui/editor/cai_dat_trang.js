@@ -51,8 +51,12 @@ async function loadConfig() {
             const curVal = getByPath(configData, `autosub.tts_voice_${eng}`) || getByPath(configData, 'autosub.tts_voice') || '';
             ttsVoiceEl.innerHTML = veDieuKhien(eng, curVal, 'cfgCg');
             bindDieuKhien(ttsVoiceEl, eng, lang, curVal, (val) => {
-                setByPath(configData, 'autosub.tts_voice', val);
-                setByPath(configData, `autosub.tts_voice_${eng}`, val);
+                this.cai.giong = val;
+                this.cai[giong_] = val;
+            }, (speed) => {
+                this.cai.tts_speed = speed;
+            }, (pitch) => {
+                this.cai.tts_pitch = pitch;
             });
         };
         ttsEngineEl.addEventListener('change', updateVoiceUI);
@@ -129,3 +133,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadOllamaModels();
     await loadGpu();
 });
+

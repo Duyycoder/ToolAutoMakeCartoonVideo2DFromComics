@@ -1,4 +1,4 @@
-"""Route FastAPI của editor: `/api/workspace`, `/api/du-an/...`, `/api/hang-doi`.
+﻿"""Route FastAPI của editor: `/api/workspace`, `/api/du-an/...`, `/api/hang-doi`.
 
 Dự án gọi bằng `id` (trong `.duan.json`), không bằng đường dẫn: URL gọn, và đổi
 tên/chuyển thư mục dự án không làm gãy trang đang mở. Bảng id → thư mục lấy từ
@@ -971,4 +971,37 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         file_path = luu_tru._p(folder, luu_tru.CACHE, "xem_chinh_xac", vid, f"{vid}.mp4")
         return gui_file(file_path, "video/mp4")
 
+    _cache_nhac_nen = {"mtime": 0, "data": []}
+
+    @r.get("/api/nhac-nen")
+    def api_nhac_nen_list():
+        from orchestrator.pipeline import AIVOICE_DIR
+        songs_dir = os.path.join(AIVOICE_DIR, "apps", "MediaComposer", "resource", "songs")
+        if not os.path.isdir(songs_dir):
+            return []
+        
+        mtime = os.path.getmtime(songs_dir)
+        if _cache_nhac_nen["mtime"] == mtime:
+            return _cache_nhac_nen["data"]
+            
+        res = []
+        for f in sorted(os.listdir(songs_dir)):
+            if f.endswith(".mp3"):
+                path = os.path.join(songs_dir, f)
+                ts = media.do_thong_so(path)
+                res.append({"ten": f, "thoi_luong": ts.get("thoi_luong", 0), "duong_dan": path})
+        
+        _cache_nhac_nen["mtime"] = mtime
+        _cache_nhac_nen["data"] = res
+        return res
+
+    @r.get("/api/nhac-nen/{ten}")
+    def api_nhac_nen_file(ten: str):
+        from orchestrator.pipeline import AIVOICE_DIR
+        if ".." in ten or "/" in ten or "\\" in ten or os.path.isabs(ten):
+            raise HTTPException(400, detail="Tên không hợp lệ.")
+        path = os.path.join(AIVOICE_DIR, "apps", "MediaComposer", "resource", "songs", ten)
+        return gui_file(path, "audio/mpeg")
+
     return r
+

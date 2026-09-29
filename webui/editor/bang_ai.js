@@ -171,7 +171,7 @@ export class BangAi {
                     const thieu = k === 'clone' && this._models.clone === false;   // máy thiếu torchcodec/coqui-tts
                     return `<option value="${k}" ${(c.tts || 'edge') === k ? 'selected' : ''}${thieu ? ' disabled' : ''}>${t}${thieu ? ' — thiếu gói torchcodec' : ''}</option>`;
                 }).join('')}</select></label>
-                <div id="aiChonGiong">${veDieuKhien(c.tts || 'edge', c.giong)}</div>
+                <div id="aiChonGiong">${veDieuKhien(c.tts || 'edge', c.giong, 'cg', c.tts_speed || 1.0, c.tts_pitch || 0)}</div>
                 <label>Giảm nhạc nền khi có lời <span class="gt">${c.giam ?? 90}%</span><input type="range" data-o="giam" min="0" max="100" value="${c.giam ?? 90}"></label>
                 <button class="nut nut-chinh" data-l="long-tieng" ${soCau ? '' : 'disabled'}>Lồng tiếng ${coDich ? 'bản dịch' : ''}</button></section>
             
@@ -245,7 +245,7 @@ export class BangAi {
                     const thieu = k === 'clone' && this._models.clone === false;
                     return `<option value="${k}" ${(c.tts_van_ban || 'edge') === k ? 'selected' : ''}${thieu ? ' disabled' : ''}>${t}${thieu ? ' — thiếu gói torchcodec' : ''}</option>`;
                 }).join('')}</select></label>
-                <div id="aiChonGiongVanBan">${veDieuKhien(c.tts_van_ban || 'edge', c.giong_van_ban)}</div>
+                <div id="aiChonGiongVanBan">${veDieuKhien(c.tts_van_ban || 'edge', c.giong_van_ban, 'cg_vb', c.tts_speed_vb || 1.0, c.tts_pitch_vb || 0)}</div>
                 <button class="nut nut-chinh" data-l="doc-van-ban" ${!c.van_ban ? 'disabled' : ''}>Tạo giọng đọc</button></section>
             
             <section class="the-ai"><h4>🎞 Video minh hoạ</h4>
@@ -285,7 +285,13 @@ export class BangAi {
             const curVal = c[`giong_${eng}`] || c.giong;
             bindDieuKhien(aiChonGiong, eng, c.dich_sang || 'Vietnamese', curVal, (val) => {
                 c.giong = val;
-                c[`giong_${eng}`] = val;
+                c[giong_] = val;
+                this.ctx.luuUi();
+            }, (speed) => {
+                c.tts_speed = speed;
+                this.ctx.luuUi();
+            }, (pitch) => {
+                c.tts_pitch = pitch;
                 this.ctx.luuUi();
             });
         }
@@ -296,7 +302,13 @@ export class BangAi {
             const curVal = c[`giong_van_ban_${eng}`] || c.giong_van_ban;
             bindDieuKhien(aiChonGiongVanBan, eng, 'Vietnamese', curVal, (val) => {
                 c.giong_van_ban = val;
-                c[`giong_van_ban_${eng}`] = val;
+                c[giong_van_ban_] = val;
+                this.ctx.luuUi();
+            }, (speed) => {
+                c.tts_speed_vb = speed;
+                this.ctx.luuUi();
+            }, (pitch) => {
+                c.tts_pitch_vb = pitch;
                 this.ctx.luuUi();
             });
         }
@@ -352,10 +364,16 @@ export class BangAi {
                 const eng = this.cai.tts || 'edge';
                 const lang = this.cai.dich_sang || 'Vietnamese';
                 const curVal = this.cai[`giong_${eng}`] || this.cai.giong || '';
-                aiChonGiong.innerHTML = veDieuKhien(eng, curVal);
+                aiChonGiong.innerHTML = veDieuKhien(eng, curVal, 'cg', this.cai.tts_speed || 1.0, this.cai.tts_pitch || 0);
                 bindDieuKhien(aiChonGiong, eng, lang, curVal, (val) => {
                     this.cai.giong = val;
-                    this.cai[`giong_${eng}`] = val;
+                    this.cai[giong_] = val;
+                    this.ctx.luuUi();
+                }, (speed) => {
+                    this.cai.tts_speed = speed;
+                    this.ctx.luuUi();
+                }, (pitch) => {
+                    this.cai.tts_pitch = pitch;
                     this.ctx.luuUi();
                 });
             }
@@ -525,7 +543,7 @@ export class BangAi {
                 if (src === tgt) throw new Error('Ngôn ngữ nguồn và đích giống nhau — không cần dịch.');
                 ts = { source_lang: src, target_lang: tgt, dich_lai_tat_ca: !!c.dich_lai_tat_ca, ngu_canh: !!c.ngu_canh };
             }
-            if (loai === 'long-tieng') ts = { tts_engine: c.tts || 'edge', tts_voice: c.giong || '', ducking_ratio: c.giam ?? 90,
+            if (loai === 'long-tieng') ts = { tts_engine: c.tts || 'edge', tts_voice: c.giong || '', tts_speed: c.tts_speed, tts_pitch: c.tts_pitch, ducking_ratio: c.giam ?? 90,
                 auto_clone: (c.tts || '') === 'clone', target_lang: c.dich_sang || 'Vietnamese' };
             if (loai === 'lam-net') {
                 const phongTo = !!c.lam_net_phong_to;
@@ -564,7 +582,7 @@ export class BangAi {
                 ts = {
                     van_ban: c.van_ban,
                     tts_engine: c.tts_van_ban || 'edge',
-                    tts_voice: c.giong_van_ban || '',
+                    tts_voice: c.giong_van_ban || '', tts_speed: c.tts_speed_vb, tts_pitch: c.tts_pitch_vb,
                     nguon_doc_van_ban: c._nguon_doc_van_ban
                 };
             }
@@ -850,5 +868,7 @@ export class BangAi {
         this._h = setTimeout(() => this.tai(), dang ? 1500 : 10000);
     }
 }
+
+
 
 

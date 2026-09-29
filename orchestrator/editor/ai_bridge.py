@@ -128,7 +128,9 @@ def dung_lenh(folder: str, loai: str, m: Dict[str, Any], tham_so: Dict[str, Any]
             doc_van_ban_only=True,
             van_ban_file=van_ban_file,
             tts_engine=tham_so.get("tts_engine") or autosub.get("tts_engine"),
-            tts_voice=tham_so.get("tts_voice") or autosub.get("tts_voice") or ""
+            tts_voice=tham_so.get("tts_voice") or autosub.get("tts_voice") or "",
+            tts_speed=tham_so.get("tts_speed"),
+            tts_pitch=tham_so.get("tts_pitch")
         )
     elif loai == "minh-hoa":
         cau = tham_so.get("cau") or []
@@ -160,6 +162,8 @@ def dung_lenh(folder: str, loai: str, m: Dict[str, Any], tham_so: Dict[str, Any]
             args.update(no_translate=True, translate_only=False, tts_engine=tham_so.get("tts_engine") or autosub.get("tts_engine"),
                         tts_voice=tham_so.get("tts_voice") or autosub.get("tts_voice") or "",
                         auto_clone=bool(tham_so.get("auto_clone")),
+                        tts_speed=tham_so.get("tts_speed"),
+                        tts_pitch=tham_so.get("tts_pitch"),
                         ducking_ratio=float(tham_so.get("ducking_ratio") or autosub.get("ducking_ratio") or 90))
     job = {"video_path": video, "output_dir": lam_viec, "srt_dir": lam_viec}
     cmd = xay_lenh(job, args, g_config)
@@ -211,6 +215,11 @@ def dung_lenh(folder: str, loai: str, m: Dict[str, Any], tham_so: Dict[str, Any]
         cmd = [c for c in cmd if c != "--translate-only"] + [
             "--lam-net-only", "--lam-net-kieu", kieu, "--lam-net-do-phan-giai", dpg,
             "--output-dir", os.path.join(os.path.abspath(folder), luu_tru.MEDIA_DIR)]
+    if loai in ("long-tieng", "doc-van-ban"):
+        if args.get("tts_speed") is not None:
+            cmd += ["--tts-speed", str(args["tts_speed"])]
+        if args.get("tts_pitch") is not None:
+            cmd += ["--tts-pitch", str(args["tts_pitch"])]
     return {"cmd": cmd, "lam_viec": lam_viec, "srt_vao": srt_vao}
 
 
@@ -404,3 +413,6 @@ def gop_cau_minh_hoa(cau: List[Dict[str, Any]], min_duration: float = 3.0) -> Li
     
     kq.append(hien_tai)
     return kq
+
+
+

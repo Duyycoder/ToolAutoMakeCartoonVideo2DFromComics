@@ -356,3 +356,35 @@ def test_xem_chinh_xac_api(ws):
     res_do = subprocess.run([ff, "-hide_banner", "-i", out_file], capture_output=True, text=True, encoding="utf-8", errors="replace")
     duration = media.phan_tich(res_do.stderr).get("thoi_luong", 0)
     assert 0.8 <= duration <= 1.2, f"đoạn xem chính xác 0.5–1.5 s phải dài ≈1 s, nhận {duration}"
+
+def test_api_nhac_nen(ws, tmp_path, monkeypatch):
+    import orchestrator.pipeline
+    monkeypatch.setattr(orchestrator.pipeline, "AIVOICE_DIR", str(tmp_path))
+    songs_dir = tmp_path / "apps" / "MediaComposer" / "resource" / "songs"
+    songs_dir.mkdir(parents=True)
+    (songs_dir / "bai1.mp3").write_text("dummy")
+    (songs_dir / "bai2.mp3").write_text("dummy")
+    
+    app = FastAPI()
+    app.include_router(api.tao_router(ProcessManager()))
+    client = TestClient(app)
+    
+    # Mock do_thong_so to avoid ffmpeg
+    monkeypatch.setattr(media, "do_thong_so", lambda path: {"thoi_luong": 100.0} if "bai1" in path else {"thoi_luong": 200.0})
+    
+    res = client.get("/api/nhac-nen")
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data) == 2
+    assert data[0]["ten"] == "bai1.mp3"
+    assert data[0]["thoi_luong"] == 100.0
+    
+    # Test path traversal
+    res2 = client.get("/api/nhac-nen/..%2F..%2Ftest.txt")
+    assert res2.status_code in (400, 404)
+    
+    res3 = client.get("/api/nhac-nen/bai1.mp3")
+    assert res3.status_code == 200
+    assert res3.content == b"dummy"
+
+

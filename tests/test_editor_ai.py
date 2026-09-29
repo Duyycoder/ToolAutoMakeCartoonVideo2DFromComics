@@ -472,3 +472,54 @@ def test_minh_hoa_khong_key_bao_ro():
         ai_bridge.dung_lenh(goc, "minh-hoa", {"id": "m", "loai": "video", "file": "media/a.mp4"},
                             {"cau": [{"t_vao": 0, "t_ra": 4, "text": "a"}], "minh_hoa_nguon": "pexels"},
                             {"api_keys": {}}, lambda j, a, g: [], "v")
+
+
+def test_tham_so_edge_thu_cong():
+    import importlib.util
+    import sys
+    # Import trực tiếp adapter_autosub_cli
+    spec = importlib.util.spec_from_file_location("adapter_autosub_cli", "AIVoice/apps/MediaComposer/adapter_autosub_cli.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["adapter_autosub_cli"] = module
+    spec.loader.exec_module(module)
+    
+    # Test tốc độ
+    assert module.tinh_tham_so_edge(1.2, 0) == {"rate": "+20%"}
+    assert module.tinh_tham_so_edge(0.8, 0) == {"rate": "-20%"}
+    
+    # Test cao độ
+    assert module.tinh_tham_so_edge(1.0, 2) == {"pitch": "+50Hz"}
+    assert module.tinh_tham_so_edge(1.0, -1) == {"pitch": "-25Hz"}
+    
+    # Test cả hai
+    assert module.tinh_tham_so_edge(1.5, 4) == {"rate": "+50%", "pitch": "+100Hz"}
+
+def test_lenh_that_co_du_co_rieng_tung_loai_co_tts_speed_pitch(tmp_path):
+    from orchestrator.editor import ai_bridge
+    import os
+    os.makedirs(os.path.join(str(tmp_path), "media"))
+    open(os.path.join(str(tmp_path), "media", "a.mp4"), "wb").write(b"x")
+    
+    from orchestrator import pipeline as pl_mod
+    xay = pl_mod.VideoPipeline.build_translate_cmd
+    xay_lenh = lambda job, args, cfg: xay(pl_mod.VideoPipeline.__new__(pl_mod.VideoPipeline), job, args, cfg)
+    
+    # Lồng tiếng có speed / pitch
+    res_lt = ai_bridge.dung_lenh(str(tmp_path), "long-tieng", {"id": "m", "loai": "video", "file": "media/a.mp4"},
+        {"cau": [{"t_vao": 0, "t_ra": 2, "text": "a"}], "tts_engine": "edge", "tts_voice": "v", "tts_speed": 1.2, "tts_pitch": 2},
+        {"translate": {"target_lang": "vi"}}, xay_lenh, "v_lt")
+        
+    assert "--tts-speed" in res_lt["cmd"]
+    assert res_lt["cmd"][res_lt["cmd"].index("--tts-speed") + 1] == "1.2"
+    assert "--tts-pitch" in res_lt["cmd"]
+    assert res_lt["cmd"][res_lt["cmd"].index("--tts-pitch") + 1] == "2"
+
+    # Đọc văn bản có speed / pitch
+    res_dv = ai_bridge.dung_lenh(str(tmp_path), "doc-van-ban", None,
+        {"van_ban": "xin chào", "tts_engine": "edge", "tts_voice": "v", "tts_speed": 0.8, "tts_pitch": -1},
+        {}, xay_lenh, "v_dv")
+        
+    assert "--tts-speed" in res_dv["cmd"]
+    assert res_dv["cmd"][res_dv["cmd"].index("--tts-speed") + 1] == "0.8"
+    assert "--tts-pitch" in res_dv["cmd"]
+    assert res_dv["cmd"][res_dv["cmd"].index("--tts-pitch") + 1] == "-1"
