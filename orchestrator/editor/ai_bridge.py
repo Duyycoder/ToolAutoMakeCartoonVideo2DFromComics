@@ -91,6 +91,10 @@ def dung_lenh(folder: str, loai: str, m: Dict[str, Any], tham_so: Dict[str, Any]
             raise ValueError("Chưa kéo vùng chứa phụ đề trên khung xem trước.")
         args.update(sub_source="ocr", no_translate=True, crop_x=int(vung["x"]), crop_y=int(vung["y"]),
                     crop_w=int(vung["w"]), crop_h=int(vung["h"]))
+        if tham_so.get("ocr_fps"):
+            args["ocr_fps"] = float(tham_so["ocr_fps"])
+        if tham_so.get("ocr_model"):
+            args["ocr_model"] = str(tham_so["ocr_model"])
     elif loai in ("tach-giong", "lam-net"):
         pass
     elif loai == "can-gio":

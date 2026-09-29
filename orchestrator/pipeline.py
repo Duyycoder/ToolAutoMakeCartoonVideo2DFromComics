@@ -496,6 +496,13 @@ class VideoPipeline:
             ocr_gpu = video_cfg.get("ocr_use_gpu", True)
         if ocr_gpu:
             cmd.append("--use-gpu")
+        # OCR đọc N khung/giây (mặc định 10) + cỡ model — trước 29/09 đọc 30 khung/s, 1 phút video mất ~220 s.
+        ocr_fps = args.get("ocr_fps") or video_cfg.get("ocr_fps")
+        if ocr_fps:
+            cmd += ["--ocr-fps", str(ocr_fps)]
+        ocr_model = args.get("ocr_model") or video_cfg.get("ocr_model")
+        if ocr_model:
+            cmd += ["--ocr-model", str(ocr_model)]
         return cmd
 
     def start_translate(self, task_key: str, jobs: List[dict], args: dict) -> bool:

@@ -131,7 +131,7 @@ export class BangAi {
         const chonNN = (k, md) => NGON_NGU.map(([v, t]) => `<option value="${v}" ${(c[k] || md) === v ? 'selected' : ''}>${t}</option>`).join('');
         if (!ds.length) {
             this.noi.innerHTML = `<div class="vung-tha"><b>Chưa có video trên timeline</b>
-                Kéo một video từ bảng 🎞 Tệp phương tiện xuống timeline rồi quay lại đây để tạo phụ đề, dịch, lồng tiếng.</div>${this._veTacVu()}`;
+                Kéo một video từ bảng 🎞 Tệp phương tiện xuống timeline rồi quay lại đây để tạo phụ đề, dịch, lồng tiếng.</div><div class="ai-tv-hop">${this._veTacVu()}</div>`;
             return;
         }
         const v = c.vung;
@@ -155,6 +155,12 @@ export class BangAi {
                 <label>Ngôn ngữ chữ trên hình<select data-o="ngon_ngu_chu">${chonNN('ngon_ngu_chu', 'Chinese')}</select></label>
                 <div class="hang-nut"><button class="nut" data-l="ve-vung">▭ Kéo khung vùng phụ đề</button>
                     <span class="goi-y-nho">${v ? `vùng ${Math.round(v.w * 100)}×${Math.round(v.h * 100)}% ở ${Math.round(v.x * 100)},${Math.round(v.y * 100)}%` : 'chưa có vùng'}</span></div>
+                <label title="Phụ đề thường hiện ≥ 1 giây nên 10 khung/giây là đủ; 15 bắt câu rất ngắn tốt hơn nhưng chậm hơn ~1,5 lần">Đọc mỗi giây
+                    <select data-o="ocr_fps">${[[10, '10 khung (khuyên dùng)'], [15, '15 khung (chậm hơn)'], [5, '5 khung (nhanh nhất)']]
+                        .map(([v2, t]) => `<option value="${v2}" ${Number(c.ocr_fps || 10) === v2 ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+                <label>Model OCR
+                    <select data-o="ocr_model">${[['medium', 'Chuẩn (chính xác hơn)'], ['small', 'Nhanh (~1,6× nhanh hơn)']]
+                        .map(([v2, t]) => `<option value="${v2}" ${(c.ocr_model || 'medium') === v2 ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
                 <label class="check"><input type="checkbox" data-o="tao_che" ${c.tao_che !== false ? 'checked' : ''}> Tự tạo vùng che sub gốc đúng khung này</label>
                 <button class="nut nut-chinh" data-l="ocr" ${v ? '' : 'disabled title="Kéo khung trước"'}>Nhận diện</button></section>
 
@@ -269,7 +275,7 @@ export class BangAi {
             
             <label class="check" style="margin:8px 0" title="Phụ đề, OCR, dịch, lồng tiếng, tách giọng, đọc văn bản, minh hoạ: xong là vào timeline ngay (Ctrl+Z để bỏ). Làm nét luôn hỏi trước.">
                 <input type="checkbox" data-o="tu_ap_dung" ${(c.tu_ap_dung ?? true) ? 'checked' : ''}> Tự đưa kết quả AI vào timeline khi xong</label>
-            ${this._veTacVu()}`;
+            <div class="ai-tv-hop">${this._veTacVu()}</div>`;
             
         api('/api/config').then(cfg => {
             const keys = cfg.api_keys || {};
@@ -541,6 +547,7 @@ export class BangAi {
             if (loai === 'ocr') {
                 if (!c.vung || !m.rong) throw new Error('Kéo khung vùng phụ đề trước.');
                 ts = { source_lang: c.ngon_ngu_chu || 'Chinese', vung: c.vung, tao_che: c.tao_che !== false,
+                    ocr_fps: Number(c.ocr_fps || 10), ocr_model: c.ocr_model || 'medium',
                     vung_px: { x: Math.round(c.vung.x * m.rong), y: Math.round(c.vung.y * m.cao),
                         w: Math.round(c.vung.w * m.rong), h: Math.round(c.vung.h * m.cao) } };
             }
@@ -869,7 +876,16 @@ export class BangAi {
                 try { await this.apDung(v, true); } catch (e) { toast(`${v.nhan} xong nhưng chưa đưa vào timeline được: ${e.message} — bấm Áp dụng ở bảng AI.`, 'error', 10000); }
                 finally { this._dangAp.delete(v.id); }
             }
-            if (this.el.isConnected) this.ve();
+            // Chỉ vẽ lại khung Tác vụ khi tiến độ đổi: vẽ lại CẢ bảng mỗi 1,5 s làm giật, đóng ô chọn đang mở, mất vị trí cuộn (29/09).
+            // Trạng thái việc đổi (xong/lỗi/mới) thì vẽ cả bảng — số câu, nút theo kết quả có thể đổi.
+            const doiTrangThai = this.tacVu.length !== cu.size || this.tacVu.some((v) => cu.get(v.id) !== v.trang_thai);
+            const hop = this.noi.querySelector('.ai-tv-hop');
+            if (!this.el.isConnected) { /* bảng đang ẩn */ }
+            else if (doiTrangThai || !hop) this.ve();
+            else {
+                const html = this._veTacVu();
+                if (html !== hop._html) { hop.innerHTML = html; hop._html = html; }
+            }
         } catch (e) { /* server bận */ }
         const dang = this.tacVu.some((v) => ['cho', 'dang_chay'].includes(v.trang_thai));
         this._h = setTimeout(() => this.tai(), dang ? 1500 : 10000);

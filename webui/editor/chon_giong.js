@@ -55,7 +55,7 @@ export function veDieuKhien(engine, val, idPrefix = 'cg', speed = 1.0, pitch = 0
         html = '<label>Tên giọng <select id="' + idPrefix + '_giong" class="cg-giong"></select></label>';
     }
 
-    if (['edge', 'piper', 'clone'].includes(engine)) {
+    if (['edge', 'piper', 'clone', 'kokoro'].includes(engine)) {
         html += '<label>Tốc độ <span id="' + idPrefix + '_speed_val" class="gt">' + speed + '</span>' +
                 '<input type="range" id="' + idPrefix + '_speed" class="cg-speed" min="0.5" max="2.0" step="0.1" value="' + speed + '"></label>';
     }

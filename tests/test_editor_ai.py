@@ -187,6 +187,20 @@ def test_ocr_can_vung_va_truyen_toa_do_pixel(c):
     assert (c.pl.args[-1]["crop_y"], c.pl.args[-1]["crop_h"]) == (288, 36)
 
 
+def test_ocr_truyen_so_khung_va_model(c):
+    _chay(c, "ocr", vung={"x": 0.1, "y": 0.8, "w": 0.8, "h": 0.1}, vung_px={"x": 64, "y": 288, "w": 512, "h": 36},
+          ocr_fps=15, ocr_model="small")
+    assert (c.pl.args[-1]["ocr_fps"], c.pl.args[-1]["ocr_model"]) == (15.0, "small")
+
+
+def test_lenh_pipeline_co_ocr_fps():
+    from orchestrator import pipeline
+    pl = pipeline.VideoPipeline.__new__(pipeline.VideoPipeline)      # chỉ cần dựng lệnh, không cần thư viện/tiến trình
+    cmd = pl.build_translate_cmd({"video_path": "a.mp4", "output_dir": "o", "srt_dir": "o"},
+                                 {"sub_source": "ocr", "llm_engine": "ollama", "ocr_fps": 15.0, "ocr_model": "small"}, {})
+    assert cmd[cmd.index("--ocr-fps") + 1] == "15.0" and cmd[cmd.index("--ocr-model") + 1] == "small"
+
+
 def test_dich_giu_thu_tu_id(c):
     v = _chay(c, "dich", target_lang="Vietnamese", ids=["c_7", "c_8"],
               cau=[{"t_vao": 1, "t_ra": 2, "text": "hello"}, {"t_vao": 3, "t_ra": 4, "text": "world"}])
