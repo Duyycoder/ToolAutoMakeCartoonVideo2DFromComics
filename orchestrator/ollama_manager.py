@@ -179,7 +179,7 @@ def has_model(model: str, base_url: str = "") -> bool:
 # Model dịch chuyên dụng HY-MT2 KHÔNG có trên kho Ollama: phải pull GGUF từ HuggingFace rồi `ollama create` với Modelfile có
 # template đã sửa (template tự sinh khi convert bị hỏng → model chỉ trả "onse"). Tên hiển thị → nguồn GGUF.
 HY_MT2_NGUON = {
-    "hy-mt2:1.8b-q4": "hf.co/tencent/Hy-MT2-1.8B-GGUF:Q4_K_M",   # mặc định: 1,1 GB, nhanh hơn ~1,3× so với Q8, lọt từ như nhau (đo 29/09)
+    "hy-mt2:1.8b-q4": "hf.co/tencent/Hy-MT2-1.8B-GGUF:Q4_K_M",   # 1,1 GB, nhanh hơn ~1,3× Q8 nhưng sai nghĩa gấp đôi (đo 29/09) — không làm mặc định
     "hy-mt2:1.8b": "hf.co/tencent/Hy-MT2-1.8B-GGUF:Q8_0",
 }
 MODELFILE_HY_MT2 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ollama_models", "Modelfile.hy-mt2")

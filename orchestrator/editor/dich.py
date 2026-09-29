@@ -1,4 +1,4 @@
-﻿import json
+import json
 import os
 import re
 import time
@@ -252,7 +252,7 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
     g_config = load_global_config()
     tr = g_config.get("translate", {})
     ollama_base_url = tr.get("ollama_base_url", "http://localhost:11434").replace("/v1", "") + "/api/generate"
-    model = tham_so.get("mt_model") or tr.get("mt_model") or "hy-mt2:1.8b-q4"
+    model = tham_so.get("mt_model") or tr.get("mt_model") or "hy-mt2:1.8b"
     model_du_phong = tr.get("mt_model_du_phong") or "qwen2.5:7b-instruct"
     
     lang_nguon = tham_so.get("source_lang", "Chinese")

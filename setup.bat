@@ -78,7 +78,7 @@ if "!DRY_RUN!"=="1" (
     if !HAS_CLONE! equ 1 echo - clone: coqui-tts
     if !HAS_DEMUCS! equ 1 echo - demucs: demucs
     if !HAS_LAMNET! equ 1 echo - lamnet: RealESRGAN
-    if !HAS_DICHOFFLINE! equ 1 echo - dich_offline: ollama, hy-mt2:1.8b-q4
+    if !HAS_DICHOFFLINE! equ 1 echo - dich_offline: ollama, hy-mt2:1.8b
     if !HAS_WHISPER! equ 1 echo - whisper: models whisper-medium, PhoWhisper-small
     if !HAS_TAOANH! equ 1 echo - taoanh: dreamshaper-8
     exit /b 0
@@ -336,9 +336,9 @@ if !HAS_DICHOFFLINE! equ 1 (
         start "" /wait OllamaSetup.exe /quiet
         del OllamaSetup.exe
     )
-    echo [INFO] Tai model dich hy-mt2:1.8b-q4 cho Ollama (GGUF HuggingFace + Modelfile)...
+    echo [INFO] Tai model dich hy-mt2:1.8b cho Ollama (GGUF HuggingFace + Modelfile)...
     rem hy-mt2 KHONG co tren kho Ollama - "ollama pull hy-mt2:1.8b" luon loi. ollama_manager pull GGUF tu HF roi create.
-    "AIVoice\.venv\Scripts\python.exe" -c "from orchestrator import ollama_manager as o; r=o.ensure_ready('hy-mt2:1.8b-q4', progress_cb=lambda m,p=-1: print(m)); print(r)"
+    "AIVoice\.venv\Scripts\python.exe" -c "from orchestrator import ollama_manager as o; r=o.ensure_ready('hy-mt2:1.8b', progress_cb=lambda m,p=-1: print(m)); print(r)"
 )
 
 :: Ghi file thanh phan

@@ -40,7 +40,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "target_lang": "Vietnamese",
         "ollama_base_url": "http://localhost:11434/v1",
         "ollama_model": DEFAULT_OLLAMA_MODEL,
-        "mt_model": "hy-mt2:1.8b-q4",
+        "mt_model": "hy-mt2:1.8b",
         "mt_model_du_phong": "qwen2.5:7b-instruct",
         "autostart_ollama": True,
         "gemini_offline_base_url": "http://localhost:7860/v1",

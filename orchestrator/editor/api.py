@@ -1,4 +1,4 @@
-﻿"""Route FastAPI của editor: `/api/workspace`, `/api/du-an/...`, `/api/hang-doi`.
+"""Route FastAPI của editor: `/api/workspace`, `/api/du-an/...`, `/api/hang-doi`.
 
 Dự án gọi bằng `id` (trong `.duan.json`), không bằng đường dẫn: URL gọn, và đổi
 tên/chuyển thư mục dự án không làm gãy trang đang mở. Bảng id → thư mục lấy từ
@@ -748,7 +748,7 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         if engine != "ollama" and not check_dich:
             return
         if check_dich:
-            model = tham_so.get("mt_model") or tr.get("mt_model") or "hy-mt2:1.8b-q4"
+            model = tham_so.get("mt_model") or tr.get("mt_model") or "hy-mt2:1.8b"
         else:
             model = tham_so.get("llm_model") or autosub.get("llm_model") or tr.get("ollama_model") or ""
         base_url = tham_so.get("llm_offline_base_url") or tham_so.get("llm_base_url") or autosub.get("llm_base_url") or tr.get("ollama_base_url") or ""
