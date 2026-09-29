@@ -84,6 +84,27 @@ def find_ollama_exe() -> Optional[str]:
     return None
 
 
+def _env_ollama() -> dict:
+    """Môi trường cho `ollama serve` do app tự bật.
+
+    OLLAMA_NUM_PARALLEL / OLLAMA_MODELS lấy bản MỚI NHẤT trong registry (HKCU\\Environment): tiến trình app kế thừa
+    môi trường từ lúc mở, người dùng đổi sau đó (vd NUM_PARALLEL 1 → 4 để dịch song song) thì app vẫn giữ giá trị cũ.
+    """
+    env = os.environ.copy()
+    if os.name == "nt":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as k:
+                for ten in ("OLLAMA_NUM_PARALLEL", "OLLAMA_MODELS"):
+                    try:
+                        env[ten] = str(winreg.QueryValueEx(k, ten)[0])
+                    except OSError:
+                        pass
+        except OSError:
+            pass
+    return env
+
+
 def ensure_server(
     base_url: str = "",
     autostart: bool = True,
@@ -115,6 +136,7 @@ def ensure_server(
                 [exe, "serve"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                env=_env_ollama(),
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         except Exception as e:

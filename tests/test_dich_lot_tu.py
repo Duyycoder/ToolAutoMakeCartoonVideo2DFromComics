@@ -384,6 +384,8 @@ def test_ngu_canh_prompt(fake_ollama, tmp_path, monkeypatch):
 
     
 
+    # Kiểm luồng dịch TỪNG CÂU (câu sau không chứa câu trước) → tắt gộp lô cho rõ ý.
+    monkeypatch.setattr(dich, "load_global_config", lambda: {"translate": {"so_cau_moi_lan": 1}})
     tham_so = {"cau": [{"id": "1", "text_goc": "success 1", "text": "success 1"}, {"id": "2", "text_goc": "success 2", "text": "success 2"}], "ids": ["1", "2"], "source_lang": "Chinese", "target_lang": "Vietnamese"}
 
     dich.dich(ctx, str(tmp_path), "dich", {"id": "m1"}, tham_so)
@@ -479,3 +481,46 @@ def test_chu_han_lot_vao_ban_dich_tieng_anh():
     assert dich.chu_la_trong_dich('Therefore, the term "解" refers to "文艺".', "English") == ["解", "文艺"]
     assert dich.chu_la_trong_dich("Xin chào các bạn", "Vietnamese") == []
     assert dich.chu_la_trong_dich("你好", "Chinese") == []          # đích là tiếng Trung thì chữ Hán là đúng
+
+
+
+def test_dich_gop_lo_tach_theo_so_dong(tmp_path, monkeypatch):
+    """Gộp nhiều câu một lần gọi: tách đúng theo số dòng; lô lệch số dòng → rơi xuống dịch từng câu (không mất câu)."""
+    goi = []
+
+    def post(url, json, timeout):
+        goi.append(json["prompt"])
+        class R:
+            def raise_for_status(self): pass
+            def json(self):
+                p = json["prompt"]
+                if "numbered line" in p:
+                    so = [ln.split(".", 1)[0] for ln in p.splitlines() if ln[:1].isdigit()]
+                    if "hỏng" in p:
+                        return {"response": "1. chỉ một dòng"}                       # lệch số dòng
+                    return {"response": "\n".join(f"{k}. câu {k} đã dịch" for k in so)}
+                return {"response": "dịch riêng"}
+        return R()
+
+    monkeypatch.setattr(dich.requests, "post", post)
+    monkeypatch.setattr(dich, "doc_thuat_ngu", lambda f: {})
+    monkeypatch.setattr(dich, "load_global_config", lambda: {"translate": {"so_cau_moi_lan": 3, "so_cau_song_song": 1}})
+
+    class FakeViec:
+        def __init__(self):
+            self.huy_event = hang_doi.threading.Event()
+            self.ket_qua = None
+    ctx = hang_doi.NguCanh(FakeViec(), None)
+    ctx.bao = lambda *a, **k: None
+    cau = [{"id": str(k), "text_goc": f"hello {k}", "text": f"hello {k}"} for k in range(1, 4)]
+    kq = dich.dich(ctx, str(tmp_path), "dich", {"id": "m1"}, {"cau": cau, "ids": [c["id"] for c in cau],
+                                                              "source_lang": "English", "target_lang": "Vietnamese"})
+    assert [c["text"] for c in kq["cau"]] == ["câu 1 đã dịch", "câu 2 đã dịch", "câu 3 đã dịch"]
+    assert len(goi) == 1, "3 câu phải đi trong MỘT lần gọi"
+
+    goi.clear()
+    cau = [{"id": str(k), "text_goc": f"hỏng {k}", "text": f"hỏng {k}"} for k in range(1, 4)]
+    kq = dich.dich(ctx, str(tmp_path), "dich", {"id": "m1"}, {"cau": cau, "ids": [c["id"] for c in cau],
+                                                              "source_lang": "English", "target_lang": "Vietnamese"})
+    assert [c["text"] for c in kq["cau"]] == ["dịch riêng"] * 3, "lô lệch số dòng phải dịch lại từng câu"
+    assert len(goi) == 4

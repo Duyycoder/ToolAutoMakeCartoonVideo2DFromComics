@@ -445,9 +445,73 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
             c_moi["text_goc"] = kq[6]
             ket_qua[i] = c_moi
 
-    # Lượt 1: model chuyên dụng, lần 1–2.
+    # Lượt 0: GỘP nhiều câu một dòng vào MỘT lần gọi (đánh số dòng). Mỗi lần gọi Ollama tốn phần cố định (xử lý prompt, khởi động
+    # sinh chữ) lớn hơn nhiều so với chữ của một câu phụ đề ngắn → gộp 6 câu giảm số lần gọi ~6×. Tách lại theo số dòng rồi kiểm TỪNG câu
+    # như cũ (lọt từ, chữ lạ, dịch thừa, thuật ngữ); câu nào không đạt / cả lô lệch số dòng → rơi xuống lượt 1 dịch riêng từng câu.
+    # Bật ngữ cảnh thì không gộp (câu sau cần bản dịch câu trước).
+    so_moi_lo = 1 if dung_ngu_canh else max(1, int(tr.get("so_cau_moi_lan") or 6))
+    ten_dich_zh = {"english": "英语", "japanese": "日语", "korean": "韩语", "thai": "泰语", "indonesian": "印尼语",
+                   "spanish": "西班牙语", "chinese": "中文", "vietnamese": "越南语"}.get(lang_dich.lower(), lang_dich)
+    la_zh = lang_nguon.lower() in ("chinese", "tiếng trung", "中文") or lang_dich.lower() in ("chinese", "tiếng trung", "中文")
+
+    def nguon_cua(c):
+        """Câu cần dịch → văn bản nguồn; câu bỏ qua (đã dịch tay, rỗng) → None. Cùng luật với dich_mot_cau."""
+        tg, th = c.get("text_goc", ""), c.get("text", "")
+        if th.strip() and tg and th != tg and not tham_so.get("dich_lai_tat_ca"):
+            return None
+        n = th if not tg else tg
+        return n if n.strip() else None
+
+    def dich_lo(ds):
+        if ctx.viec.huy_event.is_set():
+            raise hang_doi.DaHuy()
+        cac_nguon = [nguon_cua(cau_list[i]) for i in ds]
+        tn_lo = {k: tn_dict[k] for k in tn_keys if any(k in n for n in cac_nguon)}
+        if la_zh:
+            p = ("参考下面的翻译：\n" + "".join(f"{k} 翻译成 {v}\n" for k, v in tn_lo.items()) + "\n") if tn_lo else ""
+            p += f"把下面每一行分别翻译成{ten_dich_zh}。保持行号和行数不变，每行只输出对应的译文，不要合并，不要额外解释：\n\n"
+        else:
+            p = ("Use the following terminology:\n" + "".join(f"{k} -> {v}\n" for k, v in tn_lo.items()) + "\n") if tn_lo else ""
+            p += (f"Translate each numbered line below into {lang_dich} separately. Keep the same numbering and the same number of lines; "
+                  "output only the translations, one per line, without additional explanation.\n\n")
+        p += "\n".join(f"{k + 1}. {n.strip()}" for k, n in enumerate(cac_nguon))
+        ctx.bao(tien_do=dem["xong"] / len(cau_list) * 100, thong_diep=f"Đã dịch {dem['xong']}/{len(cau_list)} câu")
+        with khoa:
+            dem["goi"] += 1
+        raw = goi_ollama(p, ollama_base_url, model, "", 0.1)
+        theo_so = {}
+        for dong in raw.splitlines():
+            m = re.match(r"^\s*(\d+)\s*[\.\)\]:：、．]\s*(.*)$", dong)
+            if m:
+                theo_so.setdefault(int(m.group(1)), m.group(2).strip())
+        if sorted(theo_so) != list(range(1, len(ds) + 1)):
+            return                                    # lệch số dòng → cả lô dịch lại từng câu ở lượt 1
+        for k, i in enumerate(ds):
+            nguon = cac_nguon[k]
+            ban_dich = lam_sach_ban_dich(theo_so[k + 1], 0)
+            tn_cau = {t: v for t, v in tn_lo.items() if t in nguon}
+            if not ban_dich or do_lot_tu(nguon, ban_dich, lang_nguon, lang_dich, tn_dict, tap_tu_nguon_toan_bo)["lot"] \
+                    or chu_la_trong_dich(ban_dich, lang_dich) or kiem_do_dai(nguon, ban_dich, lang_nguon, lang_dich) \
+                    or any(v.lower() not in ban_dich.lower() for v in tn_cau.values()):
+                continue                              # câu này dịch riêng ở lượt 1
+            trang_thai[i] = (ban_dich, [], None, True, False, False, nguon)
+            c_moi = dict(cau_list[i])
+            c_moi["text"], c_moi["text_goc"] = ban_dich, nguon
+            ket_qua[i] = c_moi
+            with khoa:
+                dem["xong"] += 1
+
+    if so_moi_lo > 1:
+        can = [i for i, c in enumerate(cau_list) if (n := nguon_cua(c)) and "\n" not in n]
+        # Lô chỉ 1 câu thì gộp vô ích (thêm một lần gọi) → để lượt 1 dịch thẳng.
+        cac_lo = [lo for lo in (can[j:j + so_moi_lo] for j in range(0, len(can), so_moi_lo)) if len(lo) > 1]
+        with ThreadPoolExecutor(max_workers=so_luong) as ex:
+            list(ex.map(dich_lo, cac_lo))
+
+    # Lượt 1: model chuyên dụng, lần 1–2 — chỉ câu CHƯA đạt ở lượt 0 (câu bỏ qua trả None ngay, không gọi model).
+    con_lai = [i for i in range(len(cau_list)) if trang_thai[i] is None]
     with ThreadPoolExecutor(max_workers=so_luong) as ex:
-        list(ex.map(lambda i: chay(i, (0, 1)), range(len(cau_list))))
+        list(ex.map(lambda i: chay(i, (0, 1)), con_lai))
     # Lượt 2: câu còn lỗi → model dự phòng, gom lại một lượt (một lần đổi model).
     con_loi = [i for i, t in enumerate(trang_thai) if t is not None and not t[3]]
     dem["xong"] = len(cau_list) - len(con_loi)
