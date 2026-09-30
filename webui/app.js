@@ -42,25 +42,62 @@ const tabPanels = document.querySelectorAll(".tab-panel");
 document.addEventListener("DOMContentLoaded", async () => {
     initTabs();
     setupEventHandlers();   // gắn listener TRƯỚC để applyAllSettings dispatch 'change' có tác dụng
+    // Điền option card NVIDIA TRƯỚC khi nhân bản + nạp cấu hình: thiếu option thì
+    // giá trị đã lưu (vd "cuda:0") gán vào select sẽ bị rơi mất.
+    await fetchGpuInfo();
     buildConfigMirror();    // nhân bản control từng bước vào Cấu Hình Chung (phải chạy trước loadGlobalConfig)
-    fetchGpuInfo();
     await loadStories();
     await loadGlobalConfig();
     // Cấu hình người dùng đã lưu phải áp SAU CÙNG để thắng các giá trị default
     await loadAndApplySettings();
+    // Cài đặt đã lưu có thể còn thiết bị không tồn tại (vd "cuda:1" chọn theo số
+    // Task Manager); cfgWriteField tự thêm option lạ -> lọc lại theo card thật.
+    sanitizeGpuSelects();
     resumeAutoRunUi();
 });
+
+// Dựng lại option của ô chọn thiết bị theo card NVIDIA thật (chỉ số CUDA).
+// Giá trị đang chọn không còn tồn tại (vd "cuda:1" trên máy 1 card) -> về "auto".
+function fillGpuOptions(sel, gpus) {
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = "";
+    const add = (value, label) => sel.add(new Option(label, value));
+    add("auto", "Tự động (khuyên dùng)");
+    gpus.forEach(g => add(`cuda:${g.index}`, `${g.name} (${g.vram})`));
+    add("cpu", "CPU (Rất chậm)");
+    sel.value = [...sel.options].some(o => o.value === cur) ? cur : "auto";
+}
+
+let gpuList = null;  // null = chưa lấy được danh sách card -> không lọc
+
+function sanitizeGpuSelects() {
+    if (!gpuList) return;
+    ["s3GpuDevice", "cfg_s3GpuDevice"].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const before = sel.value;
+        fillGpuOptions(sel, gpuList);
+        if (sel.value !== before) sel.dispatchEvent(new Event("change", { bubbles: true }));  // lưu lại giá trị đã sửa
+    });
+}
 
 // Fetch GPU info from backend
 async function fetchGpuInfo() {
     try {
         const textLabel = document.getElementById("gpuInfoText");
         textLabel.textContent = "Đang kiểm tra GPU...";
-        // Call backend API (assume we will add it to main.py)
         const response = await fetch(`${API_BASE}/api/system/gpu-info`);
         if (response.ok) {
             const data = await response.json();
-            textLabel.textContent = `GPU: ${data.name || 'Không tìm thấy'} | VRAM: ${data.vram || 'N/A'}`;
+            const gpus = data.gpus || [];
+            gpuList = gpus;
+            fillGpuOptions(document.getElementById("s3GpuDevice"), gpus);
+            fillGpuOptions(document.getElementById("cfg_s3GpuDevice"), gpus);
+            textLabel.textContent = gpus.length
+                ? `Card NVIDIA: ${gpus.map(g => `${g.name} (${g.vram})`).join(", ")}. `
+                  + "Lưu ý: số thứ tự GPU trong Task Manager đếm cả card Intel tích hợp nên khác với ở đây — cứ chọn theo tên card."
+                : `Không thấy card NVIDIA (${data.name || 'không rõ'}) — ảnh sẽ vẽ bằng CPU, rất chậm.`;
         } else {
             textLabel.textContent = "Lỗi không lấy được GPU Info.";
         }

@@ -261,19 +261,28 @@ def _wmi_gpu() -> tuple[str, int]:
 
 @app.get("/api/system/gpu-info")
 def get_gpu_info():
+    """`gpus` = card NVIDIA theo đúng chỉ số CUDA (cuda:N). Chỉ số này KHÁC số
+    "GPU 0/1" trong Task Manager (Task Manager đếm cả card Intel tích hợp) — từng
+    khiến người dùng chọn cuda:1 trên máy chỉ có một card NVIDIA."""
     import subprocess
     try:
-        result = subprocess.run(['nvidia-smi', '--query-gpu=name,memory.total', '--format=csv,noheader'], capture_output=True, text=True,
+        result = subprocess.run(['nvidia-smi', '--query-gpu=index,name,memory.total', '--format=csv,noheader'],
+                                capture_output=True, text=True, timeout=10,
                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        if result.returncode == 0 and result.stdout.strip():
-            parts = result.stdout.strip().split(', ')
-            return {"name": parts[0], "vram": parts[1]}
+        gpus = []
+        if result.returncode == 0:
+            for line in result.stdout.strip().splitlines():
+                parts = [p.strip() for p in line.split(',')]
+                if len(parts) == 3 and parts[0].isdigit():
+                    gpus.append({"index": int(parts[0]), "name": parts[1], "vram": parts[2]})
+        if gpus:
+            return {"name": gpus[0]["name"], "vram": gpus[0]["vram"], "gpus": gpus}
     except Exception:
         pass
     name, mb = _wmi_gpu()
     if name:
-        return {"name": name, "vram": f"{mb} MiB" if mb else "N/A"}
-    return {"name": "No GPU found", "vram": "N/A"}
+        return {"name": name, "vram": f"{mb} MiB" if mb else "N/A", "gpus": []}
+    return {"name": "No GPU found", "vram": "N/A", "gpus": []}
 
 @app.get("/api/ollama/models")
 def get_ollama_models():

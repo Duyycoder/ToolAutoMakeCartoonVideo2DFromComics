@@ -427,9 +427,8 @@
                                 <div style="flex: 1;">
                                     <label for="s3GpuDevice">Thiết bị xử lý Video (GPU)</label>
                                     <select id="s3GpuDevice">
-                                        <option value="auto">Tự động nhận diện</option>
-                                        <option value="cuda:0">NVIDIA GPU 0</option>
-                                        <option value="cuda:1">NVIDIA GPU 1</option>
+                                        <!-- Card NVIDIA do fetchGpuInfo() điền theo chỉ số CUDA thật -->
+                                        <option value="auto">Tự động (khuyên dùng)</option>
                                         <option value="cpu">CPU (Rất chậm)</option>
                                     </select>
                                 </div>

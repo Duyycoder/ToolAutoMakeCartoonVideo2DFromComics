@@ -5,6 +5,16 @@ from orchestrator.storage import StorageManager
 from orchestrator.process_manager import ProcessManager
 
 
+def _gpu_count() -> int:
+    """Số GPU NVIDIA trên máy (-1 = không đếm được). Không import torch ở tiến trình web."""
+    import subprocess
+    try:
+        out = subprocess.run(["nvidia-smi", "-L"], capture_output=True, text=True, timeout=10).stdout
+        return sum(1 for line in out.splitlines() if line.startswith("GPU "))
+    except Exception:
+        return -1
+
+
 def _resolve_ai_write_args(crawl_args: dict, trans_args: dict) -> dict:
     """Suy ra tham số LLM cho nguồn 'ai_write' từ crawl/trans args.
 
@@ -607,7 +617,13 @@ class NovelPipeline:
         if device == "cpu":
             env_override["CUDA_VISIBLE_DEVICES"] = ""
         elif device.startswith("cuda:"):
-            env_override["CUDA_VISIBLE_DEVICES"] = device.split(":")[1]
+            idx = device.split(":")[1]
+            n_gpu = _gpu_count()
+            # "cuda:1" tren may 1 GPU tung an het GPU -> SD chay CPU cham ~30 lan.
+            if idx.isdigit() and 0 <= n_gpu <= int(idx):
+                print(f"[Step3] Thiết bị {device} không tồn tại (máy có {n_gpu} GPU) — dùng GPU mặc định.")
+            else:
+                env_override["CUDA_VISIBLE_DEVICES"] = idx
 
         task_key = f"{story_meta['story_slug']}_step3"
         retry_count = 0
