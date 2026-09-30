@@ -37,6 +37,9 @@ def resolve_llm(
             )
         resolved_base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
         resolved_model = llm_offline_model or DEFAULT_GEMINI_ONLINE_MODEL
+        if ":" in resolved_model or resolved_model.lower().startswith(("qwen", "llama", "hy-mt")):
+            logger.warning(f"[LLM] Model '{resolved_model}' giống tên Ollama, tự chuyển sang '{DEFAULT_GEMINI_ONLINE_MODEL}' cho Gemini Online.")
+            resolved_model = DEFAULT_GEMINI_ONLINE_MODEL
     elif llm_engine == "ollama":  # Ollama (Local)
         resolved_key = "ollama"
         resolved_base_url = (
@@ -45,6 +48,9 @@ def resolve_llm(
             or "http://localhost:11434/v1"
         )
         resolved_model = llm_offline_model or DEFAULT_OLLAMA_MODEL
+        if not resolved_model or resolved_model.lower().startswith("gemini"):
+            logger.warning(f"[LLM] Model '{resolved_model}' không hợp lệ cho Ollama, tự chuyển sang '{DEFAULT_OLLAMA_MODEL}'.")
+            resolved_model = DEFAULT_OLLAMA_MODEL
     else:  # gemini_api (Local Gemini proxy)
         resolved_key = (
             llm_api_key
@@ -62,8 +68,25 @@ def resolve_llm(
             or "http://localhost:7860/v1"
         )
         resolved_model = llm_offline_model or DEFAULT_GEMINI_PROXY_MODEL
+        if ":" in resolved_model or resolved_model.lower().startswith(("qwen", "llama", "hy-mt")):
+            logger.warning(f"[LLM] Model '{resolved_model}' giống tên Ollama, tự chuyển sang '{DEFAULT_GEMINI_PROXY_MODEL}' cho Gemini Proxy.")
+            resolved_model = DEFAULT_GEMINI_PROXY_MODEL
 
     return resolved_key, resolved_base_url, resolved_model
+
+def danh_sach_model_ollama(base_url: str, timeout: float = 2.0) -> list[str] | None:
+    """Lấy danh sách tên các model đã cài trong Ollama."""
+    root = base_url.rstrip("/")
+    if root.endswith("/v1"):
+        root = root[:-3]
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            res = client.get(f"{root}/api/tags")
+            res.raise_for_status()
+            return [m["name"] for m in res.json().get("models", [])]
+    except Exception:
+        return None
+
 
 
 def chat(

@@ -130,8 +130,10 @@ class AutoRunManager:
                     return True, ""
                 if cancel.is_set() or self.process_mgr.was_user_stopped(task_key):
                     return False, "Đã hủy theo yêu cầu."
+                from orchestrator.ma_thoat import mo_ta_ma_thoat
+                msg = mo_ta_ma_thoat(st['exit_code']) or f"mã lỗi {st['exit_code']}"
                 return False, (f"Bước {DISPLAY_NO[step_no]} thất bại "
-                               f"(mã lỗi {st['exit_code']}). Xem log của bước để biết chi tiết.")
+                               f"({msg}). Xem log của bước để biết chi tiết.")
             time.sleep(self.poll_interval)
 
     def _run_chain(self, story_name, slug, step1_args, step2_args, step3_args, cancel):

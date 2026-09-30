@@ -535,6 +535,22 @@ class NovelPipeline:
             llm_engine, video_args, g_config, video_cfg.get("default_llm_model")
         )
 
+        model_warning_msg = None
+        if llm_engine == "ollama":
+            from orchestrator.llm import danh_sach_model_ollama
+            from orchestrator.config import DEFAULT_OLLAMA_MODEL
+            models = danh_sach_model_ollama(resolved_base_url)
+            if models is not None and resolved_model not in models:
+                fallback = DEFAULT_OLLAMA_MODEL if DEFAULT_OLLAMA_MODEL in models else None
+                if not fallback:
+                    for m in models:
+                        if m.lower().startswith(("qwen2.5", "llama")):
+                            fallback = m
+                            break
+                if fallback:
+                    model_warning_msg = f"[SYSTEM] Model '{resolved_model}' chưa có trong Ollama — dùng '{fallback}'.\n"
+                    resolved_model = fallback
+
         cmd = [
             python_exe, adapter_path,
             "--story-name", story_name,
@@ -594,22 +610,56 @@ class NovelPipeline:
             env_override["CUDA_VISIBLE_DEVICES"] = device.split(":")[1]
 
         task_key = f"{story_meta['story_slug']}_step3"
+        retry_count = 0
+
+        def finish_task(exit_code: int):
+            success = self._finalize_video_task(story_name, video_output_dir, task_key, exit_code)
+            self.process_mgr.mark_completed(task_key, 0 if success else (exit_code or 1))
+            q = self.process_mgr.log_queues.get(task_key)
+            if q:
+                q.put(None)
+            return success
 
         def on_video_completed(exit_code: int):
-            return self._finalize_video_task(
-                story_name, video_output_dir, task_key, exit_code)
+            nonlocal retry_count
+            from orchestrator.ma_thoat import NATIVE_CRASH_CODES
+            if exit_code in NATIVE_CRASH_CODES and not self.process_mgr.was_user_stopped(task_key) and retry_count < 1:
+                retry_count += 1
+                q = self.process_mgr.log_queues.get(task_key)
+                if q:
+                    q.put(f"[SYSTEM] Tiến trình dựng video bị crash trong driver/thư viện native (mã 0x{exit_code & 0xFFFFFFFF:08X}). Tự chạy lại lần {retry_count}/1 — các chương đã xong được giữ nguyên.\n")
+                
+                started_retry = self.process_mgr.start_process(
+                    task_key=task_key,
+                    cmd=cmd,
+                    cwd="AIVoice",
+                    env_override=env_override,
+                    on_completed=on_video_completed,
+                    reuse_queue=True,
+                    close_queue_on_exit=False
+                )
+                if started_retry:
+                    return True
+            
+            return finish_task(exit_code)
 
         story_meta["status"] = "VIDEO_GENERATING"
         story_meta["updated_at"] = datetime.datetime.now().isoformat()
         self.storage_mgr.write_story_meta(story_name, story_meta)
 
-        return self.process_mgr.start_process(
+        started = self.process_mgr.start_process(
             task_key=task_key,
             cmd=cmd,
             cwd="AIVoice",
             env_override=env_override,
-            on_completed=on_video_completed
+            on_completed=on_video_completed,
+            close_queue_on_exit=False
         )
+        if started and model_warning_msg:
+            q = self.process_mgr.log_queues.get(task_key)
+            if q:
+                q.put(model_warning_msg)
+        return started
 
     def start_step_4_autosub(self, story_name: str | None, autosub_args: dict) -> bool:
         """Runs MediaComposer autosub and dubbing workflow on a video."""

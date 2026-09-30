@@ -8,6 +8,20 @@ let currentLogsSse = null;
 let currentTaskKeys = {};
 let step4State = { preparedPath: null, natW: null, natH: null, crop: null };
 
+function getExitCodeMessage(code) {
+    code = Number(code);
+    if (code === 3221225477 || code === -1073741819) {
+        return "0xC0000005 — tiến trình bị crash trong thư viện native (thường là driver GPU NVIDIA). Hãy bấm chạy lại; nếu lặp lại, cập nhật driver NVIDIA hoặc chọn thiết bị CPU.";
+    } else if (code === 3221226505 || code === -1073740791) {
+        return "0xC0000409 — thư viện native tự huỷ (stack buffer overrun).";
+    } else if (code === 3221225725 || code === -1073741571) {
+        return "0xC00000FD — tràn ngăn xếp.";
+    } else if (code === 3221226525 || code === -1073740771) {
+        return "0xC000041D — lỗi trong callback native.";
+    }
+    return `Quy trình kết thúc với mã lỗi ${code}.`;
+}
+
 // DOM Elements
 const elStorySelect = document.getElementById("storySelect");
 const elBtnNewStory = document.getElementById("btnNewStory");
@@ -1316,7 +1330,7 @@ function streamLogs(stepName, taskKey) {
             appendConsoleLog(
                 stepName,
                 terminalOk ? "[SYSTEM] Quy trình hoàn thành xong."
-                           : `[SYSTEM ERROR] Quy trình kết thúc với mã lỗi ${exitMatch[1]}.`,
+                           : `[SYSTEM ERROR] ${getExitCodeMessage(exitMatch[1])}`,
                 terminalOk ? "log-success" : "log-error"
             );
             source.close();
@@ -1511,7 +1525,7 @@ function streamLogs(stepName, taskKey) {
                 appendConsoleLog(
                     stepName,
                     ok ? "[SYSTEM] Quy trình đã hoàn thành; luồng log đã đóng."
-                       : `[SYSTEM ERROR] Quy trình kết thúc với mã lỗi ${status.exit_code}.`,
+                       : `[SYSTEM ERROR] ${getExitCodeMessage(status.exit_code)}`,
                     ok ? "log-success" : "log-error"
                 );
                 toggleFormButtons(stepName, false);

@@ -7,7 +7,7 @@ UI_SETTINGS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 DEFAULT_GEMINI_ONLINE_MODEL = "gemini-2.0-flash"
 DEFAULT_GEMINI_PROXY_MODEL = "gemini-3-flash"
-DEFAULT_OLLAMA_MODEL = "qwen2.5:3b-instruct"
+DEFAULT_OLLAMA_MODEL = "qwen2.5:7b-instruct"
 
 # Tham số sinh ảnh cho Bước 3 — ghi xuống [storytelling] của MediaComposer
 # trước mỗi lần chạy (xem orchestrator/mediacomposer_config.py).
