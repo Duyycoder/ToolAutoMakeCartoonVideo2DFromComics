@@ -448,8 +448,69 @@ class ChatManager:
 
         return "\n".join(lines)
 
+    @staticmethod
+    def followup_queries(message: str, history: List[dict], max_prev: int = 2) -> List[str]:
+        """Các câu truy xuất thay thế cho câu nối tiếp, thử lần lượt.
+
+        Câu nối tiếp thường không tự mang chủ đề. Ca thật: hỏi "lỗi trích xuất từ
+        điển sửa sao" rồi hỏi tiếp "tôi chạy bình thường mà nó chỉ ra tiếng Trung"
+        — câu thứ hai không có chữ "từ điển" nên truy xuất trắng tay và trợ lý
+        trả lời như chưa từng nghe câu trước.
+
+        Thử câu ghép trước; nhưng ghép làm loãng tỷ lệ khớp (guard 0.4) khi câu
+        mới dài, nên sau đó thử riêng từng câu hỏi trước, mới nhất trước.
+        """
+        prev = [m["content"] for m in history if m.get("role") == "user"][-max_prev:]
+        if not prev:
+            return []
+        return [" ".join([prev[-1], message])] + prev[::-1]
+
+    def app_overview(self, limit: int = 1500) -> str:
+        """Tổng quan ứng dụng (00-tong-quan.md) — nền tối thiểu để suy luận khi
+        không có mảnh tài liệu nào khớp, tránh việc model đoán mò app làm gì."""
+        return self._read_excerpt(os.path.join(self.kb_dir, "00-tong-quan.md"), limit)
+
+    def build_fallback_prompt(self, story_context: str = "") -> str:
+        """System prompt khi truy xuất không tìm được tài liệu nào.
+
+        Trước đây nhánh này từ chối cứng ("Tài liệu hiện có không đề cập...")
+        mà không gọi LLM, và cũng không lưu lượt đó vào lịch sử. Người dùng hỏi
+        câu chính đáng nhưng lệch từ khoá thì bị bỏ dở. Giờ vẫn trả lời bằng kiến
+        thức chung, nhưng phải dán nhãn để phân biệt với tài liệu.
+        """
+        overview = self.app_overview()
+        prompt = (
+            "Bạn là Trợ Lý AI của ứng dụng Auto Make Cartoon Video 2D From Comics.\n"
+            "Nhiệm vụ: hỗ trợ người dùng vận hành phần mềm và tư vấn nội dung truyện.\n\n"
+            "Tài liệu hướng dẫn KHÔNG có mục nào khớp với câu hỏi này. Hãy trả lời bằng "
+            "kiến thức chung của bạn, dựa trên tổng quan ứng dụng bên dưới và các lượt "
+            "hội thoại trước.\n\n"
+            "QUY TẮC:\n"
+            "1. Câu hỏi hiện tại có thể là câu NỐI TIẾP lượt trước. Đọc lịch sử hội thoại "
+            "để hiểu người dùng đang nói về việc gì ('nó', 'cái đó', 'vẫn bị') rồi trả lời "
+            "đúng vào vấn đề đó.\n"
+            "2. Mở đầu câu trả lời bằng đúng dòng: '⚠️ Ngoài tài liệu — đây là suy luận:'.\n"
+            "3. KHÔNG được bỏ dở. Luôn đưa ra: nguyên nhân khả dĩ nhất, các bước thử cụ thể, "
+            "và nếu còn thiếu thông tin thì hỏi lại đúng 1 câu cần thiết nhất.\n"
+            "4. KHÔNG bịa tên nút, tên ô cấu hình, tên file hay đường dẫn cụ thể của ứng dụng. "
+            "Được phép nói về khái niệm chung (model, prompt, ngôn ngữ đầu ra, Ollama, GPU...).\n"
+            "5. KHÔNG khuyên 'liên hệ hỗ trợ kỹ thuật/nhà phát triển'. Có thể gợi ý xem "
+            "`logs/app.log`.\n"
+            "6. Nếu câu hỏi hoàn toàn không liên quan tới phần mềm này hay tới truyện của "
+            "người dùng (nấu ăn, thời tiết...), nói ngắn gọn là ngoài phạm vi và gợi ý loại "
+            "câu hỏi bạn giúp được.\n"
+            "7. Trả lời bằng tiếng Việt.\n"
+        )
+        if overview:
+            prompt += f"\n<tongquan>\n{overview}\n</tongquan>\n"
+        if story_context:
+            prompt += f"\n<ngucanhtruyen>\n{story_context}\n</ngucanhtruyen>\n"
+        return prompt
+
     def build_system_prompt(self, kb_sections: List[dict], story_context: str = "") -> str:
         """Xây dựng System Prompt chuẩn bảo vệ chống bịa đặt và injection."""
+        if not kb_sections:
+            return self.build_fallback_prompt(story_context)
         kb_text = "\n\n".join([f"--- File: {s['file']} ---\n{s['content']}" for s in kb_sections])
 
         prompt = (
@@ -479,7 +540,9 @@ class ChatManager:
             "không có bộ phận hỗ trợ. Nếu không biết, hãy nói thẳng là tài liệu không đề "
             "cập và chỉ ra mục gần nhất hoặc bảo họ xem `logs/app.log`.\n"
             "7. Chỉ đưa thao tác CỤ THỂ: bấm nút nào, ở tab nào, sửa ô nào. Không khuyên "
-            "chung chung kiểu 'kiểm tra lại cài đặt' mà không nói cài đặt nào.\n\n"
+            "chung chung kiểu 'kiểm tra lại cài đặt' mà không nói cài đặt nào.\n"
+            "8. Câu hỏi có thể NỐI TIẾP lượt trước — đọc lịch sử hội thoại để hiểu người "
+            "dùng đang nói về việc gì, đừng trả lời như câu hỏi mới tách rời.\n\n"
             "VÍ DỤ MẪU:\n"
             "Q: Bước 2 có mấy engine TTS?\n"
             "A: Bước 2 hỗ trợ 5 engine TTS: Edge-TTS, Piper-TTS, XTTS v2, Kokoro-TTS, VieNeu-TTS. Nguồn: 02-buoc2-tts.md\n\n"

@@ -891,30 +891,30 @@ async def post_chat(body: ChatRequestSchema, request: Request):
             ttl_minutes=cfg.get("session_ttl_minutes", 120)
         )
 
-        kb_sections, max_score = chat_mgr.select_kb(
-            query=body.message,
+        min_score = cfg.get("kb_min_score", 0.75)
+        kb_kwargs = dict(
             active_tab=body.active_tab or "",
             sticky_kb=session.get("sticky_kb") if cfg.get("kb_sticky_per_session", True) else None,
             token_budget=cfg.get("kb_token_budget", 3000),
-            min_score=cfg.get("kb_min_score", 0.75)
+            min_score=min_score,
         )
+        kb_sections, max_score = chat_mgr.select_kb(query=body.message, **kb_kwargs)
+        # Câu nối tiếp ("vẫn bị", "nó chỉ ra tiếng Trung") không tự mang chủ đề:
+        # truy xuất lại với cả các câu hỏi trước trong phiên.
+        if max_score < min_score:
+            for q in chat_mgr.followup_queries(body.message, session.get("messages", [])):
+                kb_sections, max_score = chat_mgr.select_kb(query=q, **kb_kwargs)
+                if max_score >= min_score:
+                    break
         if cfg.get("kb_sticky_per_session", True) and kb_sections:
             session["sticky_kb"] = kb_sections
 
-        min_score = cfg.get("kb_min_score", 0.75)
-        if max_score < min_score and "truyện" not in body.message.lower() and "story" not in body.message.lower():
-            chat_mgr.single_chat_lock.release()
-            refusal_text = (
-                "Tài liệu hiện có không đề cập nội dung này.\n\n"
-                "📌 **Các mục bạn có thể tham khảo:**\n"
-                "- `00-tong-quan.md`: Quy trình 5 bước\n"
-                "- `06-cau-hinh.md`: Cấu hình chung\n"
-                "- `07-su-co-thuong-gap.md`: FAQ giải quyết lỗi\n"
-            )
-            async def generate_gate_refusal():
-                yield json.dumps({"delta": refusal_text}) + "\n"
-                yield json.dumps({"done": True, "prompt_tokens": 0, "truncated": False, "gate_refusal": True}) + "\n"
-            return StreamingResponse(generate_gate_refusal(), media_type="application/x-ndjson")
+        # Không khớp tài liệu thì KHÔNG từ chối cứng nữa: kb_sections rỗng khiến
+        # build_system_prompt chuyển sang prompt suy luận (có dán nhãn), và lượt
+        # này vẫn được lưu vào lịch sử để câu hỏi sau còn ngữ cảnh.
+        if max_score < min_score:
+            kb_sections = []
+            logger.info("[Chatbot] Không khớp tài liệu, trả lời bằng suy luận.")
 
         story_ctx = chat_mgr.build_story_context(body.story_name or "")
 

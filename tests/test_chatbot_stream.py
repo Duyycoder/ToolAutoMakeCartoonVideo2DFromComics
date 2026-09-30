@@ -71,8 +71,18 @@ def test_stream_agent_l1_query(client):
     assert last["agent_result"]["type"] == "story_list"
 
 
-def test_stream_gate_refusal(client):
-    with patch.object(chat_mgr, "select_kb", return_value=([], 0.05)):
+def test_stream_no_kb_match_falls_back_to_reasoning(client):
+    """Không khớp tài liệu -> vẫn gọi LLM với prompt suy luận, không từ chối cứng."""
+    captured = {}
+
+    async def mock_async_stream(*args, **kwargs):
+        captured["messages"] = kwargs["messages"]
+        yield {"delta": "⚠️ Ngoài tài liệu — đây là suy luận: ..."}
+        yield {"done": True, "prompt_tokens": 10, "truncated": False}
+
+    with patch.object(chat_mgr, "select_kb", return_value=([], 0.05)), \
+         patch("orchestrator.main.chat_stream_ollama", side_effect=mock_async_stream), \
+         patch("orchestrator.ollama_manager.ensure_ready", return_value=_READY):
         res = client.post("/api/chat", json={
             "session_id": "stream-test-3",
             "message": "Viết giúp em đoạn code Python",
@@ -80,9 +90,31 @@ def test_stream_gate_refusal(client):
         })
         assert res.status_code == 200
         lines = [line.strip() for line in res.text.strip().split("\n") if line.strip()]
-        last = json.loads(lines[-1])
-        assert last.get("done") is True
-        assert last.get("gate_refusal") is True
+        assert "Ngoài tài liệu" in json.loads(lines[0])["delta"]
+        assert json.loads(lines[-1]).get("done") is True
+        system = captured["messages"][0]["content"]
+        assert "KHÔNG có mục nào khớp" in system
+        assert "<tongquan>" in system
+    # Lượt suy luận vẫn được lưu để câu sau còn ngữ cảnh.
+    assert len(chat_mgr.sessions["stream-test-3"]["messages"]) == 2
+
+
+def test_followup_retrieval_uses_previous_question():
+    history = [
+        {"role": "user", "content": "bị lỗi trích xuất từ điển thì sửa sao"},
+        {"role": "assistant", "content": "..."},
+    ]
+    msg = ("Tôi chạy như bình thường nhưng lại chỉ ra tiếng trung dù tôi đang muốn "
+           "dịch từ tiếng Trung sang tiếng Việt")
+    assert chat_mgr.select_kb(msg, min_score=0.75)[0] == []
+    found = []
+    for q in chat_mgr.followup_queries(msg, history):
+        sections, score = chat_mgr.select_kb(q, min_score=0.75)
+        if sections:
+            found = sections
+            break
+    assert any("từ điển" in s["content"].lower() for s in found)
+    assert chat_mgr.followup_queries(msg, []) == []
 
 
 def test_stream_llm_main_flow(client):
