@@ -161,6 +161,11 @@ if %errorlevel% neq 0 (
 )
 echo.
 
+:: 3a. Chay SAU moi lan pip: goi phu thuoc keo onnxruntime ban CPU ve ghi de
+::     onnxruntime-gpu -> InsightFace am tham chay CPU.
+"AIVoice\.venv\Scripts\python.exe" scripts\sua_onnxruntime_gpu.py
+echo.
+
 :: 3b. WebView2 Runtime - thu vien Windows de ve cua so ung dung.
 ::     Thieu no thi run.bat chi mo duoc giao dien trong trinh duyet.
 if exist "scripts\cai_webview2.bat" call "scripts\cai_webview2.bat"

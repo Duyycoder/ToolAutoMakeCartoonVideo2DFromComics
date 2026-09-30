@@ -193,6 +193,8 @@ if exist "AIVoice\.venv\Scripts\python.exe" (
     ) else (
         echo [OK] Thu vien da du.
     )
+    rem pip co the keo onnxruntime ban CPU ve ghi de ban GPU - InsightFace chay CPU
+    "AIVoice\.venv\Scripts\python.exe" scripts\sua_onnxruntime_gpu.py
 ) else (
     echo [i] Chua co moi truong AIVoice - run.bat se tu chay setup.bat.
 )
