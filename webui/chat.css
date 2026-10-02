@@ -234,6 +234,7 @@
   cursor: pointer;
 }
 
+.chat-modelbar select#chatReasonSelect { flex: 0 0 auto; width: 84px; }
 .chat-modelbar select:hover { border-color: var(--border-strong); }
 
 .chat-modelbar select:focus {
@@ -378,6 +379,47 @@
   color: var(--text-secondary);
   white-space: pre;
   word-break: normal;
+}
+
+/* Tien do cac buoc suy luan (truoc khi co chu tra loi) */
+.chat-stage {
+  color: var(--text-muted, #8b8fa3);
+  font-style: italic;
+  font-size: var(--fs-12, 12px);
+}
+
+/* Nhat ky cac buoc suy luan, gap lai duoi cau tra loi */
+.chat-steps {
+  margin-top: 8px;
+  font-size: var(--fs-11, 11px);
+  color: var(--text-muted, #8b8fa3);
+}
+.chat-steps summary {
+  cursor: pointer;
+  user-select: none;
+}
+.chat-steps ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+.chat-steps li {
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* Ket qua truy van CSDL: cau SQL + bang hang */
+.chat-db-sql {
+  margin: 4px 0;
+  padding: 4px 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: var(--fs-11, 11px);
+  background: var(--bg-subtle, rgba(127, 127, 127, 0.08));
+  border-radius: var(--r-sm, 4px);
+}
+.chat-db-wrap {
+  max-height: 240px;
+  overflow: auto;
 }
 
 /* Banner cat bot lich su */

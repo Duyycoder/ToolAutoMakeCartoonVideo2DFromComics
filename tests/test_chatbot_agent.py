@@ -37,3 +37,14 @@ def test_agent_query_execution():
     res = chat_mgr.agent_query("system_status", {})
     assert res["type"] == "system_status"
     assert "gpu_weight" in res
+
+
+def test_agent_route_intent_run_named_step():
+    """"Chạy cho tôi bước 1" từng rơi xuống tra tài liệu, trả về đoạn hướng dẫn thay vì chạy."""
+    assert chat_mgr.route_intent("Chạy cho tôi bước 1") == ("run_step", {"n": 1})
+    assert chat_mgr.route_intent("chạy bước 1 cho 5 chương") == ("run_step", {"n": 1, "max_chapters": 5})
+    assert chat_mgr.route_intent("Bắt đầu bước hai") == ("run_step", {"n": 2})
+    assert chat_mgr.route_intent("chạy bước 4")[1] == {"n": 4}
+    # Câu hỏi về bước thì vẫn để tài liệu trả lời.
+    assert chat_mgr.route_intent("Làm sao chạy bước 1?")[0] == "chat"
+    assert chat_mgr.route_intent("Bước 1 làm gì")[0] == "chat"

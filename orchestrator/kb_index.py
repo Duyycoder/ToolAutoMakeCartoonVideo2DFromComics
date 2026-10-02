@@ -29,10 +29,24 @@ from typing import List, Tuple
 # Trần độ dài một mảnh. Vượt thì cắt tiếp theo ranh giới dòng/gạch đầu dòng.
 MAX_CHUNK_CHARS = 400
 
+# Bộ tri thức (collection) = thư mục con của docs/kb. File nằm ngay trong docs/kb
+# là "huong_dan" (cách dùng phần mềm); thư mục con là một bộ riêng, ví dụ
+# docs/kb/datn (tài liệu ôn bảo vệ đồ án). Tách bộ để hai việc không giẫm nhau:
+#   - IDF tính riêng từng bộ: thêm một triệu ký tự tài liệu đồ án không làm lệch
+#     điểm và ngưỡng đã chỉnh cho bộ hướng dẫn (~180 mảnh).
+#   - Truy xuất chọn được bộ theo loại câu hỏi.
+DEFAULT_COLLECTION = "huong_dan"
+
+# Mảnh tài liệu đồ án dài hơn: một câu hỏi–đáp hay một mục lý thuyết thường dài
+# 400–800 ký tự, cắt ở 400 thì câu trả lời bị chẻ sang mảnh khác.
+COLLECTION_MAX_CHARS = {DEFAULT_COLLECTION: MAX_CHUNK_CHARS}
+OTHER_COLLECTION_MAX_CHARS = 800
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS kb_chunks (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     file      TEXT NOT NULL,
+    collection TEXT NOT NULL DEFAULT 'huong_dan',
     path      TEXT NOT NULL,   -- "Tổng quan › Cấu trúc lưu trữ" — ngữ cảnh của mảnh
     header    TEXT NOT NULL,
     content   TEXT NOT NULL,   -- nội dung đưa vào prompt (đã kèm đường dẫn ngữ cảnh)
@@ -87,18 +101,21 @@ def _split_long(text: str, limit: int = MAX_CHUNK_CHARS) -> List[str]:
     return out
 
 
-def chunk_markdown(text: str, fname: str) -> List[dict]:
+def chunk_markdown(text: str, fname: str, max_chars: int = MAX_CHUNK_CHARS) -> List[dict]:
     """Chia một file Markdown thành các mảnh tự đứng vững.
 
     Mỗi mảnh được nhân bản đường dẫn ngữ cảnh ở đầu. Không có nó, mảnh
     "- `classic`: 1 ảnh/cảnh" tách khỏi tiêu đề "Chế độ render — Bước 3" là vô
     nghĩa với cả người đọc lẫn model. Đây là chỗ dễ hỏng nhất khi chia nhỏ.
+
+    Nhận tiêu đề tới cấp 4: tài liệu đồ án đặt mỗi câu hỏi luyện tập thành một
+    tiêu đề `####`, nên mỗi câu hỏi–đáp là một mảnh riêng mang đủ đường dẫn
+    chương › mục. Dòng `#` trong khối mã (```) không phải tiêu đề.
     """
-    doc_title = ""
-    h2 = ""
-    h3 = ""
+    heads = ["", "", "", ""]
     buf: List[str] = []
     chunks: List[dict] = []
+    in_code = False
 
     def flush():
         nonlocal buf
@@ -106,10 +123,10 @@ def chunk_markdown(text: str, fname: str) -> List[dict]:
         buf = []
         if not body:
             return
-        parts = [p for p in (doc_title, h2, h3) if p]
+        parts = [p for p in heads if p]
         path = " › ".join(parts)
-        header = h3 or h2 or doc_title
-        for piece in _split_long(body):
+        header = parts[-1] if parts else ""
+        for piece in _split_long(body, max_chars):
             chunks.append({
                 "file": fname,
                 "path": path,
@@ -120,22 +137,35 @@ def chunk_markdown(text: str, fname: str) -> List[dict]:
             })
 
     for line in text.splitlines():
-        m1 = re.match(r"^#\s+(.*)", line)
-        m2 = re.match(r"^##\s+(.*)", line)
-        m3 = re.match(r"^###\s+(.*)", line)
-        if m1:
+        if line.lstrip().startswith("```"):
+            in_code = not in_code
+            buf.append(line)
+            continue
+        m = None if in_code else re.match(r"^(#{1,4})\s+(.*)", line)
+        if m:
             flush()
-            doc_title, h2, h3 = m1.group(1).strip(), "", ""
-        elif m2:
-            flush()
-            h2, h3 = m2.group(1).strip(), ""
-        elif m3:
-            flush()
-            h3 = m3.group(1).strip()
+            level = len(m.group(1))
+            heads[level - 1] = m.group(2).strip()
+            for k in range(level, 4):
+                heads[k] = ""
         else:
             buf.append(line)
     flush()
     return chunks
+
+
+def iter_kb_files(kb_dir: str):
+    """(đường dẫn tương đối, bộ tri thức) của mọi file .md: gốc + một cấp thư mục con."""
+    if not os.path.isdir(kb_dir):
+        return
+    for name in sorted(os.listdir(kb_dir)):
+        full = os.path.join(kb_dir, name)
+        if name.endswith(".md") and os.path.isfile(full):
+            yield name, DEFAULT_COLLECTION
+        elif os.path.isdir(full) and not name.startswith((".", "_")):
+            for sub in sorted(os.listdir(full)):
+                if sub.endswith(".md"):
+                    yield f"{name}/{sub}", name
 
 
 def build_index(kb_dir: str, db_path: str) -> int:
@@ -149,28 +179,26 @@ def build_index(kb_dir: str, db_path: str) -> int:
         conn.executescript(SCHEMA)
 
         n = 0
-        if os.path.isdir(kb_dir):
-            for fname in sorted(os.listdir(kb_dir)):
-                if not fname.endswith(".md"):
-                    continue
-                fpath = os.path.join(kb_dir, fname)
-                try:
-                    with open(fpath, "r", encoding="utf-8") as f:
-                        text = f.read()
-                except OSError:
-                    continue
-                mtime = os.path.getmtime(fpath)
-                for ch in chunk_markdown(text, fname):
-                    cur = conn.execute(
-                        "INSERT INTO kb_chunks(file, path, header, content, mtime)"
-                        " VALUES (?,?,?,?,?)",
-                        (ch["file"], ch["path"], ch["header"], ch["content"], mtime),
-                    )
-                    conn.execute(
-                        "INSERT INTO kb_fts(rowid, body) VALUES (?,?)",
-                        (cur.lastrowid, ch["content"]),
-                    )
-                    n += 1
+        for rel, collection in iter_kb_files(kb_dir):
+            fpath = os.path.join(kb_dir, *rel.split("/"))
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    text = f.read()
+            except OSError:
+                continue
+            mtime = os.path.getmtime(fpath)
+            limit = COLLECTION_MAX_CHARS.get(collection, OTHER_COLLECTION_MAX_CHARS)
+            for ch in chunk_markdown(text, rel, limit):
+                cur = conn.execute(
+                    "INSERT INTO kb_chunks(file, collection, path, header, content, mtime)"
+                    " VALUES (?,?,?,?,?,?)",
+                    (ch["file"], collection, ch["path"], ch["header"], ch["content"], mtime),
+                )
+                conn.execute(
+                    "INSERT INTO kb_fts(rowid, body) VALUES (?,?)",
+                    (cur.lastrowid, ch["content"]),
+                )
+                n += 1
         conn.commit()
         return n
     finally:
@@ -184,10 +212,12 @@ def load_chunks(db_path: str) -> List[dict]:
     conn = _connect(db_path)
     try:
         rows = conn.execute(
-            "SELECT id, file, path, header, content FROM kb_chunks ORDER BY id"
+            "SELECT id, file, collection, path, header, content FROM kb_chunks ORDER BY id"
         ).fetchall()
         return [{
             "file": r["file"],
+            "collection": r["collection"],
+            "seq": r["id"],
             "path": r["path"],
             "header": r["header"],
             "content": r["content"],
@@ -202,10 +232,8 @@ def load_chunks(db_path: str) -> List[dict]:
 def kb_mtime(kb_dir: str) -> float:
     """mtime lớn nhất trong thư mục KB — dùng để biết chỉ mục có cũ không."""
     latest = 0.0
-    if os.path.isdir(kb_dir):
-        for fname in os.listdir(kb_dir):
-            if fname.endswith(".md"):
-                latest = max(latest, os.path.getmtime(os.path.join(kb_dir, fname)))
+    for rel, _col in iter_kb_files(kb_dir):
+        latest = max(latest, os.path.getmtime(os.path.join(kb_dir, *rel.split("/"))))
     return latest
 
 
@@ -214,6 +242,11 @@ def index_is_stale(kb_dir: str, db_path: str) -> bool:
         return True
     conn = _connect(db_path)
     try:
+        # Chỉ mục dựng bằng bản cũ (chưa có cột collection) phải dựng lại, nếu không
+        # load_chunks lỗi SQL và trợ lý chạy với KB rỗng mà không ai hay.
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(kb_chunks)")}
+        if "collection" not in cols:
+            return True
         row = conn.execute("SELECT MAX(mtime) AS m, COUNT(*) AS c FROM kb_chunks").fetchone()
     except sqlite3.Error:
         return True
@@ -248,7 +281,8 @@ def _terms(query: str) -> List[str]:
     return out or [t for t in _TOKEN_RE.findall(query) if len(t) > 1]
 
 
-def search(db_path: str, query: str, limit: int = 8) -> List[Tuple[dict, float]]:
+def search(db_path: str, query: str, limit: int = 8,
+           collection: str = "") -> List[Tuple[dict, float]]:
     """Tìm mảnh liên quan. Trả về [(mảnh, điểm dương càng cao càng khớp)].
 
     Hai nhịp:
@@ -266,12 +300,15 @@ def search(db_path: str, query: str, limit: int = 8) -> List[Tuple[dict, float]]
         for phase, expr in (("AND", " ".join(f'"{t}"' for t in terms)),
                             ("OR", " OR ".join(f'"{t}"' for t in terms))):
             try:
-                rows = conn.execute(
-                    "SELECT c.file, c.path, c.header, c.content, bm25(kb_fts) AS score"
-                    " FROM kb_fts JOIN kb_chunks c ON c.id = kb_fts.rowid"
-                    " WHERE kb_fts MATCH ? ORDER BY score LIMIT ?",
-                    (expr, limit),
-                ).fetchall()
+                sql = ("SELECT c.id, c.file, c.collection, c.path, c.header, c.content,"
+                       " bm25(kb_fts) AS score"
+                       " FROM kb_fts JOIN kb_chunks c ON c.id = kb_fts.rowid"
+                       " WHERE kb_fts MATCH ?")
+                args: list = [expr]
+                if collection:
+                    sql += " AND c.collection = ?"
+                    args.append(collection)
+                rows = conn.execute(sql + " ORDER BY score LIMIT ?", (*args, limit)).fetchall()
             except sqlite3.Error:
                 rows = []
             if rows:
@@ -281,10 +318,11 @@ def search(db_path: str, query: str, limit: int = 8) -> List[Tuple[dict, float]]
                 n = max(len(terms), 1)
                 out = [({
                     "file": r["file"],
+                    "collection": r["collection"],
                     "path": r["path"],
                     "header": r["header"],
                     "content": r["content"],
-                    "id": f'{r["file"]}#{r["path"]}',
+                    "id": f'{r["file"]}#{r["id"]}',
                     "phase": phase,
                 }, -float(r["score"]) / n) for r in rows]
                 return out

@@ -589,6 +589,7 @@ function setupEventHandlers() {
                 await loadStories();
                 elStorySelect.value = name;
                 selectStory(name);
+                if (document.getElementById("tab-stats")?.classList.contains("active")) loadStats();
             } else {
                 alert(`Lỗi khi tạo truyện mới: ${res.detail || 'Lỗi không xác định'}`);
             }
@@ -2109,14 +2110,166 @@ async function loadStats() {
         ];
         document.getElementById("statsCards").innerHTML = cards.map(([lbl, val]) =>
             `<div class="stat-card"><div class="stat-value">${val ?? 0}</div><div class="stat-label">${lbl}</div></div>`).join("");
-        const rows = (d.stories || []).map(s =>
-            `<tr><td>${_statEsc(s.name || s.slug)}</td><td>${_statEsc(s.status || "")}</td><td>${s.chapter_count ?? 0}</td><td>${_statEsc((s.updated_at || "").slice(0, 16).replace("T", " "))}</td></tr>`).join("");
+        const rows = (d.stories || []).map(s => {
+            const key = _statEsc(s.slug);
+            return `<tr><td>${_statEsc(s.name || s.slug)}</td><td>${_statEsc(s.status || "")}</td><td>${s.chapter_count ?? 0}</td><td>${_statEsc((s.updated_at || "").slice(0, 16).replace("T", " "))}</td>` +
+                `<td class="row-actions"><button class="btn btn-secondary btn-sm" data-act="view" data-key="${key}">Xem / Sửa</button>` +
+                `<button class="btn btn-danger btn-sm" data-act="del" data-key="${key}" data-name="${_statEsc(s.name || s.slug)}">Xóa</button></td></tr>`;
+        }).join("");
         document.getElementById("statsStoriesBody").innerHTML = rows ||
-            `<tr><td colspan="4" style="color:var(--text-muted)">Chưa có dữ liệu</td></tr>`;
+            `<tr><td colspan="5" style="color:var(--text-muted)">Chưa có dữ liệu — bấm "Đồng bộ lại CSDL" nếu đã có truyện trên đĩa</td></tr>`;
     } catch (e) {
         document.getElementById("statsCards").innerHTML = `<div style="color:var(--danger)">Lỗi tải thống kê: ${e}</div>`;
     }
+    loadKbDocs();
 }
+
+function closeModal(id) { document.getElementById(id)?.classList.remove("open"); }
+
+async function _apiJson(url, opts = {}) {
+    const r = await fetch(url, opts);
+    let d = {};
+    try { d = await r.json(); } catch (_) { /* thân rỗng */ }
+    if (!r.ok) throw new Error(d.detail || `HTTP ${r.status}`);
+    return d;
+}
+
+const STORY_STATUS_OPTIONS = ["CREATED", "CRAWLED", "TRANSLATED", "VOICE_GENERATED", "VIDEO_GENERATED",
+    "AUTOSUB_COMPLETED", "CANCELLED", "TRANSLATE_FAILED", "VOICE_FAILED", "VIDEO_FAILED"];
+let _sdKey = null;
+
+async function openStoryDetail(key) {
+    try {
+        const d = await _apiJson(`${API_BASE}/api/stats/stories/${encodeURIComponent(key)}`, { cache: "no-store" });
+        _sdKey = d.slug;
+        document.getElementById("sdTitle").textContent = `Chi tiết: ${d.name}`;
+        document.getElementById("sdName").value = d.name;
+        const sel = document.getElementById("sdStatus");
+        const opts = !d.status || STORY_STATUS_OPTIONS.includes(d.status) ? STORY_STATUS_OPTIONS : [d.status, ...STORY_STATUS_OPTIONS];
+        sel.innerHTML = opts.map(o => `<option value="${o}">${o}</option>`).join("");
+        sel.value = d.status || "CREATED";
+        document.getElementById("sdInfo").innerHTML =
+            `Thư mục: <code>${_statEsc(d.story_dir)}</code> · ${d.size_mb} MB · ${d.chapters.length} chương · tạo ${_statEsc((d.created_at || "").slice(0, 16).replace("T", " "))}`;
+        const tick = v => v ? "✓" : "—";
+        document.getElementById("sdChapters").innerHTML = d.chapters.map((c, i) =>
+            `<tr><td>${c.idx ?? i + 1}</td><td class="td-left">${_statEsc(c.title || "")}</td><td>${tick(c.md_path)}</td><td>${tick(c.wav_path)}</td><td>${tick(c.mp4_path)}</td></tr>`).join("") ||
+            `<tr><td colspan="5" style="color:var(--text-muted)">Chưa có chương</td></tr>`;
+        document.getElementById("sdJobs").innerHTML = d.jobs.map(j =>
+            `<tr><td>${_statEsc(j.step)}</td><td>${_statEsc(j.status)}</td><td>${_statEsc((j.started_at || "").slice(0, 16).replace("T", " "))}</td><td class="td-left">${_statEsc(j.message || "")}</td></tr>`).join("") ||
+            `<tr><td colspan="4" style="color:var(--text-muted)">Chưa có job</td></tr>`;
+        document.getElementById("sdBusy").style.display = d.busy ? "block" : "none";
+        ["sdSave", "sdDelete"].forEach(id => { document.getElementById(id).disabled = d.busy; });
+        document.getElementById("modalStoryDetail").classList.add("open");
+    } catch (e) { alert("Không tải được chi tiết truyện: " + e.message); }
+}
+
+// Chỉ để so truyện đang chọn ở thanh bên với slug — không cần giống hệt slugify của server.
+function _slugLike(t) {
+    return (t || "").toLowerCase().replace(/đ/g, "d").normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+async function saveStoryDetail() {
+    if (!_sdKey) return;
+    try {
+        const wasActive = _slugLike(elStorySelect.value) === _sdKey;
+        const d = await _apiJson(`${API_BASE}/api/stories/${encodeURIComponent(_sdKey)}`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ new_name: document.getElementById("sdName").value.trim(), status: document.getElementById("sdStatus").value }),
+        });
+        closeModal("modalStoryDetail");
+        await loadStories();
+        if (wasActive) { elStorySelect.value = d.meta.story_name; selectStory(d.meta.story_name); }
+        loadStats();
+    } catch (e) { alert("Lưu thất bại: " + e.message); }
+}
+
+async function deleteStory(key, name) {
+    if (!confirm(`XÓA truyện "${name}"?\nToàn bộ chương, âm thanh, video và tri thức nhân vật trong thư mục truyện sẽ bị xóa vĩnh viễn.`)) return;
+    try {
+        await _apiJson(`${API_BASE}/api/stories/${encodeURIComponent(key)}`, { method: "DELETE" });
+        closeModal("modalStoryDetail");
+        await loadStories();
+        loadStats();
+    } catch (e) { alert("Xóa thất bại: " + e.message); }
+}
+
+document.getElementById("statsStoriesBody")?.addEventListener("click", e => {
+    const b = e.target.closest("button[data-act]");
+    if (!b) return;
+    if (b.dataset.act === "view") openStoryDetail(b.dataset.key);
+    else deleteStory(b.dataset.key, b.dataset.name);
+});
+document.getElementById("sdSave")?.addEventListener("click", saveStoryDetail);
+document.getElementById("sdDelete")?.addEventListener("click", () =>
+    deleteStory(_sdKey, document.getElementById("sdName").value));
+document.getElementById("sdOpenFolder")?.addEventListener("click", async () => {
+    try { await _apiJson(`${API_BASE}/api/stories/${encodeURIComponent(_sdKey)}/open-folder`, { method: "POST" }); }
+    catch (e) { alert(e.message); }
+});
+
+// ----- Tài liệu chatbot (docs/kb/*.md) -----
+let _kbEditing = null;   // null = đang tạo mới
+
+async function loadKbDocs() {
+    const body = document.getElementById("kbDocsBody");
+    if (!body) return;
+    try {
+        const d = await _apiJson(`${API_BASE}/api/kb`, { cache: "no-store" });
+        document.getElementById("kbDirPath").textContent = d.kb_dir;
+        body.innerHTML = d.docs.map(f => {
+            const n = _statEsc(f.name);
+            return `<tr><td>${n}</td><td class="td-left">${_statEsc(f.title)}</td><td>${(f.size / 1024).toFixed(1)} KB</td><td>${_statEsc(f.mtime.replace("T", " "))}</td>` +
+                `<td class="row-actions"><button class="btn btn-secondary btn-sm" data-kb="edit" data-name="${n}">Xem / Sửa</button>` +
+                `<button class="btn btn-danger btn-sm" data-kb="del" data-name="${n}">Xóa</button></td></tr>`;
+        }).join("") || `<tr><td colspan="5" style="color:var(--text-muted)">Chưa có tài liệu</td></tr>`;
+    } catch (e) {
+        body.innerHTML = `<tr><td colspan="5" style="color:var(--danger)">Lỗi: ${_statEsc(e.message)}</td></tr>`;
+    }
+}
+
+async function openKbEditor(name) {
+    _kbEditing = name;
+    const nameEl = document.getElementById("kbName");
+    const contentEl = document.getElementById("kbContent");
+    nameEl.value = name || "";
+    nameEl.disabled = !!name;
+    contentEl.value = name ? "Đang tải..." : "# Tiêu đề tài liệu\n\n## Mục 1\n\nNội dung...\n";
+    document.getElementById("kbTitle").textContent = name ? `Sửa tài liệu: ${name}` : "Thêm tài liệu chatbot";
+    document.getElementById("modalKbEditor").classList.add("open");
+    if (name) {
+        try { contentEl.value = (await _apiJson(`${API_BASE}/api/kb/${encodeURIComponent(name)}`)).content; }
+        catch (e) { contentEl.value = ""; alert(e.message); }
+    }
+}
+
+document.getElementById("kbSave")?.addEventListener("click", async () => {
+    let name = document.getElementById("kbName").value.trim();
+    if (!name) return alert("Nhập tên tệp.");
+    if (!name.endsWith(".md")) name += ".md";
+    try {
+        if (!_kbEditing) {
+            const list = await _apiJson(`${API_BASE}/api/kb`);
+            if (list.docs.some(f => f.name === name) && !confirm(`Đã có "${name}". Ghi đè?`)) return;
+        }
+        await _apiJson(`${API_BASE}/api/kb/${encodeURIComponent(name)}`, {
+            method: "PUT", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: document.getElementById("kbContent").value }),
+        });
+        closeModal("modalKbEditor");
+        loadKbDocs();
+    } catch (e) { alert("Lưu thất bại: " + e.message); }
+});
+
+document.getElementById("kbDocsBody")?.addEventListener("click", async e => {
+    const b = e.target.closest("button[data-kb]");
+    if (!b) return;
+    const name = b.dataset.name;
+    if (b.dataset.kb === "edit") return openKbEditor(name);
+    if (!confirm(`Xóa tài liệu "${name}"? Chatbot sẽ không còn dùng nội dung này.`)) return;
+    try { await _apiJson(`${API_BASE}/api/kb/${encodeURIComponent(name)}`, { method: "DELETE" }); loadKbDocs(); }
+    catch (err) { alert("Xóa thất bại: " + err.message); }
+});
 async function previewCleanup() {
     const el = document.getElementById("cleanupInfo");
     el.textContent = "Đang kiểm tra...";

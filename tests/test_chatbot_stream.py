@@ -11,6 +11,17 @@ from orchestrator.llm import chat_stream_ollama
 _READY = {"ok": True, "server": True, "model_installed": True, "reason": ""}
 
 
+def _content_lines(text: str) -> list:
+    """Các dòng NDJSON trừ dòng tiến độ {"stage"} của quy trình suy luận nhiều lượt."""
+    out = []
+    for line in text.strip().split("\n"):
+        if line.strip():
+            obj = json.loads(line)
+            if "stage" not in obj:
+                out.append(obj)
+    return out
+
+
 @pytest.fixture
 def client():
     return TestClient(app)
@@ -81,6 +92,7 @@ def test_stream_no_kb_match_falls_back_to_reasoning(client):
         yield {"done": True, "prompt_tokens": 10, "truncated": False}
 
     with patch.object(chat_mgr, "select_kb", return_value=([], 0.05)), \
+         patch("orchestrator.chat_reasoning.retrieve", return_value=[]), \
          patch("orchestrator.main.chat_stream_ollama", side_effect=mock_async_stream), \
          patch("orchestrator.ollama_manager.ensure_ready", return_value=_READY):
         res = client.post("/api/chat", json={
@@ -89,9 +101,9 @@ def test_stream_no_kb_match_falls_back_to_reasoning(client):
             "mode": "auto"
         })
         assert res.status_code == 200
-        lines = [line.strip() for line in res.text.strip().split("\n") if line.strip()]
-        assert "Ngoài tài liệu" in json.loads(lines[0])["delta"]
-        assert json.loads(lines[-1]).get("done") is True
+        lines = _content_lines(res.text)
+        assert "Ngoài tài liệu" in lines[0]["delta"]
+        assert lines[-1].get("done") is True
         system = captured["messages"][0]["content"]
         assert "KHÔNG có mục nào khớp" in system
         assert "<tongquan>" in system
@@ -132,12 +144,13 @@ def test_stream_llm_main_flow(client):
             "mode": "auto"
         })
         assert res.status_code == 200
-        lines = [line.strip() for line in res.text.strip().split("\n") if line.strip()]
+        lines = _content_lines(res.text)
         assert len(lines) == 3
-        d1 = json.loads(lines[0])
-        assert d1["delta"] == "Xin chào! "
-        d3 = json.loads(lines[2])
-        assert d3["done"] is True
+        assert lines[0]["delta"] == "Xin chào! "
+        assert lines[2]["done"] is True
+        # Gói kết thúc mang nhật ký các bước và nguồn tài liệu cho widget.
+        assert isinstance(lines[2].get("steps"), list)
+        assert "sources" in lines[2]
 
 
 @pytest.mark.anyio
@@ -170,3 +183,26 @@ async def test_ollama_payload_passes_num_ctx():
         json_payload = call_kwargs["json"]
         assert "options" in json_payload
         assert json_payload["options"]["num_ctx"] == 8192
+
+
+def test_stream_passes_reasoning_mode_from_widget(client):
+    """Ô "Chế độ" ở khung chat (auto/deep/fast) phải đè cấu hình chung cho câu đó."""
+    seen = {}
+
+    async def fake_plan(**kw):
+        seen["mode"] = kw["cfg"].get("reasoning")
+        yield {"plan": {"sections": [], "parts": [], "kind": "huong_dan", "question": "", "steps": []}}
+
+    async def fake_stream(**kw):
+        yield {"delta": "ok"}
+        yield {"done": True, "prompt_tokens": 1, "truncated": False}
+
+    with patch("orchestrator.main.ollama_manager.ensure_ready", return_value=_READY), \
+            patch("orchestrator.main.chat_reasoning.plan_answer", fake_plan), \
+            patch("orchestrator.main.chat_stream_ollama", fake_stream), \
+            patch.object(chat_mgr, "get_gpu_weight", return_value=("none", [])):
+        res = client.post("/api/chat", json={
+            "session_id": "reason-mode", "message": "Stable Diffusion sinh ảnh như thế nào?",
+            "mode": "auto", "reasoning": "deep"})
+    assert res.status_code == 200
+    assert seen["mode"] == "deep"

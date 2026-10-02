@@ -1,6 +1,9 @@
 import os
+import re
 import sys
+import datetime
 import json
+import time
 import logging
 import subprocess
 from contextlib import asynccontextmanager
@@ -26,6 +29,8 @@ from orchestrator.chatbot import (  # noqa: E402
     ChatManager, CHAT_MODEL_PROFILES, TIER_DEFAULT_MODEL, vram_tier,
 )
 from orchestrator.llm import chat_stream_ollama, unload_ollama  # noqa: E402
+from orchestrator import chat_reasoning  # noqa: E402
+from orchestrator import chat_db  # noqa: E402
 from orchestrator import ollama_manager  # noqa: E402
 from orchestrator import model_preflight  # noqa: E402
 
@@ -89,6 +94,8 @@ class ChatRequestSchema(BaseModel):
     active_tab: Optional[str] = ""
     mode: Optional[str] = "auto"
     force: Optional[bool] = False
+    # Chế độ suy luận chọn ở khung chat: auto | deep | fast. Rỗng = theo Cấu Hình Chung.
+    reasoning: Optional[str] = ""
 
 class AgentQuerySchema(BaseModel):
     action: str
@@ -236,6 +243,184 @@ def rebuild_db_api():
     """Đồng bộ lại SQLite từ các story.json trên đĩa."""
     n = storage_mgr.rebuild_db()
     return {"synced": n}
+
+# ---------- Dashboard: xem / sửa / xóa truyện ----------
+STORY_STATUSES = ("CREATED", "CRAWLED", "TRANSLATED", "VOICE_GENERATED", "VIDEO_GENERATED",
+                  "AUTOSUB_COMPLETED", "CANCELLED", "TRANSLATE_FAILED", "VOICE_FAILED", "VIDEO_FAILED")
+
+class StoryPatchSchema(BaseModel):
+    new_name: Optional[str] = None
+    status: Optional[str] = None
+
+
+def _story_busy(slug: str) -> bool:
+    if auto_run_mgr.is_chain_running(slug):
+        return True
+    return any(process_mgr.is_running(f"{slug}_step{i}") for i in range(1, 6))
+
+
+def _require_story(story_name: str) -> dict:
+    meta = storage_mgr.read_story_meta(story_name)
+    if not meta:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy truyện '{story_name}'.")
+    return meta
+
+
+@app.get("/api/stats/stories/{story_name}")
+def get_story_stats(story_name: str):
+    """Chi tiết một truyện cho Dashboard: metadata + danh sách chương + lịch sử job."""
+    from orchestrator import db
+    from orchestrator.storage import slugify
+    meta = _require_story(story_name)
+    slug = meta.get("story_slug") or slugify(story_name)
+    story_dir = storage_mgr.get_story_dir(story_name)
+    detail = db.get_story(storage_mgr.db_path, slug) or {}
+    chapters = detail.get("chapters") or storage_mgr.scan_chapters(story_name)
+    return {
+        "slug": slug,
+        "name": meta.get("story_name") or slug,
+        "status": meta.get("status", ""),
+        "created_at": meta.get("created_at", ""),
+        "updated_at": meta.get("updated_at", ""),
+        "story_dir": story_dir,
+        "size_mb": round(storage_mgr._dir_size(story_dir) / 1e6, 1),
+        "busy": _story_busy(slug),
+        "chapters": chapters,
+        "jobs": detail.get("jobs") or [],
+    }
+
+
+@app.patch("/api/stories/{story_name}")
+def patch_story(story_name: str, body: StoryPatchSchema):
+    """Đổi tên (kéo theo đổi thư mục) và/hoặc trạng thái của truyện."""
+    from orchestrator import db
+    from orchestrator.storage import slugify
+    meta = dict(_require_story(story_name))
+    old_slug = meta.get("story_slug") or slugify(story_name)
+    if _story_busy(old_slug):
+        raise HTTPException(status_code=400, detail="Truyện đang chạy một bước — dừng trước khi sửa.")
+
+    if body.status is not None:
+        if body.status not in STORY_STATUSES:
+            raise HTTPException(status_code=400, detail=f"Trạng thái không hợp lệ: {body.status}")
+        meta["status"] = body.status
+
+    new_name = (body.new_name or "").strip()
+    if new_name and new_name != meta.get("story_name"):
+        new_slug = slugify(new_name)
+        if new_slug != old_slug:
+            new_dir = storage_mgr.get_story_dir(new_name)
+            if os.path.exists(new_dir):
+                raise HTTPException(status_code=409, detail=f"Đã có truyện trùng thư mục '{new_slug}'.")
+            try:
+                os.rename(storage_mgr.get_story_dir(story_name), new_dir)
+            except OSError as e:
+                raise HTTPException(status_code=500, detail=f"Không đổi được thư mục (tệp đang mở?): {e}")
+            try:
+                db.delete_story(storage_mgr.db_path, old_slug)
+            except Exception:
+                pass
+        meta["story_name"] = new_name
+        meta["story_slug"] = new_slug
+
+    meta["updated_at"] = datetime.datetime.now().isoformat()
+    if not storage_mgr.write_story_meta(meta["story_name"], meta):
+        raise HTTPException(status_code=500, detail="Không ghi được story.json.")
+    return {"status": "success", "meta": meta}
+
+
+@app.delete("/api/stories/{story_name}")
+def delete_story_api(story_name: str):
+    """Xóa toàn bộ thư mục + bản ghi CSDL của truyện. Không hoàn tác."""
+    from orchestrator.storage import slugify
+    meta = _require_story(story_name)
+    slug = meta.get("story_slug") or slugify(story_name)
+    if _story_busy(slug):
+        raise HTTPException(status_code=400, detail="Truyện đang chạy một bước — dừng trước khi xóa.")
+    storage_mgr.delete_story(story_name)
+    if os.path.isdir(storage_mgr.get_story_dir(story_name)):
+        raise HTTPException(status_code=500, detail="Còn tệp chưa xóa được (đang bị chương trình khác mở).")
+    return {"status": "success", "deleted": slug}
+
+
+# ---------- Tài liệu tri thức của chatbot (docs/kb/*.md) ----------
+_KB_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.md$")
+
+class KbDocSchema(BaseModel):
+    content: str
+
+
+def _reload_kb() -> None:
+    """Dựng lại chỉ mục ngay (xóa tệp không làm chỉ mục "cũ" theo mtime) rồi nạp lại
+    các mảnh vào chatbot — không thì phải khởi động lại app mới thấy nội dung mới."""
+    from orchestrator import kb_index
+    try:
+        kb_index.build_index(chat_mgr.kb_dir, chat_mgr.index_path)
+        chat_mgr._load_kb_docs()
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Không nạp lại được KB: {e}")
+    chat_mgr._answer_cache.clear()
+
+
+def _kb_path(fname: str) -> str:
+    if not _KB_NAME_RE.match(fname) or ".." in fname:
+        raise HTTPException(status_code=400, detail="Tên tệp chỉ gồm chữ/số/._- và kết thúc bằng .md")
+    return os.path.join(chat_mgr.kb_dir, fname)
+
+
+@app.get("/api/kb")
+def list_kb_docs():
+    """Danh sách tài liệu chatbot dùng để trả lời (RAG). Sửa xong chỉ mục tự dựng lại."""
+    kb_dir = chat_mgr.kb_dir
+    docs = []
+    if os.path.isdir(kb_dir):
+        for fname in sorted(os.listdir(kb_dir)):
+            if not fname.endswith(".md"):
+                continue
+            path = os.path.join(kb_dir, fname)
+            title = ""
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("#"):
+                            title = line.lstrip("#").strip()
+                            break
+            except OSError:
+                pass
+            st = os.stat(path)
+            docs.append({"name": fname, "title": title, "size": st.st_size,
+                         "mtime": datetime.datetime.fromtimestamp(st.st_mtime).isoformat(timespec="minutes")})
+    return {"kb_dir": kb_dir, "docs": docs}
+
+
+@app.get("/api/kb/{fname}")
+def get_kb_doc(fname: str):
+    path = _kb_path(fname)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Không có tài liệu này.")
+    with open(path, "r", encoding="utf-8") as f:
+        return {"name": fname, "content": f.read()}
+
+
+@app.put("/api/kb/{fname}")
+def save_kb_doc(fname: str, body: KbDocSchema):
+    """Tạo mới hoặc ghi đè tài liệu."""
+    path = _kb_path(fname)
+    os.makedirs(chat_mgr.kb_dir, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(body.content)
+    _reload_kb()
+    return {"status": "success", "name": fname}
+
+
+@app.delete("/api/kb/{fname}")
+def delete_kb_doc(fname: str):
+    path = _kb_path(fname)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Không có tài liệu này.")
+    os.remove(path)
+    _reload_kb()
+    return {"status": "success"}
 
 def _wmi_gpu() -> tuple[str, int]:
     """(tên, VRAM MB) của card rời lớn nhất qua WMI — cho máy AMD/Intel không có
@@ -820,9 +1005,26 @@ def get_system_busy():
         "gpu_weight": gpu_weight
     }
 
+_db_synced_at = 0.0
+
+
+def _sync_db_for_chat(min_gap_s: float = 30.0) -> None:
+    """Đồng bộ app.db từ story.json trên đĩa, tối đa một lần mỗi `min_gap_s` giây."""
+    global _db_synced_at
+    if time.time() - _db_synced_at < min_gap_s:
+        return
+    try:
+        storage_mgr.rebuild_db()
+    except Exception as e:
+        logger.warning(f"[ChatDB] Không đồng bộ được CSDL: {e}")
+    _db_synced_at = time.time()
+
+
 @app.post("/api/chat")
 async def post_chat(body: ChatRequestSchema, request: Request):
-    cfg = load_global_config().get("chatbot", {})
+    cfg = dict(load_global_config().get("chatbot", {}))
+    if body.reasoning in ("auto", "deep", "fast"):
+        cfg["reasoning"] = body.reasoning
     if not cfg.get("enabled", True):
         raise HTTPException(status_code=503, detail="Trợ lý AI đang bị tắt trong Cấu Hình Chung.")
 
@@ -858,6 +1060,25 @@ async def post_chat(body: ChatRequestSchema, request: Request):
             return StreamingResponse(generate_greeting(), media_type="application/x-ndjson")
 
         action, action_args = chat_mgr.route_intent(body.message, body.story_name or "")
+        # Câu hỏi số liệu/danh sách -> truy vấn CSDL. Lấn các thẻ L1 cũ vì
+        # chúng chỉ trả lời được đúng một mẫu ("danh sách truyện bị lỗi" từng ra
+        # cả danh sách). Lệnh chạy bước / trạng thái GPU vẫn giữ đường riêng.
+        # Code tự phân loại câu hỏi và đọc sẵn dữ liệu cần; model chỉ đọc rồi diễn đạt.
+        db_data = None
+        if action in ("chat", "list_stories", "story_report"):
+            try:
+                _sync_db_for_chat()
+                db_data = chat_db.gather(storage_mgr.db_path, body.message, body.story_name or "")
+            except Exception as e:
+                logger.warning(f"[ChatDB] Không đọc được CSDL: {e}")
+        # Thẻ L1 cũ (danh sách truyện / báo cáo truyện đang mở) trả lời tức thì,
+        # không cần model — chỉ nhường khi câu có bộ lọc hoặc nêu tên truyện khác.
+        if db_data is not None and action != "chat" and not body.message.lstrip().startswith("/") \
+                and "loc" not in db_data["loai"] and not db_data["ro_ten"]:
+            db_data = None
+        is_db = db_data is not None
+        if is_db:
+            action = "chat"
         if action != "chat":
             if action in ["run_step", "select_story"]:
                 chat_mgr.single_chat_lock.release()
@@ -886,7 +1107,7 @@ async def post_chat(body: ChatRequestSchema, request: Request):
                     yield json.dumps({"agent_result": res, "done": True, "prompt_tokens": 0, "truncated": False}) + "\n"
                 return StreamingResponse(generate_agent_l1(), media_type="application/x-ndjson")
 
-        if body.mode == "lookup" or (gpu_weight == "heavy" and not body.force):
+        if not is_db and (body.mode == "lookup" or (gpu_weight == "heavy" and not body.force)):
             lookup_ans = chat_mgr.lookup_only(body.message, body.active_tab or "")
             chat_mgr.single_chat_lock.release()
             async def generate_lookup():
@@ -899,32 +1120,7 @@ async def post_chat(body: ChatRequestSchema, request: Request):
             max_sessions=cfg.get("max_sessions", 20),
             ttl_minutes=cfg.get("session_ttl_minutes", 120)
         )
-
-        min_score = cfg.get("kb_min_score", 0.75)
-        kb_kwargs = dict(
-            active_tab=body.active_tab or "",
-            sticky_kb=session.get("sticky_kb") if cfg.get("kb_sticky_per_session", True) else None,
-            token_budget=cfg.get("kb_token_budget", 3000),
-            min_score=min_score,
-        )
-        kb_sections, max_score = chat_mgr.select_kb(query=body.message, **kb_kwargs)
-        # Câu nối tiếp ("vẫn bị", "nó chỉ ra tiếng Trung") không tự mang chủ đề:
-        # truy xuất lại với cả các câu hỏi trước trong phiên.
-        if max_score < min_score:
-            for q in chat_mgr.followup_queries(body.message, session.get("messages", [])):
-                kb_sections, max_score = chat_mgr.select_kb(query=q, **kb_kwargs)
-                if max_score >= min_score:
-                    break
-        if cfg.get("kb_sticky_per_session", True) and kb_sections:
-            session["sticky_kb"] = kb_sections
-
-        # Không khớp tài liệu thì KHÔNG từ chối cứng nữa: kb_sections rỗng khiến
-        # build_system_prompt chuyển sang prompt suy luận (có dán nhãn), và lượt
-        # này vẫn được lưu vào lịch sử để câu hỏi sau còn ngữ cảnh.
-        if max_score < min_score:
-            kb_sections = []
-            logger.info("[Chatbot] Không khớp tài liệu, trả lời bằng suy luận.")
-
+        history = list(session.get("messages", []))
         story_ctx = chat_mgr.build_story_context(body.story_name or "")
 
         # Cache câu lặp — CHỈ cho câu hỏi vận hành thuần (vai A). Câu có ngữ cảnh
@@ -935,7 +1131,8 @@ async def post_chat(body: ChatRequestSchema, request: Request):
         cacheable = (
             cfg.get("cache_repeat_questions", True)
             and not story_ctx
-            and not session.get("messages")
+            and not history
+            and not is_db
         )
         if cacheable:
             hit = chat_mgr.cache_get(body.message, model_now)
@@ -953,36 +1150,66 @@ async def post_chat(body: ChatRequestSchema, request: Request):
 
         base_url = cfg.get("base_url") or _cfg.get("crawler", {}).get("ollama_base_url") or "http://localhost:11434/v1"
         num_ctx = cfg.get("num_ctx", 8192)
-
-        # Lượt suy nghĩ: chỉ chạy khi truy xuất tỏ ra không chắc (mảnh rải trên
-        # nhiều file). Cho model chọn mảnh dựa trên TIÊU ĐỀ trước, rồi mới nạp
-        # nội dung của mảnh đã chọn — prompt ngắn nên lượt này rẻ.
-        if cfg.get("reasoning_pass", True) and chat_mgr.needs_reasoning(kb_sections):
-            try:
-                picked_reply = ""
-                async for ch in chat_stream_ollama(
-                    base_url=base_url, model=model_now,
-                    messages=chat_mgr.build_reasoning_prompt(body.message, kb_sections),
-                    temperature=0.1, num_predict=24, num_ctx=num_ctx,
-                ):
-                    picked_reply += ch.get("delta", "")
-                before = len(kb_sections)
-                kb_sections = chat_mgr.apply_reasoning(kb_sections, picked_reply)
-                logger.info(f"[Chatbot] Lượt suy nghĩ: {before} mảnh -> {len(kb_sections)}.")
-            except Exception as e:
-                # Chọn hỏng thì dùng nguyên danh sách truy xuất, không chặn câu trả lời.
-                logger.warning(f"[Chatbot] Lượt suy nghĩ lỗi, bỏ qua: {e}")
-
-        system_prompt = chat_mgr.build_system_prompt(kb_sections, story_ctx)
-
-        messages = [{"role": "system", "content": system_prompt}]
-        history = session.get("messages", [])
-        max_turns = cfg.get("max_history_turns", 12)
-        recent_history = history[-(max_turns * 2):]
-        messages.extend(recent_history)
-        messages.append({"role": "user", "content": body.message})
-
         model = model_now
+
+        async def llm_once(messages, num_predict=200, temperature=0.0, fmt=None) -> str:
+            """Một lượt LLM nội bộ (không stream ra màn hình) cho các bước suy luận."""
+            out = ""
+            async for ch in chat_stream_ollama(
+                base_url=base_url, model=model, messages=messages,
+                temperature=temperature, num_predict=num_predict, num_ctx=num_ctx, fmt=fmt,
+            ):
+                out += ch.get("delta", "")
+            return out
+
+        async def generate_db():
+            question = chat_db.strip_force_prefix(body.message)
+            full_response = ""
+            try:
+                import asyncio as _asyncio
+                ready = await _asyncio.to_thread(
+                    ollama_manager.ensure_ready, model, base_url,
+                    cfg.get("autostart_ollama", True), True, lambda msg, pct: None,
+                )
+                if not ready["ok"]:
+                    yield json.dumps({"delta": ready["reason"] or "Không chuẩn bị được model cho trợ lý."}) + "\n"
+                    yield json.dumps({"done": True, "prompt_tokens": 0, "truncated": False, "model_not_ready": True}) + "\n"
+                    return
+
+                yield json.dumps({"stage": "tra_loi", "text": chat_reasoning.STAGES["tra_loi"]}) + "\n"
+                done_chunk = None
+                async for chunk in chat_stream_ollama(
+                    base_url=base_url, model=model,
+                    messages=chat_db.build_answer_messages(question, db_data, history),
+                    temperature=0.0, num_predict=cfg.get("num_predict", 512), num_ctx=num_ctx,
+                ):
+                    if await request.is_disconnected():
+                        break
+                    if chunk.get("done"):
+                        done_chunk = chunk
+                        continue
+                    if "delta" in chunk:
+                        full_response += chunk["delta"]
+                    yield json.dumps(chunk) + "\n"
+                # Model 3B hay rơi mất một mục khi liệt kê -> code soát và bổ sung.
+                note = chat_db.completeness_note(full_response, db_data)
+                if note:
+                    full_response += note
+                    yield json.dumps({"delta": note}) + "\n"
+                done_chunk = dict(done_chunk or {"done": True, "prompt_tokens": 0, "truncated": False})
+                done_chunk["db"] = db_data
+                yield json.dumps(done_chunk) + "\n"
+                if full_response:
+                    session["messages"].append({"role": "user", "content": body.message})
+                    session["messages"].append({"role": "assistant", "content": full_response})
+            except Exception as ex:
+                logger.error(f"[Chatbot] Lỗi trả lời từ CSDL: {ex}")
+                yield json.dumps({"error": str(ex)}) + "\n"
+            finally:
+                chat_mgr.single_chat_lock.release()
+
+        if db_data is not None:
+            return StreamingResponse(generate_db(), media_type="application/x-ndjson")
 
         async def generate_chat():
             full_response = ""
@@ -1012,6 +1239,50 @@ async def post_chat(body: ChatRequestSchema, request: Request):
                     }) + "\n"
                     return
 
+                # Suy luận nhiều lượt: hiểu câu hỏi -> tra -> chọn đoạn -> (tách ý).
+                # Mỗi lượt phát một dòng {"stage"} để widget hiện tiến độ.
+                plan = None
+                staged = False
+                async for ev in chat_reasoning.plan_answer(
+                    chat_mgr=chat_mgr, llm=llm_once, question=body.message,
+                    history=history, active_tab=body.active_tab or "", cfg=cfg,
+                ):
+                    if "stage" in ev:
+                        staged = True
+                        yield json.dumps(ev) + "\n"
+                    elif "plan" in ev:
+                        plan = ev["plan"]
+                sections = plan["sections"]
+                if cfg.get("kb_sticky_per_session", True) and sections:
+                    session["sticky_kb"] = sections
+
+                if plan["parts"]:
+                    async for ev in chat_reasoning.answer_parts(llm=llm_once, parts=plan["parts"], cfg=cfg):
+                        if "stage" in ev:
+                            yield json.dumps(ev) + "\n"
+                    system_prompt = chat_reasoning.build_synthesis_prompt(plan["parts"], story_ctx)
+                elif plan["kind"] == chat_reasoning.DATN:
+                    system_prompt = chat_reasoning.build_study_prompt(sections, story_ctx)
+                else:
+                    # Bộ hướng dẫn giữ prompt cũ; không có đoạn nào -> prompt suy luận có nhãn.
+                    system_prompt = chat_mgr.build_system_prompt(sections, story_ctx)
+                if not sections:
+                    logger.info("[Chatbot] Không khớp tài liệu, trả lời bằng suy luận.")
+
+                messages = [{"role": "system", "content": system_prompt}]
+                # Câu hỏi đã được viết lại cho đủ nghĩa nên chỉ cần vài lượt gần nhất;
+                # lịch sử dài làm model 3B lạc đề và tốn context.
+                keep_turns = cfg.get("answer_history_turns", 3)
+                messages.extend(history[-(keep_turns * 2):] if keep_turns else [])
+                user_msg = body.message
+                if plan["question"] and plan["question"].strip() != body.message.strip():
+                    user_msg += f"\n\n(Hiểu là: {plan['question']})"
+                messages.append({"role": "user", "content": user_msg})
+
+                if staged:
+                    yield json.dumps({"stage": "tra_loi", "text": chat_reasoning.STAGES["tra_loi"]}) + "\n"
+
+                done_chunk = None
                 async for chunk in chat_stream_ollama(
                     base_url=base_url,
                     model=model,
@@ -1025,10 +1296,34 @@ async def post_chat(body: ChatRequestSchema, request: Request):
                     if await request.is_disconnected():
                         logger.info("[Chatbot] Client ngắt kết nối giữa stream.")
                         break
-
+                    if chunk.get("done"):
+                        done_chunk = chunk
+                        continue
                     if "delta" in chunk:
                         full_response += chunk["delta"]
                     yield json.dumps(chunk) + "\n"
+
+                # Soát chi tiết cụ thể (con số, tên tệp) không có trong tài liệu đã đưa.
+                if sections and full_response and cfg.get("grounding_check", True):
+                    # Tên tệp/đường dẫn mục (model hay ghi vào dòng "Nguồn:") và lịch sử
+                    # hội thoại cũng là ngữ cảnh hợp lệ — thiếu chúng thì cảnh báo oan.
+                    ctx = "\n".join(f"{s['file']} {s.get('path', '')}\n{s['content']}" for s in sections)
+                    ctx += "\n" + story_ctx + "\n" + body.message
+                    ctx += "\n" + "\n".join(m.get("content", "") for m in history[-6:])
+                    ctx += "\n" + "\n".join(p.get("answer", "") for p in plan["parts"])
+                    issues = chat_reasoning.grounding_issues(full_response, ctx)
+                    if issues:
+                        note = ("\n\n_⚠️ Chưa thấy trong tài liệu: "
+                                + ", ".join(f"`{x}`" for x in issues)
+                                + " — nên kiểm tra lại._")
+                        full_response += note
+                        yield json.dumps({"delta": note}) + "\n"
+
+                if done_chunk is not None:
+                    done_chunk = dict(done_chunk)
+                    done_chunk["sources"] = list(dict.fromkeys(s["file"] for s in sections))
+                    done_chunk["steps"] = plan["steps"]
+                    yield json.dumps(done_chunk) + "\n"
 
                 if full_response:
                     if cacheable:
@@ -1042,6 +1337,7 @@ async def post_chat(body: ChatRequestSchema, request: Request):
                 chat_mgr.single_chat_lock.release()
 
         return StreamingResponse(generate_chat(), media_type="application/x-ndjson")
+
 
     except HTTPException:
         chat_mgr.single_chat_lock.release()

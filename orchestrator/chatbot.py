@@ -127,11 +127,23 @@ class ChatManager:
         try:
             for ch in kb_index.load_chunks(self.index_path):
                 ch["norm_text"] = remove_vietnamese_diacritics(ch["content"])
+                # Tập từ dựng sẵn: so khớp bằng phép thuộc tập thay cho regex \bw\b
+                # (kết quả như nhau vì cùng tách theo \w+). KB đồ án làm số mảnh
+                # tăng ~10 lần, regex từng mảnh từng từ là chỗ chậm nhất.
+                ch["toks"] = set(re.findall(r"\w+", ch["norm_text"]))
+                ch["htoks"] = set(re.findall(r"\w+", remove_vietnamese_diacritics(ch["header"])))
+                ch.setdefault("collection", kb_index.DEFAULT_COLLECTION)
                 self.kb_sections.append(ch)
         except Exception as e:
             logger.error(f"[Chatbot] Không đọc được chỉ mục KB: {e}")
         self._build_idf()
-        logger.info(f"[Chatbot] Đã nạp {len(self.kb_sections)} mảnh KB.")
+        logger.info(
+            f"[Chatbot] Đã nạp {len(self.kb_sections)} mảnh KB: "
+            + ", ".join(f"{c}={len(v)}" for c, v in self._by_collection.items())
+        )
+
+    def collections(self) -> List[str]:
+        return list(self._by_collection.keys())
 
     def _build_idf(self):
         """Trọng số IDF cho từng từ trong KB.
@@ -143,17 +155,37 @@ class ChatManager:
 
         Từ phủ khắp KB -> trọng số ~0. Từ hiếm ("phở", "vàng", "xích") -> trọng số cao.
         Càng nạp thêm tài liệu thì cách chấm này càng cần thiết.
-        """
-        n = max(len(self.kb_sections), 1)
-        df = {}
-        for sec in self.kb_sections:
-            for w in set(re.findall(r"\w+", sec["norm_text"])):
-                df[w] = df.get(w, 0) + 1
-        self._idf = {w: math.log(n / (1 + c)) for w, c in df.items()}
-        self._idf_default = math.log(n / 1.0)  # từ chưa từng xuất hiện: hiếm nhất
 
-    def _weight(self, word: str) -> float:
-        return max(self._idf.get(word, self._idf_default), 0.0)
+        Tính RIÊNG từng bộ tri thức: "truyện" hiếm trong bộ đồ án nhưng có mặt
+        khắp bộ hướng dẫn; gộp chung thì ngưỡng 0.75 đã chỉnh cho bộ hướng dẫn mất
+        nghĩa.
+        """
+        # Nhóm lại từ kb_sections mỗi lần: nơi khác có thể thay kb_sections tại chỗ
+        # rồi gọi _build_idf (test Dashboard làm vậy để trả KB thật về).
+        self._by_collection: Dict[str, List[dict]] = {}
+        for sec in self.kb_sections:
+            self._by_collection.setdefault(sec.get("collection", kb_index.DEFAULT_COLLECTION), []).append(sec)
+        self._by_seq = {sec.get("seq"): sec for sec in self.kb_sections}
+        self._idf_by_col: Dict[str, Dict[str, float]] = {}
+        self._idf_default_by_col: Dict[str, float] = {}
+        for col, secs in (self._by_collection or {kb_index.DEFAULT_COLLECTION: []}).items():
+            n = max(len(secs), 1)
+            df: Dict[str, int] = {}
+            for sec in secs:
+                if "toks" not in sec:
+                    sec["toks"] = set(re.findall(r"\w+", sec.get("norm_text", "")))
+                    sec["htoks"] = set(re.findall(r"\w+", remove_vietnamese_diacritics(sec.get("header", ""))))
+                for w in sec["toks"]:
+                    df[w] = df.get(w, 0) + 1
+            self._idf_by_col[col] = {w: math.log(n / (1 + c)) for w, c in df.items()}
+            self._idf_default_by_col[col] = math.log(n / 1.0)  # từ chưa gặp: hiếm nhất
+        # Giữ tên cũ cho bộ hướng dẫn (test và script đo dùng).
+        self._idf = self._idf_by_col.get(kb_index.DEFAULT_COLLECTION, {})
+        self._idf_default = self._idf_default_by_col.get(kb_index.DEFAULT_COLLECTION, 0.0)
+
+    def _weight(self, word: str, collection: str = kb_index.DEFAULT_COLLECTION) -> float:
+        idf = self._idf_by_col.get(collection, {})
+        return max(idf.get(word, self._idf_default_by_col.get(collection, 0.0)), 0.0)
 
     # ------------------------------------------------------------ Cache trả lời
     def _cache_key(self, question: str, model: str) -> str:
@@ -256,24 +288,19 @@ class ChatManager:
         except Exception as e:
             logger.error(f"[Chatbot] Không dựng được chỉ mục KB: {e}")
 
-    def select_kb(
-        self,
-        query: str,
-        active_tab: str = "",
-        sticky_kb: Optional[List[dict]] = None,
-        token_budget: int = 3000,
-        min_score: float = 0.75
-    ) -> Tuple[List[dict], float]:
-        """Chấm điểm từ khoá không dấu, chọn các đoạn KB phù hợp ngân sách token.
-
-        Nếu sticky_kb được truyền vào và query hiện tại khớp tốt với sticky_kb,
-        giữ nguyên tập sticky_kb để tận dụng prompt caching.
-        """
+    @staticmethod
+    def query_words(query: str) -> List[str]:
         norm_query = remove_vietnamese_diacritics(query)
         all_words = [w for w in re.findall(r"\w+", norm_query) if len(w) > 1]
         words = [w for w in all_words if w not in VIETNAMESE_STOPWORDS]
-        if not words:
-            words = all_words
+        return words or all_words
+
+    def score_sections(
+        self, query: str, active_tab: str = "",
+        collection: str = kb_index.DEFAULT_COLLECTION,
+    ) -> Tuple[List[Tuple[float, dict]], float]:
+        """Điểm IDF đã chuẩn hoá của MỌI mảnh trong một bộ tri thức: [(điểm, mảnh)], điểm cao nhất."""
+        words = self.query_words(query)
         if not words:
             return [], 0.0
 
@@ -285,25 +312,26 @@ class ChatManager:
             "step5": "05-buoc5-ghep.md",
             "config": "06-cau-hinh.md",
         }
-        tab_target_file = tab_file_map.get(active_tab, "")
-        total_weight = sum(self._weight(w) for w in words)
+        tab_target_file = tab_file_map.get(active_tab, "") if collection == kb_index.DEFAULT_COLLECTION else ""
+        weights = {w: self._weight(w, collection) for w in words}
+        total_weight = sum(weights[w] for w in words)
 
         scored_sections = []
         max_score = 0.0
 
-        for sec in self.kb_sections:
+        for sec in self._by_collection.get(collection, []):
             score = 0.0
             matched_words = 0
-            norm_txt = sec["norm_text"]
-            norm_header = remove_vietnamese_diacritics(sec["header"])
+            toks = sec["toks"]
+            htoks = sec["htoks"]
 
             for w in words:
                 word_matched = False
-                wt = self._weight(w)
-                if re.search(r"\b" + re.escape(w) + r"\b", norm_txt):
+                wt = weights[w]
+                if w in toks:
                     score += 1.0 * wt
                     word_matched = True
-                if re.search(r"\b" + re.escape(w) + r"\b", norm_header):
+                if w in htoks:
                     score += 1.5 * wt
                     word_matched = True
 
@@ -333,14 +361,30 @@ class ChatManager:
             final_score = score / max(total_weight, 1e-6)
             if final_score > max_score:
                 max_score = final_score
-
-            if final_score >= min_score:
+            if final_score > 0:
                 scored_sections.append((final_score, sec))
 
+        scored_sections.sort(key=lambda x: x[0], reverse=True)
+        return scored_sections, max_score
+
+    def select_kb(
+        self,
+        query: str,
+        active_tab: str = "",
+        sticky_kb: Optional[List[dict]] = None,
+        token_budget: int = 3000,
+        min_score: float = 0.75,
+        collection: str = kb_index.DEFAULT_COLLECTION,
+    ) -> Tuple[List[dict], float]:
+        """Chấm điểm từ khoá không dấu, chọn các đoạn KB phù hợp ngân sách token.
+
+        Nếu sticky_kb được truyền vào và query hiện tại khớp tốt với sticky_kb,
+        giữ nguyên tập sticky_kb để tận dụng prompt caching.
+        """
+        scored_all, max_score = self.score_sections(query, active_tab, collection)
         if max_score < min_score:
             return [], max_score
-
-        scored_sections.sort(key=lambda x: x[0], reverse=True)
+        scored_sections = [(s, sec) for s, sec in scored_all if s >= min_score]
 
         # Kiểm tra nếu sticky_kb đủ tốt (ít nhất 1 section khớp)
         if sticky_kb:
@@ -381,8 +425,19 @@ class ChatManager:
         return selected, max_score
 
     def lookup_only(self, query: str, active_tab: str = "") -> dict:
-        """Vai C: Tra cứu KB 0-VRAM, trả về trích đoạn tài liệu nguyên văn."""
+        """Vai C: Tra cứu KB 0-VRAM, trả về trích đoạn tài liệu nguyên văn.
+
+        Ưu tiên bộ hướng dẫn; không có gì mới tra các bộ khác (tài liệu đồ án) —
+        lúc GPU bận vẫn ôn bài được mà không tốn VRAM."""
         sections, score = self.select_kb(query, active_tab=active_tab, min_score=0.30)
+        if not sections:
+            for col in self.collections():
+                if col == kb_index.DEFAULT_COLLECTION:
+                    continue
+                scored, mx = self.score_sections(query, collection=col)
+                if mx >= 0.6:
+                    sections = [s for _sc, s in scored[:3]]
+                    break
         if not sections:
             return {
                 "found": False,
@@ -585,19 +640,41 @@ class ChatManager:
             return "medium", sorted(list(all_tasks))
         return "none", sorted(list(all_tasks))
 
+    # Dấu hiệu câu HỎI (không phải mệnh lệnh). Router từng bắt "Stable Diffusion
+    # sinh ảnh như thế nào?" thành lệnh chạy Bước 3 và "kiến trúc hệ thống ra sao"
+    # thành báo cáo trạng thái — từ khi nạp tài liệu đồ án, loại câu này là đa số.
+    _QUESTION_HINT = re.compile(
+        r"(\?|\b(nhu the nao|the nao|ra sao|la gi|vi sao|tai sao|lam sao|khac gi|"
+        r"khac nhau|hoat dong|nguyen ly|co phai|giai thich)\b)"
+    )
+
     def route_intent(self, user_msg: str, story_name: str = "") -> Tuple[str, dict]:
         """Router 3 tầng định tuyến ý định lệnh Agent (L1 / L2 / L3)."""
         msg = user_msg.strip()
         norm_msg = remove_vietnamese_diacritics(msg)
+        asking = bool(self._QUESTION_HINT.search(norm_msg))
 
         # Tầng 1: Match Regex tất định
         # L3: Cào/Dịch
         m_crawl = re.search(r"\b(cao|crawl)\b.*?(\d+)\s*chuong", norm_msg)
-        if m_crawl:
+        if m_crawl and not asking:
             return "run_step", {"n": 1, "max_chapters": int(m_crawl.group(2))}
 
+        # L3: "chạy (cho tôi) bước 1", "bắt đầu bước hai 10 chương" — đánh số theo
+        # thanh bên (4 = Ghép Video). Trước đây chỉ bắt "cào N chương" nên câu này
+        # rơi xuống tra tài liệu và trả về đoạn hướng dẫn thay vì chạy.
+        m_step = re.search(
+            r"\b(chay|bat dau|thuc hien|lam|run|start)\b.{0,15}?\bbuoc\s*(1|2|3|4|mot|hai|ba|bon)\b", norm_msg)
+        if m_step and not asking:
+            n = {"mot": 1, "hai": 2, "ba": 3, "bon": 4}.get(m_step.group(2)) or int(m_step.group(2))
+            args = {"n": n}
+            m_num = re.search(r"(\d+)\s*(chuong|chap)\b", norm_msg)
+            if n == 1 and m_num:
+                args["max_chapters"] = int(m_num.group(1))
+            return "run_step", args
+
         # L3: Gen video / hình ảnh
-        if re.search(r"\b(gen|sinh|tao)\s*(hinh anh|anh|video)\b", norm_msg):
+        if re.search(r"\b(gen|sinh|tao)\s*(hinh anh|anh|video)\b", norm_msg) and not asking:
             return "run_step", {"n": 3}
 
         # L2: Chọn truyện
@@ -615,8 +692,11 @@ class ChatManager:
         if re.search(r"\b(danh sach|co nhung)\s*truyen\b", norm_msg):
             return "list_stories", {}
 
-        # L1: Trạng thái hệ thống
-        if re.search(r"\b(trang thai|cau hinh|he thong|gpu)\b", norm_msg):
+        # L1: Trạng thái hệ thống — phải hỏi trạng thái HIỆN TẠI, không phải "hệ
+        # thống/GPU" nói chung ("hệ thống chạy trên phần cứng nào?" là câu đồ án).
+        if re.search(r"\b(trang thai|tinh trang)\s+(he thong|gpu|may)\b", norm_msg) or \
+                re.search(r"\bgpu\s+(dang|co dang|ban|ranh)\b", norm_msg) or \
+                re.search(r"\bdang chay (gi|buoc nao|tien trinh nao)\b", norm_msg):
             return "system_status", {}
 
         return "chat", {}

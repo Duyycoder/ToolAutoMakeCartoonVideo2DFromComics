@@ -1343,14 +1343,84 @@
                 </div>
                 <div class="card glass-card">
                     <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6.5C10.5 5 8.5 4.5 4 4.5V18c4.5 0 6.5.5 8 2 1.5-1.5 3.5-2 8-2V4.5c-4.5 0-6.5.5-8 2z"/><path d="M12 6.5V20"/></svg>Danh Sách Truyện</h3>
+                    <div class="form-actions" style="margin-bottom:var(--sp-3)">
+                        <button class="btn btn-primary btn-sm" onclick="document.getElementById('modalNewStory').classList.add('open')"><span>+ Tạo truyện mới</span></button>
+                    </div>
                     <div class="table-wrap">
                         <table class="stats-table">
-                            <thead><tr><th>Truyện</th><th>Trạng thái</th><th>Số chương</th><th>Cập nhật</th></tr></thead>
+                            <thead><tr><th>Truyện</th><th>Trạng thái</th><th>Số chương</th><th>Cập nhật</th><th>Thao tác</th></tr></thead>
                             <tbody id="statsStoriesBody"></tbody>
                         </table>
                     </div>
                 </div>
+                <div class="card glass-card">
+                    <h3><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10A.5.5 0 0 1 7 20z"/><path d="M14 3.5V8h4M9.5 12.5h6M9.5 16h6"/></svg>Tài Liệu Của Chatbot</h3>
+                    <p class="help-text">Chatbot trả lời dựa trên các tệp Markdown trong <code id="kbDirPath">—</code>. Lưu/xóa xong chỉ mục tìm kiếm tự dựng lại, không cần khởi động lại app.</p>
+                    <div class="form-actions" style="margin-bottom:var(--sp-3)">
+                        <button class="btn btn-primary btn-sm" onclick="openKbEditor(null)"><span>+ Thêm tài liệu</span></button>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="stats-table">
+                            <thead><tr><th>Tệp</th><th>Tiêu đề</th><th>Dung lượng</th><th>Sửa lần cuối</th><th>Thao tác</th></tr></thead>
+                            <tbody id="kbDocsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </section>
+
+            <div id="modalStoryDetail" class="modal">
+                <div class="modal-content glass-card modal-wide">
+                    <h3 id="sdTitle">Chi tiết truyện</h3>
+                    <div id="sdBusy" class="help-text" style="color:var(--warning);display:none">Truyện đang chạy một bước — không sửa/xóa được lúc này.</div>
+                    <div class="form-group">
+                        <label for="sdName">Tên truyện (đổi tên sẽ đổi luôn thư mục)</label>
+                        <input type="text" id="sdName">
+                    </div>
+                    <div class="form-group">
+                        <label for="sdStatus">Trạng thái</label>
+                        <select id="sdStatus"></select>
+                    </div>
+                    <p class="help-text" id="sdInfo"></p>
+                    <div class="table-wrap" style="max-height:260px">
+                        <table class="stats-table">
+                            <thead><tr><th>#</th><th>Chương</th><th>Văn bản</th><th>Giọng</th><th>Video</th></tr></thead>
+                            <tbody id="sdChapters"></tbody>
+                        </table>
+                    </div>
+                    <details style="margin-top:var(--sp-3)"><summary>Lịch sử job</summary>
+                        <div class="table-wrap" style="max-height:180px">
+                            <table class="stats-table">
+                                <thead><tr><th>Bước</th><th>Trạng thái</th><th>Bắt đầu</th><th>Ghi chú</th></tr></thead>
+                                <tbody id="sdJobs"></tbody>
+                            </table>
+                        </div>
+                    </details>
+                    <div class="modal-actions">
+                        <button class="btn btn-danger" id="sdDelete" style="margin-right:auto">Xóa truyện</button>
+                        <button class="btn btn-secondary" id="sdOpenFolder">Mở thư mục</button>
+                        <button class="btn btn-secondary" onclick="closeModal('modalStoryDetail')">Đóng</button>
+                        <button class="btn btn-primary" id="sdSave">Lưu</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="modalKbEditor" class="modal">
+                <div class="modal-content glass-card modal-wide">
+                    <h3 id="kbTitle">Tài liệu chatbot</h3>
+                    <div class="form-group">
+                        <label for="kbName">Tên tệp (.md)</label>
+                        <input type="text" id="kbName" placeholder="11-chu-de-moi.md">
+                    </div>
+                    <div class="form-group">
+                        <label for="kbContent">Nội dung Markdown — chia mục bằng tiêu đề ## để chatbot tìm đúng đoạn</label>
+                        <textarea id="kbContent" rows="18" style="font-family:var(--font-mono);font-size:var(--fs-12)"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" onclick="closeModal('modalKbEditor')">Hủy</button>
+                        <button class="btn btn-primary" id="kbSave">Lưu</button>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
     

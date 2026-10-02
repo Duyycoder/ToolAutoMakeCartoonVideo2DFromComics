@@ -125,8 +125,13 @@ async def chat_stream_ollama(
     num_predict: int = 512,
     num_ctx: int = 8192,
     timeout: float = 120.0,
+    fmt: Optional[str] = None,
 ) -> AsyncGenerator[dict, None]:
     """Gọi native Ollama /api/chat (async streaming).
+
+    `fmt="json"`: Ollama ép đầu ra là JSON hợp lệ (constrained decoding). Dùng cho
+    các lượt suy luận nội bộ cần đọc bằng code — model 3B hay kèm lời dẫn quanh
+    JSON nếu chỉ dặn bằng lời.
 
     Trả về async generator các dict:
     - {"delta": "..."} với từng chunk văn bản sinh ra
@@ -153,6 +158,8 @@ async def chat_stream_ollama(
         "options": opts,
         "stream": True,
     }
+    if fmt:
+        payload["format"] = fmt
 
     # Model dòng "thinking" (qwen3...) mặc định sinh một khối suy luận nội bộ vào
     # trường `thinking` TRƯỚC khi sinh `content`. Với num_predict 512, khối đó ăn

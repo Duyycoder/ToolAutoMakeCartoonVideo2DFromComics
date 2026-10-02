@@ -1,0 +1,41 @@
+{"q": "Tại sao lại chia hệ thống thành nhiều tiến trình riêng?", "type": "qa", "must_include": ["VRAM"]}
+{"q": "SSE với WebSocket khác gì nhau, sao em chọn SSE?", "type": "qa", "must_include": ["EventSource", "một chiều"]}
+{"q": "CFG đặt bằng 5 nghĩa là sao?", "type": "qa", "must_include": ["guidance"]}
+{"q": "LoRA là gì?", "type": "qa", "must_include": ["hạng thấp", "ΔW"]}
+{"q": "Làm sao giữ mặt nhân vật giống nhau giữa các cảnh?", "type": "qa", "must_include": ["IP-Adapter"]}
+{"q": "Chatbot có dùng vector database hay embedding không?", "type": "qa", "must_include": ["IDF"]}
+{"q": "Bản dịch có còn sót chữ Hán không, đo thế nào?", "type": "qa", "must_include": ["214.034"]}
+{"q": "Bảng jobs trong cơ sở dữ liệu để làm gì?", "type": "qa", "must_include": ["add_job", "nhật ký"]}
+{"q": "Viết câu SQL đếm số chương của từng truyện", "type": "qa", "must_include": ["COUNT"]}
+{"q": "Muốn đổi cổng 8100 thì sửa ở đâu?", "type": "qa", "must_include": ["desktop.py"]}
+{"q": "Có bao nhiêu test tự động?", "type": "qa", "must_include": ["173", "223", "178"]}
+{"q": "Bước 3 tốn tối đa bao nhiêu VRAM?", "type": "qa", "must_include": ["4,0 GB"]}
+{"q": "Studio có phải chế độ dựng mặc định không?", "type": "qa", "must_include": ["classic"]}
+{"q": "Hyper-SD là gì mà chỉ cần 8 bước?", "type": "qa", "must_include": ["chưng cất"]}
+{"q": "LUFS là gì, sao lại chọn -14?", "type": "qa", "must_include": ["BS.1770"]}
+{"q": "Video truyện có dùng Whisper để căn phụ đề không?", "type": "qa", "must_include": ["use_whisper", "tỷ lệ số từ", "tỉ lệ số từ"]}
+{"q": "Sao video chỉ là ảnh tĩnh, không có chuyển động?", "type": "qa", "must_include": ["zoompan"]}
+{"q": "Cào truyện trên mạng có vi phạm bản quyền không?", "type": "qa", "must_include": ["public domain"]}
+{"q": "Sao dùng SQLite mà không dùng MySQL hay PostgreSQL?", "type": "qa", "must_include": ["SQLite"]}
+{"q": "Khóa ngoại của bảng chapters khai báo thế nào?", "type": "qa", "must_include": ["CASCADE", "FOREIGN KEY", "story_slug"]}
+{"q": "Hệ thống có những use case nào?", "type": "qa", "must_include": ["UC01"]}
+{"q": "include với extend trong biểu đồ use case khác nhau ra sao?", "type": "qa", "must_include": ["extend"]}
+{"q": "Để temperature thấp khi dịch để làm gì?", "type": "qa", "must_include": ["softmax", "nhọn"]}
+{"q": "Lượng tử hóa model có làm giảm chất lượng không?", "type": "qa", "must_include": ["bit"]}
+{"q": "Matting khác segmentation chỗ nào?", "type": "qa", "must_include": ["alpha", "α"]}
+{"q": "Bấm dừng thì các tiến trình con có bị tắt hết không?", "type": "qa", "must_include": ["taskkill"]}
+{"q": "concat demuxer của ffmpeg dùng để làm gì?", "type": "qa", "must_include": ["duration"]}
+{"q": "Dựng một video 45 giây mất bao lâu?", "type": "qa", "must_include": ["2,6"]}
+{"q": "Seed là gì, chạy lại có ra đúng ảnh cũ không?", "type": "qa", "must_include": ["seed"]}
+{"q": "Ảnh để train LoRA phong cách thủy mặc lấy từ đâu?", "type": "qa", "must_include": ["Met"]}
+{"q": "Nếu mất điện giữa lúc dựng video thì chạy lại có mất hết không?", "type": "qa", "must_include": ["batch_state"]}
+{"q": "Design pattern nào được dùng trong dự án?", "type": "qa", "must_include": ["Strategy", "Facade", "Adapter"]}
+{"q": "Đề tài này đóng góp được gì khi mô hình đều là của người khác?", "type": "qa", "must_include": ["điều phối"]}
+{"q": "API không có đăng nhập thì có nguy hiểm không?", "type": "qa", "must_include": ["127.0.0.1"]}
+{"q": "Giá vàng hôm nay bao nhiêu?", "type": "out_of_scope", "must_include": []}
+{"q": "Cách nấu bún chả Hà Nội?", "type": "out_of_scope", "must_include": []}
+{"q": "Thời tiết Hà Nội ngày mai thế nào?", "type": "out_of_scope", "must_include": []}
+{"q": "Viết giúp em một bài thơ tình", "type": "out_of_scope", "must_include": []}
+{"q": "LoRA là gì và nó khác IP-Adapter thế nào?", "type": "multi", "must_all": ["hạng thấp", "IP-Adapter"]}
+{"q": "Vì sao chọn SQLite, và bảng jobs trong đó dùng để làm gì?", "type": "multi", "must_all": ["SQLite", "add_job"]}
+{"q": "So sánh SSE với WebSocket, rồi cho biết chatbot stream câu trả lời bằng gì?", "type": "multi", "must_all": ["EventSource", "NDJSON"]}

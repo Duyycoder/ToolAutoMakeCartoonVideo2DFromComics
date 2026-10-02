@@ -1334,6 +1334,11 @@ output {
     color: var(--text-primary);
 }
 
+.modal-content.modal-wide { max-width: 860px; max-height: calc(100vh - 48px); overflow-y: auto; }
+.stats-table td.row-actions { white-space: nowrap; }
+.stats-table td.td-left { text-align: left; }
+.stats-table td.row-actions .btn + .btn { margin-left: 6px; }
+
 .modal-actions {
     display: flex;
     justify-content: flex-end;

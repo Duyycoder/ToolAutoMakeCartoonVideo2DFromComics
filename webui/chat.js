@@ -15,6 +15,7 @@
   // DOM Elements
   let widgetContainer, toggleBtn, badge, panel, messagesBox, inputArea, sendBtn;
   let modelSelect, modelNote, modelInfo = null;
+  let reasonSelect = null;
 
   function escapeHTML(str) {
     return str
@@ -55,7 +56,11 @@
 
   function getSelectedStory() {
     const selectEl = document.getElementById("storySelect") || document.getElementById("currentStory");
-    return selectEl ? selectEl.value || selectEl.textContent.trim() : "";
+    if (!selectEl) return "";
+    // Ô <select> chưa chọn thì textContent là chữ của MỌI lựa chọn gộp lại —
+    // từng bị gửi lên làm tên truyện. Chỉ phần tử hiển thị mới lấy chữ.
+    if (selectEl.tagName === "SELECT") return selectEl.value || "";
+    return selectEl.textContent.trim();
   }
 
   function initDOM() {
@@ -83,6 +88,11 @@
         <div class="chat-modelbar">
           <label for="chatModelSelect">Model</label>
           <select id="chatModelSelect"></select>
+          <select id="chatReasonSelect" aria-label="Chế độ suy luận" title="Chế độ suy luận — Tự động: chỉ hiểu lại câu hỏi khi cần. Kỹ: luôn hiểu lại, chậm hơn nhưng chắc hơn. Nhanh: bỏ các lượt suy luận phụ.">
+            <option value="auto">Tự động</option>
+            <option value="deep">Kỹ</option>
+            <option value="fast">Nhanh</option>
+          </select>
           <span class="chat-modelbar-gpu" id="chatGpuInfo"></span>
         </div>
         <div class="chat-modelbar-note" id="chatModelNote"></div>
@@ -122,6 +132,16 @@
     modelSelect = document.getElementById("chatModelSelect");
     modelNote = document.getElementById("chatModelNote");
     modelSelect.addEventListener("change", onModelChange);
+
+    // Chế độ suy luận là lựa chọn riêng của người xem -> nhớ trong trình duyệt.
+    reasonSelect = document.getElementById("chatReasonSelect");
+    try {
+      const saved = localStorage.getItem("chatReasoning");
+      if (saved) reasonSelect.value = saved;
+    } catch (e) { /* trình duyệt chặn localStorage: dùng mặc định */ }
+    reasonSelect.addEventListener("change", () => {
+      try { localStorage.setItem("chatReasoning", reasonSelect.value); } catch (e) { /* bỏ qua */ }
+    });
 
     checkHealth();
     setInterval(checkHealth, 10000);
@@ -213,14 +233,22 @@
     if (isOpen) {
       inputArea.focus();
       prewarmModel();
+      loadModels();
     }
   }
+
+  // Danh sách model chỉ biết model nào "đã tải" khi hỏi được Ollama. Nếu trang mở
+  // lúc Ollama chưa chạy, mọi model bị khoá "(chưa tải)" và trước đây không bao giờ
+  // tự mở lại — người dùng tưởng không được chọn qwen2.5:7b-instruct.
+  let lastOllamaOnline = null;
 
   async function checkHealth() {
     try {
       const res = await fetch("/api/chat/health");
       if (!res.ok) throw new Error();
       const data = await res.json();
+      if (data.ollama_online && lastOllamaOnline === false) loadModels();
+      lastOllamaOnline = !!data.ollama_online;
 
       badge.className = "chat-badge";
       if (!data.ollama_online) {
@@ -295,6 +323,42 @@
     messagesBox.scrollTop = messagesBox.scrollHeight;
   }
 
+  // Số bước theo thanh bên -> form của bước đó (Bước 4 "Ghép Video" là formStep5).
+  const STEP_FORMS = {
+    1: { tab: "step1", form: "formStep1", name: "Nguồn & Dịch" },
+    2: { tab: "step2", form: "formStep2", name: "Sinh Giọng" },
+    3: { tab: "step3", form: "formStep3", name: "Dựng Hoạt Hình" },
+    4: { tab: "step5", form: "formStep5", name: "Ghép Video" },
+  };
+
+  // Chạy bằng chính nút "Bắt đầu" của form: giữ nguyên kiểm tra, khoá nút,
+  // log trực tiếp và lưu cấu hình như khi người dùng tự bấm. Trước đây thẻ gọi
+  // thẳng API (chỉ bước 1, không log), các bước khác bấm "Chấp nhận" không có gì xảy ra.
+  function runStepFromChat(args) {
+    const step = STEP_FORMS[args.n];
+    const form = step && document.getElementById(step.form);
+    if (!form) {
+      appendMessage("assistant", `Không tìm thấy form của Bước ${args.n}.`);
+      return;
+    }
+    if (!getSelectedStory()) {
+      appendMessage("assistant", "Chưa chọn truyện — hãy chọn truyện ở thanh bên trái rồi chạy lại.");
+      return;
+    }
+    document.querySelector(`.nav-item[data-tab="${step.tab}"]`)?.click();
+    if (args.n === 1 && args.max_chapters) {
+      const num = document.getElementById("s1NumChapters");
+      if (num) num.value = args.max_chapters;
+    }
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn && btn.disabled) {
+      appendMessage("assistant", `Nút chạy Bước ${args.n} đang bị khoá (đang chạy hoặc chưa đủ điều kiện). Xem thông báo trên trang.`);
+      return;
+    }
+    form.requestSubmit(btn || undefined);
+    appendMessage("assistant", `Đã bắt đầu Bước ${args.n}: ${step.name}. Theo dõi tiến độ ở khung log của bước này.`);
+  }
+
   function renderConfirmationCard(action, args) {
     const div = document.createElement("div");
     div.className = "chat-card";
@@ -303,8 +367,11 @@
     let detail = "";
 
     if (action === "run_step") {
-      title = `▶ Chạy Bước ${args.n}`;
-      detail = `Số chương: ${args.max_chapters || "Tất cả"}`;
+      const step = STEP_FORMS[args.n];
+      title = `▶ Chạy Bước ${args.n}${step ? ": " + step.name : ""}`;
+      const story = getSelectedStory();
+      detail = `Truyện: ${escapeHTML(story || "(chưa chọn)")} — dùng thiết lập đang có ở form bước này`;
+      if (args.max_chapters) detail += `; số chương: ${args.max_chapters}`;
     } else if (action === "select_story") {
       title = `▶ Chuyển sang truyện "${escapeHTML(args.name)}"`;
     }
@@ -326,11 +393,8 @@
       if (action === "select_story" && window.selectStory) {
         window.selectStory(args.name);
         appendMessage("assistant", `Đã chuyển sang truyện **${args.name}**.`);
-      } else if (action === "run_step" && window.postPipelineAction) {
-        appendMessage("assistant", `Đã gửi lệnh chạy Bước ${args.n}.`);
-        if (typeof window.buildStep1Payload === "function" && args.n === 1) {
-          window.postPipelineAction("step1", window.buildStep1Payload());
-        }
+      } else if (action === "run_step") {
+        runStepFromChat(args);
       }
     });
 
@@ -394,6 +458,57 @@
     await sendMessage(text);
   }
 
+  // Nhật ký các bước suy luận, gập lại dưới câu trả lời — để biết trợ lý đã hiểu
+  // câu hỏi thành gì và lấy tài liệu nào, thay vì phải tin mù.
+  const STEP_NAMES = {
+    tra_nhanh: "Tra nhanh", hieu_cau_hoi: "Hiểu câu hỏi", tra_lai: "Tra lại",
+    chon_doan: "Chọn đoạn",
+  };
+
+  // Dữ liệu hệ thống đã tự đọc từ CSDL cho câu hỏi này — gập lại để người dùng tự soát số liệu.
+  const DB_LOAI = { tong_quan: "tổng quan", truyen: "chi tiết truyện", job: "job", loc: "lọc" };
+  function renderDbResult(db) {
+    const box = document.createElement("details");
+    box.className = "chat-steps chat-db";
+    const sum = document.createElement("summary");
+    const loai = (db.loai || []).map(x => DB_LOAI[x] || x).join(", ");
+    const truyen = (db.truyen || []).length ? ` — ${db.truyen.join("; ")}` : "";
+    sum.textContent = `Dữ liệu đã đọc từ CSDL (${loai})${truyen}`;
+    box.appendChild(sum);
+    const pre = document.createElement("pre");
+    pre.className = "chat-db-sql chat-db-wrap";
+    pre.textContent = db.context || "";
+    box.appendChild(pre);
+    return box;
+  }
+
+  function renderSteps(steps, sources) {
+    const box = document.createElement("details");
+    box.className = "chat-steps";
+    const total = steps.reduce((s, x) => s + (x.ms || 0), 0);
+    const sum = document.createElement("summary");
+    sum.textContent = `Các bước suy luận (${(total / 1000).toFixed(1)} s)`;
+    box.appendChild(sum);
+    const ul = document.createElement("ul");
+    for (const st of steps) {
+      const li = document.createElement("li");
+      const name = STEP_NAMES[st.buoc] || (st.buoc.startsWith("tra_y_") ? "Tra ý " + st.buoc.slice(6) : st.buoc);
+      let extra = "";
+      if (st.ket_qua && st.ket_qua.cau_hoi) extra = ` — hiểu là: “${st.ket_qua.cau_hoi}”`;
+      if (st.ket_qua && st.ket_qua.y_nho && st.ket_qua.y_nho.length > 1) extra += ` (${st.ket_qua.y_nho.length} ý)`;
+      if (Array.isArray(st.chon)) extra = st.chon.length ? ` — chọn đoạn ${st.chon.join(", ")}` : " — không đoạn nào khớp";
+      li.textContent = `${name}: ${st.ms} ms${extra}`;
+      ul.appendChild(li);
+    }
+    if (sources.length) {
+      const li = document.createElement("li");
+      li.textContent = "Tài liệu: " + sources.join(", ");
+      ul.appendChild(li);
+    }
+    box.appendChild(ul);
+    return box;
+  }
+
   async function sendMessage(messageText, options = {}) {
     isStreaming = true;
     sendBtn.textContent = "Dừng";
@@ -416,6 +531,7 @@
           story_name: getSelectedStory(),
           active_tab: getActiveTab(),
           mode: options.mode || "auto",
+          reasoning: reasonSelect ? reasonSelect.value : "",
           force: !!options.force
         })
       });
@@ -471,10 +587,26 @@
               return;
             }
 
+            // Tiến độ các bước suy luận (hiểu câu hỏi, chọn tài liệu, từng ý...).
+            // Chỉ hiện khi chưa có chữ trả lời; chữ đầu tiên tới thì thay chỗ.
+            if (chunk.stage && !fullText) {
+              assistantMsgDiv.innerHTML = `<span class="chat-stage">${escapeHTML(chunk.text || "Đang suy luận…")}</span>`;
+              messagesBox.scrollTop = messagesBox.scrollHeight;
+            }
+
             if (chunk.delta) {
               fullText += chunk.delta;
               assistantMsgDiv.innerHTML = renderMarkdown(fullText);
               messagesBox.scrollTop = messagesBox.scrollHeight;
+            }
+
+            if (chunk.done && chunk.db) {
+              assistantMsgDiv.appendChild(renderDbResult(chunk.db));
+              messagesBox.scrollTop = messagesBox.scrollHeight;
+            }
+
+            if (chunk.done && Array.isArray(chunk.steps) && chunk.steps.length) {
+              assistantMsgDiv.appendChild(renderSteps(chunk.steps, chunk.sources || []));
             }
 
             if (chunk.done && chunk.truncated) {
