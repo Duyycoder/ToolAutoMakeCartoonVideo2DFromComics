@@ -30,7 +30,7 @@ from orchestrator.process_manager import ProcessManager  # noqa: E402
 from orchestrator.pipeline import (  # noqa: E402
     VideoPipeline, AIVOICE_DIR, AUTOSUB_ADAPTER, PYTHON_EXE, REPO_ROOT,
 )
-from orchestrator import ollama_manager, project  # noqa: E402
+from orchestrator import gemini_proxy, ollama_manager, project  # noqa: E402
 
 TASK_DOWNLOAD = "download"
 TASK_TRANSLATE = "translate"
@@ -114,6 +114,18 @@ class PickFilesSchema(BaseModel):
 
 
 
+# ------------------------------------------------------------- Phiên bản
+@app.get("/api/phien-ban")
+def phien_ban():
+    # File VERSION ở gốc app: bộ cài (installer/AutoCartoon.iss) đọc chung -> cài đè xong app hiện đúng bản mới.
+    try:
+        with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "VERSION"),
+                  "r", encoding="utf-8") as f:
+            return {"phien_ban": f.read().strip()}
+    except OSError:
+        return {"phien_ban": ""}
+
+
 # ------------------------------------------------------------- Cấu hình
 @app.get("/api/config")
 def get_config():
@@ -122,9 +134,70 @@ def get_config():
 
 @app.post("/api/config")
 def update_config(config: GlobalConfigSchema):
-    if save_global_config(config.model_dump()):
+    moi = config.model_dump()
+    cu = load_global_config()
+    cookie_cu = gemini_proxy.doc_cookie()
+    # Key proxy do server tự tạo — trang cấu hình mở từ trước có thể gửi lên giá trị cũ.
+    key_proxy = (cu.get("translate") or {}).get("gemini_offline_key")
+    if key_proxy and isinstance(moi.get("translate"), dict):
+        moi["translate"]["gemini_offline_key"] = key_proxy
+    if save_global_config(moi):
+        tr = moi.get("translate") or {}
+        cookie_moi = ((tr.get("gemini_psid") or "").strip(), (tr.get("gemini_psidts") or "").strip())
+        if cookie_moi != cookie_cu:
+            gemini_proxy.ghi_cookie_json(*cookie_moi)
+            gemini_proxy.khoi_dong_lai(lambda: gemini_proxy.xoa_cache_cookie(cookie_moi[0]))
         return {"status": "success"}
     raise HTTPException(status_code=500, detail="Không ghi được configs/global_config.json.")
+
+
+# ------------------------------------------------------------- Gemini proxy
+class GeminiCookieSchema(BaseModel):
+    psid: str
+    psidts: str = ""
+
+
+@app.get("/api/gemini/trang-thai")
+def gemini_trang_thai():
+    tt = gemini_proxy.trang_thai()
+    # Lúc mở app chỉ nhắc cookie khi người dùng thật sự dịch bằng proxy cookie (máy mới mặc định Ollama).
+    tt["engine"] = (load_global_config().get("translate") or {}).get("engine") or "ollama"
+    return tt
+
+
+@app.post("/api/gemini/cookie")
+def gemini_luu_cookie(body: GeminiCookieSchema):
+    psid, psidts = body.psid.strip(), body.psidts.strip()
+    if not psid:
+        raise HTTPException(status_code=400, detail="Thiếu cookie __Secure-1PSID.")
+    try:
+        return gemini_proxy.luu_cookie(psid, psidts)
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/gemini/ping")
+def gemini_ping():
+    return gemini_proxy.ping()
+
+
+@app.get("/api/dich/de-xuat")
+def dich_de_xuat(so_cau: int = 0):
+    from orchestrator.editor.de_xuat_dich import de_xuat
+    return de_xuat(so_cau)
+
+
+@app.post("/api/gemini/mo-trang")
+def gemini_mo_trang():
+    # Cửa sổ WebView2 không mở tab mới được -> nhờ trình duyệt mặc định (nơi đã đăng nhập Google).
+    import webbrowser
+    webbrowser.open("https://gemini.google.com/app")
+    return {"status": "ok"}
+
+
+@app.post("/api/gemini/khoi-dong-lai")
+def gemini_khoi_dong_lai():
+    return {"ma": gemini_proxy.khoi_dong_lai()}
 
 
 @app.get("/api/ui-settings")

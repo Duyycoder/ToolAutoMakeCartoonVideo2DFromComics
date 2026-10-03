@@ -8,7 +8,7 @@ import {
     tao, thoiLuong, ketThucClip, choTrong, idClipMoi, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, clipTai,
     hienThiNeo, bangClipChuaMedia, opsDatGio, opsThemTrack, opsKhepKhoang, opsXoaGon, opsChenGon, opsTiaToiDauPhat, idMoiNhieu,
     moRongNhom, opsTachAm, idNhomMoi, trackVideoTuDuoiLen, opsThemChuyenCanh, opsXoaChuyenCanh, nhanClip, viTriKeyframes,
-    mucMenuChoClip, opsNhanDoi,
+    mucMenuChoClip, opsNhanDoi, clipMediaMoi, opsThemNhieuMedia, opsSapXepTrack, KIEU_SAP_XEP_TRACK,
 } from './store.js';
 
 const LOP = { video: 'v', phu_de: 's', lop_phu: 'o', audio: 'a' };
@@ -32,6 +32,7 @@ export class Timeline {
                 <button class="nut-icon" data-l="lam-lai" title="Làm lại (Ctrl+Y)">↷</button>
                 <button class="nut-icon" data-l="xoa" title="Xoá clip đang chọn (Delete)">✕</button>
                 <button class="nut-icon" data-l="khep-khoang" title="Khép khoảng trống trên track đang chọn">⇤</button>
+                <button class="nut-icon" data-l="sap-xep" title="Sắp xếp clip trên track (tên, thời lượng, ngày nhập, đảo, xáo trộn)">⇅</button>
                 <span class="ngan"></span>
                 <span class="tl-goi-y">Kéo clip để dời, mép để tỉa · S cắt · Q/W tỉa tới ĐP · M đánh dấu · Shift+Del xoá gợn</span>
                 <div class="gian"></div>
@@ -77,6 +78,7 @@ export class Timeline {
             if (l === 'lam-lai') ctx.lamLai();
             if (l === 'xoa') this.xoaDangChon();
             if (l === 'khep-khoang') this.khepKhoangDangChon();
+            if (l === 'sap-xep') { e.stopPropagation(); this.menuSapXep(e.target.closest('[data-l]')); }
             if (l === 'cat') this.catTaiDauPhat();
             if (l === 'thu') this.datZoom(this.ui.zoom_timeline - 0.08);
             if (l === 'phong') this.datZoom(this.ui.zoom_timeline + 0.08);
@@ -102,12 +104,15 @@ export class Timeline {
                 this._choVe = setTimeout(() => { this._choVe = null; this.ve(); }, 16);
             }
         });
-        this.cuon.addEventListener('wheel', (e) => {
-            if (!e.ctrlKey) return;
+        // Bắt trên CẢ khung timeline (cột tên track, thanh công cụ…) — chỉ bắt ở vùng clip thì Ctrl+cuộn
+        // ngoài đó lọt lên WebView, phóng to cả giao diện thay vì zoom timeline.
+        this.el.addEventListener('wheel', (e) => {
+            if (!e.ctrlKey || !e.deltaY) return;
             e.preventDefault();
             const r = this.cuon.getBoundingClientRect();
-            const tChuot = (e.clientX - r.left + this.cuon.scrollLeft) / this.px;
-            this.datZoom(this.ui.zoom_timeline + (e.deltaY < 0 ? 0.05 : -0.05), { t: tChuot, x: e.clientX - r.left });
+            const x = Math.max(0, Math.min(r.width, e.clientX - r.left));
+            const tChuot = (x + this.cuon.scrollLeft) / this.px;
+            this.datZoom(this.ui.zoom_timeline + (e.deltaY < 0 ? 0.05 : -0.05), { t: tChuot, x });
         }, { passive: false });
 
         this.noi.addEventListener('pointerdown', (e) => {
@@ -230,6 +235,13 @@ export class Timeline {
                 return;
             }
             
+            let ids = [];
+            try { ids = JSON.parse(e.dataTransfer.getData('application/x-media-ids') || '[]'); } catch (err) { ids = []; }
+            if (ids.length > 1) {
+                const ds = ids.map((id) => this.ctx.media.find((x) => x.id === id)).filter((m) => m && m.trang_thai === 'san_sang' && !m.mat_file);
+                if (ds.length) this.themNhieuMedia(ds, tr.dataset.track, this._t(e.clientX));
+                return;
+            }
             const m = this.ctx.media.find((x) => x.id === mid);
             if (m) this.themMedia(m, tr.dataset.track, this._t(e.clientX));
         });
@@ -522,14 +534,67 @@ export class Timeline {
         if (t != null && this.ui.bat_dinh) tt = hutDinh(tt, diemDinh(this.tl, this.ui.dau_phat), (DINH_PX * 2) / this.px);
         const bd = choTrong(this.tl, tr.id, tt, dai);
         const cid = idClipMoi(this.tl);
-        const clip = {
-            id: cid, track: tr.id, media: m.id, bat_dau: bd, vao: 0, ra: Math.round(dai * 1000) / 1000,
-            toc_do: 1, am_luong: 1, nhac_nen_giam: 0,
-            bien_doi: { x: 0.5, y: 0.5, ti_le: 1, xoay: 0 },
-            cat_khung: { trai: 0, phai: 0, tren: 0, duoi: 0, mem: 0 },
-            hien_thi: { do_mo: 1, hoa_tron: 'normal', bo_goc: 0 }, hieu_ung: [], keyframes: {},
-        };
+        const clip = clipMediaMoi(cid, tr.id, m.id, bd, dai);
         if (this.ctx.sua(`Thêm ${m.ten} vào ${tr.id}`, [tao.them(this.tl, ['clips'], clip)])) this.chonClip(cid);
+    }
+
+    /* Thả/thêm nhiều media một lượt: nối đuôi nhau theo đúng thứ tự đang chọn ở bảng nguồn, MỘT lệnh hoàn tác. */
+    themNhieuMedia(ds, trackId, t) {
+        if (ds.length === 1) { this.themMedia(ds[0], trackId, t); return; }
+        ds.filter((m) => m.loai === 'phu_de').forEach((m) => this.ctx.bus.emit('nhap_srt_media', m));
+        const conLai = ds.filter((m) => m.loai !== 'phu_de');
+        if (!conLai.length) return;
+        let tt = t;
+        if (t != null && this.ui.bat_dinh) tt = hutDinh(t, diemDinh(this.tl, this.ui.dau_phat), (DINH_PX * 2) / this.px);
+        const { ops, ids, boQua } = opsThemNhieuMedia(this.tl, conLai, trackId, tt);
+        if (boQua.length) toast(`Bỏ qua ${boQua.length} mục (chưa có thời lượng, hoặc không có track phù hợp/đang khoá).`, 'warn');
+        if (!ops.length) return;
+        if (this.ctx.sua(`Thêm ${ids.length} media vào timeline`, ops)) {
+            this.ui.dang_chon = ids;
+            this.ctx.chon.clip = ids[ids.length - 1];
+            this.ctx.luuUi();
+            this.ctx.bus.emit('chon');
+        }
+    }
+
+    /* Track sẽ sắp xếp: track của clip đang chọn, không chọn gì thì track nền (video dưới cùng). */
+    _trackSapXep() {
+        const c = this.ctx.chon.clip && this.tl.clips.find((x) => x.id === this.ctx.chon.clip);
+        const id = c ? c.track : (trackVideoTuDuoiLen(this.tl)[0] || {}).id;
+        return this.tl.tracks.find((x) => x.id === id && x.loai !== 'phu_de') || null;
+    }
+
+    menuSapXep(nut) {
+        document.querySelectorAll('.menu').forEach((mm) => mm.remove());
+        const tr = this._trackSapXep();
+        const menu = document.createElement('div');
+        menu.className = 'menu';
+        menu.innerHTML = tr
+            ? `<div class="menu-dau">Sắp xếp clip trên ${esc(tr.ten || tr.id)}</div>`
+                + Object.entries(KIEU_SAP_XEP_TRACK).map(([k, v]) => `<button data-k="${k}">${esc(v)}</button>`).join('')
+                + '<hr><div class="menu-dau" style="font-weight:normal">Clip được xếp liền nhau từ clip đầu tiên. Chọn một clip để đổi track.</div>'
+            : '<div class="menu-dau">Chọn một clip trên track video/âm thanh cần sắp xếp.</div>';
+        document.body.appendChild(menu);
+        const r = nut.getBoundingClientRect(), rm = menu.getBoundingClientRect();
+        menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - rm.width - 8))}px`;
+        menu.style.top = `${Math.max(8, r.top - rm.height - 4)}px`;
+        menu.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-k]');
+            if (!b) return;
+            menu.remove();
+            this.sapXepTrack(tr.id, b.dataset.k);
+        });
+        setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+    }
+
+    sapXepTrack(trackId, kieu) {
+        const tr = this.tl.tracks.find((x) => x.id === trackId);
+        if (!tr) return;
+        if (tr.khoa) { toast(`Track ${tr.id} đang khoá.`, 'warn'); return; }
+        const dict = Object.fromEntries((this.ctx.media || []).map((m) => [m.id, m]));
+        const ops = opsSapXepTrack(this.tl, trackId, kieu, dict);
+        if (!ops.length) { toast('Không có gì để sắp xếp (track cần ít nhất 2 clip, hoặc đã đúng thứ tự).', 'info'); return; }
+        if (this.ctx.sua(`Sắp xếp ${tr.id}: ${KIEU_SAP_XEP_TRACK[kieu]}`, ops)) toast(`Đã sắp xếp ${tr.id} — Ctrl+Z để bỏ.`, 'success', 2500);
     }
 
     /* Cắt tại đầu phát: clip đang chọn nằm dưới đầu phát; không chọn gì thì mọi clip dưới đầu phát. */

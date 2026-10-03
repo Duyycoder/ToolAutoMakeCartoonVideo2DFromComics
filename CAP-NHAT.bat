@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 set PYTHONUTF8=1
 rem Nhanh chinh cua ban nay. Doi o day neu ban tach nhanh khac.
-set "NHANH_CHINH=feat/video-only"
+set "NHANH_CHINH=feat/editor"
 
 rem Tham so 1 = thu muc du an. Chi co khi dang chay ban sao trong TEMP.
 if not "%~1"=="" goto :chay_that
@@ -37,6 +37,19 @@ echo ============================================================
 echo   CAP NHAT PHAN MEM LEN BAN MOI NHAT
 echo ============================================================
 echo.
+
+rem Ban cai bang bo cai (CaoVaDichVideo-Setup-x.y.z.exe) khong co .git: cap nhat bang
+rem cach chay bo cai ban moi de len - bo cai tu nhan ra may da cai va giu du lieu.
+if not exist ".git" if exist "unins000.exe" (
+    echo [i] May nay cai bang bo cai nen khong cap nhat qua Git duoc.
+    echo     Cach cap nhat: tai file CaoVaDichVideo-Setup-phien-ban-moi.exe roi chay.
+    echo     Bo cai tu nhan ra ban dang co, chi bam Install - du an, cau hinh,
+    echo     thu vien va model AI da tai deu duoc giu nguyen, khong phai cai lai.
+    if exist "VERSION" for /f "usebackq delims=" %%v in ("VERSION") do echo     Ban dang dung: %%v
+    echo.
+    pause
+    exit /b 0
+)
 
 :: 1. Phai co Git thi moi tai ban moi ve duoc
 where git >nul 2>&1

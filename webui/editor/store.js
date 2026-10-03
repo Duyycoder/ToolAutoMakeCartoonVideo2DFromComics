@@ -1065,3 +1065,113 @@ export function opsNhacNen(tl, mid, daiBai, tongDai) {
     }
     return ops;
 }
+
+/* ------------------------------------------------------------ thêm nhiều media / sắp xếp track */
+export function clipMediaMoi(id, track, mid, bd, dai) {
+    return {
+        id, track, media: mid, bat_dau: bd, vao: 0, ra: Math.round(dai * 1000) / 1000,
+        toc_do: 1, am_luong: 1, nhac_nen_giam: 0,
+        bien_doi: { x: 0.5, y: 0.5, ti_le: 1, xoay: 0 },
+        cat_khung: { trai: 0, phai: 0, tren: 0, duoi: 0, mem: 0 },
+        hien_thi: { do_mo: 1, hoa_tron: 'normal', bo_goc: 0 }, hieu_ung: [], keyframes: {},
+    };
+}
+
+/* Thêm lần lượt nhiều media (đúng thứ tự `ds`), nối đuôi nhau từ thời điểm t (null = cuối track).
+   Video/ảnh vào track video, âm thanh vào track âm thanh: ưu tiên `trackId` nếu cùng loại, không đè clip có sẵn.
+   Trả {ops, ids, boQua:[{m, ly_do}]} — MỘT lệnh hoàn tác cho cả loạt. */
+export function opsThemNhieuMedia(tl, ds, trackId, t) {
+    const nhap = JSON.parse(JSON.stringify(tl));
+    nhap.clips = nhap.clips || [];
+    const ops = [], ids = [], boQua = [];
+    const conTro = {};                       // track → thời điểm đặt clip kế tiếp
+    for (const m of ds) {
+        if (!['video', 'anh', 'audio'].includes(m.loai)) { boQua.push({ m, ly_do: 'loai' }); continue; }
+        const loaiTrack = m.loai === 'audio' ? 'audio' : 'video';
+        let tr = (nhap.tracks || []).find((x) => x.id === trackId);
+        if (!tr || tr.loai !== loaiTrack || tr.khoa) tr = (nhap.tracks || []).find((x) => x.loai === loaiTrack && !x.khoa);
+        if (!tr) { boQua.push({ m, ly_do: 'track' }); continue; }
+        const dai = m.loai === 'anh' ? 5 : Number(m.thoi_luong) || 0;
+        if (!dai) { boQua.push({ m, ly_do: 'thoi_luong' }); continue; }
+        if (conTro[tr.id] == null) {
+            conTro[tr.id] = t == null
+                ? nhap.clips.filter((c) => c.track === tr.id).reduce((a, c) => Math.max(a, ketThucClip(c)), 0)
+                : t;
+        }
+        const bd = choTrong(nhap, tr.id, conTro[tr.id], dai);
+        const clip = clipMediaMoi(idClipMoi(nhap), tr.id, m.id, bd, dai);
+        ops.push({ op: 'them', path: ['clips'], vi_tri: nhap.clips.length, gia_tri: clip });
+        nhap.clips.push(clip);
+        ids.push(clip.id);
+        conTro[tr.id] = ketThucClip(clip);
+    }
+    return { ops, ids, boQua };
+}
+
+export const KIEU_SAP_XEP_TRACK = {
+    ten: 'Tên A → Z', ten_nguoc: 'Tên Z → A',
+    dai: 'Ngắn → dài', dai_nguoc: 'Dài → ngắn',
+    nhap: 'Ngày nhập cũ → mới', nhap_nguoc: 'Ngày nhập mới → cũ',
+    dao: 'Đảo ngược thứ tự', tron: 'Xáo trộn ngẫu nhiên',
+};
+
+/* Sắp lại các clip trên MỘT track theo `kieu`, xếp liền nhau từ clip sớm nhất (khép luôn khoảng trống).
+   Clip liên kết (hình–tiếng) ở track khác dời theo cùng độ lệch; chuyển cảnh trên track được lọc lại
+   (điểm nối không còn kề thì tự bỏ). mediaDict: {mid: media}. */
+export function opsSapXepTrack(tl, trackId, kieu, mediaDict = {}, ngauNhien = Math.random) {
+    const cac = (tl.clips || []).filter((c) => c.track === trackId && !laNeo(c))
+        .sort((a, b) => Number(a.bat_dau || 0) - Number(b.bat_dau || 0));
+    if (cac.length < 2) return [];
+    const dai = (c) => ketThucClip(c) - Number(c.bat_dau || 0);
+    const ten = (c) => nhanClip(c, mediaDict[c.media]) || '';
+    const ngay = (c) => ((mediaDict[c.media] || {}).nhap_luc || '');
+    const ss = {
+        ten: (a, b) => ten(a).localeCompare(ten(b), 'vi', { numeric: true }),
+        dai: (a, b) => dai(a) - dai(b),
+        nhap: (a, b) => ngay(a).localeCompare(ngay(b)) || String(a.media || '').localeCompare(String(b.media || ''), 'en', { numeric: true }),
+    };
+    let moi;
+    if (kieu === 'dao') moi = cac.slice().reverse();
+    else if (kieu === 'tron') {
+        moi = cac.slice();
+        for (let i = moi.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(ngauNhien() * (i + 1));
+            [moi[i], moi[j]] = [moi[j], moi[i]];
+        }
+    } else {
+        const goc = kieu.replace(/_nguoc$/, '');
+        if (!ss[goc]) return [];
+        // sort ổn định: bằng nhau giữ thứ tự cũ
+        moi = cac.slice().sort(kieu.endsWith('_nguoc') ? (a, b) => ss[goc](b, a) : ss[goc]);
+    }
+    const ops = [];
+    const nhap = JSON.parse(JSON.stringify(tl));
+    const lech = {};                                 // lien_ket → độ dời
+    let hienTai = Number(cac[0].bat_dau || 0);
+    for (const c of moi) {
+        const bd = Math.round(hienTai * 1000) / 1000;
+        const d = bd - Number(c.bat_dau || 0);
+        if (Math.abs(d) > 1e-6) {
+            ops.push(tao.dat(tl, ['clips', { id: c.id }, 'bat_dau'], bd));
+            if (c.ket_thuc != null) ops.push(tao.dat(tl, ['clips', { id: c.id }, 'ket_thuc'], Math.round((Number(c.ket_thuc) + d) * 1000) / 1000));
+            if (c.lien_ket) lech[c.lien_ket] = d;
+        }
+        const n = nhap.clips.find((x) => x.id === c.id);
+        n.bat_dau = bd;
+        if (n.ket_thuc != null) n.ket_thuc = Number(c.ket_thuc) + d;
+        hienTai += dai(c);
+    }
+    for (const c of tl.clips || []) {
+        if (c.track === trackId || !c.lien_ket || lech[c.lien_ket] == null || laNeo(c)) continue;
+        const bd = Math.max(0, Math.round((Number(c.bat_dau || 0) + lech[c.lien_ket]) * 1000) / 1000);
+        ops.push(tao.dat(tl, ['clips', { id: c.id }, 'bat_dau'], bd));
+        if (c.ket_thuc != null) ops.push(tao.dat(tl, ['clips', { id: c.id }, 'ket_thuc'], Math.round((Number(c.ket_thuc) + bd - Number(c.bat_dau || 0)) * 1000) / 1000));
+        const n = nhap.clips.find((x) => x.id === c.id);
+        n.bat_dau = bd;
+    }
+    if (ops.length && (tl.chuyen_canh || []).length) {
+        const loc = chuyenCanhHopLe(nhap);
+        if (loc.length !== tl.chuyen_canh.length) ops.push(tao.dat(tl, ['chuyen_canh'], loc));
+    }
+    return ops;
+}

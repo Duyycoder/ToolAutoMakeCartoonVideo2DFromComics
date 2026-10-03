@@ -202,6 +202,40 @@ def test_tai_url_chuyen_vao_media_ten_an_toan(du_an, tmp_path, gia_ffmpeg):
     assert os.listdir(os.path.join(du_an, ".duan", "cache", "tai_ve")) == [], "dọn thư mục tải tạm"
 
 
+ADAPTER_DAI = r'''
+import json, os, sys, time
+out = sys.argv[1]
+d = os.path.join(out, "v1"); os.makedirs(d, exist_ok=True)
+p = os.path.join(d, "v1.mp4"); open(p, "wb").write(b"video")
+print(json.dumps({"event": "item_done", "path": p, "title": "Bai 1", "url": "https://x/1"}), flush=True)
+print(json.dumps({"event": "item_start", "index": 2, "total": 300, "title": "Bai 2"}), flush=True)
+open(os.path.join(out, "dang_tai_2"), "w").close()
+for i in range(600):
+    print(json.dumps({"event": "download_progress", "percent": i / 10}), flush=True)
+    time.sleep(0.05)
+'''
+
+
+def test_huy_giua_chung_giu_video_da_tai_xong(du_an, tmp_path, gia_ffmpeg):
+    import sys
+    import time
+    script = tmp_path / "dai.py"
+    script.write_text(ADAPTER_DAI, encoding="utf-8")
+    qlm = media.QuanLyMedia()
+    v = qlm.tai_url(du_an, "abc", ["https://x/list"],
+                    lambda tam: [sys.executable, str(script), tam], str(tmp_path))
+    dau = os.path.join(du_an, ".duan", "cache", "tai_ve", "dang_tai_2")
+    for _ in range(200):
+        if os.path.exists(dau):
+            break
+        time.sleep(0.05)
+    assert qlm.hang_chep.huy(v.id)
+    _cho(qlm)
+    assert v.trang_thai == "da_huy"
+    ds = luu_tru.doc_duan(du_an)["media"]
+    assert [m["file"] for m in ds] == ["media/Bai 1.mp4"], "video đã tải xong vẫn vào dự án"
+
+
 def test_xoa_media_dang_dung_bi_chan(du_an):
     qlm = media.QuanLyMedia()
     with pytest.raises(ValueError, match="timeline"):

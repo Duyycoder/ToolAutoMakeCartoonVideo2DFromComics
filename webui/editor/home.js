@@ -276,6 +276,7 @@ function ganSuKien() {
 }
 
 import { initHangLoat } from './hang_loat.js';
+import { kiemTraGeminiKhiMo } from './gemini_cookie.js';
 
 try {
     const l = JSON.parse(localStorage.getItem(LUU_LOC) || '{}');
@@ -283,5 +284,7 @@ try {
     if (l.sx) $('sapXep').value = l.sx;
 } catch (e) { /* bỏ qua */ }
 ganSuKien();
+api('/api/phien-ban').then((r) => { if (r.phien_ban) $('phienBan').textContent = `v${r.phien_ban}`; }).catch(() => {});
 taiDanhSach().catch((e) => toast(`Không tải được danh sách dự án: ${e.message}`, 'error'));
 initHangLoat();
+kiemTraGeminiKhiMo();

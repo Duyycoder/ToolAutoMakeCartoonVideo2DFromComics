@@ -4,7 +4,10 @@
 
 #define MyAppName "Cao va Dich Video"
 #define MyAppDirName "CaoVaDichVideo"
-#define MyAppVersion "2.0.0"
+; So phien ban lay tu file VERSION o goc (app doc chung file nay de hien "vX.Y.Z" o trang chu).
+#define FileVer FileOpen(AddBackslash(SourcePath) + "..\VERSION")
+#define MyAppVersion Trim(FileRead(FileVer))
+#expr FileClose(FileVer)
 #define MyAppPublisher "Duyycoder"
 #define MyAppURL "https://github.com/Duyycoder/ToolAutoMakeCartoonVideo2DFromComics"
 #define SourceDir ".."
@@ -28,6 +31,10 @@ SolidCompression=yes
 WizardStyle=modern
 InfoBeforeFile=huongdan.txt
 DisableDirPage=no
+; Cai de ban moi: app (orchestrator/desktop.py) giu mutex nay -> bo cai bao dong app truoc,
+; khong thi app cu van chay ma cu toi khi tat.
+AppMutex=CaoVaDichVideoDangChay
+CloseApplications=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -59,8 +66,16 @@ Name: "desktopicon"; Description: "Tao bieu tuong ngoai man hinh Desktop"; Group
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; \
     Flags: recursesubdirs createallsubdirs; \
-    Excludes: ".git,.gitmodules,.gitattributes,.github,.claude,.agents,__pycache__,*.pyc,.pytest_cache,.ruff_cache,.mypy_cache,.venv,venv,scratch,logs,cookies.json,*cookies*,*.key,*.pem,.env,.env.*,Thumbs.db,desktop.ini,*.log,\installer,\storage,\models,\configs\global_config.json,\AIVoice\models,\AIVoice\storage,\AIVoice\data,\AIVoice\third_party,\AIVoice\apps\storage,\AIVoice\apps\MediaComposer\models,\AIVoice\apps\MediaComposer\storage,\AIVoice\MediaComposer\models,\AIVoice\MediaComposer\storage,\docs\agy,\docs\HANDOFF-*,\docs\PLAN-*,\tests"
+    Excludes: ".git,.gitmodules,.gitattributes,.github,.claude,.agents,__pycache__,*.pyc,.pytest_cache,.ruff_cache,.mypy_cache,.venv,venv,scratch,logs,cookies.json,*cookies*,*.key,*.pem,.env,.env.*,Thumbs.db,desktop.ini,*.log,\installer,\storage,\models,\configs\global_config.json,\configs\ui_settings.json,\AIVoice\models,\AIVoice\storage,\AIVoice\data,\AIVoice\third_party,\AIVoice\apps\storage,\AIVoice\apps\MediaComposer\models,\AIVoice\apps\MediaComposer\storage,\AIVoice\MediaComposer\models,\AIVoice\MediaComposer\storage,\docs\agy,\docs\HANDOFF-*,\docs\PLAN-*,\tests,api_keys.json,.vscode,\AIVoice\apps\MediaComposer\config.toml,\AIVoice\apps\MediaComposer\ai_images,\AIVoice\tests,\AIVoice\a_net.mp4,\toolCaoTruyen\truyen_tai_ve,\toolCaoTruyen\scratch,\toolCaoTruyen\search_debug.html,\toolCaoTruyen\Gemini-API\models"
 Source: "app.ico"; DestDir: "{app}"
+; Excludes tren con chan file rieng cua nguoi dung bi ghi de khi cai de ban moi: api_keys.json (proxy Gemini tu tao),
+; AIVoice config.toml (setup tao tu .example), configs\global_config.json, du lieu storage/models.
+
+; Cai de ban moi: xoa ma nguon cu truoc khi chep (file da bo o ban moi khong con nam lai).
+; Hai thu muc nay chi chua ma - du lieu nguoi dung o storage/, configs/, models/, AIVoice\.venv.
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\orchestrator"
+Type: filesandordirs; Name: "{app}\webui"
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\run.bat"; \
@@ -82,9 +97,16 @@ Filename: "{cmd}"; \
     Flags: runhidden waituntilterminated; \
     StatusMsg: "Dang tao file cau hinh mac dinh..."
 Filename: "{app}\setup.bat"; WorkingDir: "{app}"; \
-    Parameters: """--tp={code:GetSelectedComponents}"" --workspace=""{code:GetWorkspaceDir}"""; \
+    Parameters: """--tp={code:GetSelectedComponents}"" ""--workspace={code:GetWorkspaceDir}"""; \
     Description: "Cai moi truong AI ngay (tai Python + thu vien + model, can Internet, 30-60 phut)"; \
-    Flags: postinstall skipifsilent
+    Flags: postinstall skipifsilent; Check: not LaCapNhat
+; Cai de: Python/.venv/model da co -> chi cai them thu vien neu ban moi doi requirements.
+Filename: "{app}\setup.bat"; WorkingDir: "{app}"; Parameters: "--capnhat"; \
+    Flags: waituntilterminated; Check: LaCapNhat; \
+    StatusMsg: "Dang kiem tra thu vien cua ban moi..."
+Filename: "{app}\run.bat"; WorkingDir: "{app}"; \
+    Description: "Mo {#MyAppName}"; \
+    Flags: postinstall nowait skipifsilent shellexec; Check: LaCapNhat
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\AIVoice\.venv"
@@ -101,6 +123,43 @@ var
   WorkspacePage: TInputDirWizardPage;
   WorkspaceDir: String;
   ModelsDir: String;
+  DaKiemCapNhat: Boolean;
+  KetQuaCapNhat: Boolean;
+
+const
+  KhoaGoCai = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{F1351DC0-C1A7-4518-8ABD-512C6C60FD29}_is1';
+
+// Thu muc cai cua lan truoc (Inno tu ghi vao khoa go cai), rong neu may chua cai.
+function ThuMucCaiCu: String;
+begin
+  Result := '';
+  if not RegQueryStringValue(HKCU, KhoaGoCai, 'Inno Setup: App Path', Result) then
+    RegQueryStringValue(HKLM, KhoaGoCai, 'Inno Setup: App Path', Result);
+end;
+
+// Cai de ban moi = da cai truoc do VA moi truong AI (.venv) da dung xong.
+// Lan truoc dung giua chung (chua co .venv) thi coi nhu cai moi de chay lai setup day du.
+function LaCapNhat: Boolean;
+var
+  Cu: String;
+begin
+  if not DaKiemCapNhat then
+  begin
+    Cu := ThuMucCaiCu;
+    KetQuaCapNhat := (Cu <> '') and FileExists(AddBackslash(Cu) + 'AIVoice\.venv\Scripts\python.exe');
+    DaKiemCapNhat := True;
+  end;
+  Result := KetQuaCapNhat;
+end;
+
+// Cap nhat: giu thu muc cai, thanh phan, noi lam viec cu -> bo qua cac trang hoi, chi con "Install".
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := False;
+  if LaCapNhat then
+    Result := (PageID = wpInfoBefore) or (PageID = wpSelectDir) or (PageID = wpSelectComponents)
+      or (PageID = wpSelectTasks) or (PageID = WorkspacePage.ID);
+end;
 
 procedure InitializeWizard;
 begin
@@ -127,6 +186,9 @@ end;
 
 procedure CurPageChanged(CurPageID: Integer);
 begin
+  if (CurPageID = wpReady) and LaCapNhat then
+    WizardForm.ReadyLabel.Caption := 'Máy đã cài {#MyAppName} tại ' + ThuMucCaiCu + '.'#13#10#13#10 +
+      'Bấm Install để cập nhật lên bản {#MyAppVersion}. Dự án, cấu hình, thư viện và model AI đã tải được giữ nguyên, không phải tải lại.';
   if (CurPageID = WorkspacePage.ID) and (WorkspacePage.Values[1] = '') then
     WorkspacePage.Values[1] := ThuMucModelMacDinh;
 end;

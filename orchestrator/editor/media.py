@@ -316,12 +316,14 @@ class QuanLyMedia:
             os.makedirs(tam, exist_ok=True)
             proc = subprocess.Popen(lenh(tam), cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                     text=True, encoding="utf-8", errors="replace", creationflags=NO_WINDOW)
-            xong, loi = [], []
+            xong, loi, huy = [], [], False
             try:
                 for line in proc.stdout:
                     if ctx.da_huy:
+                        # Huỷ giữa chừng: dừng tải nhưng vẫn đưa các video ĐÃ XONG vào dự án (bỏ video đang dở).
                         proc.kill()
-                        raise hang_doi.DaHuy()
+                        huy = True
+                        break
                     line = line.strip()
                     if not line.startswith("{"):
                         continue
@@ -344,6 +346,8 @@ class QuanLyMedia:
                     proc.kill()
             for path, title, url in xong:
                 self._dua_ban_tai_vao(folder, du_an_id, path, title, url)
+            if huy:
+                raise hang_doi.DaHuy()
             from orchestrator.editor.workspace import giai_thich_loi_ghi
             loi = [giai_thich_loi_ghi(x) for x in loi]
             if not xong:

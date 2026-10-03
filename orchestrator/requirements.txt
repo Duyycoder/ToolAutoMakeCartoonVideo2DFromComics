@@ -5,3 +5,8 @@ pydantic>=2.0.0
 requests>=2.31.0
 httpx>=0.24.0
 pywebview>=5.0
+# Gemini proxy (toolCaoTruyen/Gemini-API) runs on this Python on installed machines; gemini_webapi comes from its src/
+curl-cffi~=0.15.0
+loguru~=0.7.3
+orjson~=3.11.7
+python-multipart>=0.0.9

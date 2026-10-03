@@ -1,5 +1,6 @@
 import { $, api, toast } from './chung.js';
 import { veDieuKhien, bindDieuKhien } from './chon_giong.js';
+import { choTrangThai, moHopCookie, pingGemini } from './gemini_cookie.js';
 
 let configData = {};
 let uiSettingsData = {};
@@ -66,6 +67,8 @@ async function loadConfig() {
 async function saveAllSettings() {
     const cfg = JSON.parse(JSON.stringify(configData || {}));
     document.querySelectorAll('[data-cfg]').forEach((el) => {
+        // Ô chọn model chưa tải xong danh sách (rỗng) mà bấm Lưu thì giữ giá trị cũ, đừng ghi ''.
+        if (el.tagName === 'SELECT' && !el.options.length) return;
         const value = readField(el);
         if (value !== null) setByPath(cfg, el.dataset.cfg, value);
     });
@@ -77,8 +80,11 @@ async function saveAllSettings() {
 
     await api('/api/config', { method: 'POST', body: JSON.stringify(cfg) });
     await api('/api/ui-settings', { method: 'POST', body: JSON.stringify(ui) });
-    
+
+    const tr0 = configData.translate || {}, tr1 = cfg.translate || {};
+    const doiCookie = tr0.gemini_psid !== tr1.gemini_psid || tr0.gemini_psidts !== tr1.gemini_psidts;
     configData = cfg;
+    if (doiCookie) pingThu();  // server đã ghi cookies.json + bật lại proxy -> ping luôn
     uiSettingsData = ui;
     toast('Đã lưu cấu hình.', 'success');
 }
@@ -105,6 +111,40 @@ async function loadOllamaModels() {
     } catch (e) { /* ignore */ }
 }
 
+const NHAN_GEMINI = {
+    san_sang: '✅ đã kết nối', cookie_het_han: '⚠ cookie hết hạn', chua_co_cookie: 'chưa điền cookie',
+    dang_khoi_dong: '⏳ đang kết nối...', loi: '❌ lỗi', khong_co_proxy: 'không có proxy',
+    thieu_venv: '❌ thiếu .venv toolCaoTruyen', da_tat: 'chưa bật',
+};
+
+async function capNhatGemini() {
+    const el = $('geminiTrangThai');
+    if (!el) return;
+    el.textContent = NHAN_GEMINI.dang_khoi_dong;
+    try {
+        const tt = await choTrangThai();
+        el.textContent = NHAN_GEMINI[tt.ma] || tt.ma;
+        el.title = tt.thong_bao || '';
+    } catch (e) { el.textContent = e.message; }
+}
+
+async function pingThu() {
+    const el = $('geminiTrangThai');
+    const nut = $('btnGeminiPing');
+    nut.disabled = true;
+    el.textContent = '📡 đang ping...';
+    try {
+        const p = await pingGemini();
+        el.textContent = p.ok ? `✅ chuẩn — trả lời "${p.tra_loi}" sau ${(p.ms / 1000).toFixed(1)}s` : `❌ ${p.thong_bao}`;
+        el.title = p.thong_bao || '';
+        toast(p.thong_bao, p.ok ? 'success' : 'error', 6000);
+    } catch (e) {
+        el.textContent = `❌ ${e.message}`;
+    } finally {
+        nut.disabled = false;
+    }
+}
+
 async function loadGpu() {
     try {
         const gpu = await api('/api/system/gpu-info');
@@ -129,6 +169,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { await loadConfig(); } catch (e) { toast(`Lỗi cấu hình: ${e.message}`, 'error'); }
     try { await loadUiSettings(); } catch (e) {}
     
+    $('btnGeminiHuongDan').addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (!(await moHopCookie())) return;
+        // Hộp thoại đã lưu cookie vào cấu hình -> chỉ nạp lại 2 ô đó (loadConfig sẽ gắn trùng sự kiện).
+        const cfg = await api('/api/config').catch(() => null);
+        if (!cfg) return;
+        for (const k of ['gemini_psid', 'gemini_psidts', 'gemini_offline_key']) {
+            setByPath(configData, `translate.${k}`, (cfg.translate || {})[k] || '');
+            const el = document.querySelector(`[data-cfg="translate.${k}"]`);
+            if (el) el.value = (cfg.translate || {})[k] || '';
+        }
+        capNhatGemini();
+    });
+    $('btnGeminiPing').addEventListener('click', (e) => { e.preventDefault(); pingThu(); });
+    capNhatGemini();
     await loadOllamaModels();
     await loadGpu();
 });

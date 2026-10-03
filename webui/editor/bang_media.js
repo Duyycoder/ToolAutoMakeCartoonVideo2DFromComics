@@ -11,6 +11,20 @@ const ICON = { video: '🎬', audio: '🎵', anh: '🖼', phu_de: '💬' };
 const TEN_LOAI = { video: 'Video', audio: 'Âm thanh', anh: 'Ảnh', phu_de: 'Phụ đề' };
 const CO_ANH = [76, 100, 136];
 const DANG_XU_LY = ['dang_chep', 'dang_doc'];
+const theoTen = (a, b) => (a.ten || '').localeCompare(b.ten || '', 'vi', { numeric: true });
+const theoNgay = (a, b) => (a.nhap_luc || '').localeCompare(b.nhap_luc || '') || a.id.localeCompare(b.id, 'en', { numeric: true });
+const THU_TU_LOAI = { video: 0, anh: 1, audio: 2, phu_de: 3 };
+const SAP_XEP = {
+    ngay: ['Mới nhập', (a, b) => theoNgay(b, a)],
+    ngay_cu: ['Nhập trước', theoNgay],
+    ten: ['Tên A → Z', theoTen],
+    ten_nguoc: ['Tên Z → A', (a, b) => theoTen(b, a)],
+    dai: ['Dài → ngắn', (a, b) => (Number(b.thoi_luong) || 0) - (Number(a.thoi_luong) || 0) || theoTen(a, b)],
+    ngan: ['Ngắn → dài', (a, b) => (Number(a.thoi_luong) || 0) - (Number(b.thoi_luong) || 0) || theoTen(a, b)],
+    co: ['Dung lượng lớn', (a, b) => (Number(b.kich_thuoc) || 0) - (Number(a.kich_thuoc) || 0) || theoTen(a, b)],
+    co_nho: ['Dung lượng nhỏ', (a, b) => (Number(a.kich_thuoc) || 0) - (Number(b.kich_thuoc) || 0) || theoTen(a, b)],
+    loai: ['Loại', (a, b) => (THU_TU_LOAI[a.loai] ?? 9) - (THU_TU_LOAI[b.loai] ?? 9) || theoTen(a, b)],
+};
 
 export class BangMedia {
     constructor(ctx) {
@@ -32,7 +46,7 @@ export class BangMedia {
                 <input type="search" data-o="tim" placeholder="Tìm…">
                 <select data-o="loc" title="Lọc loại"><option value="tat_ca">Tất cả</option><option value="video">Video</option>
                     <option value="audio">Âm thanh</option><option value="anh">Ảnh</option><option value="phu_de">Phụ đề</option></select>
-                <select data-o="sap_xep" title="Sắp xếp"><option value="ngay">Mới nhập</option><option value="ten">Tên</option></select>
+                <select data-o="sap_xep" title="Sắp xếp">${Object.entries(SAP_XEP).map(([k, [ten]]) => `<option value="${k}">${ten}</option>`).join('')}</select>
             </div>
             <div class="media-cong-cu">
                 <button class="nut-icon" data-kieu="luoi" title="Dạng lưới">▦</button>
@@ -41,8 +55,13 @@ export class BangMedia {
                 <label style="display:flex;gap:5px;align-items:center;color:var(--chu-2);font-size:12px;cursor:pointer">
                     <input type="checkbox" data-o="nhom"> Nhóm theo loại</label>
             </div>
+            <div class="media-so-chon" data-khu="so-chon" style="display:none"></div>
             <div class="bang-noi" data-khu="noi"></div>`;
         this.noi = this.el.querySelector('[data-khu=noi]');
+        this._chonNhieu = [];
+        this.dangTro = false;
+        this.el.addEventListener('pointerenter', () => { this.dangTro = true; });
+        this.el.addEventListener('pointerleave', () => { this.dangTro = false; });
         ctx.bus.on('bo_chon_nguon', () => this._veChon());
         this._gan();
         this.tai();
@@ -94,7 +113,27 @@ export class BangMedia {
                 return this.ve();
             }
             const the = e.target.closest('.the-media');
-            if (the) this.chon(the.dataset.mid);
+            if (!the) { if (e.target === this.noi || e.target.closest('.luoi-media')) this._datNhieu([]); return; }
+            if (the.classList.contains('dc')) { this.chon(the.dataset.mid); return; }
+            const mid = the.dataset.mid;
+            if (e.shiftKey && this._neo) {
+                // Shift: chọn dải theo thứ tự đang hiển thị (đã lọc/sắp xếp).
+                const thu = this._thuTuHien();
+                const [a, b] = [thu.indexOf(this._neo), thu.indexOf(mid)].sort((x, y) => x - y);
+                if (a >= 0) { this._datNhieu(thu.slice(a, b + 1)); return; }
+            }
+            if (e.ctrlKey || e.metaKey) {
+                const ds = this._chonNhieu.length ? this._chonNhieu.slice() : (this.ctx.chon.media ? [this.ctx.chon.media] : []);
+                const i = ds.indexOf(mid);
+                if (i >= 0) ds.splice(i, 1); else ds.push(mid);
+                this._neo = mid;
+                this._datNhieu(ds);
+                if (i < 0) this.chon(mid);
+                return;
+            }
+            this._neo = mid;
+            this._datNhieu([]);
+            this.chon(mid);
         });
         this.noi.addEventListener('dblclick', (e) => {
             const the = e.target.closest('.the-media');
@@ -104,7 +143,7 @@ export class BangMedia {
             const the = e.target.closest('.the-media');
             if (!the) return;
             e.preventDefault();
-            this.chon(the.dataset.mid);
+            if (!this._chonNhieu.includes(the.dataset.mid)) { this._datNhieu([]); this.chon(the.dataset.mid); }
             this.menu(the.dataset.mid, e.clientX, e.clientY);
         });
         this.noi.addEventListener('dragstart', (e) => {
@@ -118,6 +157,18 @@ export class BangMedia {
             }
             if (!m || m.trang_thai !== 'san_sang') { e.preventDefault(); return; }
             e.dataTransfer.setData('application/x-media-id', m.id);
+            if (!the.classList.contains('dc')) {
+                const ds = this._dsThaoTac(m.id).map((id) => this.lay(id)).filter((x) => x && x.trang_thai === 'san_sang' && !x.mat_file);
+                if (ds.length > 1) {
+                    e.dataTransfer.setData('application/x-media-ids', JSON.stringify(ds.map((x) => x.id)));
+                    const bong = document.createElement('div');
+                    bong.className = 'bong-keo-media';
+                    bong.textContent = `${ds.length} mục`;
+                    document.body.appendChild(bong);
+                    e.dataTransfer.setDragImage(bong, 10, 10);
+                    setTimeout(() => bong.remove(), 0);
+                }
+            }
             if (the.classList.contains('dc')) {
                 // Kéo 1 phát thì thêm vào dự án
                 e.dataTransfer.setData('application/x-dung-chung', m.rel);
@@ -141,9 +192,33 @@ export class BangMedia {
         this._veChon();
     }
 
+    /* Chọn nhiều (Ctrl/Shift+bấm, Ctrl+A khi trỏ chuột trên bảng) — chỉ ở tab Media; kéo/thêm theo thứ tự đang hiển thị. */
+    _thuTuHien() { return [...this.noi.querySelectorAll('.the-media:not(.dc)')].map((t) => t.dataset.mid); }
+
+    _datNhieu(ds) { this._chonNhieu = ds; this._veChon(); }
+
+    chonTatCa() {
+        if (this.km.tab !== 'media') return;
+        this._datNhieu(this._thuTuHien());
+    }
+
+    /* Media sẽ kéo/thêm khi thao tác trên thẻ `mid`: cả nhóm đang chọn nếu thẻ nằm trong nhóm, không thì riêng nó. */
+    _dsThaoTac(mid) {
+        const nhom = new Set(this._chonNhieu);
+        if (nhom.size < 2 || !nhom.has(mid)) return [mid];
+        return this._thuTuHien().filter((id) => nhom.has(id));
+    }
+
     _veChon() {
         const mid = this.ctx.chon.media;
-        this.noi.querySelectorAll('.the-media').forEach((t) => t.classList.toggle('chon', t.dataset.mid === mid));
+        const nhom = new Set(this._chonNhieu);
+        this.noi.querySelectorAll('.the-media').forEach((t) => t.classList.toggle('chon',
+            t.dataset.mid === mid || (!t.classList.contains('dc') && nhom.has(t.dataset.mid))));
+        const so = this.el.querySelector('[data-khu=so-chon]');
+        if (so) {
+            so.textContent = nhom.size > 1 ? `Đã chọn ${nhom.size} · kéo xuống timeline` : '';
+            so.style.display = nhom.size > 1 ? '' : 'none';
+        }
     }
 
     // ------------------------------------------------------------ dữ liệu
@@ -274,7 +349,10 @@ export class BangMedia {
         const menu = document.createElement('div');
         menu.className = 'menu';
         const san = m.trang_thai === 'san_sang' && !m.mat_file;
+        const nhom = this._dsThaoTac(mid).map((id) => this.lay(id))
+            .filter((x) => x && x.trang_thai === 'san_sang' && !x.mat_file && ['video', 'anh', 'audio'].includes(x.loai));
         menu.innerHTML = `
+            ${nhom.length > 1 ? `<button data-l="them-nhieu">⤵ Thêm ${nhom.length} mục đã chọn vào cuối timeline</button><hr>` : ''}
             ${san ? '<button data-l="xem">▶ Xem trước</button>' : ''}
             ${san && ['video', 'anh', 'audio'].includes(m.loai) ? '<button data-l="them">⤵ Thêm vào cuối timeline</button>' : ''}
             ${san && m.loai === 'video' && m.proxy !== 'xong' ? '<button data-l="proxy">⚡ Tạo bản xem trước nhẹ (proxy)</button>' : ''}
@@ -293,6 +371,7 @@ export class BangMedia {
             ({
                 xem: () => this.ctx.preview.batTat(),
                 them: () => this.ctx.timeline.themMedia(m, null, null),
+                'them-nhieu': () => this.ctx.timeline.themNhieuMedia(nhom, null, null),
                 proxy: () => api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${mid}/phat-duoc`,
                     { method: 'POST', body: { ok: false } }).then(() => this.tai()),
                 'nhap-lai': () => this.nhapLai(mid),
@@ -375,7 +454,7 @@ export class BangMedia {
                 });
                 return;
             }
-            const dc = this._dungChung;
+            const dc = this._dungChung.slice().sort((SAP_XEP[km.sap_xep] || SAP_XEP.ngay)[1]);
             if (!dc.length) {
                 this.noi.innerHTML = `<div class="sap-co"><b>Kho Dùng chung — có ở GĐ 2.</b><br>
                     Logo, intro, nhạc nền dùng cho nhiều dự án: nằm ở <code>_dung_chung/</code> trong Nơi làm việc,
@@ -392,9 +471,7 @@ export class BangMedia {
         const tim = (km.tim || '').toLowerCase();
         let ds = this.ctx.media.filter((m) => (km.loc === 'tat_ca' || m.loai === km.loc)
             && (!tim || `${m.ten} ${m.file}`.toLowerCase().includes(tim)));
-        ds = km.sap_xep === 'ten'
-            ? ds.slice().sort((a, b) => (a.ten || '').localeCompare(b.ten || '', 'vi', { numeric: true }))
-            : ds.slice().sort((a, b) => (b.nhap_luc || '').localeCompare(a.nhap_luc || '') || b.id.localeCompare(a.id, 'en', { numeric: true }));
+        ds = ds.slice().sort((SAP_XEP[km.sap_xep] || SAP_XEP.ngay)[1]);
 
         let html = this._theTai();
         if (!this.ctx.media.length) {
@@ -411,6 +488,10 @@ export class BangMedia {
             <div class="luoi-media ${km.kieu === 'ds' ? 'ds' : ''}" style="--co-anh:${co}px">${d.map((m) => this._the(m)).join('')}</div>`).join('');
         if (!ds.length) html += '<p style="color:var(--chu-2);padding:8px 0">Không có media khớp bộ lọc.</p>';
         this.noi.innerHTML = html;
+        // Bỏ khỏi nhóm chọn các mục đã xoá hoặc bị bộ lọc ẩn (kéo/thêm chỉ lấy mục đang thấy).
+        const thay = new Set(this._thuTuHien());
+        this._chonNhieu = this._chonNhieu.filter((id) => thay.has(id));
+        this._veChon();
     }
 
     _the(m) {
@@ -434,7 +515,7 @@ export class BangMedia {
         const nhanProxy = m.proxy === 'dang_tao' ? ' · tạo proxy…' : m.proxy === 'xong' ? ' · proxy' : '';
         const tt = [m.file, m.rong ? `${m.rong}×${m.cao}` : '', m.fps ? `${m.fps} fps` : '', m.codec || '',
             m.kich_thuoc ? coFile(m.kich_thuoc) : ''].filter(Boolean).join(' · ');
-        return `<div class="the-media ${this.ctx.chon.media === m.id ? 'chon' : ''}" data-mid="${esc(m.id)}"
+        return `<div class="the-media ${this.ctx.chon.media === m.id || this._chonNhieu.includes(m.id) ? 'chon' : ''}" data-mid="${esc(m.id)}"
                 draggable="${m.trang_thai === 'san_sang' && !m.mat_file}" title="${esc(tt)}">
             ${anh}${phu}
             ${m.thoi_luong ? `<span class="dai so">${fmtNgan(m.thoi_luong)}</span>` : ''}

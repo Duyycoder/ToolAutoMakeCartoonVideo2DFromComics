@@ -600,6 +600,20 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         return {"file": f"{luu_tru.PHU_DE_DIR}/{ten}", "path": path}
 
     # ------------------------------------------------------------- Lồng tiếng
+    # Ngôn ngữ (giá trị ô Dịch sang) -> (mã ngôn ngữ, vùng ưu tiên) của giọng Edge.
+    GIONG_EDGE = {
+        "Vietnamese": ("vi", "vi-VN"), "Tiếng Việt": ("vi", "vi-VN"), "English": ("en", "en-US"),
+        "Chinese": ("zh", "zh-CN"), "Japanese": ("ja", "ja-JP"), "Korean": ("ko", "ko-KR"),
+        "Thai": ("th", "th-TH"), "Indonesian": ("id", "id-ID"), "Spanish": ("es", "es-ES"),
+    }
+    # Mất mạng không lấy được danh sách: vẫn có 2 giọng chuẩn để chọn.
+    GIONG_EDGE_DU_PHONG = {
+        "vi-VN": ["vi-VN-HoaiMyNeural", "vi-VN-NamMinhNeural"], "en-US": ["en-US-AriaNeural", "en-US-GuyNeural"],
+        "zh-CN": ["zh-CN-XiaoxiaoNeural", "zh-CN-YunxiNeural"], "ja-JP": ["ja-JP-NanamiNeural", "ja-JP-KeitaNeural"],
+        "ko-KR": ["ko-KR-SunHiNeural", "ko-KR-InJoonNeural"], "th-TH": ["th-TH-PremwadeeNeural", "th-TH-NiwatNeural"],
+        "id-ID": ["id-ID-GadisNeural", "id-ID-ArdiNeural"], "es-ES": ["es-ES-ElviraNeural", "es-ES-AlvaroNeural"],
+    }
+
     @r.get("/api/tts/giong")
     def get_tts_voices(engine: str = "edge", lang: str = ""):
         if engine == "edge":
@@ -609,12 +623,17 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                 async def _get():
                     return await edge_tts.list_voices()
                 voices = asyncio.run(asyncio.wait_for(_get(), timeout=3.0))
-                if lang == "Vietnamese" or lang == "Tiếng Việt":
-                    return {"giong": [v["ShortName"] for v in voices if "vi-" in v["ShortName"]]}
-                else:
-                    return {"giong": [v["ShortName"] for v in voices]}
+                ten = [v["ShortName"] for v in voices]
             except Exception:
-                return {"giong": ["vi-VN-NamMinhNeural", "vi-VN-HoaiMyNeural"]}
+                ten = []
+            # Chỉ giọng đúng ngôn ngữ đích (vùng phổ biến lên đầu): danh sách đủ 300+ giọng thì giọng cũ
+            # (vd vi-VN) vẫn "hợp lệ" nên đổi Dịch sang Tiếng Anh xong vẫn lồng tiếng Anh bằng giọng Việt.
+            ma = GIONG_EDGE.get(lang)
+            if not ma:
+                return {"giong": ten or GIONG_EDGE_DU_PHONG["vi-VN"]}
+            hop = [t for t in ten if t.startswith(ma[0] + "-")]
+            hop.sort(key=lambda t: not t.startswith(ma[1] + "-"))
+            return {"giong": hop or GIONG_EDGE_DU_PHONG.get(ma[1], [])}
         elif engine == "piper":
             from orchestrator.pipeline import AIVOICE_DIR
             piper_dir = os.path.join(AIVOICE_DIR, "models", "piper")
@@ -651,9 +670,12 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                              
         if loai == "dich":
             def lam(ctx):
-                dam_bao_llm(ctx, g, tham_so, check_dich=True)
                 from orchestrator.editor import dich
-                return dich.dich(ctx, folder, loai, m, tham_so)
+                bat_ollama = lambda: dam_bao_llm(ctx, g, tham_so, check_dich=True)  # noqa: E731
+                # Engine Gemini: chỉ bật Ollama khi Gemini còn câu sót (thường không cần, đỡ chiếm GPU).
+                if dich.chon_engine(tham_so, g.get("translate") or {}) not in dich.ENGINE_GEMINI:
+                    bat_ollama()
+                return dich.dich(ctx, folder, loai, m, tham_so, dam_bao_ollama=bat_ollama)
             viec.ham = lam
         else:
             ke_hoach = ai_bridge.dung_lenh(folder, loai, m, tham_so, g, xay_lenh, viec.id)

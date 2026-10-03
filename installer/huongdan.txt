@@ -1,4 +1,5 @@
-AutoCartoon Video Maker - He thong tu dong chuyen truyen chu thanh video hoat hinh 2D co long tieng.
+Cao va Dich Video - cao video tu link, tao phu de (Whisper/OCR), dich, long tieng
+va dung phim ngay tren may.
 
 YEU CAU HE THONG
   - Windows 10/11 64-bit
@@ -13,12 +14,19 @@ QUA TRINH CAI DAT GOM 2 GIAI DOAN
      tai thu vien va model AI. Buoc nay hien cua so den (console) de ban
      theo doi tien do, can Internet va co the mat 30-60 phut tuy toc do mang.
 
+CAP NHAT LEN BAN MOI
+  - Chi can chay bo cai ban moi tren may da cai. Bo cai tu nhan ra thu muc cu,
+    chi con nut Install: du an, cau hinh, API key, thu vien va model AI da tai
+    duoc giu nguyen, chi tai them thu vien nao ban moi can (vai phut).
+  - Nho tat ung dung truoc khi cap nhat (bo cai se nhac neu app dang mo).
+  - Phien ban dang dung hien canh ten ung dung o trang chu (vd "v2.0.5").
+
 SAU KHI CAI XONG
-  - Mo ung dung bang bieu tuong "AutoCartoon Video Maker" ngoai Desktop
+  - Mo ung dung bang bieu tuong "Cao va Dich Video" ngoai Desktop
     hoac trong Start Menu.
   - Engine dich mac dinh la Ollama (chay tren may, khong can API key).
-    Cai Ollama tai https://ollama.com roi chay: ollama pull qwen2.5:3b-instruct
-  - Muon cai lai moi truong: chay "AutoCartoon Video Maker - Cai dat moi truong"
+    Chon thanh phan "Dich offline" khi cai de tu tai Ollama + model dich hy-mt2.
+  - Muon cai lai moi truong: chay "Cao va Dich Video - Cai dat moi truong"
     trong Start Menu.
 
 Nhan Next de tiep tuc.

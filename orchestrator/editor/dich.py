@@ -222,6 +222,10 @@ def do_lot_tu(nguon: str, ban_dich: str, lang_nguon: str, lang_dich: str, thuat_
 
     return {"lot": lot, "ti_le": len(lot)/max(1, len(tokens_dich))}
 
+class _BoQuaOllama(Exception):
+    """Gemini còn câu sót nhưng Ollama không bật được: bỏ lượt Ollama, giữ phần đã dịch."""
+
+
 def lam_sach_ban_dich(text: str, num_newlines: int) -> str:
     text = text.strip()
     text = re.sub(r'^(Bản dịch|Translation|Dịch):\s*', '', text, flags=re.IGNORECASE).strip()
@@ -281,9 +285,40 @@ def goi_ollama(prompt: str, url: str, model: str, system: str = "", temperature:
     except requests.exceptions.Timeout:
         raise RuntimeError("Ollama chạy quá lâu (hết thời gian chờ).")
 
-def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_so: Dict[str, Any]) -> Dict[str, Any]:
+ENGINE_GEMINI = ("gemini_api", "gemini")   # gemini_api = cookie qua proxy 7860, gemini = API key chính thức
+
+
+def chon_engine(tham_so: Dict[str, Any], tr: Dict[str, Any]) -> str:
+    e = tham_so.get("llm_engine") or tr.get("engine") or "ollama"
+    return e if e in ENGINE_GEMINI + ("ollama",) else "ollama"
+
+
+def _cho_gemini_proxy(ctx) -> str:
+    """Engine cookie: chờ proxy đăng nhập. Trả "" nếu dùng được, không thì lý do ngắn
+    (cookie hết hạn / chưa có / proxy hỏng) để dich() rơi về model local."""
+    from orchestrator import gemini_proxy
+    tt = gemini_proxy.trang_thai()
+    if tt["ma"] == "da_tat":
+        gemini_proxy.khoi_dong()
+        tt = gemini_proxy.trang_thai()
+    het = time.time() + 90
+    while tt["ma"] == "dang_khoi_dong" and time.time() < het:
+        ctx.bao(thong_diep="Đang chờ proxy Gemini đăng nhập...")
+        time.sleep(1.5)
+        tt = gemini_proxy.trang_thai()
+    if tt["ma"] == "san_sang":
+        return ""
+    if tt["ma"] in ("cookie_het_han", "chua_co_cookie"):
+        return "Cookie Gemini đã hết hạn" if tt["ma"] == "cookie_het_han" else "Chưa có cookie Gemini"
+    return f"Gemini proxy chưa dùng được ({tt['thong_bao']})"
+
+
+def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_so: Dict[str, Any],
+         dam_bao_ollama=None) -> Dict[str, Any]:
+    """dam_bao_ollama: hàm bật Ollama + tải model, chỉ gọi khi THẬT SỰ cần Ollama (engine Gemini còn câu sót)."""
     g_config = load_global_config()
     tr = g_config.get("translate", {})
+    engine = chon_engine(tham_so, tr)
     ollama_base_url = tr.get("ollama_base_url", "http://localhost:11434").replace("/v1", "") + "/api/generate"
     model = tham_so.get("mt_model") or tr.get("mt_model") or "hy-mt2:1.8b"
     model_du_phong = tr.get("mt_model_du_phong") or "qwen2.5:7b-instruct"
@@ -544,7 +579,8 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
 
     def cac_luot():
         if so_moi_lo > 1:
-            can = [i for i, c in enumerate(cau_list) if (n := nguon_cua(c)) and "\n" not in n]
+            can = [i for i, c in enumerate(cau_list)
+                   if trang_thai[i] is None and (n := nguon_cua(c)) and "\n" not in n]
             # Lô chỉ 1 câu thì gộp vô ích (thêm một lần gọi) → để lượt 1 dịch thẳng.
             cac_lo = [lo for lo in (can[j:j + so_moi_lo] for j in range(0, len(can), so_moi_lo)) if len(lo) > 1]
             with ThreadPoolExecutor(max_workers=so_luong) as ex:
@@ -561,8 +597,66 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
             list(ex.map(lambda i: chay(i, (2,)), con_loi))
         return con_loi
 
+    tk_gemini = {}
+
+    def kiem_cau(nguon, ban_dich):
+        """Cùng bộ kiểm như lô Ollama: lọt từ nguồn, chữ lạ, dịch thừa, thiếu thuật ngữ."""
+        tn_cau = {t: v for t, v in tn_dict.items() if t in nguon}
+        return not (do_lot_tu(nguon, ban_dich, lang_nguon, lang_dich, tn_dict, tap_tu_nguon_toan_bo, tap_tu_viet_hoa)["lot"]
+                    or chu_la_trong_dich(ban_dich, lang_dich) or kiem_do_dai(nguon, ban_dich, lang_nguon, lang_dich)
+                    or any(v.lower() not in ban_dich.lower() for v in tn_cau.values()))
+
+    def chay_gemini():
+        """Lượt Gemini lô JSON; trả số câu còn sót cho Ollama."""
+        from orchestrator.llm import resolve_llm
+        from orchestrator.editor.dich_lo_json import dich_lo_json
+        nguon = {i: n for i, c in enumerate(cau_list) if (n := nguon_cua(c))}
+        if engine == "gemini_api":
+            ly_do = _cho_gemini_proxy(ctx)
+            if ly_do:  # cookie hỏng: dịch hết bằng model local, chỉ báo một dòng nhỏ
+                tk_gemini.update(chuyen_local=ly_do, so_cau=0)
+                return len(nguon)
+        api_key, base_url, llm_model = resolve_llm(engine, {}, g_config, "")
+        cookie = engine == "gemini_api"
+        kq = dich_lo_json(
+            nguon, lang_nguon=lang_nguon, lang_dich=lang_dich, thuat_ngu=tn_dict,
+            base_url=base_url, api_key=api_key, model=llm_model,
+            so_moi_lo=max(10, int(tr.get("gemini_cau_moi_lo") or 100)),
+            so_luong=max(1, int(tr.get("gemini_cookie_luong" if cookie else "gemini_key_luong") or (2 if cookie else 8))),
+            kiem_cau=kiem_cau, huy=ctx.viec.huy_event,
+            bao=lambda xong, msg: ctx.bao(tien_do=xong / len(cau_list) * 100, thong_diep=msg))
+        for i, ban_dich in kq.pop("ban_dich").items():
+            trang_thai[i] = (ban_dich, [], None, True, False, False, nguon[i])
+            c_moi = dict(cau_list[i])
+            c_moi["text"], c_moi["text_goc"] = ban_dich, nguon[i]
+            ket_qua[i] = c_moi
+        tk_gemini.update(kq, so_cau=sum(1 for t in trang_thai if t is not None), model=llm_model)
+        dem["xong"] = tk_gemini["so_cau"]
+        if ctx.viec.huy_event.is_set():
+            raise hang_doi.DaHuy()
+        return len(nguon) - tk_gemini["so_cau"]
+
+    canh_bao_them = []
     try:
-        con_loi = cac_luot()
+        con_sot = chay_gemini() if engine in ENGINE_GEMINI else None
+        if con_sot == 0:
+            con_loi = []
+        else:
+            if con_sot and dam_bao_ollama is not None:
+                chuyen_local = tk_gemini.get("chuyen_local")
+                ctx.bao(thong_diep=f"{chuyen_local} — dịch bằng model local" if chuyen_local
+                        else f"Còn {con_sot} câu Gemini chưa dịch được — chuyển sang Ollama")
+                try:
+                    dam_bao_ollama()
+                except Exception as e:
+                    if chuyen_local:  # không có gì để giữ: báo lỗi như engine Ollama thường
+                        raise RuntimeError(f"{chuyen_local} và model local không chạy được: {e}") from e
+                    # Ollama hỏng: GIỮ phần Gemini đã dịch
+                    canh_bao_them.append(f"Còn {con_sot} câu chưa dịch: Gemini từ chối và Ollama không chạy được ({e}).")
+                    raise _BoQuaOllama()
+            con_loi = cac_luot()
+    except _BoQuaOllama:
+        con_loi = []
     except hang_doi.DaHuy:
         # Huỷ giữa chừng: GIỮ các câu đã dịch đạt (29/09 huỷ ở 1011/1925 câu là mất sạch) — bảng AI cho áp dụng phần này.
         da_xong = [i for i, t in enumerate(trang_thai) if t is not None and t[3] and ket_qua[i] is not None]
@@ -589,12 +683,18 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
             bao_cao_loi.append({"id": c.get("id", str(i)), "nguon": nguon, "ban_dich": ban_dich, "lot": lot, "ly_do": ly_do})
     so_lan_goi = dem["goi"]
 
+    so_cau_gemini = tk_gemini.get("so_cau", 0)
     bao_cao = {
+        "engine": "ollama" if tk_gemini.get("chuyen_local") else engine,
+        "gemini_chuyen_local": tk_gemini.get("chuyen_local"),
+        "so_cau_gemini": so_cau_gemini,
+        "so_cau_ollama": max(0, tong_cau - so_cau_gemini),
+        "gemini": tk_gemini or None,
         "tong_cau": tong_cau,
         "so_cau_sua": so_cau_sua,
         "so_lan_goi_model": so_lan_goi,
         "ti_le_lot_cuoi": 0.0 if not bao_cao_loi else len(bao_cao_loi)/max(1, tong_cau),
-        "model": model,
+        "model": model if dem["goi"] else tk_gemini.get("model", model),
         "model_du_phong_da_dung": co_dung_du_phong,
         "loi_lot": bao_cao_loi
     }
@@ -609,12 +709,18 @@ def dich(ctx: hang_doi.NguCanh, folder: str, loai: str, m: Dict[str, Any], tham_
     
     if len(ids) > 0 and len(kq_cau) != len(ids):
         ctx.viec.ket_qua["lech_so_cau"] = True
+    if tk_gemini.get("bi_han_che"):
+        canh_bao_them.append(f"Google tạm hạn chế tài khoản Gemini sau {so_cau_gemini} câu — phần còn lại đã dịch bằng Ollama. "
+                             "Đợi vài giờ rồi dùng lại, hoặc chia nhỏ việc dịch.")
+    if canh_bao_them:
+        ctx.viec.ket_qua["canh_bao"] = canh_bao_them
     
     # Dự án 1925 câu gần như chắc còn vài câu lọt — đánh LỖI cả việc (hơn nửa giờ) là bỏ phí hết bản dịch tốt.
     # Ít câu lọt → XONG + cảnh báo + danh sách câu (bảng AI bấm nhảy tới); chỉ lỗi khi lọt quá nhiều (thường sai ngôn ngữ/model).
     if bao_cao_loi:
         if bao_cao["ti_le_lot_cuoi"] > 0.2:
             raise RuntimeError(f"Còn {len(bao_cao_loi)}/{tong_cau} câu bị lọt từ hoặc thiếu thuật ngữ — kiểm tra ngôn ngữ nguồn/đích và model dịch.")
-        ctx.viec.ket_qua["canh_bao"] = [f"Còn {len(bao_cao_loi)}/{tong_cau} câu bị lọt từ hoặc thiếu thuật ngữ — xem danh sách trong bảng AI để sửa tay."]
+        ctx.viec.ket_qua.setdefault("canh_bao", []).append(
+            f"Còn {len(bao_cao_loi)}/{tong_cau} câu bị lọt từ hoặc thiếu thuật ngữ — xem danh sách trong bảng AI để sửa tay.")
         
     return ctx.viec.ket_qua

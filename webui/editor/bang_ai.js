@@ -17,6 +17,8 @@ const TTS = [['edge', 'Edge TTS (online, nhanh)'], ['piper', 'Piper (offline)'],
 export const TEN_VIEC = { 'phu-de': 'Tạo phụ đề', ocr: 'Nhận diện sub cứng (OCR)', dich: 'Dịch phụ đề', 'long-tieng': 'Lồng tiếng',
     'tach-giong': 'Tách giọng', 'lam-net': 'Làm nét video', 'can-gio': 'Tự căn giờ phụ đề', 'tao-anh': 'Tạo ảnh AI' };
 /* Việc AI tự vào timeline khi xong. Làm nét thay media gốc (file lớn, đổi hình) nên vẫn để người dùng bấm Áp dụng. */
+const ENGINE_DICH = [['auto', 'Tự chọn theo đề xuất'], ['gemini_api', 'Gemini (cookie) — miễn phí, dịch hay'],
+    ['gemini', 'Gemini API key — nhanh nhất, trả phí'], ['ollama', 'Ollama trên máy — offline']];
 export const TU_AP_DUNG = new Set(['phu-de', 'ocr', 'dich', 'long-tieng', 'tach-giong', 'can-gio', 'tao-anh', 'doc-van-ban']);
 const TT = { cho: 'Đang chờ lượt', dang_chay: 'Đang chạy', xong: 'Xong', loi: 'Lỗi', bi_ngat: 'Bị ngắt', da_huy: 'Đã huỷ' };
 
@@ -167,6 +169,9 @@ export class BangAi {
             <section class="the-ai"><h4>🌐 Dịch phụ đề</h4>
                 <label>Dịch từ<select data-o="dich_tu">${chonNN('dich_tu', [...this.tacVu].reverse().find(x => ['phu-de', 'ocr'].includes(x.loai) && x.media === mid)?.tham_so?.source_lang || c.ngon_ngu_noi || 'English')}</select></label>
                 <label>Dịch sang<select data-o="dich_sang">${chonNN('dich_sang', 'Vietnamese')}</select></label>
+                <label>Engine dịch<select data-o="engine_dich">${ENGINE_DICH.map(([k, t]) =>
+                    `<option value="${k}" ${(c.engine_dich || 'auto') === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+                <div class="de-xuat-dich" id="aiDeXuatDich">${this._veDeXuatDich(soCau)}</div>
                 <label class="check"><input type="checkbox" data-o="dich_lai_tat_ca"> Dịch lại tất cả (cả câu đã sửa tay)</label>
                 <label class="check"><input type="checkbox" data-o="ngu_canh" ${c.ngu_canh ? 'checked' : ''}> Dùng câu trước làm ngữ cảnh (thử nghiệm)</label>
                 <div class="hang-nut"><button class="nut nut-chinh" data-l="dich" ${soCau ? '' : 'disabled title="Chưa có câu phụ đề"'}>Dịch ${soCau} câu</button>
@@ -277,6 +282,7 @@ export class BangAi {
                 <input type="checkbox" data-o="tu_ap_dung" ${(c.tu_ap_dung ?? true) ? 'checked' : ''}> Tự đưa kết quả AI vào timeline khi xong</label>
             <div class="ai-tv-hop">${this._veTacVu()}</div>`;
             
+        this._taiDeXuatDich(soCau);
         api('/api/config').then(cfg => {
             const keys = cfg.api_keys || {};
             if (!keys.pexels && !keys.pixabay && !keys.coverr) {
@@ -320,6 +326,31 @@ export class BangAi {
         }
     }
 
+    /** Đề xuất engine theo số câu (server biết cookie/API key/Ollama đang ra sao). Lưu theo số câu: ve() gọi rất thường. */
+    _taiDeXuatDich(soCau) {
+        if (!soCau || (this._deXuat && this._deXuat.soCau === soCau && Date.now() - this._deXuat.luc < 60000)) return;
+        this._deXuat = { soCau, luc: Date.now(), kq: this._deXuat?.kq };
+        api(`/api/dich/de-xuat?so_cau=${soCau}`).then((kq) => {
+            this._deXuat = { soCau, luc: Date.now(), kq };
+            const h = this.noi.querySelector('#aiDeXuatDich');
+            if (h) h.innerHTML = this._veDeXuatDich(soCau);
+        }).catch(() => {});
+    }
+
+    _veDeXuatDich(soCau) {
+        const kq = this._deXuat?.kq;
+        if (!soCau) return '';
+        if (!kq) return '<span class="goi-y-nho">Đang tính đề xuất engine...</span>';
+        const chon = this.cai.engine_dich && this.cai.engine_dich !== 'auto' ? this.cai.engine_dich : kq.de_xuat;
+        const deXuat = kq.engines.find((e) => e.id === kq.de_xuat);
+        return `<div class="dx-dau">💡 Đề xuất: <b>${esc(deXuat?.ten || kq.de_xuat)}</b><br>${esc(kq.giai_thich)}</div>
+            ${kq.engines.map((e) => `<div class="dx-dong ${e.id === chon ? 'dx-chon' : ''} ${e.san_sang ? '' : 'dx-thieu'}"
+                title="${esc(`Ưu: ${e.uu}\nNhược: ${e.nhuoc}`)}">
+                <div><b>${e.id === kq.de_xuat ? '⭐ ' : ''}${esc(e.ten)}</b> <span class="goi-y-nho">${esc(e.uoc_tinh)} · ${esc(e.chi_phi)}</span></div>
+                <div class="goi-y-nho">${e.san_sang ? '✓' : '✗'} ${esc(e.trang_thai)}</div>
+                ${e.id === chon ? `<div class="goi-y-nho">👍 ${esc(e.uu)}<br>⚠ ${esc(e.nhuoc)}</div>` : ''}</div>`).join('')}`;
+    }
+
     _veTacVu() {
         if (!this.tacVu.length) return '';
         return `<h4 class="tv-tieu-de">Tác vụ</h4>` + this.tacVu.map((v) => {
@@ -328,6 +359,9 @@ export class BangAi {
             let moTaKq = v.trang_thai === 'xong' ? (kq.so_cau != null ? `${kq.so_cau} câu` : kq.file ? kq.file : '') : '';
             if (v.loai === 'dich' && kq.bao_cao && v.trang_thai === 'xong') {
                 moTaKq += ` (lọt ${Math.round((kq.bao_cao.ti_le_lot_cuoi || 0) * 100)}%, sửa ${kq.bao_cao.so_cau_sua} câu)`;
+                const bc = kq.bao_cao;
+                if (['gemini_api', 'gemini'].includes(bc.engine)) moTaKq += ` · Gemini ${bc.so_cau_gemini} câu${bc.so_cau_ollama ? `, Ollama ${bc.so_cau_ollama} câu` : ''}`;
+                else if (bc.gemini_chuyen_local) moTaKq += ` · ${bc.gemini_chuyen_local}, dùng model local`;
             }
             // Dịch bị huỷ giữa chừng vẫn giữ các câu đã dịch: áp dụng phần đó rồi dịch tiếp phần còn lại.
             const dangDo = v.loai === 'dich' && v.trang_thai === 'da_huy' && kq.dang_do && (kq.cau || []).length;
@@ -368,6 +402,7 @@ export class BangAi {
         this.ctx.luuUi();
         // Thẻ Làm nét: bật/tắt Phóng to và đổi kiểu/độ phân giải phải vẽ lại khối giải thích tác dụng/tác động.
         // `change` của select/checkbox chỉ bắn khi đã chọn xong nên vẽ lại không cắt ngang thao tác.
+        if (k === 'engine_dich') { const h = this.noi.querySelector('#aiDeXuatDich'); if (h) h.innerHTML = this._veDeXuatDich(this._deXuat?.soCau || 0); }
         if (k === 'media' || k.startsWith('lam_net_') || k === 'anh_model' || k === 'anh_prompt' || k === 'ngon_ngu_noi') this.ve();
         if (k === 'tts' || k === 'dich_sang') {
             const aiChonGiong = this.noi.querySelector('#aiChonGiong');
@@ -556,6 +591,8 @@ export class BangAi {
                 const tgt = c.dich_sang || 'Vietnamese';
                 if (src === tgt) throw new Error('Ngôn ngữ nguồn và đích giống nhau — không cần dịch.');
                 ts = { source_lang: src, target_lang: tgt, dich_lai_tat_ca: !!c.dich_lai_tat_ca, ngu_canh: !!c.ngu_canh };
+                const eng = c.engine_dich && c.engine_dich !== 'auto' ? c.engine_dich : this._deXuat?.kq?.de_xuat;
+                if (eng) ts.llm_engine = eng;
             }
             if (loai === 'long-tieng') ts = { tts_engine: c.tts || 'edge', tts_voice: c.giong || '', tts_speed: c.tts_speed, tts_pitch: c.tts_pitch, ducking_ratio: c.giam ?? 90,
                 auto_clone: (c.tts || '') === 'clone', target_lang: c.dich_sang || 'Vietnamese' };
@@ -864,6 +901,8 @@ export class BangAi {
                 const truoc = cu.get(v.id);
                 if (truoc && ['cho', 'dang_chay'].includes(truoc) && v.trang_thai === 'xong' && v.loai !== 'xuat') {
                     this.ctx.bus.emit('media_can_tai');
+                    const chuyenLocal = v.loai === 'dich' && v.ket_qua?.bao_cao?.gemini_chuyen_local;
+                    if (chuyenLocal) toast(`${chuyenLocal} — đã dịch bằng model local.`, 'warn', 5000);
                     if ((this.cai.tu_ap_dung ?? true) && TU_AP_DUNG.has(v.loai) && !v.da_ap_dung) vuaXong.push(v);
                     else toast(`✔ ${v.nhan} xong — bấm Áp dụng ở bảng AI.`, 'success', 6000);
                 }

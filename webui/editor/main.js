@@ -272,7 +272,11 @@ async function khoiDong() {
         if (ctrl && e.key.toLowerCase() === 'x') { e.preventDefault(); if (timeline.saoChep()) timeline.xoaDangChon(); return; }
         if (ctrl && e.key.toLowerCase() === 'v') { e.preventDefault(); timeline.dan(); return; }
         if (ctrl && e.key.toLowerCase() === 'd') { e.preventDefault(); timeline.nhanDoi(); return; }
-        if (ctrl && e.key.toLowerCase() === 'a') { e.preventDefault(); timeline.chonTatCa(); return; }
+        if (ctrl && e.key.toLowerCase() === 'a') {
+            e.preventDefault();
+            if (bangMedia.dangTro) bangMedia.chonTatCa(); else timeline.chonTatCa();
+            return;
+        }
         
         if (e.key === 'Escape') { 
             e.preventDefault(); 

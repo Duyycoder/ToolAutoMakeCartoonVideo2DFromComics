@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
     Store, tao, apOp, daoOp, choTrong, thoiLuong, idClipMoi, GIOI_HAN_GHI,
     clipTai, thoiDiemMedia, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, ketThucClip,
-    giaTriTai, tachKeyframes, viTriKeyframes
+    giaTriTai, tachKeyframes, viTriKeyframes, opsThemNhieuMedia, opsSapXepTrack
 } from '../../webui/editor/store.js';
 
 const tl2 = () => ({ tracks: [{ id: 'V1' }], clips: [
@@ -652,4 +652,45 @@ test("opsChiaDeu chia đúng N phần", () => {
     
     s.hoanTacMot();
     assert.equal(s.timeline.clips.length, 1);
+});
+
+test('opsThemNhieuMedia nối đuôi theo thứ tự, âm thanh sang track âm thanh, né clip có sẵn', () => {
+    const s = new Store({ tracks: [{ id: 'V1', loai: 'video' }, { id: 'A1', loai: 'audio' }], clips: [
+        { id: 'c_1', track: 'V1', media: 'm0', bat_dau: 4, vao: 0, ra: 2, toc_do: 1 },            // 4 → 6
+    ] });
+    const ds = [
+        { id: 'm1', loai: 'video', thoi_luong: 3 }, { id: 'm2', loai: 'anh' },
+        { id: 'm3', loai: 'audio', thoi_luong: 2 }, { id: 'm4', loai: 'video', thoi_luong: 0 },
+    ];
+    const { ops, ids, boQua } = opsThemNhieuMedia(s.timeline, ds, 'V1', 1);
+    assert.deepEqual(ids, ['c_2', 'c_3', 'c_4']);
+    assert.equal(boQua.length, 1, 'video chưa có thời lượng bị bỏ qua');
+    s.thucHien('Thêm nhiều', ops);
+    const c = (id) => s.timeline.clips.find((x) => x.id === id);
+    assert.equal(c('c_2').bat_dau, 1, '1→4 vừa khít trước c_1');
+    assert.equal(c('c_3').bat_dau, 6, 'ảnh 5 s nối đuôi, đè c_1 nên dời ra sau nó');
+    assert.equal(c('c_4').track, 'A1');
+    assert.equal(c('c_4').bat_dau, 1);
+    s.hoanTacMot();
+    assert.equal(s.timeline.clips.length, 1, 'một bước hoàn tác');
+});
+
+test('opsSapXepTrack xếp liền nhau, dời clip liên kết, đảo/tên/thời lượng', () => {
+    const tl = () => ({ tracks: [{ id: 'V1', loai: 'video' }, { id: 'A1', loai: 'audio' }], clips: [
+        { id: 'c_1', track: 'V1', media: 'mB', bat_dau: 2, vao: 0, ra: 3, toc_do: 1, lien_ket: 'g_1' },   // 2 → 5
+        { id: 'c_2', track: 'V1', media: 'mA', bat_dau: 6, vao: 0, ra: 1, toc_do: 1 },                     // 6 → 7
+        { id: 'c_3', track: 'A1', media: 'mB', bat_dau: 2, vao: 0, ra: 3, toc_do: 1, lien_ket: 'g_1' },
+    ] });
+    const dict = { mA: { ten: 'a.mp4' }, mB: { ten: 'b.mp4' } };
+    const s = new Store(tl());
+    s.thucHien('Tên', opsSapXepTrack(s.timeline, 'V1', 'ten', dict));
+    const c = (id) => s.timeline.clips.find((x) => x.id === id);
+    assert.equal(c('c_2').bat_dau, 2);
+    assert.equal(c('c_1').bat_dau, 3);
+    assert.equal(c('c_3').bat_dau, 3, 'tiếng liên kết dời theo hình');
+    assert.deepEqual(opsSapXepTrack(s.timeline, 'V1', 'ten', dict), [], 'đã đúng thứ tự thì không có op');
+    const t2 = tl();
+    const ops = opsSapXepTrack(t2, 'V1', 'dai_nguoc', dict);
+    assert.deepEqual(ops.filter((o) => o.path[1].id === 'c_2').map((o) => o.moi), [5], 'dài → ngắn: c_1 giữ 2, c_2 khép về 5');
+    assert.equal(opsSapXepTrack(t2, 'A1', 'dao', dict).length, 0, 'track 1 clip không sắp');
 });

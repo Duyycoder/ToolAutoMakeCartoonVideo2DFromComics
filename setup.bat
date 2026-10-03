@@ -1,12 +1,16 @@
 @echo off
 setlocal enabledelayedexpansion
 set PYTHONUTF8=1
-pushd "%~dp0"
+:: Luu thu muc app TRUOC vong shift: shift doi ca %0 nen %~dp0 sau do tro sang thu muc cha cua
+:: --workspace (vd D:) -> "cd AIVoice" hong tren may cai dat (log: The system cannot find the path).
+set "GOC=%~dp0"
+pushd "%GOC%"
 
 set "COMPONENTS="
 set "WORKSPACE="
 set "DRY_RUN=0"
 set "KHONG_GPU=0"
+set "CAP_NHAT=0"
 
 :parse_args
 if "%~1"=="" goto done_args
@@ -15,8 +19,20 @@ if /I "%~1"=="--dry-run" (
     shift
     goto parse_args
 )
+if /I "%~1"=="--capnhat" (
+    set "CAP_NHAT=1"
+    shift
+    goto parse_args
+)
 if /I "%~1"=="--khong-gpu" (
     set "KHONG_GPU=1"
+    shift
+    goto parse_args
+)
+:: cmd tach tham so o dau "=": --workspace="D:\X" (bo cai <= 2.0.3) den day thanh 2 tham so.
+if /I "%~1"=="--workspace" (
+    set "WORKSPACE=%~2"
+    shift
     shift
     goto parse_args
 )
@@ -84,6 +100,14 @@ if "!DRY_RUN!"=="1" (
     exit /b 0
 )
 
+
+:: Bo cai chay de ban moi len may da cai: moi truong + model da co san, chi cap
+:: nhat thu vien neu ban moi doi requirements. Chua co .venv (lan cai truoc dung
+:: giua chung) thi cai day du nhu may moi.
+if "!CAP_NHAT!"=="1" (
+    if exist "AIVoice\.venv\Scripts\python.exe" goto :cap_nhat_nhanh
+    echo [INFO] Chua co moi truong AI - chuyen sang cai dat day du...
+)
 
 echo ============================================================
 echo  Cao ^& Dich Video - Setup Wizard
@@ -232,14 +256,14 @@ if !HAS_CLONE! equ 1 (
 if "!AIVOICE_MODEL_ENGINES!"=="" set "AIVOICE_MODEL_ENGINES=none"
 
 echo [INFO] Setting up TTS ^& Video Engines (AIVoice)...
-cd /d "%~dp0AIVoice"
-call "%~dp0AIVoice\setup.bat" --skip-models
+cd /d "%GOC%AIVoice"
+call "%GOC%AIVoice\setup.bat" --skip-models
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to setup AIVoice.
     pause
     exit /b 1
 )
-cd /d "%~dp0"
+cd /d "%GOC%"
 echo.
 
 :: 3. Setup Orchestrator extra dependencies in AIVoice .venv
@@ -259,11 +283,11 @@ echo.
 echo ----------------------------------------------------------------------
 echo [INFO] Cai cac tinh nang tuy chon - giong doc offline, tach nhac nen, OCR...
 echo ----------------------------------------------------------------------
-set "VPY=%~dp0AIVoice\.venv\Scripts\python.exe"
+set "VPY=%GOC%AIVoice\.venv\Scripts\python.exe"
 set "CAI_THIEU="
 :: Khoa PyTorch dang co: goi tuy chon nao doi torch khac thi pip bao loi (chi mat
 :: goi do) thay vi am tham thay torch CUDA bang ban CPU tu PyPI - hong ca Whisper.
-set "RANG_BUOC=%~dp0AIVoice\.venv\rang_buoc_torch.txt"
+set "RANG_BUOC=%GOC%AIVoice\.venv\rang_buoc_torch.txt"
 "%VPY%" -m pip freeze | findstr /b /i "torch== torchaudio== torchvision==" > "%RANG_BUOC%"
 
 if !HAS_PIPER! equ 1 call :cai_tuy_chon "Giong doc Piper - offline" "piper-tts>=1.2.0"
@@ -347,6 +371,9 @@ if not "!WORKSPACE!"=="" (
     "AIVoice\.venv\Scripts\python.exe" -c "import json, os; p=r'configs\global_config.json'; d=json.load(open(p, 'r', encoding='utf-8')) if os.path.exists(p) else {}; d['editor.workspace']=r'!WORKSPACE!'; json.dump(d, open(p, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)"
 )
 
+:: Ghi dau file requirements de lan cai de ban moi biet thu vien nao can cai them
+"AIVoice\.venv\Scripts\python.exe" scripts\cap_nhat_thu_vien.py --chi-ghi >nul 2>&1
+
 echo [INFO] Kiem tra file cau hinh configs\global_config.json...
 set "PYTHONPATH=%CD%"
 "AIVoice\.venv\Scripts\python.exe" -c "from orchestrator.config import load_global_config; load_global_config(); print('[INFO] Cau hinh da san sang.')"
@@ -359,7 +386,8 @@ echo ============================================================
 echo  [OK] Cai dat xong - Cao ^& Dich Video da san sang.
 echo ============================================================
 echo [LUU Y] Engine dich mac dinh la Ollama (chay tren may, khong can API key).
-echo         Cai Ollama tai https://ollama.com roi chay: ollama pull qwen2.5:3b-instruct
+echo         Can cai Ollama (https://ollama.com) - app tu bat Ollama va tu tai model dich
+echo         hy-mt2 o lan dich dau tien.
 echo.
 
 :: Duoc run.bat goi thi quay ve ngay de no mo app - khong bat bam phim.
@@ -369,7 +397,28 @@ if defined CALLED_FROM_RUN exit /b 0
 
 echo  Bam phim bat ky de mo cong cu. Lan sau chi can nhay dup run.bat.
 pause >nul
-call "%~dp0run.bat"
+call "%GOC%run.bat"
+exit /b 0
+
+
+:: ---------------------------------------------------------------------------
+:: Cap nhat nhanh khi cai de ban moi (--capnhat). Khong dung toi Python he thong,
+:: .venv, torch hay model - nhung thu do da co tu lan cai dau.
+:cap_nhat_nhanh
+echo ============================================================
+echo  Cao ^& Dich Video - Cap nhat ban moi
+echo ============================================================
+"AIVoice\.venv\Scripts\python.exe" scripts\cap_nhat_thu_vien.py
+if errorlevel 1 (
+    echo.
+    echo [WARNING] Mot so thu vien chua cai xong - kiem tra mang roi chay lai bo cai.
+    echo           Ung dung van mo duoc, chi tinh nang can thu vien moi bi loi.
+    pause
+)
+if exist "scripts\cai_webview2.bat" call "scripts\cai_webview2.bat"
+set "PYTHONPATH=%CD%"
+"AIVoice\.venv\Scripts\python.exe" -c "from orchestrator.config import load_global_config; load_global_config()" >nul 2>&1
+echo [OK] Cap nhat xong.
 exit /b 0
 
 

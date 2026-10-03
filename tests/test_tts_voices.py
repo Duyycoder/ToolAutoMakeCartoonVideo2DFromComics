@@ -35,6 +35,30 @@ def test_tts_voices_edge(monkeypatch):
     assert res.status_code == 200
     giong = res.json()["giong"]
     assert "en-US-JennyNeural" in giong
+    # Danh sách cả giọng Việt thì giọng cũ vi-VN vẫn "hợp lệ" -> lồng tiếng Anh bằng giọng Việt
+    assert "vi-VN-NamMinhNeural" not in giong
+
+
+def test_tts_voices_edge_vung_pho_bien_len_dau(monkeypatch):
+    async def mock_list_voices():
+        return [{"ShortName": "en-AU-NatashaNeural"}, {"ShortName": "en-GB-SoniaNeural"},
+                {"ShortName": "en-US-AvaNeural"}, {"ShortName": "vi-VN-HoaiMyNeural"}]
+
+    import edge_tts
+    monkeypatch.setattr(edge_tts, "list_voices", mock_list_voices)
+    giong = client.get("/api/tts/giong?engine=edge&lang=English").json()["giong"]
+    assert giong[0] == "en-US-AvaNeural"
+    assert set(giong) == {"en-AU-NatashaNeural", "en-GB-SoniaNeural", "en-US-AvaNeural"}
+
+
+def test_tts_voices_edge_mat_mang_van_dung_ngon_ngu(monkeypatch):
+    async def hong():
+        raise OSError("mat mang")
+
+    import edge_tts
+    monkeypatch.setattr(edge_tts, "list_voices", hong)
+    giong = client.get("/api/tts/giong?engine=edge&lang=Japanese").json()["giong"]
+    assert giong and all(g.startswith("ja-JP-") for g in giong)
 
 def test_tts_voices_piper(monkeypatch):
     import os

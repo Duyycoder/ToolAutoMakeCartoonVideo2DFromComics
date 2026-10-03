@@ -44,9 +44,18 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "mt_model_du_phong": "qwen2.5:7b-instruct",
         "autostart_ollama": True,
         "gemini_offline_base_url": "http://localhost:7860/v1",
+        # Tự tạo khi bật proxy lần đầu (orchestrator/gemini_proxy.py).
         "gemini_offline_key": "",
-        # Đường dẫn start_server.bat của proxy Gemini-API nếu bạn tự cài ở nơi
-        # khác — để trống thì app không tự bật proxy.
+        # 2 cookie đăng nhập gemini.google.com cho proxy Gemini-API.
+        "gemini_psid": "",
+        "gemini_psidts": "",
+        # Dịch lô JSON qua Gemini (orchestrator/editor/dich_lo_json.py). Lô >= 150 câu
+        # bị từ chối, cookie chạy > 2 luồng dễ bị Google hạn chế (đo 02/10/2026).
+        "gemini_cau_moi_lo": 100,
+        "gemini_cookie_luong": 2,
+        "gemini_key_luong": 8,
+        # Đường dẫn start_server.bat của proxy Gemini-API nếu cài ở nơi khác —
+        # để trống thì dùng bản đi kèm toolCaoTruyen/Gemini-API.
         "gemini_proxy_bat": ""
     },
 

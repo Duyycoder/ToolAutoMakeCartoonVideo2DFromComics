@@ -58,10 +58,12 @@
             <div class="form-group">
                 <label>Engine dịch mặc định</label>
                 <select data-cfg="translate.engine">
-                    <option value="ollama">Ollama (cục bộ)</option>
-                    <option value="gemini_api">Gemini proxy cục bộ</option>
-                    <option value="gemini">Gemini Online</option>
+                    <option value="gemini_api">Gemini (cookie) — miễn phí, dịch hay</option>
+                    <option value="gemini">Gemini API key — nhanh nhất, trả phí</option>
+                    <option value="ollama">Ollama trên máy — offline</option>
                 </select>
+                <div class="help-text">Gemini cookie: dịch hay nhất, miễn phí, hợp ≤ ~3.000 câu/lần (nhiều hơn Google hay tạm chặn, phần dư tự chuyển Ollama).
+                    API key: nhanh nhất cho phim dài. Ollama: không cần mạng nhưng dịch sát chữ hơn. Bảng AI luôn đề xuất theo số câu.</div>
             </div>
             <div class="form-group">
                 <label>Ollama base URL</label>
@@ -84,8 +86,21 @@
                 <input type="text" data-cfg="translate.gemini_offline_base_url">
             </div>
             <div class="form-group full">
+                <label>Cookie Gemini (proxy cục bộ) — <span id="geminiTrangThai" class="help-text">đang kiểm tra...</span>
+                    <button type="button" id="btnGeminiPing" class="btn-primary" style="padding:3px 10px;margin-left:8px;font-size:0.8rem">📡 Ping thử</button></label>
+                <div class="help-text">App tự bật proxy Gemini khi mở. Lấy cookie: đăng nhập gemini.google.com → F12 → Application → Cookies → copy giá trị 2 dòng dưới. <a href="#" id="btnGeminiHuongDan" style="color:#3498db">Xem hướng dẫn chi tiết</a></div>
+            </div>
+            <div class="form-group">
+                <label>__Secure-1PSID</label>
+                <input type="password" data-cfg="translate.gemini_psid" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="form-group">
+                <label>__Secure-1PSIDTS</label>
+                <input type="password" data-cfg="translate.gemini_psidts" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="form-group full">
                 <label>Đường dẫn start_server.bat của proxy Gemini</label>
-                <input type="text" data-cfg="translate.gemini_proxy_bat">
+                <input type="text" data-cfg="translate.gemini_proxy_bat" placeholder="Để trống = toolCaoTruyen/Gemini-API đi kèm">
             </div>
             <div class="form-group">
                 <label class="checkbox-container">

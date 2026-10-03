@@ -3,7 +3,7 @@
 Chay:  "AIVoice\\.venv\\Scripts\\pythonw.exe" -m orchestrator.desktop   (khong console, log ra logs/app.log)
 hoac:  "AIVoice\\.venv\\Scripts\\python.exe"  -m orchestrator.desktop   (debug: log ra console)
 
-Launcher nay tu quan ly Gemini-API proxy (chay an, khong mo cua so cmd) va khi
+Launcher nay tu bat Gemini-API proxy (chay an, cookie lay o Cau Hinh Chung) va khi
 dong cua so app se diet sach: uvicorn, proxy, va moi tien trinh AI con dang chay.
 Neu may thieu pywebview/WebView2 runtime -> tu fallback ve trinh duyet.
 Co `--smoke`: mo cua so, cho trang load xong roi tu dong dong sau vai giay (kiem thu).
@@ -18,7 +18,6 @@ import time
 HOST = "127.0.0.1"
 PORT = 8100
 URL = f"http://{HOST}:{PORT}/"
-GEMINI_PROXY_PORT = 7860
 WINDOW_TITLE = "Cao & Dich Video"
 # main.py resolve "storage"/"webui"/"AIVoice/.venv" theo CWD -> phai dung o goc repo
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -75,53 +74,16 @@ def _port_open(port: int, host: str = HOST) -> bool:
         return sock.connect_ex((host, port)) == 0
 
 
-def _gemini_proxy_bat():
-    """Duong dan start_server.bat cua proxy Gemini-API, doc tu cau hinh.
-
-    Nhanh nay khong kem theo proxy (no thuoc bo cao truyen). Ai tu cai o cho khac
-    thi khai bao duong dan o Cau Hinh -> translate.gemini_proxy_bat; de trong thi
-    app bo qua, dich bang Ollama hoac Gemini Online.
-    """
-    try:
-        from orchestrator.config import load_global_config
-        path = ((load_global_config().get("translate") or {}).get("gemini_proxy_bat") or "").strip()
-    except Exception:
-        return None
-    if not path:
-        return None
-    return path if os.path.isabs(path) else os.path.join(ROOT_DIR, path)
-
-
 def _start_gemini_proxy():
-    """Chay Gemini-API proxy AN (khong mo cua so cmd rieng nhu run.bat cu).
-
-    Tra ve Popen de kill khi dong app; None neu proxy da chay san / thieu file.
-    """
-    bat = _gemini_proxy_bat()
-    if not bat or not os.path.exists(bat):
-        return None
-    if _port_open(GEMINI_PROXY_PORT):
-        print(f"[INFO] Gemini proxy da chay san tren cong {GEMINI_PROXY_PORT}.")
-        return None
-    os.makedirs(LOGS_DIR, exist_ok=True)
-    log_file = open(os.path.join(LOGS_DIR, "gemini_api.log"), "a",
-                    encoding="utf-8", buffering=1)
+    """Bat proxy Gemini-API an (xem orchestrator/gemini_proxy.py). Tra ve ma trang thai."""
+    from orchestrator import gemini_proxy
     try:
-        proc = subprocess.Popen(
-            ["cmd", "/c", bat],
-            cwd=os.path.dirname(bat),
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            creationflags=NO_WINDOW,
-        )
-        print(f"[INFO] Da khoi dong Gemini proxy (PID {proc.pid}, log: logs/gemini_api.log).")
-        return proc
+        ma = gemini_proxy.khoi_dong()
     except Exception as e:
         print(f"[WARN] Khong khoi dong duoc Gemini proxy: {e}")
         return None
-    finally:
-        log_file.close()  # child da giu handle rieng
+    print(f"[INFO] Gemini proxy: {ma}")
+    return ma
 
 
 def _start_ollama():
@@ -211,8 +173,6 @@ def _gan_flush_khi_dong(window, timeout=FLUSH_TIMEOUT):
 
 def _shutdown(server, thread, gemini_proc):
     """Dong app = diet sach: tien trinh AI con -> Gemini proxy -> uvicorn."""
-    from orchestrator.process_manager import ProcessManager
-
     try:
         # Cung process voi uvicorn nen day chinh la singleton dang giu cac task
         import orchestrator.main as orchestrator_main
@@ -220,9 +180,11 @@ def _shutdown(server, thread, gemini_proc):
     except Exception as e:
         print(f"[WARN] Loi khi dung cac tien trinh con: {e}")
 
-    if gemini_proc is not None:
-        ProcessManager._kill_process_tree(gemini_proc)
-        print("[INFO] Da tat Gemini proxy.")
+    try:
+        from orchestrator import gemini_proxy
+        gemini_proxy.dung()
+    except Exception as e:
+        print(f"[WARN] Loi khi tat Gemini proxy: {e}")
 
     if server is not None:
         server.should_exit = True
@@ -249,9 +211,26 @@ def _run_browser_fallback(server, thread, gemini_proc, ly_do: str = ""):
         _shutdown(server, thread, gemini_proc)
 
 
+def _giu_mutex():
+    """Mutex ten co dinh de bo cai (AppMutex trong AutoCartoon.iss) biet app dang mo.
+
+    Cai de ban moi luc app dang chay thi app cu van chay ma cu den khi tat;
+    co mutex thi bo cai bao nguoi dung dong app truoc. Tra ve handle - phai giu
+    suot doi tien trinh, Windows tu giai phong khi tien trinh thoat.
+    """
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        return ctypes.windll.kernel32.CreateMutexW(None, False, "CaoVaDichVideoDangChay")
+    except Exception:
+        return None
+
+
 def main() -> int:
     _ensure_streams()
     os.chdir(ROOT_DIR)
+    _mutex = _giu_mutex()  # noqa: F841 - giu bien de handle khong bi dong
     smoke = "--smoke" in sys.argv
     print(f"\n===== {WINDOW_TITLE} khoi dong luc {time.strftime('%Y-%m-%d %H:%M:%S')} =====")
 
