@@ -33,7 +33,8 @@ export function createViewport(container) {
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 0.5, far: 30 });
   sun.shadow.bias = -0.0005;
-  scene.add(sun);
+  sun.shadow.normalBias = 0.02; // bớt sọc bóng (shadow acne) trên mặt cong khi vùng bóng ôm sát cảnh
+  scene.add(sun, sun.target); // lighting-presets.js đặt nắng + target theo tâm cảnh
 
   const grid = new THREE.GridHelper(10, 20, 0x5b6275, 0x353946);
   grid.material.transparent = true;

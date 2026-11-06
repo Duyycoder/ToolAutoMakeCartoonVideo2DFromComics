@@ -14,9 +14,10 @@ export function createLightObject(type, name) {
 
   const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 24, 12), new THREE.MeshBasicMaterial({ color }));
   bulb.userData.bulb = true;
+  // Độ sáng (candela) vừa cho vật cỡ người cách đèn ~1-2 m; mạnh hơn dễ cháy trắng (đèn càng gần càng chói).
   const light = type === 'spot'
-    ? new THREE.SpotLight(color, 40, 0, Math.PI / 6, 0.4, 2)
-    : new THREE.PointLight(color, 15, 0, 2);
+    ? new THREE.SpotLight(color, 12, 0, Math.PI / 6, 0.4, 2)
+    : new THREE.PointLight(color, 6, 0, 2);
   if (type === 'spot') {
     light.castShadow = true;
     light.shadow.mapSize.set(1024, 1024);

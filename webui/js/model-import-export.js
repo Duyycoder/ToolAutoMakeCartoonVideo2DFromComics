@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { createGLTFLoader, friendlyGLTFError } from './gltf-loader-factory.js';
 import { decodeMeshyFile } from './meshy-decoder.js';
 import { buildClip } from './keyframe-animation.js';
+import { standardizeMaterials } from './material-standardize.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
@@ -31,7 +32,7 @@ export async function loadModelFile(file) {
       if (project) {
         // GLTFLoader đổi khoảng trắng trong tên node thành "_" -> lấy lại tên gốc đã cất khi lưu.
         project.children.forEach((o) => { o.name = o.userData.easy3dName ?? o.name; });
-        return { objects: [...project.children], isProject: true, lighting: project.userData.lighting };
+        return { objects: [...project.children], isProject: true, lighting: project.userData.lighting, lightSettings: project.userData.lightSettings };
       }
       obj = gltf.scene;
     } else if (ext === 'obj') {
@@ -61,6 +62,7 @@ export async function loadModelUrl(url) {
 
 /** Bật bóng đổ; file quá to/quá nhỏ (vd. STL đơn vị mm) -> đưa về cao ~1 m; đặt giữa + chạm sàn. */
 export function prepareImported(obj) {
+  standardizeMaterials(obj); // FBX/OBJ Phong -> PBR: ăn ánh sáng môi trường như vật khác
   obj.traverse((m) => {
     if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; }
   });

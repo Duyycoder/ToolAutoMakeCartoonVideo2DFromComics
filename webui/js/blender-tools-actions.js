@@ -94,12 +94,14 @@ export function createBlenderTools({ store, stack }) {
 
     /** Render cả cảnh (vật đang hiện) bằng Cycles theo góc nhìn + ánh sáng hiện tại. Trả về Blob PNG. */
     async render(viewport, { width, height, transparent, samples = 96 }) {
-      const { camera, orbit, scene, lights } = viewport;
+      const { camera, orbit, scene, lights, renderer } = viewport;
       const params = {
         width, height, transparent, samples, fov: camera.fov,
         camera_position: camera.position.toArray(), camera_target: orbit.target.toArray(),
         background: `#${scene.background.getHexString()}`,
-        sun_position: lights.sun.position.toArray(), sun_color: `#${lights.sun.color.getHexString()}`,
+        // Nắng đặt quanh tâm cảnh (lighting-presets.js) -> gửi HƯỚNG nắng (Blender nhìn từ đó về gốc).
+        sun_position: lights.sun.position.clone().sub(lights.sun.target.position).toArray(), sun_color: `#${lights.sun.color.getHexString()}`,
+        sky: `#${lights.hemi.color.getHexString()}`, sun_shadows: lights.sun.castShadow, exposure: renderer.toneMappingExposure,
         sun_intensity: lights.sun.intensity, ambient: lights.hemi.intensity * 0.6 + (scene.environmentIntensity ?? 1) * 0.3,
       };
       const data = await new GLTFExporter().parseAsync(viewport.objectsRoot, { binary: true, onlyVisible: true });

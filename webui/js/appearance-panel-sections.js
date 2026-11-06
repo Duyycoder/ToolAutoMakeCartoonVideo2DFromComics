@@ -71,12 +71,14 @@ export function lightSection(obj, appearance) {
     sw.onclick = () => appearance.setLightColor(obj, hex);
     return sw;
   }));
-  const intensity = el('input', { type: 'range', min: 0, max: 150, step: 1, value: look.intensity });
-  intensity.oninput = () => appearance.previewLightIntensity(obj, Number(intensity.value));
+  // Thang bình phương 0..150: nửa đầu thanh = 0..37 -> chỉnh mịn ở mức hay dùng (vài candela).
+  const toSlider = (v) => Math.sqrt(v / 150) * 100, fromSlider = (t) => Math.round((t / 100) ** 2 * 1500) / 10;
+  const intensity = el('input', { type: 'range', min: 0, max: 100, step: 0.5, value: toSlider(look.intensity) });
+  intensity.oninput = () => appearance.previewLightIntensity(obj, fromSlider(Number(intensity.value)));
   intensity.onchange = () => appearance.commitLightIntensity(obj);
   return el('div', {}, [
     el('div', { className: 'field' }, [el('label', { textContent: 'Màu ánh sáng' }), swatches]),
     el('div', { className: 'field' }, [el('label', { textContent: 'Độ sáng' }), intensity]),
-    el('div', { className: 'info-line', textContent: 'Mẹo: đổi "Ánh sáng" trên thanh trên cùng sang Ban đêm để đèn nổi bật.' }),
+    el('div', { className: 'info-line', textContent: 'Mẹo: đèn càng gần vật càng chói. "Ánh sáng" > Ban đêm để đèn nổi bật, "⚙ Chỉnh ánh sáng…" để giảm nắng.' }),
   ]);
 }

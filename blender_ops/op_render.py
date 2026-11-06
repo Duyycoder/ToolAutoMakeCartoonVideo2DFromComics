@@ -59,6 +59,7 @@ def render_scene(params, out_path):
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
     scene.view_settings.view_transform = "AgX"
+    scene.view_settings.exposure = math.log2(float(params.get("exposure", 1.0)))  # cùng "Độ phơi sáng" trong app
 
     cam_data = bpy.data.cameras.new("Easy3DCamera")
     cam_data.sensor_fit = "VERTICAL"
@@ -72,7 +73,9 @@ def render_scene(params, out_path):
     world = bpy.data.worlds.new("Easy3DWorld")
     world.use_nodes = True
     bg = world.node_tree.nodes["Background"]
-    bg.inputs[0].default_value = (*hex_to_linear(params.get("background", "#1c1e24")), 1)
+    # Ánh sáng môi trường theo MÀU TRỜI (như HemisphereLight trong app), không theo màu nền: nền tối (Studio)
+    # trước đây làm ảnh Cycles tối hơn hẳn khung nhìn. Ảnh luôn nền trong suốt, app tự lót màu nền.
+    bg.inputs[0].default_value = (*hex_to_linear(params.get("sky", "#ffffff")), 1)
     bg.inputs[1].default_value = float(params.get("ambient", 1.0))
     scene.world = world
 
@@ -80,6 +83,7 @@ def render_scene(params, out_path):
     sun_data.energy = float(params.get("sun_intensity", 2.0)) * 1.6
     sun_data.color = hex_to_linear(params.get("sun_color", "#ffffff"))
     sun_data.angle = math.radians(3)  # bóng hơi mềm như trong app
+    sun_data.use_shadow = bool(params.get("sun_shadows", True))
     sun = bpy.data.objects.new("Easy3DSun", sun_data)
     scene.collection.objects.link(sun)
     sun.location = to_blender(params.get("sun_position", (5, 8, 4)))

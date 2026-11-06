@@ -17,6 +17,8 @@ import { IMAGE_EXTENSIONS, openImageTo3DWizard } from './image-to-3d-wizard.js';
 import { shouldShowWelcome, showWelcome } from './welcome-screen.js';
 import { initStatusBar } from './status-bar.js';
 import { extOf, MODEL_EXTENSIONS } from './model-import-export.js';
+import { createLightingPanel } from './lighting-adjust-panel.js';
+import { applyLighting, fitSunToScene } from './lighting-presets.js';
 import { toast } from './toast-notifications.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -43,6 +45,14 @@ initStatusBar(store);
 refreshBlenderStatus().then(() => store.changed()); // panel Sửa hình hiện nút Blender khi đã cài
 const { editMode, paintMode, sculptMode, rigMode, leaveModes, activeMode } = setupEditingModes({ viewport, viewportEl, store, stack, gizmo });
 const timeline = createTimelinePanel(viewportEl, { viewport, store, stack, onVideo: (blob, ext) => files.saveVideo(blob, ext) });
+const lightingPanel = createLightingPanel(viewportEl, { viewport, stack });
+applyLighting(viewport, 'studio');
+let sunFitQueued = false; // cảnh đổi -> nắng + vùng bóng đổ ôm lại cảnh (gộp nhiều lần đổi trong 1 frame)
+store.addEventListener('changed', () => {
+  if (sunFitQueued) return;
+  sunFitQueued = true;
+  requestAnimationFrame(() => { sunFitQueued = false; fitSunToScene(viewport); });
+});
 // Chỉ cho smoke test (tests/ui-smoke-test.mjs mở ?test=1) đọc vị trí vật/camera để kéo gizmo bằng chuột thật.
 if (new URLSearchParams(location.search).has('test')) window.easy3d = { viewport, store, editMode, paintMode, sculptMode, rigMode, timeline };
 
@@ -74,6 +84,7 @@ const ACTIONS = {
   'toggle-shapes': () => toggleMenu('#shape-menu'),
   'toggle-lighting': () => toggleMenu('#lighting-menu'),
   'toggle-grid': () => appearance.toggleGrid(),
+  'lighting-panel': () => lightingPanel.toggle(),
   'toggle-timeline': () => timeline.toggle(),
   'export-image': () => openImageExportDialog({
     viewport, onExport: (url, size, renderBlob) => files.saveImage(url, size, renderBlob),
@@ -102,7 +113,7 @@ document.addEventListener('click', (e) => {
   if (btn.dataset.mode) setMode(btn.dataset.mode);
   if (btn.dataset.shape) actions.addShape(btn.dataset.shape);
   if (btn.dataset.export) files.export(btn.dataset.export);
-  if (btn.dataset.lighting) appearance.setLighting(btn.dataset.lighting);
+  if (btn.dataset.lighting) { appearance.setLighting(btn.dataset.lighting); lightingPanel.sync(); }
   if (btn.dataset.light) appearance.addLight(btn.dataset.light);
   const menuList = btn.closest('.menu-list');
   if (menuList) menuList.hidden = true; // chọn xong 1 mục thì đóng menu

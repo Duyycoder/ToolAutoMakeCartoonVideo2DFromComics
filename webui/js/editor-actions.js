@@ -11,7 +11,7 @@ import {
 import { baseNameOf, extOf, floorPosition, loadModelFile, loadModelUrl } from './model-import-export.js';
 import { convertBlendFile } from './blender-tools-actions.js';
 import { toast } from './toast-notifications.js';
-import { applyLighting } from './lighting-presets.js';
+import { restoreLighting } from './lighting-presets.js';
 import { fixLightCopy } from './scene-light-objects.js';
 import { cloneObject } from './rig-builder.js';
 
@@ -84,9 +84,9 @@ export function createEditorActions({ viewport, store, stack, onModelAdded = nul
     async openFile(file) {
       try {
         if (extOf(file.name) === 'blend') return await openBlend(file);
-        const { objects, isProject, lighting } = await loadModelFile(file);
+        const { objects, isProject, lighting, lightSettings } = await loadModelFile(file);
         if (isProject) {
-          if (lighting) applyLighting(viewport, lighting);
+          if (lighting || lightSettings) restoreLighting(viewport, lighting, lightSettings);
           objects.forEach(fixLightCopy);
           objects.forEach(rememberOriginalLook);
           run(batchCommand(`Mở "${file.name}"`, objects.map((o) => addObjectCommand(store, o))));

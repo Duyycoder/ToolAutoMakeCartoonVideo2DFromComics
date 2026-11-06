@@ -228,7 +228,7 @@ await evaluate(`${q('[data-action="export-image"]')}.click();`); await sleep(200
 await evaluate(`${q('input[name=size][value="4k"]')}.checked = true; ${q('#transparent')}.checked = true; ${q('#go')}.click();`);
 await sleep(2500);
 check('Xuất ảnh 4K nền trong suốt', (await lastToast()).startsWith('Đã xuất ảnh 3840×2160'), await lastToast());
-// ---------- Camera khi xuất ảnh ----------
+// ---------- Camera khi xuất ảnh + Chỉnh ánh sáng ----------
 const camNow = () => evaluate(`const { camera } = window.easy3d.viewport; return [...camera.position.toArray(), camera.fov].map((v) => +v.toFixed(4)).join();`);
 const exportCam0 = await camNow();
 await evaluate(`${q('[data-action="export-image"]')}.click();`); await sleep(200);
@@ -239,6 +239,14 @@ check('Xuất ảnh: chọn góc "Cạnh trái" + ống kính -> camera đổi, 
   camMoved !== exportCam0 && await evaluate(`return ${q('.cam-preview')}.src.startsWith('data:image/png');`), `${exportCam0} -> ${camMoved}`);
 await evaluate(`${q('#cancel')}.click();`);
 check('Huỷ xuất ảnh -> camera về như cũ', (await camNow()) === exportCam0);
+await evaluate(`${q('[data-action="lighting-panel"]')}.click();`);
+const sunPos = () => evaluate(`return window.easy3d.viewport.lights.sun.position.toArray().map((v) => +v.toFixed(3)).join();`);
+const sun0 = await sunPos();
+await evaluate(`const r = ${q('.lighting-panel [data-k="sunAz"]')}; r.value = -100; r.dispatchEvent(new Event('input')); r.dispatchEvent(new Event('change'));`);
+check('Chỉnh ánh sáng: kéo Hướng nắng -> nắng đổi hướng', (await sunPos()) !== sun0);
+await evaluate(`${q('#btn-undo')}.click();`);
+check('Hoàn tác chỉnh ánh sáng', (await sunPos()) === sun0);
+await evaluate(`${q('.lighting-panel [data-lp="close"]')}.click();`);
 // ---------- Chế độ "Chỉnh điểm" ----------
 /** Kéo chuột THẬT (qua DevTools) chéo khung 3D — giống người dùng kéo khung chọn. */
 async function dragAcrossCanvas() {

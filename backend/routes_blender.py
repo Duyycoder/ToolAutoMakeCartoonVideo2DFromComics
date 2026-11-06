@@ -32,7 +32,7 @@ NUMBERS = {
     "repair": {},
     "import_blend": {},  # .blend -> GLB (Easy3D mở được)
     "render": {"width": (64, 4096, 1920), "height": (64, 4096, 1080), "samples": (8, 1024, 96), "fov": (10, 120, 45),
-               "sun_intensity": (0, 20, 2), "ambient": (0, 5, 1)},
+               "sun_intensity": (0, 20, 2), "ambient": (0, 5, 1), "exposure": (0.1, 4, 1)},
 }
 
 
@@ -58,7 +58,8 @@ def clean_params(op: str, raw: dict) -> dict:
         out["camera_position"] = _vec3(raw.get("camera_position"), [3.5, 2.6, 4.5])
         out["camera_target"] = _vec3(raw.get("camera_target"), [0, 0.5, 0])
         out["sun_position"] = _vec3(raw.get("sun_position"), [5, 8, 4])
-        for key, default in (("background", "#1c1e24"), ("sun_color", "#ffffff")):
+        out["sun_shadows"] = bool(raw.get("sun_shadows", True))
+        for key, default in (("background", "#1c1e24"), ("sun_color", "#ffffff"), ("sky", "#ffffff")):
             value = str(raw.get(key, default))
             out[key] = value if HEX.match(value) else default
     return out

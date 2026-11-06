@@ -213,3 +213,19 @@ body.rig-mode [data-action="rig-mode"] { background: #2b3a63; border-color: var(
 .tl-key { position: absolute; top: -6px; width: 12px; height: 12px; padding: 0; transform: translateX(-50%) rotate(45deg);
           background: var(--warn); border: 1px solid #000; border-radius: 2px; pointer-events: auto; }
 .tl-label { font-size: 12px; color: var(--muted); min-width: 70px; text-align: center; }
+
+/* Panel chỉnh ánh sáng (lighting-adjust-panel.js) */
+.lighting-panel { position: absolute; top: 10px; right: 10px; z-index: 22; width: 300px; box-sizing: border-box; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.lighting-panel[hidden] { display: none; }
+.lp-head { display: flex; justify-content: space-between; align-items: center; color: var(--accent); }
+.lp-head button { padding: 2px 8px; }
+.lp-presets { display: flex; flex-wrap: wrap; gap: 4px; }
+.lp-presets button { padding: 3px 7px; font-size: 12px; }
+.lp-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) 44px; gap: 6px; align-items: center; color: var(--muted); }
+.lp-row input { accent-color: var(--accent); }
+.lp-row output { color: var(--text); text-align: right; font-size: 12px; }
+.lp-colors { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.lp-colors label { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+.lp-colors input { width: 28px; height: 22px; padding: 0; border: none; background: none; }
+.lp-check { display: flex; gap: 6px; align-items: center; color: var(--muted); }

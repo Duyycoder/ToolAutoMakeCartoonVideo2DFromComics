@@ -20,7 +20,11 @@
 | 7 | Smoke test + pytest | DONE |
 
 ## Sau đó (user yêu cầu, làm tiếp)
-- Mở file `.blend` (qua Blender ẩn -> GLB), chỉnh camera khi render ảnh, sửa ánh sáng.
+| Việc | Trạng thái |
+|------|-----------|
+| Mở file `.blend` (Blender ẩn -> GLB, `--disable-autoexec`, kiểm tra header plain/zstd/gzip) | DONE |
+| Camera khi xuất ảnh: góc nhanh, xoay/độ cao/khoảng cách/ống kính, vừa khung, xem trước đúng khung, Huỷ trả camera | DONE |
+| Ánh sáng: FBX/OBJ Phong -> PBR, panel chỉnh (nắng, nền, phản chiếu, phơi sáng, màu, bóng đổ, Undo, lưu project), nắng + vùng bóng ôm cảnh, đèn mới đặt theo cỡ cảnh, Cycles theo màu trời + phơi sáng | DONE |
 
 ## Kết quả
 - Golem `test.fbx`: nhận đúng mặt trước +X, 2 chân + tay buông, tự khớp ~115 ms (60k điểm mẫu).

@@ -4,6 +4,7 @@ import { ensureUV, imageFileTexture, PATTERNS, patternTexture } from './procedur
 import { createLightObject, getLightLook, LIGHT_TYPES, setLightLook } from './scene-light-objects.js';
 import { applyLighting, LIGHTING_PRESETS } from './lighting-presets.js';
 import { meshesOf } from './mesh-split-merge-operations.js';
+import * as THREE from 'three';
 import { toast } from './toast-notifications.js';
 
 const mapMaterials = (obj, fn) => meshesOf(obj).forEach((m) => {
@@ -69,8 +70,13 @@ export function createAppearanceActions({ viewport, store, stack }) {
 
     addLight(type) {
       const obj = createLightObject(type, store.nextName(LIGHT_TYPES[type].label));
+      // Đặt chéo phía trước-trên cảnh, cách theo cỡ cảnh; đèn sau lệch sang bên -> không chồng lên đèn cũ.
+      const box = new THREE.Box3();
+      store.objects.forEach((o) => { if (o.visible && o.userData.kind !== 'light') box.expandByObject(o); });
+      if (box.isEmpty()) box.set(new THREE.Vector3(-0.5, 0, -0.5), new THREE.Vector3(0.5, 1, 0.5));
+      const size = Math.max(box.getSize(new THREE.Vector3()).length(), 0.5), center = box.getCenter(new THREE.Vector3());
       const existing = store.objects.filter((o) => o.userData.kind === 'light').length;
-      obj.position.x = existing * 1.5; // đèn mới không chồng lên đèn cũ
+      obj.position.set(center.x + size * 0.5 * Math.sin(existing * 1.9), box.max.y + size * 0.35, center.z + size * 0.5 * Math.cos(existing * 1.9));
       stack.execute(addObjectCommand(store, obj));
       toast(`Đã thêm ${LIGHT_TYPES[type].label.toLowerCase()} — kéo mũi tên để đổi chỗ chiếu sáng.`, { type: 'ok' });
     },
