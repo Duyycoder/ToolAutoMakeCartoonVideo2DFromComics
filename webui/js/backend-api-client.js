@@ -29,7 +29,7 @@ export const api = {
   aiStatus: () => request('/api/system/ai-status'),
   saveFile: (kind, name, data) => post('/api/files/save', { kind, name }, data),
   openFolder: (kind) => post('/api/files/open-folder', { kind }),
-  startImageTo3D: (file, quality) => post('/api/image-to-3d', { filename: file.name, quality }, file),
+  startImageTo3D: (file, quality, model = 'triposr') => post('/api/image-to-3d', { filename: file.name, quality, model }, file),
   cancelJob: (id) => post(`/api/jobs/${id}/cancel`, {}),
   resultUrl: (id) => `/api/jobs/${id}/result.glb`,
 

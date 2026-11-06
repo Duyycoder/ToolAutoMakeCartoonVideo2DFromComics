@@ -1,0 +1,20 @@
+# .venv-hunyuan (RIÊNG, không chung .venv-ai): Hunyuan3D cần diffusers/transformers mới,
+# TripoSR lại khoá transformers==4.35 + huggingface-hub<0.18 -> không cài chung được.
+# Cài SAU torch==2.4.1 + torchvision==0.19.1 (scripts\setup-hunyuan3d.bat chọn bản cu121/cpu).
+# Chỉ phần tạo hình (hy3dgen.shapegen) — phần texture của Hunyuan cần ~12 GB VRAM + biên dịch CUDA nên chưa dùng.
+diffusers==0.32.2  # ghim cùng thời Hunyuan3D-2 (2025); bản mới hơn chưa kiểm
+transformers==4.48.3
+accelerate==1.3.0
+huggingface-hub==0.28.1
+einops
+omegaconf
+pyyaml
+opencv-python-headless
+scikit-image
+pymeshlab
+trimesh>=4.0
+rembg>=2.0.50
+onnxruntime
+Pillow>=10.1
+tqdm
+numpy<2

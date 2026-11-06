@@ -7,7 +7,6 @@ Giao thức stdout (dòng JSON): progress / done / error — giống worker Auto
   .venv-ai\\Scripts\\python.exe workers\\worker_image_to_3d.py --image a.png --out-dir output\\job1
 """
 import argparse
-import json
 import os
 import sys
 import time
@@ -19,9 +18,7 @@ os.environ.setdefault("U2NET_HOME", str(ROOT / "models" / "u2net"))  # model tá
 sys.path.insert(0, str(ROOT / "third_party" / "TripoSR"))
 sys.path.insert(0, str(ROOT / "workers"))
 
-
-def emit(**payload):
-    print(json.dumps(payload, ensure_ascii=False), flush=True)
+from worker_protocol import emit, run_worker  # noqa: E402
 
 
 def parse_args():
@@ -130,17 +127,5 @@ def run(args) -> dict:
     }
 
 
-def main() -> int:
-    sys.stdout.reconfigure(encoding="utf-8")  # JSON có tiếng Việt; runner đọc UTF-8
-    args = parse_args()
-    try:
-        emit(type="done", stats=run(args))
-        return 0
-    except Exception as exc:  # báo mọi lỗi theo giao thức JSON để runner phân loại
-        code = "CUDA_OOM" if "out of memory" in str(exc).lower() else type(exc).__name__
-        emit(type="error", code=code, msg=str(exc)[:500])
-        return 1
-
-
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run_worker(run, parse_args()))

@@ -5,7 +5,9 @@ import json
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
-from backend.ai_environment import AI_PYTHON, HF_HOME, WORKER_IMAGE_TO_3D, get_ai_status
+from backend.ai_environment import (
+    AI_PYTHON, HF_HOME, HUNYUAN_MODELS, HUNYUAN_PYTHON, WORKER_HUNYUAN, WORKER_IMAGE_TO_3D, get_ai_status,
+)
 from backend.config import ROOT_DIR, load_config
 from backend.job_runner import JobRunner
 from backend.ollama_unload import unload_all_models
@@ -20,7 +22,9 @@ runner = JobRunner(
     worker_script=WORKER_IMAGE_TO_3D,
     jobs_dir=ROOT_DIR / "output" / "jobs",
     presets=_config["quality_presets"],
-    env={"HF_HOME": str(HF_HOME), "U2NET_HOME": str(ROOT_DIR / "models" / "u2net")},
+    env={"HF_HOME": str(HF_HOME), "U2NET_HOME": str(ROOT_DIR / "models" / "u2net"), "HY3DGEN_MODELS": str(HUNYUAN_MODELS)},
+    extra_models={"hunyuan": {"python_exe": HUNYUAN_PYTHON, "worker_script": WORKER_HUNYUAN,
+                              "presets": _config["hunyuan_presets"]}},
     before_gpu_job=lambda: unload_all_models(_config["ollama"]["url"]),
 )
 
@@ -31,10 +35,12 @@ def ai_status():
 
 
 @router.post("/image-to-3d")
-async def image_to_3d(request: Request, filename: str, quality: str = "balanced"):
+async def image_to_3d(request: Request, filename: str, quality: str = "balanced", model: str = "triposr"):
     ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext not in ALLOWED_IMAGE_EXT:
         raise HTTPException(400, "Chỉ nhận ảnh PNG, JPG hoặc WEBP")
+    if model not in ("triposr", "hunyuan"):
+        raise HTTPException(400, "Model không hợp lệ")
     if quality not in _config["quality_presets"]:
         raise HTTPException(400, "Mức chất lượng không hợp lệ")
     data = await request.body()
@@ -42,9 +48,10 @@ async def image_to_3d(request: Request, filename: str, quality: str = "balanced"
         raise HTTPException(400, "Ảnh rỗng")
     if len(data) > MAX_IMAGE_BYTES:
         raise HTTPException(413, "Ảnh quá lớn (tối đa 25 MB)")
-    if not get_ai_status()["ready"]:
-        raise HTTPException(409, get_ai_status()["message"])
-    return runner.submit_image_to_3d(data, ext, quality).public()
+    status = get_ai_status()["models"][model]
+    if not status["ready"]:
+        raise HTTPException(409, status["message"])
+    return runner.submit_image_to_3d(data, ext, quality, model).public()
 
 
 def _job_or_404(job_id: str):

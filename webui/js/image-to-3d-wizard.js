@@ -5,6 +5,12 @@ import { baseNameOf } from './model-import-export.js';
 
 export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
 
+const MODELS = [
+  ['triposr', '⚡ Nhanh — TripoSR', 'Khoảng 30 giây. Hợp để thử nhanh'],
+  ['hunyuan', '💎 Chất lượng cao — Hunyuan3D', 'Vài phút. Hình chi tiết hơn rõ rệt, màu lấy từ ảnh'],
+];
+const MODEL_KEY = 'easy3d.imageTo3dModel';
+
 const QUALITIES = [
   ['fast', 'Nhanh', 'Xem thử, ít chi tiết'],
   ['balanced', 'Cân bằng', 'Khuyên dùng'],
@@ -14,18 +20,21 @@ const QUALITIES = [
 /** onResult(url, name): nạp GLB kết quả vào cảnh. */
 export async function openImageTo3DWizard({ initialFile = null, onResult }) {
   const dlg = openModal({ onClose: () => stopWatching?.() });
-  const state = { file: initialFile, quality: 'balanced', status: null };
+  const state = { file: initialFile, quality: 'balanced', model: localStorage.getItem(MODEL_KEY) ?? 'triposr', status: null };
   let stopWatching = null;
   try {
     state.status = await api.aiStatus();
   } catch (err) {
-    state.status = { ready: false, cuda: false, message: err.message };
+    state.status = { ready: false, cuda: false, message: err.message, models: {} };
   }
+  const modelStatus = (key) => state.status.models?.[key] ?? { ready: false, message: state.status.message };
+  if (!modelStatus(state.model).ready && modelStatus('triposr').ready) state.model = 'triposr';
   renderChoose();
 
   function renderChoose(errorMsg = '') {
     dlg.setClosable(true);
-    const { ready, cuda, message } = state.status;
+    const { cuda } = state.status;
+    const { ready, message } = modelStatus(state.model);
     const banner = !ready ? `<div class="banner err">⚠ ${message}</div>`
       : !cuda ? `<div class="banner warn">🐢 ${message}</div>` : '';
     dlg.modal.innerHTML = `
@@ -42,12 +51,26 @@ export async function openImageTo3DWizard({ initialFile = null, onResult }) {
             <li>Chỉ 1 vật thể, nằm trọn trong ảnh</li><li>Chụp chéo góc 3/4, đủ sáng</li>
             <li>Nền càng đơn giản càng tốt (AI tự xoá nền)</li></ul></div>
         </div>
-        <div><b>Chất lượng</b><div class="quality" id="q" style="margin-top:8px"></div></div>
+        <div><b>Mô hình AI</b><div class="quality" id="m" style="margin:8px 0 14px"></div>
+          <b>Chất lượng</b><div class="quality" id="q" style="margin-top:8px"></div></div>
       </div>
       <div class="modal-footer"><button id="cancel">Đóng</button>
         <button class="primary" id="go">Tạo mô hình 3D ✨</button></div>`;
     if (errorMsg) dlg.modal.querySelector('#err').textContent = `⚠ ${errorMsg}`;
 
+    const mEl = dlg.modal.querySelector('#m');
+    for (const [key, label, hint] of MODELS) {
+      const row = document.createElement('label');
+      row.innerHTML = '<input type="radio" name="model"><span><b></b><small></small></span>';
+      const st = modelStatus(key);
+      row.querySelector('b').textContent = label;
+      row.querySelector('small').textContent = st.ready ? hint : st.message;
+      const radio = row.querySelector('input');
+      radio.checked = key === state.model;
+      radio.onchange = () => { state.model = key; localStorage.setItem(MODEL_KEY, key); renderChoose(); };
+      if (!st.ready && key !== state.model) row.classList.add('unavailable');
+      mEl.append(row);
+    }
     const q = dlg.modal.querySelector('#q');
     for (const [key, label, hint] of QUALITIES) {
       const row = document.createElement('label');
@@ -94,7 +117,7 @@ export async function openImageTo3DWizard({ initialFile = null, onResult }) {
   async function start() {
     let job;
     try {
-      job = await api.startImageTo3D(state.file, state.quality);
+      job = await api.startImageTo3D(state.file, state.quality, state.model);
     } catch (err) {
       return renderChoose(err.message);
     }

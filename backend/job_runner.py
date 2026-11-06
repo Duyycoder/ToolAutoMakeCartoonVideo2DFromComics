@@ -28,6 +28,7 @@ class Job:
     id: str
     work_dir: Path
     quality: str
+    model: str = "triposr"
     status: str = "queued"  # queued | running | done | error | cancelled
     events: list = field(default_factory=list)
     result: dict | None = None
@@ -43,17 +44,21 @@ class Job:
         self.events.append(event)
 
     def public(self) -> dict:
-        return {"id": self.id, "status": self.status, "quality": self.quality,
+        return {"id": self.id, "status": self.status, "quality": self.quality, "model": self.model,
                 "result": self.result, "error": self.error}
 
 
 class JobRunner:
     def __init__(self, python_exe: Path, worker_script: Path, jobs_dir: Path, presets: dict,
-                 env: dict | None = None, before_gpu_job: Callable[[], object] | None = None):
-        self.python_exe = Path(python_exe)
-        self.worker_script = Path(worker_script)
+                 env: dict | None = None, before_gpu_job: Callable[[], object] | None = None,
+                 extra_models: dict | None = None):
+        """Model mặc định "triposr" = python_exe/worker_script/presets. `extra_models`:
+        {"hunyuan": {"python_exe", "worker_script", "presets"}} — mỗi model 1 venv riêng, chung 1 hàng đợi GPU."""
+        self.models = {"triposr": {"python_exe": Path(python_exe), "worker_script": Path(worker_script), "presets": presets}}
+        for name, spec in (extra_models or {}).items():
+            self.models[name] = {"python_exe": Path(spec["python_exe"]), "worker_script": Path(spec["worker_script"]),
+                                 "presets": spec["presets"]}
         self.jobs_dir = Path(jobs_dir)
-        self.presets = presets
         self.env = {**os.environ, "PYTHONUTF8": "1", **(env or {})}
         self.before_gpu_job = before_gpu_job
         self.jobs: dict[str, Job] = {}
@@ -61,11 +66,13 @@ class JobRunner:
         threading.Thread(target=self._loop, daemon=True, name="job-runner").start()
 
     # ---------- API ----------
-    def submit_image_to_3d(self, image_bytes: bytes, ext: str, quality: str) -> Job:
-        if quality not in self.presets:
+    def submit_image_to_3d(self, image_bytes: bytes, ext: str, quality: str, model: str = "triposr") -> Job:
+        if model not in self.models:
+            raise ValueError(f"Model không hợp lệ: {model}")
+        if quality not in self.models[model]["presets"]:
             raise ValueError(f"Mức chất lượng không hợp lệ: {quality}")
         job_id = uuid.uuid4().hex[:12]
-        job = Job(id=job_id, work_dir=self.jobs_dir / job_id, quality=quality)
+        job = Job(id=job_id, work_dir=self.jobs_dir / job_id, quality=quality, model=model)
         job.work_dir.mkdir(parents=True, exist_ok=True)
         (job.work_dir / f"input{ext}").write_bytes(image_bytes)
         self.jobs[job.id] = job
@@ -104,7 +111,7 @@ class JobRunner:
         levels = list(QUALITY_ORDER[QUALITY_ORDER.index(job.quality):])
         while levels:
             level = levels.pop(0)
-            last = self._run_attempt(job, self.presets[level])
+            last = self._run_attempt(job, self.models[job.model]["presets"][level])
             if job.cancel_requested:
                 return self._finish(job, "cancelled", error=FRIENDLY_ERRORS["CANCELLED"])
             if last.get("type") == "done":
@@ -119,10 +126,10 @@ class JobRunner:
 
     def _run_attempt(self, job: Job, preset: dict) -> dict:
         image = next(job.work_dir.glob("input.*"))
-        cmd = [str(self.python_exe), str(self.worker_script), "--image", str(image),
-               "--out-dir", str(job.work_dir),
-               "--chunk-size", str(preset["chunk_size"]),
-               "--mc-resolution", str(preset["mc_resolution"])]
+        spec = self.models[job.model]
+        cmd = [str(spec["python_exe"]), str(spec["worker_script"]), "--image", str(image), "--out-dir", str(job.work_dir)]
+        for key, value in preset.items():  # {"mc_resolution": 192} -> --mc-resolution 192
+            cmd += [f"--{key.replace('_', '-')}", str(value)]
         with open(job.work_dir / "worker.log", "a", encoding="utf-8") as log:
             job.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=log, env=self.env,
                                         text=True, encoding="utf-8", errors="replace",

@@ -8,6 +8,11 @@
     "balanced": { "chunk_size": 4096, "mc_resolution": 192 },
     "detailed": { "chunk_size": 2048, "mc_resolution": 256 }
   },
+  "hunyuan_presets": {
+    "fast": { "steps": 20, "octree_resolution": 192, "num_chunks": 6000, "max_faces": 40000 },
+    "balanced": { "steps": 30, "octree_resolution": 256, "num_chunks": 8000, "max_faces": 80000 },
+    "detailed": { "steps": 50, "octree_resolution": 380, "num_chunks": 8000, "max_faces": 150000 }
+  },
   "ollama": {
     "url": "http://127.0.0.1:11434",
     "model": "qwen2.5:3b"

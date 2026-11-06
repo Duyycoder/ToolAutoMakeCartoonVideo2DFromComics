@@ -53,7 +53,8 @@
 
 /* ---------- Toast ---------- */
 /* Giữa phía dưới khung 3D: không che panel phải, không che nút của hộp thoại (z-index thấp hơn modal). */
-.toasts { position: fixed; left: calc(96px + (100vw - 96px - 290px) / 2); transform: translateX(-50%);
+.toasts { pointer-events: none; /* không chặn chuột vào khung 3D; nút trong toast vẫn bấm được */
+          position: fixed; left: calc(96px + (100vw - 96px - 290px) / 2); transform: translateX(-50%);
           bottom: 44px; z-index: 40; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .toast { background: var(--panel-2); border: 1px solid var(--line); border-left: 4px solid var(--accent);
          border-radius: 10px; padding: 10px 14px; min-width: 260px; max-width: 380px; box-shadow: 0 8px 24px #0008;
@@ -61,5 +62,6 @@
 .toast.ok { border-left-color: var(--ok); } .toast.warn { border-left-color: var(--warn); }
 .toast.err { border-left-color: var(--err); }
 .toast span { flex: 1; }
-.toast button { padding: 3px 10px; font-size: 12px; }
+.toast button { padding: 3px 10px; font-size: 12px; pointer-events: auto; }
 @keyframes toast-in { from { transform: translateY(10px); opacity: 0; } }
+.quality label.unavailable { opacity: .55; }
