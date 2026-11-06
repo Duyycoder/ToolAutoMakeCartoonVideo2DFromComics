@@ -11,6 +11,7 @@ import { createAppearanceActions } from './appearance-actions.js';
 import { openImageExportDialog } from './image-export-dialog.js';
 import { setupEditingModes } from './editing-modes-setup.js';
 import { createTimelinePanel } from './animation-timeline-panel.js';
+import { blenderMessage, blenderReady, refreshBlenderStatus } from './blender-tools-actions.js';
 import { createProjectFileActions } from './project-file-actions.js';
 import { IMAGE_EXTENSIONS, openImageTo3DWizard } from './image-to-3d-wizard.js';
 import { shouldShowWelcome, showWelcome } from './welcome-screen.js';
@@ -39,6 +40,7 @@ const appearance = createAppearanceActions({ viewport, store, stack });
 const meshTools = createMeshTools({ store, stack });
 createPropertiesPanel($('#props'), store, actions, meshTools, appearance);
 initStatusBar(store);
+refreshBlenderStatus().then(() => store.changed()); // panel Sửa hình hiện nút Blender khi đã cài
 const { editMode, paintMode, sculptMode, rigMode, leaveModes, activeMode } = setupEditingModes({ viewport, viewportEl, store, stack, gizmo });
 const timeline = createTimelinePanel(viewportEl, { viewport, store, stack, onVideo: (blob, ext) => files.saveVideo(blob, ext) });
 // Chỉ cho smoke test (tests/ui-smoke-test.mjs mở ?test=1) đọc vị trí vật/camera để kéo gizmo bằng chuột thật.
@@ -72,7 +74,10 @@ const ACTIONS = {
   'toggle-lighting': () => toggleMenu('#lighting-menu'),
   'toggle-grid': () => appearance.toggleGrid(),
   'toggle-timeline': () => timeline.toggle(),
-  'export-image': () => openImageExportDialog({ viewport, onExport: (url, size) => files.saveImage(url, size) }),
+  'export-image': () => openImageExportDialog({
+    viewport, onExport: (url, size, renderBlob) => files.saveImage(url, size, renderBlob),
+    cycles: { ready: blenderReady(), message: blenderMessage(), render: (opts) => meshTools.blender.render(viewport, opts) },
+  }),
   'edit-mode': () => (editMode.active ? editMode.exit() : (leaveModes(), editMode.enter(store.selected))),
   'paint-mode': () => (paintMode.active ? paintMode.exit() : (leaveModes(), paintMode.enter(store.selected))),
   'sculpt-mode': () => (sculptMode.active ? sculptMode.exit() : (leaveModes(), sculptMode.enter(store.selected))),

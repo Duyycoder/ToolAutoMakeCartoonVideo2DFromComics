@@ -650,6 +650,41 @@ await rigOp('unrig'); await sleep(200);
 check('Gỡ xương (giữ dáng) -> thành hình thường', await evaluate(`let sk = 0; window.easy3d.store.selected.traverse((m) => { if (m.isSkinnedMesh) sk++; }); return sk === 0;`));
 await evaluate(`${q('[data-action="toggle-timeline"]')}.click();`);
 
+// ---------- Đợt 6: Blender chạy ẩn (chỉ khi máy đã cài Blender bằng scripts\setup-blender.bat) ----------
+const blenderStatus = await evaluate(`return (await fetch('/api/blender/status')).json();`);
+if (blenderStatus.ready) {
+  const waitToast = async (prefix, seconds = 90) => {
+    for (let i = 0; i < seconds * 2; i++) {
+      const t = await evaluate(`return [...document.querySelectorAll('.toast span')].map((x) => x.textContent).find((x) => x.startsWith(${JSON.stringify(prefix)})) ?? null;`);
+      if (t) return t;
+      await sleep(500);
+    }
+    return null;
+  };
+  await evaluate(`${q('[data-action="toggle-shapes"]')}.click();`);
+  await evaluate(`${q('[data-shape="box"]')}.click();`);
+  const boxName = await evaluate(`return window.easy3d.store.selected.name;`);
+  const trisBox = await evaluate(`return window.easy3d.store.triangleCount(window.easy3d.store.selected);`);
+  await evaluate(`[...document.querySelectorAll('#props summary')].find((s) => s.textContent.includes('Sửa hình')).parentElement.open = true;`);
+  await evaluate(`[...document.querySelectorAll('#props .blender-block button')].find((b) => b.textContent === 'Bo').click();`);
+  const bevelToast = await waitToast('Xong: Bo tròn cạnh');
+  const trisBevel = await evaluate(`return window.easy3d.store.triangleCount(window.easy3d.store.selected);`);
+  check('Blender: Bo tròn cạnh hộp -> nhiều tam giác hơn, giữ tên', !!bevelToast && trisBevel > trisBox * 5
+    && await evaluate(`return window.easy3d.store.selected.name;`) === boxName, `${bevelToast} | ${trisBox} -> ${trisBevel}`);
+  await evaluate(`${q('#btn-undo')}.click();`);
+  check('Hoàn tác bo cạnh -> lại hộp gốc', (await outliner()).includes(boxName));
+  await evaluate(`[...document.querySelectorAll('#outliner li')].find((li) => li.textContent.includes(${JSON.stringify(boxName)})).click();`);
+  await evaluate(`[...document.querySelectorAll('#props .blender-block button')].find((b) => b.textContent.includes('Sửa lỗi để in 3D')).click();`);
+  check('Blender: Sửa lỗi để in 3D', !!(await waitToast('Xong: Sửa lỗi để in 3D')));
+
+  await evaluate(`${q('[data-action="export-image"]')}.click();`); await sleep(200);
+  await evaluate(`${q('input[name=size][value="hd"]')}.checked = true; ${q('#cycles')}.checked = true; ${q('#go')}.click();`);
+  const cyclesToast = await waitToast('Đã xuất ảnh 1280×720 (Cycles)', 180);
+  check('Blender: Render đẹp Cycles 1280×720', !!cyclesToast, cyclesToast ?? await lastToast());
+} else {
+  check('Blender chưa cài -> nút Blender hiện hướng dẫn cài', true, blenderStatus.message);
+}
+
 await selectByName('Cầu 1');
 await shot('02-editor.png');
 

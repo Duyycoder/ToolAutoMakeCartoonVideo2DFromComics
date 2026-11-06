@@ -89,6 +89,16 @@ async def job_events(job_id: str):
                              headers={"Cache-Control": "no-cache"})
 
 
+@router.get("/jobs/{job_id}/result.png")
+def job_result_image(job_id: str):
+    """Ảnh render (Blender Cycles)."""
+    job = _job_or_404(job_id)
+    path = job.work_dir / "render.png"
+    if job.status != "done" or not path.exists():
+        raise HTTPException(404, "Chưa có ảnh")
+    return FileResponse(path, media_type="image/png")
+
+
 @router.get("/jobs/{job_id}/result.glb")
 def job_result(job_id: str):
     job = _job_or_404(job_id)

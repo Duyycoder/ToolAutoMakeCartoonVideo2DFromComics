@@ -29,6 +29,7 @@ class Job:
     work_dir: Path
     quality: str
     model: str = "triposr"
+    command: list | None = None  # job lệnh tuỳ ý (Blender) — chạy 1 lần, không thử lại
     status: str = "queued"  # queued | running | done | error | cancelled
     events: list = field(default_factory=list)
     result: dict | None = None
@@ -80,6 +81,20 @@ class JobRunner:
         self._queue.put(job)
         return job
 
+    def submit_command(self, build_command: Callable[[Path, Path], list], input_bytes: bytes, input_name: str,
+                       kind: str = "blender") -> Job:
+        """Job chạy 1 lệnh (vd. Blender): build_command(work_dir, input_path) -> argv. Chung hàng đợi GPU."""
+        job_id = uuid.uuid4().hex[:12]
+        job = Job(id=job_id, work_dir=self.jobs_dir / job_id, quality="-", model=kind)
+        job.work_dir.mkdir(parents=True, exist_ok=True)
+        input_path = job.work_dir / input_name
+        input_path.write_bytes(input_bytes)
+        job.command = [str(x) for x in build_command(job.work_dir, input_path)]
+        self.jobs[job.id] = job
+        job.emit(type="status", status="queued", msg="Đang xếp hàng...")
+        self._queue.put(job)
+        return job
+
     def get(self, job_id: str) -> Job | None:
         return self.jobs.get(job_id)
 
@@ -108,6 +123,14 @@ class JobRunner:
         job.emit(type="status", status="running", msg="Bắt đầu...")
         if self.before_gpu_job:
             self.before_gpu_job()
+        if job.command:
+            last = self._spawn(job, job.command)
+            if job.cancel_requested:
+                return self._finish(job, "cancelled", error=FRIENDLY_ERRORS["CANCELLED"])
+            if last.get("type") == "done":
+                job.result = last.get("stats", {})
+                return self._finish(job, "done")
+            return self._finish(job, "error", error=_friendly(last))
         levels = list(QUALITY_ORDER[QUALITY_ORDER.index(job.quality):])
         while levels:
             level = levels.pop(0)
@@ -130,6 +153,10 @@ class JobRunner:
         cmd = [str(spec["python_exe"]), str(spec["worker_script"]), "--image", str(image), "--out-dir", str(job.work_dir)]
         for key, value in preset.items():  # {"mc_resolution": 192} -> --mc-resolution 192
             cmd += [f"--{key.replace('_', '-')}", str(value)]
+        return self._spawn(job, cmd)
+
+    def _spawn(self, job: Job, cmd: list) -> dict:
+        """Chạy tiến trình, chuyển dòng JSON progress vào job.events; trả về dòng JSON cuối (done/error)."""
         with open(job.work_dir / "worker.log", "a", encoding="utf-8") as log:
             job.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=log, env=self.env,
                                         text=True, encoding="utf-8", errors="replace",
@@ -140,12 +167,14 @@ class JobRunner:
                     msg = json.loads(line)
                 except json.JSONDecodeError:
                     continue
+                if not isinstance(msg, dict) or "type" not in msg:  # Blender in cả số/chuỗi lẻ là JSON hợp lệ
+                    continue
                 last = msg
                 if msg.get("type") == "progress":
                     job.emit(**msg)
             code = job.proc.wait()
         if not last or last.get("type") == "progress":  # chết giữa chừng, không kịp báo
-            last = {"type": "error", "code": f"EXIT_{code}", "msg": "Tiến trình AI dừng đột ngột"}
+            last = {"type": "error", "code": f"EXIT_{code}", "msg": "Tiến trình xử lý dừng đột ngột"}
         return last
 
     def _finish(self, job: Job, status: str, error: str | None = None):

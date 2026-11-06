@@ -10,7 +10,7 @@ const SIZES = [
 ];
 
 /** onExport(dataUrl) được gọi sau khi render xong. */
-export function openImageExportDialog({ viewport, onExport }) {
+export function openImageExportDialog({ viewport, onExport, cycles = null }) {
   const dlg = openModal();
   dlg.modal.innerHTML = `
     <button class="modal-close" title="Đóng (Esc)">✕</button>
@@ -23,6 +23,8 @@ export function openImageExportDialog({ viewport, onExport }) {
           <small>Để ghép vào ảnh/video khác</small></span></label>
         <label><input type="checkbox" id="hide" checked><span><b>Ẩn lưới sàn & tay cầm</b>
           <small>Ảnh sạch, chỉ còn vật thể và bóng đổ</small></span></label>
+        <label id="cycles-row"><input type="checkbox" id="cycles"><span><b>🟠 Render đẹp bằng Blender (Cycles)</b>
+          <small id="cycles-hint">Ánh sáng, bóng, phản chiếu thật — chậm hơn (vài chục giây tới vài phút)</small></span></label>
       </div></div>
     </div>
     <div class="modal-footer"><button id="cancel">Huỷ</button><button class="primary" id="go">Xuất ảnh</button></div>`;
@@ -34,15 +36,24 @@ export function openImageExportDialog({ viewport, onExport }) {
     row.querySelector('b').textContent = label;
     sizes.append(row);
   }
+  if (!cycles?.ready) { // chưa cài Blender -> tắt lựa chọn, ghi cách cài
+    dlg.modal.querySelector('#cycles').disabled = true;
+    dlg.modal.querySelector('#cycles-row').classList.add('unavailable');
+    dlg.modal.querySelector('#cycles-hint').textContent = cycles?.message ?? 'Chưa cài Blender.';
+  }
   dlg.modal.querySelector('.modal-close').onclick = dlg.close;
   dlg.modal.querySelector('#cancel').onclick = dlg.close;
   dlg.modal.querySelector('#go').onclick = async () => {
     const key = dlg.modal.querySelector('input[name=size]:checked').value;
     const screen = viewport.canvasSize();
     const [width, height] = SIZES.find((s) => s[0] === key)[2] ?? [screen.x, screen.y];
+    const transparent = dlg.modal.querySelector('#transparent').checked;
+    if (dlg.modal.querySelector('#cycles').checked) {
+      dlg.close();
+      return onExport(null, `${width}×${height} (Cycles)`, () => cycles.render({ width, height, transparent }));
+    }
     const dataUrl = viewport.renderImage({
-      width, height,
-      transparent: dlg.modal.querySelector('#transparent').checked,
+      width, height, transparent,
       hideHelpers: dlg.modal.querySelector('#hide').checked,
     });
     dlg.close();

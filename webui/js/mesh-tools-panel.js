@@ -18,6 +18,7 @@ function sliderRow(label, { min, max, value, step = 1, format }, buttonText, onA
 }
 
 import { isRigged, RIGGED_WARNING } from './rig-builder.js';
+import { blenderMessage, blenderReady } from './blender-tools-actions.js';
 
 export function meshToolsSection(obj, store, tools) {
   const details = el('details', { className: 'tool-section', open: sectionOpen });
@@ -65,5 +66,26 @@ export function meshToolsSection(obj, store, tools) {
     ]),
     el('div', { className: 'info-line', textContent: 'Mẹo: giữ Shift + bấm để chọn nhiều vật, rồi gộp / nhóm cùng lúc.' }),
   ] : [el('div', { className: 'info-line', textContent: 'Thêm 1 vật nữa để ghép / khoét / gộp.' })]));
+  details.append(blenderBlock(obj, tools));
   return details;
+}
+
+/** Thao tác chạy bằng Blender ẩn (chậm hơn vài giây nhưng chất lượng như phần mềm chuyên nghiệp). */
+function blenderBlock(obj, tools) {
+  const box = el('div', { className: 'field blender-block' }, [el('label', { textContent: '🟠 Blender (chất lượng cao)' })]);
+  if (!blenderReady()) {
+    box.append(el('div', { className: 'info-line', textContent: blenderMessage() }));
+    return box;
+  }
+  const b = tools.blender;
+  box.append(
+    sliderRow('Bo tròn cạnh', { min: 5, max: 100, value: 30, step: 5, format: (v) => `độ bo ${v}%` }, 'Bo',
+      (v) => b.meshOp(obj, 'bevel', { amount: v / 100, segments: 3 })),
+    sliderRow('Làm lưới đều', { min: 0, max: 100, value: 50, step: 5, format: (v) => `chi tiết ${v}%` }, 'Làm đều',
+      (v) => b.meshOp(obj, 'remesh', { detail: v / 100 })),
+    Object.assign(el('button', { textContent: '🖨 Sửa lỗi để in 3D', title: 'Khép lỗ hở, gộp điểm trùng, sửa mặt lật (để máy in 3D / slicer không báo lỗi)' }),
+      { onclick: () => b.meshOp(obj, 'repair') }),
+    el('div', { className: 'info-line', textContent: 'Làm lưới đều sẽ bỏ vân/texture (lưới mới hoàn toàn).' }),
+  );
+  return box;
 }

@@ -5,7 +5,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend import routes_files, routes_jobs
+from backend import routes_blender, routes_files, routes_jobs
 from backend.config import WEBUI_DIR
 from backend.gpu_info import get_gpu_info
 
@@ -27,6 +27,7 @@ async def require_custom_header_for_writes(request: Request, call_next):
 
 app.include_router(routes_jobs.router)
 app.include_router(routes_files.router)
+app.include_router(routes_blender.router)
 
 
 @app.get("/api/health")

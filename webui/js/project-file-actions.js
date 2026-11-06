@@ -40,10 +40,11 @@ export function createProjectFileActions({ viewport, store, getProjectName }) {
       await writeFile('output', ext, blob, `Đã xuất video ${ext.toUpperCase()}`);
     },
 
-    /** Ảnh đã render (image-export-dialog.js) -> file PNG. */
-    async saveImage(dataUrl, sizeLabel) {
+    /** Ảnh đã render (image-export-dialog.js) -> file PNG. `renderBlob`: render bằng Blender (trả Blob). */
+    async saveImage(dataUrl, sizeLabel, renderBlob = null) {
       try {
-        await writeFile('output', 'png', dataUrlToBlob(dataUrl), `Đã xuất ảnh ${sizeLabel}`);
+        const blob = renderBlob ? await renderBlob() : dataUrlToBlob(dataUrl);
+        await writeFile('output', 'png', blob, `Đã xuất ảnh ${sizeLabel}`);
       } catch (err) {
         toast(`Xuất ảnh thất bại: ${err.message}`, { type: 'err', timeout: 8000 });
       }

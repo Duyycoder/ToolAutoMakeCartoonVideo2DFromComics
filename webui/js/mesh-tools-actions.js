@@ -9,6 +9,7 @@ import { addObjectCommand, batchCommand, removeObjectCommand } from './scene-edi
 import { copyOriginalLook, rememberOriginalLook } from './material-preset-library.js';
 import { toast } from './toast-notifications.js';
 import { createMultiObjectTools } from './multi-object-actions.js';
+import { createBlenderTools } from './blender-tools-actions.js';
 
 const BOOLEAN_NAMES = { union: (a, b) => `${a} + ${b}`, subtract: (a) => `${a} (đã khoét)`, intersect: () => 'Phần chung' };
 
@@ -121,6 +122,7 @@ export function createMeshTools({ store, stack }) {
     /** Gộp 2 vật (dropdown trong Sửa hình) — dùng chung logic gộp nhiều vật. */
     join: (obj, other) => many.join([obj, other]),
     many,
+    blender: createBlenderTools({ store, stack }),
 
     /** Nhóm -> từng vật riêng; 1 lưới có nhiều mảnh rời -> mỗi mảnh 1 vật. */
     separate: (obj) => busy('Đang tách', () => {

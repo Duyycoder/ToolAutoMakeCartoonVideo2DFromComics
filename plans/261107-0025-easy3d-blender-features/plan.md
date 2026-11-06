@@ -26,7 +26,7 @@ sửa chi tiết trong khối, tách khối, vật liệu, các tính năng nân
 | 3 | [Nặn hình + sửa chi tiết](phase-03-nan-hinh-sua-chi-tiet.md) | Chỉnh điểm (Edit Mode) + **Nặn hình** (phím N): Đắp, Lõm (Shift đảo chiều), Kéo, Làm mượt, Làm phẳng, đối xứng trái↔phải | DONE |
 | 4 | [Chuyển động](phase-04-chuyen-dong-animation.md) | Thanh thời gian, "Ghi tư thế" (keyframe, cả tư thế xương), mẫu nhanh (Bàn xoay/Nảy/Lắc lư/Phóng to), phát/dừng, xuất video (MP4/WebM) + GLB có animation | DONE |
 | 5 | [Ghép xương](phase-05-ghep-xuong.md) | Mẫu Người (22 khớp) / Chuỗi, kéo khớp (đối xứng), tự tính trọng lượng da (Độ mềm khớp), Tạo dáng, Đặt lại tư thế, Gỡ xương giữ dáng, xuất GLB có skin | DONE |
-| 6 | [Blender headless](phase-06-blender-headless.md) | Bo tròn cạnh, Làm lưới đều, Sửa lỗi in 3D, Tạo UV, Render đẹp (Cycles) | pending |
+| 6 | [Blender headless](phase-06-blender-headless.md) | Bo tròn cạnh, Làm lưới đều, Sửa lỗi in 3D, Render đẹp (Cycles, GPU OPTIX/CUDA/HIP) | DONE |
 
 ### Làm thêm theo yêu cầu (2026-11-07)
 | Tính năng | Trạng thái |

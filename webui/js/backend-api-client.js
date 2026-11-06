@@ -32,6 +32,9 @@ export const api = {
   startImageTo3D: (file, quality, model = 'triposr') => post('/api/image-to-3d', { filename: file.name, quality, model }, file),
   cancelJob: (id) => post(`/api/jobs/${id}/cancel`, {}),
   resultUrl: (id) => `/api/jobs/${id}/result.glb`,
+  resultImageUrl: (id) => `/api/jobs/${id}/result.png`,
+  blenderStatus: () => request('/api/blender/status'),
+  runBlender: (op, params, blob) => post(`/api/blender/${op}`, { params: JSON.stringify(params) }, blob),
 
   /** Theo dõi tiến độ job qua SSE. Trả về hàm huỷ theo dõi. */
   watchJob(id, onEvent) {
