@@ -1,9 +1,10 @@
-"""Spike Phase 01: chạy TripoSR 1 ảnh với 1 cấu hình, đo peak VRAM + thời gian.
+"""Worker ảnh -> 3D: rembg tách nền + TripoSR, xuất GLB (Y-up), đo peak VRAM + thời gian.
 
-Chạy bằng .venv-ai. Mỗi cấu hình 1 tiến trình riêng -> đo VRAM sạch, OOM không ảnh hưởng lần sau.
+Dùng chung cho app (backend/job_runner.py) và spike (spike_triposr_matrix.py).
+Chạy bằng .venv-ai, mỗi job 1 tiến trình -> kết thúc là nhả sạch VRAM, OOM không ảnh hưởng job sau.
 Giao thức stdout (dòng JSON): progress / done / error — giống worker AutoCartoon.
 
-  .venv-ai\\Scripts\\python.exe workers\\spike_triposr_single_run.py --image a.png --out-dir output\\spike
+  .venv-ai\\Scripts\\python.exe workers\\worker_image_to_3d.py --image a.png --out-dir output\\job1
 """
 import argparse
 import json
@@ -37,12 +38,18 @@ def parse_args():
 
 
 def preprocess(image_path: str, foreground_ratio: float):
+    import gc
+
     import numpy as np
     import rembg
     from PIL import Image
     from tsr.utils import remove_background, resize_foreground
 
-    image = remove_background(Image.open(image_path), rembg.new_session())
+    session = rembg.new_session()
+    image = remove_background(Image.open(image_path), session)
+    # Nhả VRAM của onnxruntime TRƯỚC khi nạp TripoSR — trên card 6 GB không đủ chỗ cho cả hai.
+    del session
+    gc.collect()
     image = resize_foreground(image, foreground_ratio)
     arr = np.array(image).astype(np.float32) / 255.0
     arr = arr[:, :, :3] * arr[:, :, 3:4] + (1 - arr[:, :, 3:4]) * 0.5  # nền xám như TripoSR gốc
@@ -75,14 +82,14 @@ def run(args) -> dict:
     if device == "auto":
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
     use_cuda = device.startswith("cuda")
-    out_dir = Path(args.out_dir) / f"c{args.chunk_size}_r{args.mc_resolution}"
+    out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    emit(type="progress", pct=5, msg=f"Tach nen anh (device={device}, mc={mc_backend})")
+    emit(type="progress", pct=5, msg="Đang tách nền ảnh...")
     image = preprocess(args.image, args.foreground_ratio)
     image.save(out_dir / "input_processed.png")
 
-    emit(type="progress", pct=20, msg="Nap model TripoSR")
+    emit(type="progress", pct=20, msg="Đang nạp model AI (lần đầu hơi lâu)...")
     model = TSR.from_pretrained("stabilityai/TripoSR", config_name="config.yaml", weight_name="model.ckpt")
     model.renderer.set_chunk_size(args.chunk_size)
     model.to(device)
@@ -90,20 +97,25 @@ def run(args) -> dict:
         torch.cuda.reset_peak_memory_stats()
 
     t0 = time.perf_counter()
-    emit(type="progress", pct=50, msg="Suy luan TripoSR")
+    emit(type="progress", pct=50, msg=f"AI đang dựng hình 3D ({'GPU' if use_cuda else 'CPU - chậm'})...")
     with torch.no_grad():
         scene_codes = model([image], device=device)
-    emit(type="progress", pct=75, msg="Tao luoi (marching cubes)")
+    emit(type="progress", pct=75, msg="Đang tạo lưới 3D...")
     mesh = model.extract_mesh(scene_codes, has_vertex_color=True, resolution=args.mc_resolution)[0]
     if mesh.is_watertight and mesh.volume < 0:
         mesh.invert()  # sửa mặt bị lật do đảo trục ở marching_cubes_fallback
-    mesh.export(out_dir / "mesh.glb")
     infer_seconds = time.perf_counter() - t0
 
     textured = None
     if args.bake_texture:
-        emit(type="progress", pct=90, msg="Bake texture")
+        # Bake trên mesh gốc (hệ trục của triplane) — phải làm TRƯỚC khi xoay sang Y-up.
+        emit(type="progress", pct=85, msg="Đang tạo texture...")
         textured = export_baked(mesh, model, scene_codes[0], out_dir, args.texture_resolution)
+
+    from tsr.utils import to_gradio_3d_orientation
+    to_gradio_3d_orientation(mesh)  # TripoSR xuất Z-up; glTF/Three.js dùng Y-up
+    emit(type="progress", pct=95, msg="Đang lưu file...")
+    mesh.export(out_dir / "mesh.glb")
 
     return {
         "device": device,
@@ -119,6 +131,7 @@ def run(args) -> dict:
 
 
 def main() -> int:
+    sys.stdout.reconfigure(encoding="utf-8")  # JSON có tiếng Việt; runner đọc UTF-8
     args = parse_args()
     try:
         emit(type="done", stats=run(args))

@@ -3,12 +3,10 @@
     "host": "127.0.0.1",
     "port": 8200
   },
-  "device": "auto",
-  "triposr": {
-    "model_id": "stabilityai/TripoSR",
-    "chunk_size": 4096,
-    "mc_resolution": 192,
-    "foreground_ratio": 0.85
+  "quality_presets": {
+    "fast": { "chunk_size": 4096, "mc_resolution": 128 },
+    "balanced": { "chunk_size": 4096, "mc_resolution": 192 },
+    "detailed": { "chunk_size": 2048, "mc_resolution": 256 }
   },
   "ollama": {
     "url": "http://127.0.0.1:11434",

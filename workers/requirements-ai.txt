@@ -6,7 +6,7 @@ Pillow>=10.1
 einops==0.7.0
 transformers==4.35.0
 trimesh>=4.0
-huggingface-hub>=0.20
+huggingface-hub>=0.17,<0.18  # tokenizers 0.14 (transformers 4.35) cần <0.18
 imageio[ffmpeg]
 xatlas==0.0.9
 moderngl==5.10.0

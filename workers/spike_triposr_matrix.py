@@ -13,7 +13,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SINGLE = ROOT / "workers" / "spike_triposr_single_run.py"
+SINGLE = ROOT / "workers" / "worker_image_to_3d.py"
+OUT_ROOT = ROOT / "output" / "spike"
 CHUNKS = (8192, 4096, 2048)
 RESOLUTIONS = (256, 192, 128)
 VRAM_BUDGET_MB = 5200  # chừa ~0.8 GB cho Windows/WebView trên card 6 GB
@@ -55,7 +56,8 @@ def main() -> int:
     rows, meta = [], {}
     for chunk, res in combos:
         print(f"[spike] chunk_size={chunk} mc_resolution={res}", flush=True)
-        result = run_one(base + ["--chunk-size", str(chunk), "--mc-resolution", str(res)])
+        result = run_one(base + ["--chunk-size", str(chunk), "--mc-resolution", str(res),
+                                 "--out-dir", str(OUT_ROOT / f"c{chunk}_r{res}")])
         if result.get("type") == "done":
             meta = {"device": result["stats"]["device"], "mc_backend": result["stats"]["mc_backend"]}
         rows.append(to_row(chunk, res, result))
