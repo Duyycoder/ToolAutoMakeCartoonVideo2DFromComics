@@ -35,14 +35,16 @@ Pattern tái dùng từ AutoCartoon: subprocess-per-heavy-step tự nhả VRAM, 
 | # | Phase | Ưu tiên | Trạng thái |
 |---|-------|---------|-----------|
 | 01 | [Setup môi trường + spike TripoSR 6 GB](phase-01-setup-moi-truong-va-spike-triposr.md) | P0 | in-progress (khung xong, chờ chạy spike trên RTX 3060) |
-| 02 | [Viewport 3D cơ bản (Three.js)](phase-02-viewport-3d-co-ban.md) | P0 | pending |
-| 03 | [Backend job runner + quản lý GPU](phase-03-backend-job-runner-gpu.md) | P0 | pending |
-| 04 | [Ảnh → 3D (rembg + TripoSR)](phase-04-anh-sang-3d-triposr.md) | P0 | pending |
+| 02 | [Viewport 3D cơ bản (Three.js)](phase-02-viewport-3d-co-ban.md) | P0 | in-progress — xong: viewport, gizmo, khối, chất liệu, undo, import/export, lưu/mở dự án. Còn: chữ 3D, xoay 360° |
+| 03 | [Backend job runner + quản lý GPU](phase-03-backend-job-runner-gpu.md) | P0 | in-progress — xong: queue, SSE, retry OOM, huỷ, unload Ollama, chống CSRF. Còn: preflight VRAM |
+| 04 | [Ảnh → 3D (rembg + TripoSR)](phase-04-anh-sang-3d-triposr.md) | P0 | in-progress — xong: worker + wizard UI. Còn: batch, test 10 ảnh trên GPU thật |
 | 05 | [Công cụ mesh qua Blender headless](phase-05-cong-cu-mesh-blender-headless.md) | P1 | pending |
 | 06 | [Trợ lý AI ra lệnh bằng chữ (Ollama)](phase-06-tro-ly-ai-ra-lenh-bang-chu.md) | P1 | pending |
-| 07 | [UX cho người mới](phase-07-ux-cho-nguoi-moi.md) | P1 | pending |
+| 07 | [UX cho người mới](phase-07-ux-cho-nguoi-moi.md) | P1 | in-progress — xong: màn hình chào, status bar, toast. Còn: model mẫu, test người dùng |
 | 08 | [Đóng gói + test](phase-08-dong-goi-va-test.md) | P1 | pending |
 | 09 | [Mở rộng AI (sau MVP)](phase-09-mo-rong-ai-sau-mvp.md) | P2 | pending |
+
+Test: `pytest` (backend) + `node tests/ui-smoke-test.mjs` (UI headless, cần backend chạy cổng 8200).
 
 Thứ tự: 01 → (02 ∥ 03) → 04 → (05 ∥ 06) → 07 → 08 → 09.
 
