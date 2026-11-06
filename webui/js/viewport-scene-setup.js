@@ -83,9 +83,10 @@ export function createViewport(container) {
     return obj;
   }
 
-  /** Đưa camera nhìn trọn 1 vật (hoặc cả cảnh). */
+  /** Đưa camera nhìn trọn 1 vật, nhiều vật (mảng) hoặc cả cảnh. */
   function frameObjects(target = objectsRoot) {
-    const box = new THREE.Box3().setFromObject(target);
+    const box = new THREE.Box3();
+    (Array.isArray(target) ? target : [target]).forEach((o) => box.expandByObject(o));
     if (box.isEmpty()) box.set(new THREE.Vector3(-1, 0, -1), new THREE.Vector3(1, 1, 1));
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3()).length();

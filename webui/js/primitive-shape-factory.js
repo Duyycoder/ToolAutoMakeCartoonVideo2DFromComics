@@ -37,5 +37,6 @@ export function iconFor(obj) {
   if (kind === 'array') return '▦';
   if (kind === 'edited') return '🛠';
   if (kind === 'light') return '💡';
+  if (kind === 'group') return '🗂';
   return SHAPES[kind]?.icon ?? '📦';
 }

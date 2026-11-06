@@ -13,9 +13,9 @@ export function createOutliner(listEl, store) {
     }
     for (const obj of store.objects) {
       const li = document.createElement('li');
-      li.classList.toggle('selected', obj === store.selected);
+      li.classList.toggle('selected', store.selection.includes(obj));
       li.classList.toggle('hidden-obj', !obj.visible);
-      li.title = 'Bấm để chọn';
+      li.title = 'Bấm để chọn · Shift + bấm để chọn nhiều';
 
       const icon = document.createElement('span');
       icon.textContent = iconFor(obj);
@@ -29,12 +29,12 @@ export function createOutliner(listEl, store) {
       eye.onclick = (e) => {
         e.stopPropagation();
         obj.visible = !obj.visible;
-        if (!obj.visible && store.selected === obj) store.select(null);
+        if (!obj.visible && store.selection.includes(obj)) store.toggleSelect(obj);
         store.changed();
       };
 
       li.append(icon, name, eye);
-      li.onclick = () => store.select(obj);
+      li.onclick = (e) => (e.shiftKey || e.ctrlKey ? store.toggleSelect(obj) : store.select(obj));
       listEl.append(li);
     }
   }

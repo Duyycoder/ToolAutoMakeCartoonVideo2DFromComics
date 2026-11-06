@@ -1,15 +1,14 @@
 // Thao tác "Sửa hình" (đều Undo được): làm mượt, giảm chi tiết, đối xứng, nhân mảng,
 // ghép/khoét/phần chung, gộp lưới, tách phần rời / tách nhóm.
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { simplifyGeometry, smoothGeometry, triangleCountOf } from './mesh-subdivide-smooth.js';
 import {
-  bakeWorldGeometry, booleanGeometry, firstMaterialOf, meshesOf, objectWorldGeometry, recenter,
-  splitLooseParts, unifyAttributes,
+  bakeWorldGeometry, booleanGeometry, firstMaterialOf, meshesOf, objectWorldGeometry, recenter, splitLooseParts,
 } from './mesh-split-merge-operations.js';
 import { addObjectCommand, batchCommand, removeObjectCommand } from './scene-edit-commands.js';
 import { copyOriginalLook, rememberOriginalLook } from './material-preset-library.js';
 import { toast } from './toast-notifications.js';
+import { createMultiObjectTools } from './multi-object-actions.js';
 
 const BOOLEAN_NAMES = { union: (a, b) => `${a} + ${b}`, subtract: (a) => `${a} (đã khoét)`, intersect: () => 'Phần chung' };
 
@@ -58,6 +57,8 @@ export function createMeshTools({ store, stack }) {
     rememberOriginalLook(mesh);
     return mesh;
   }
+
+  const many = createMultiObjectTools({ store, busy, replaceObjects, makeMesh });
 
   return {
     smooth: (obj, level) => busy('Đang làm mượt', () => replaceGeometries(obj, 'Làm mượt', (g) => smoothGeometry(g, level))),
@@ -115,14 +116,9 @@ export function createMeshTools({ store, stack }) {
       replaceObjects(BOOLEAN_NAMES[op](obj.name, other.name), [obj, other], [mesh]);
     }),
 
-    /** Gộp 2 vật thành 1 lưới (giữ chất liệu riêng từng phần). */
-    join(obj, other) {
-      const geos = unifyAttributes([objectWorldGeometry(obj), objectWorldGeometry(other)]);
-      const merged = mergeGeometries(geos, true);
-      const mesh = makeMesh(merged, [firstMaterialOf(meshesOf(obj)[0]), firstMaterialOf(meshesOf(other)[0])],
-        `${obj.name} + ${other.name}`);
-      replaceObjects('Gộp vật', [obj, other], [mesh]);
-    },
+    /** Gộp 2 vật (dropdown trong Sửa hình) — dùng chung logic gộp nhiều vật. */
+    join: (obj, other) => many.join([obj, other]),
+    many,
 
     /** Nhóm -> từng vật riêng; 1 lưới có nhiều mảnh rời -> mỗi mảnh 1 vật. */
     separate: (obj) => busy('Đang tách', () => {

@@ -57,6 +57,7 @@ export function meshToolsSection(obj, store, tools) {
       btn('◎ Phần chung', 'Chỉ giữ phần 2 vật chồng lên nhau', () => tools.boolean(obj, pick(), 'intersect')),
       btn('🔗 Gộp lưới', 'Gộp thành 1 vật, giữ màu riêng từng phần', () => tools.join(obj, pick())),
     ]),
+    el('div', { className: 'info-line', textContent: 'Mẹo: giữ Shift + bấm để chọn nhiều vật, rồi gộp / nhóm cùng lúc.' }),
   ] : [el('div', { className: 'info-line', textContent: 'Thêm 1 vật nữa để ghép / khoét / gộp.' })]));
   return details;
 }

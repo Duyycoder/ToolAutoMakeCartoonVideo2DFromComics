@@ -31,6 +31,15 @@ export function createEditorActions({ viewport, store, stack }) {
     store.changed();
   }
 
+  function makeCopy(obj) {
+    const copy = obj.clone();
+    copy.name = store.nextName(obj.name.replace(/\s\d+$/, ''));
+    copy.position.x += 1.2;
+    copyOriginalLook(obj, copy);
+    fixLightCopy(copy);
+    return copy;
+  }
+
   function moveTo(obj, position, label) {
     const before = snapshotTransform(obj);
     const after = { ...before, p: position };
@@ -80,14 +89,17 @@ export function createEditorActions({ viewport, store, stack }) {
 
     remove(obj) { run(removeObjectCommand(store, obj)); },
 
-    duplicate(obj) {
-      const copy = obj.clone();
-      copy.name = store.nextName(obj.name.replace(/\s\d+$/, ''));
-      copy.position.x += 1.2;
-      copyOriginalLook(obj, copy);
-      fixLightCopy(copy);
-      run(addObjectCommand(store, copy));
+    /** Xoá / nhân bản tất cả vật đang chọn — 1 bước Undo. */
+    removeMany(objs) {
+      if (objs.length === 1) return actions.remove(objs[0]);
+      run(batchCommand(`Xoá ${objs.length} vật`, objs.map((o) => removeObjectCommand(store, o))));
     },
+    duplicateMany(objs) {
+      const copies = objs.map(makeCopy);
+      run(batchCommand(`Nhân bản ${copies.length} vật`, copies.map((c) => addObjectCommand(store, c))));
+      store.selectMany(copies); // chọn sẵn các bản sao để kéo đi luôn
+    },
+    duplicate(obj) { actions.duplicateMany([obj]); },
 
     clearScene() {
       if (!store.objects.length) return;
@@ -101,6 +113,16 @@ export function createEditorActions({ viewport, store, stack }) {
 
     setColor(obj, hex) {
       changeMaterial(obj, 'Đổi màu', () => (hex ? applyColor(obj, hex) : restoreOriginalLook(obj)));
+    },
+    setColorMany(objs, hex) {
+      const shapes = objs.filter((o) => o.userData.kind !== 'light');
+      const cmds = shapes.map((o) => {
+        const before = snapshotMaterials(o);
+        applyColor(o, hex);
+        return materialCommand(store, before, snapshotMaterials(o), 'Đổi màu');
+      });
+      stack.push(batchCommand(`Đổi màu ${shapes.length} vật`, cmds));
+      store.changed();
     },
 
     setPreset(obj, key) {

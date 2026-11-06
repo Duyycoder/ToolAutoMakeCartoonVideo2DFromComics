@@ -26,8 +26,10 @@ export function initStatusBar(store) {
     const n = store.objects.length;
     emptyHint.hidden = n > 0;
     statsEl.textContent = n ? `${n} vật thể · ${store.triangleCount().toLocaleString('vi-VN')} tam giác` : '';
-    tipEl.textContent = store.selected
-      ? 'Kéo mũi tên màu để di chuyển · W/E/R đổi công cụ · Delete để xoá'
+    tipEl.textContent = store.selection.length > 1
+      ? `Đã chọn ${store.selection.length} vật · Gộp / Nhóm ở panel bên phải`
+      : store.selected
+      ? 'Kéo mũi tên màu để di chuyển · Shift + bấm để chọn nhiều vật · Delete để xoá'
       : 'Bấm vào vật thể để chọn · Ctrl+Z để hoàn tác';
   };
   store.addEventListener('changed', update);

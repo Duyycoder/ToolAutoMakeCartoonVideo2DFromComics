@@ -5,6 +5,7 @@ import { MATERIAL_PRESETS, getColorHex, getPresetKey, hasOriginalLook } from './
 import { meshToolsSection } from './mesh-tools-panel.js';
 import { appearanceSection, lightSection } from './appearance-panel-sections.js';
 import { isLightObject } from './scene-light-objects.js';
+import { multiSelectionSection } from './multi-selection-panel.js';
 
 const COLORS = ['#f5f5f5', '#9aa0b1', '#2b2d33', '#ff5c5c', '#ff9f43', '#f2c94c', '#5fd08a',
   '#2ec4b6', '#56ccf2', '#5b8cff', '#8a5bff', '#e056fd', '#b07a4f'];
@@ -31,6 +32,11 @@ export function createPropertiesPanel(container, store, actions, meshTools, appe
     if (!obj) {
       container.append(el('div', { className: 'props-empty', innerHTML: 'Bấm vào một vật thể<br>trong khung 3D để chỉnh sửa' }));
       sizeInfo = slider = null;
+      return;
+    }
+    if (store.selection.length > 1) { // chọn nhiều vật -> panel gộp/nhóm
+      sizeInfo = slider = null;
+      container.append(multiSelectionSection([...store.selection], { actions, meshTools }));
       return;
     }
 
