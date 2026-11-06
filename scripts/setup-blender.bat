@@ -1,13 +1,15 @@
 @echo off
-:: Tai Blender 4.2 LTS ban portable (khong can cai) vao tools\blender\ cho cac tinh nang:
-:: Bo tron canh, Lam luoi deu, Sua loi de in 3D, Render dep (Cycles). Tai ~383 MB, giai nen ~1 GB.
+:: Tai Blender 5.2 LTS ban portable (khong can cai) vao tools\blender\ cho cac tinh nang:
+:: Bo tron canh, Lam luoi deu, Sua loi de in 3D, Render dep (Cycles), Mo file .blend. Tai ~405 MB, giai nen ~1.2 GB.
+:: Blender 4.2 khong doc duoc file .blend luu bang Blender 5.x (doi header) -> dung 5.2 LTS.
+:: Easy3D tu dung ban moi nhat trong tools\blender\; ban cu (vd. 4.2) xoa tay duoc de tiet kiem ~1 GB.
 :: Phien ban + SHA256 ghim theo trang chinh thuc download.blender.org (file tai ve bi hong/bi trao -> dung lai).
 setlocal
 pushd "%~dp0.."
-set "BL_VER=4.2.23"
-set "BL_SHA256=82e791475779a7342424a480bdde9a20b43710da9264c60346125aa16cd910cb"
+set "BL_VER=5.2.3"
+set "BL_SHA256=723f08a4401502561eb763cdeacf8745b31e5f3f154d287d3830d97cf75dc2fb"
 set "BL_ZIP=blender-%BL_VER%-windows-x64.zip"
-set "BL_URL=https://download.blender.org/release/Blender4.2/%BL_ZIP%"
+set "BL_URL=https://download.blender.org/release/Blender5.2/%BL_ZIP%"
 
 if exist "tools\blender\blender-%BL_VER%-windows-x64\blender.exe" (
     echo [OK] Da co Blender %BL_VER%.
@@ -18,7 +20,7 @@ if not exist ".venv\Scripts\python.exe" (
     goto :fail
 )
 mkdir "tools\blender" 2>nul
-echo [INFO] Dang tai Blender %BL_VER% (~383 MB)...
+echo [INFO] Dang tai Blender %BL_VER% (~405 MB)...
 curl -L --fail --retry 3 -o "tools\blender\%BL_ZIP%" "%BL_URL%" || goto :fail
 
 echo [INFO] Kiem tra SHA256...

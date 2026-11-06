@@ -69,3 +69,12 @@ def test_import_blend_checks_file_header_and_disables_autoexec(monkeypatch):
     assert captured["input_name"] == "input.blend"
     assert "--disable-autoexec" in captured["argv"]
     assert captured["argv"][captured["argv"].index("--op") + 1] == "import_blend"
+
+
+def test_find_blender_picks_highest_version_numerically(tmp_path, monkeypatch):
+    from backend import blender_environment
+    for name in ("blender-4.2.23-windows-x64", "blender-5.2.3-windows-x64", "blender-10.0.1-windows-x64"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "blender.exe").write_bytes(b"")
+    monkeypatch.setattr(blender_environment, "BLENDER_DIR", tmp_path)
+    assert blender_environment.find_blender().parent.name == "blender-10.0.1-windows-x64"
