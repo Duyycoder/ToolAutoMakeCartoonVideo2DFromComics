@@ -6,8 +6,8 @@ import { toast } from './toast-notifications.js';
 
 const POSE_HINTS = {
   rotate: 'Kéo vòng tròn màu để xoay khớp đang có tay cầm.',
-  translate: 'Kéo mũi tên X, Y hoặc Z để dời các khớp đã chọn theo trục của cảnh.',
-  screen: 'Kéo chấm khớp để dời theo mặt phẳng màn hình và giữ nguyên độ sâu.',
+  translate: 'Kéo mũi tên X, Y hoặc Z để đặt đích theo trục của cảnh.',
+  screen: 'Kéo chấm khớp để đặt đích theo mặt phẳng màn hình.',
 };
 
 export function createRigToolbar(viewportEl, rigMode) {
@@ -41,8 +41,11 @@ export function createRigToolbar(viewportEl, rigMode) {
       <div class="seg" role="group" aria-label="Cách chỉnh xương">
         <button data-pose-mode="rotate" title="Xoay xương quanh khớp">Xoay</button>
         <button data-pose-mode="translate" title="Dời xương theo các trục X, Y, Z của cảnh">Dời 3D</button>
-        <button data-pose-mode="screen" title="Kéo xương theo góc nhìn hiện tại và giữ nguyên độ sâu">Dời 2D</button>
+        <button data-pose-mode="screen" title="Đặt đích theo mặt phẳng của góc nhìn hiện tại">Dời 2D</button>
       </div>
+      <label class="edit-check" title="Xoay các khớp để theo điểm kéo trong tầm với. Bỏ chọn để cho phép kéo giãn xương.">
+        <input type="checkbox" data-opt="lockBoneLengths" checked> Giữ chiều dài xương
+      </label>
       <span class="edit-count" id="rig-selected"></span>
       <button data-op="undo" title="Hoàn tác (Ctrl+Z)">↶</button><button data-op="redo" title="Làm lại (Ctrl+Y)">↷</button>
       <button data-op="resetPose" title="Về tư thế lúc mới gắn xương">⟲ Đặt lại tư thế</button>
@@ -109,8 +112,11 @@ export function createRigToolbar(viewportEl, rigMode) {
       bar.querySelectorAll('[data-op="undo"]').forEach((b) => { b.disabled = !info.canUndo; });
       bar.querySelectorAll('[data-op="redo"]').forEach((b) => { b.disabled = !info.canRedo; });
       $('#rig-pose [data-op="editJoints"]').disabled = !info.canEdit;
+      const lengthHint = info.poseMode === 'rotate' ? '' : info.lockBoneLengths
+        ? ' Kéo cổ tay hoặc cổ chân trong tầm với để gập khuỷu hoặc gối, giữ vai và hông tại chỗ. Kéo khớp gốc (Hông) để dời cả nhân vật.'
+        : ' Chế độ kéo tự do có thể làm giãn xương.';
       $('#rig-hint').textContent = !place
-        ? `${POSE_HINTS[info.poseMode]} Giữ Shift và kéo khung để chọn thêm, hoặc Shift + bấm để bật/tắt từng khớp. Bấm “Ghi tư thế” trên thanh Chuyển động để lưu dáng.`
+        ? `${POSE_HINTS[info.poseMode]}${lengthHint} Giữ Shift và kéo khung để chọn thêm, hoặc Shift + bấm để bật/tắt từng khớp. Bấm “Ghi tư thế” trên thanh Chuyển động để lưu dáng.`
         : info.whole ? 'Kéo tay cầm để biến đổi CẢ bộ xương · bấm lại nút đang sáng hoặc bấm 1 chấm để quay về chỉnh từng khớp'
           : 'Kéo thẳng chấm xanh để dời khớp (mũi tên màu: dời theo 1 trục) · đặt khớp ở GIỮA tay/chân, ngay chỗ gập (khuỷu, gối, cổ)';
     },

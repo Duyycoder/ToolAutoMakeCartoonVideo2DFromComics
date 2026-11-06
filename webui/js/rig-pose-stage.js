@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { disableSkinFrustumCulling, skinnedMeshOf } from './rig-builder.js';
 import { dragPlane } from './rig-joint-drag.js';
+import { createBoneMove } from './rig-limb-ik.js';
 
 export const snapshotPose = (bones) => bones.map((b) => ({ position: b.position.clone(), quaternion: b.quaternion.clone() }));
 export const applyPose = (bones, pose) => bones.forEach((b, i) => {
@@ -23,14 +24,36 @@ function startWorldMove(s, origin) {
     }
     return true;
   });
-  return { origin: origin.clone(), starts: roots.map((bone) => ({ bone, world: bone.getWorldPosition(new THREE.Vector3()) })) };
+  const available = new Set(s.bones);
+  const rotations = new Map();
+  const starts = [];
+  for (const bone of roots) {
+    const world = bone.getWorldPosition(new THREE.Vector3());
+    if (!s.lockBoneLengths || !bone.parent?.isBone) {
+      starts.push({ bone, world, local: bone.position.clone() });
+      continue;
+    }
+    const ik = createBoneMove(bone, available);
+    if (!ik) continue;
+    for (const joint of ik.joints) {
+      available.delete(joint);
+      rotations.set(joint, joint.quaternion.clone());
+    }
+    starts.push({ world, ik });
+  }
+  return { origin: origin.clone(), starts, rotations };
 }
 
 function moveInWorld(move, target) {
   const delta = target.clone().sub(move.origin);
-  for (const { bone, world } of move.starts) {
+  const atStart = delta.lengthSq() < 1e-20;
+  // Giải lại từ lúc bắt đầu kéo để hướng gập không lệch dần sau mỗi lần rê chuột.
+  for (const [joint, rotation] of move.rotations) joint.quaternion.copy(rotation);
+  for (const { bone, world, local, ik } of move.starts) {
+    if (atStart) { if (bone) bone.position.copy(local); continue; }
     const next = world.clone().add(delta);
-    bone.position.copy(bone.parent ? bone.parent.worldToLocal(next) : next);
+    if (ik) ik.moveTo(next);
+    else bone.position.copy(bone.parent ? bone.parent.worldToLocal(next) : next);
   }
 }
 

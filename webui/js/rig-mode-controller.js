@@ -101,7 +101,7 @@ export function createRigMode({ viewport, store, stack, gizmo, onChange }) {
       if (!isRigged(obj) && meshesOf(obj).length !== 1) {
         return toast('Vật này gồm nhiều phần — hãy "Gộp lưới" trước khi gắn xương.', { type: 'warn', timeout: 7000 });
       }
-      s = { obj, mirror: true, branch: false, autoDepth: true, softness: 0.5, undo: [], redo: [] };
+      s = { obj, mirror: true, branch: false, autoDepth: true, softness: 0.5, lockBoneLengths: true, undo: [], redo: [] };
       ghosting.on(obj);
       gizmo.setEnabled(false);
       document.body.classList.add('rig-mode');
@@ -150,7 +150,10 @@ export function createRigMode({ viewport, store, stack, gizmo, onChange }) {
     },
     /** Đoán sai hướng: xoay khung thân quanh trục lên rồi tự khớp lại. */
     turn(quarterTurns) { s.frame = turnFrame(s.frame, quarterTurns, s.positions); api.autoFit(); },
-    setOption(key, v) { s[key] = v; notify(); },
+    setOption(key, v) {
+      if (key !== 'lockBoneLengths' || !busy()) s[key] = v;
+      notify();
+    },
     setPoseMode(mode) {
       if (s?.stage !== 'pose' || busy()) return;
       pose.setMode(mode);
@@ -223,7 +226,7 @@ export function createRigMode({ viewport, store, stack, gizmo, onChange }) {
       const selectedIndices = s.stage === 'pose' ? [...s.selectedBones] : (s.selected >= 0 ? [s.selected] : []);
       return { name: s.obj.name, stage: s.stage, template: s.template, mirror: s.mirror, branch: s.branch, autoDepth: s.autoDepth,
         softness: s.softness, whole: s.stage === 'place' ? place.wholeMode : null, poseMode: s.poseMode, index: s.selected,
-        selectedIndices, selectedCount: selectedIndices.length,
+        selectedIndices, selectedCount: selectedIndices.length, lockBoneLengths: s.lockBoneLengths,
         selected: t?.label ?? null, selectedName: t?.name ?? null, canEdit: s.obj.userData.kind === 'rigged',
         canUndo: s.undo.length > 0, canRedo: s.redo.length > 0 };
     },
