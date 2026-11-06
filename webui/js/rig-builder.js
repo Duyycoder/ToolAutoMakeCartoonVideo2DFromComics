@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { meshesOf } from './mesh-split-merge-operations.js';
 import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 import { densify, toFloatAttribute, toIndexedByPosition } from './mesh-subdivide-smooth.js';
-import { computeSkinWeights } from './auto-skin-weights.js';
+import { computeSkinWeights, protectHeadWeights } from './auto-skin-weights.js';
 import { copyOriginalLook } from './material-preset-library.js';
 
 export const isRigged = (obj) => {
@@ -56,14 +56,22 @@ function wrapLike(obj, kind) {
   return group;
 }
 
-/** joints: [{ name, parent, position (toạ độ của obj) }] -> Group có SkinnedMesh + bộ xương. */
-export function buildRiggedObject(obj, joints, softness) {
+export function prepareRigGeometry(obj) {
   let { geometry, mesh } = objectLocalGeometry(obj);
   // Vật quá ít điểm (khối có sẵn: hộp 24 điểm) không uốn được ở chỗ gập -> chia nhỏ trước, giữ cạnh sắc.
   if (geometry.attributes.position.count < 3000 && !Array.isArray(mesh.material)) {
     geometry = toCreasedNormals(densify(toIndexedByPosition(geometry), 8000, 120000), Math.PI / 6);
   }
-  const { skinIndex, skinWeight } = computeSkinWeights(geometry.attributes.position.array, joints, softness);
+  return { geometry, mesh };
+}
+
+/** joints: [{ name, parent, position (toạ độ của obj) }] -> Group có SkinnedMesh + bộ xương. */
+export function buildRiggedObject(obj, joints, softness, { source = prepareRigGeometry(obj), skin = null, frame = null } = {}) {
+  const { geometry, mesh } = source;
+  const positions = geometry.attributes.position.array;
+  skin ??= computeSkinWeights(positions, joints, softness);
+  protectHeadWeights(positions, joints, skin, frame);
+  const { skinIndex, skinWeight } = skin;
   geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndex, 4));
   geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeight, 4));
 

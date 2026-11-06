@@ -10,7 +10,8 @@ import { addObjectCommand, batchCommand, removeObjectCommand } from './scene-edi
 import { copyOriginalLook } from './material-preset-library.js';
 import { toast } from './toast-notifications.js';
 
-const LABELS = { bevel: 'Bo tròn cạnh', remesh: 'Làm lưới đều', repair: 'Sửa lỗi để in 3D', render: 'Render đẹp', import_blend: 'Mở file .blend' };
+const LABELS = { bevel: 'Bo tròn cạnh', remesh: 'Làm lưới đều', repair: 'Sửa lỗi để in 3D', render: 'Render đẹp', import_blend: 'Mở file .blend',
+  skin_weights: 'Gắn xương bằng Blender' };
 let status = null; // lấy 1 lần khi mở app (panel vẽ đồng bộ)
 export const refreshBlenderStatus = () => api.blenderStatus().then((s) => { status = s; }).catch(() => { status = null; });
 export const blenderReady = () => !!status?.ready;
@@ -42,6 +43,27 @@ async function runJob(op, params, data) {
 export async function convertBlendFile(file) {
   const job = await runJob('import_blend', {}, file);
   return { url: api.resultUrl(job.id), stats: job.result ?? {} };
+}
+
+/** Blender chỉ nhận lưới + khớp trong hệ local và trả trọng số đúng thứ tự đỉnh. */
+export async function blenderSkinWeights(geometry, joints) {
+  const { array: positions, count } = geometry.attributes.position;
+  const indices = geometry.index ? Uint32Array.from(geometry.index.array) : Uint32Array.from({ length: count }, (_, i) => i);
+  const skeleton = new TextEncoder().encode(JSON.stringify(joints.map((j) => ({ parent: j.parent, p: j.position.toArray() }))));
+  const header = new Uint32Array([count, indices.length, skeleton.length]);
+  const job = await runJob('skin_weights', {}, new Blob([header, positions, indices, skeleton], { type: 'application/octet-stream' }));
+  const response = await fetch(api.skinWeightsUrl(job.id));
+  if (!response.ok) throw new Error('Không tải được trọng số Blender.');
+  const buffer = await response.arrayBuffer();
+  if (buffer.byteLength !== count * 24) throw new Error('Trọng số Blender không khớp lưới.');
+  const skinIndex = new Uint16Array(buffer, 0, count * 4);
+  const skinWeight = new Float32Array(buffer, count * 8);
+  for (let i = 0; i < skinWeight.length; i++) {
+    if (skinIndex[i] >= joints.length || !Number.isFinite(skinWeight[i]) || skinWeight[i] < 0 || skinWeight[i] > 1) {
+      throw new Error('Trọng số Blender không hợp lệ.');
+    }
+  }
+  return { skinIndex, skinWeight };
 }
 
 /** Vật đặt ở gốc toạ độ (không xoay/co giãn) -> kết quả trả về nằm đúng hệ toạ độ của vật. */

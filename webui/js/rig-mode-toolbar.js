@@ -33,7 +33,8 @@ export function createRigToolbar(viewportEl, rigMode) {
       <label class="edit-check" title="Dời khớp tay/chân bên trái thì bên phải đi theo"><input type="checkbox" data-opt="mirror"> Kéo đối xứng</label>
       <label class="edit-check" title="Dời 1 khớp thì các khớp con (vd. vai -> khuỷu, tay) đi cùng"><input type="checkbox" data-opt="branch"> Kéo cả nhánh</label>
       <label class="edit-check" title="Khi kéo, khớp tự nằm GIỮA bề dày tay/chân dưới con trỏ (không lòi ra trước/sau)"><input type="checkbox" data-opt="autoDepth"> Tự vào giữa bề dày</label>
-      <label class="edit-soft" title="Thấp: chỗ gập sắc nét. Cao: chỗ gập uốn mềm">Độ mềm khớp
+      <label class="edit-check" title="Dùng Automatic Weights của Blender khi Blender sẵn sàng"><input type="checkbox" data-opt="useBlenderWeights"> Trọng số Blender</label>
+      <label class="edit-soft" title="Áp dụng khi dùng trọng số Easy3D. Thấp: gập sắc nét. Cao: gập mềm">Độ mềm khớp
         <input type="range" id="rig-soft" min="0" max="1" step="0.05"></label>
     </div>
     <div class="edit-row" id="rig-pose">
@@ -111,11 +112,19 @@ export function createRigToolbar(viewportEl, rigMode) {
         : info.selected ? `Đang chọn: ${info.selected}` : 'Chưa chọn khớp';
       bar.querySelectorAll('[data-op="undo"]').forEach((b) => { b.disabled = !info.canUndo; });
       bar.querySelectorAll('[data-op="redo"]').forEach((b) => { b.disabled = !info.canRedo; });
+      bar.querySelectorAll('#rig-place button, #rig-place select, #rig-place-options input').forEach((el) => {
+        if (el.dataset.op === 'exit') return;
+        el.disabled = info.binding || (el.dataset.op === 'undo' && !info.canUndo) || (el.dataset.op === 'redo' && !info.canRedo)
+          || (el.dataset.opt === 'useBlenderWeights' && !info.blenderAvailable)
+          || (el.id === 'rig-soft' && info.blenderAvailable && info.useBlenderWeights);
+      });
+      $('[data-opt="useBlenderWeights"]').checked = info.blenderAvailable && info.useBlenderWeights;
+      $('#rig-place [data-op="bind"]').textContent = info.binding ? 'Đang gắn xương…' : '🔗 Gắn vào hình';
       $('#rig-pose [data-op="editJoints"]').disabled = !info.canEdit;
       const lengthHint = info.poseMode === 'rotate' ? '' : info.lockBoneLengths
         ? ' Kéo cổ tay hoặc cổ chân trong tầm với để gập khuỷu hoặc gối, giữ vai và hông tại chỗ. Kéo khớp gốc (Hông) để dời cả nhân vật.'
         : ' Chế độ kéo tự do có thể làm giãn xương.';
-      $('#rig-hint').textContent = !place
+      $('#rig-hint').textContent = info.binding ? 'Blender đang tính trọng số da. Có thể bấm Huỷ để quay lại.' : !place
         ? `${POSE_HINTS[info.poseMode]}${lengthHint} Giữ Shift và kéo khung để chọn thêm, hoặc Shift + bấm để bật/tắt từng khớp. Bấm “Ghi tư thế” trên thanh Chuyển động để lưu dáng.`
         : info.whole ? 'Kéo tay cầm để biến đổi CẢ bộ xương · bấm lại nút đang sáng hoặc bấm 1 chấm để quay về chỉnh từng khớp'
           : 'Kéo thẳng chấm xanh để dời khớp (mũi tên màu: dời theo 1 trục) · đặt khớp ở GIỮA tay/chân, ngay chỗ gập (khuỷu, gối, cổ)';
@@ -142,7 +151,7 @@ export function attachRigInput(viewport, rigMode) {
   };
   // capture: chạy TRƯỚC OrbitControls -> bấm trúng chấm khớp thì kéo khớp, không xoay góc nhìn.
   canvas.addEventListener('pointerdown', (e) => {
-    if (!rigMode.active || e.button !== 0 || down?.drag || down?.box) return;
+    if (!rigMode.active || rigMode.binding || e.button !== 0 || down?.drag || down?.box) return;
     const { stage } = rigMode;
     const box = stage === 'pose' && e.shiftKey;
     down = { id: e.pointerId, x: e.clientX, y: e.clientY, stage, drag: null, box };

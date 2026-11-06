@@ -106,3 +106,12 @@ def job_result(job_id: str):
     if job.status != "done" or not path.exists():
         raise HTTPException(404, "Chưa có kết quả")
     return FileResponse(path, media_type="model/gltf-binary")
+
+
+@router.get("/jobs/{job_id}/skin-weights.bin")
+def job_skin_weights(job_id: str):
+    job = _job_or_404(job_id)
+    path = job.work_dir / "skin-weights.bin"
+    if job.status != "done" or not path.exists():
+        raise HTTPException(404, "Chưa có trọng số xương")
+    return FileResponse(path, media_type="application/octet-stream")

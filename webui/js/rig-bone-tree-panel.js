@@ -88,6 +88,7 @@ export function createBoneTreePanel(viewportEl, rigMode, { onTemplateSaved }) {
 
   function update(info) {
     panel.hidden = !info;
+    panel.inert = !!info?.binding;
     if (!info) return;
     const objName = h('input', { type: 'text', value: info.name, spellcheck: false, title: 'Tên nhân vật = tên file + thư mục khi xuất cho game' });
     objName.onchange = () => rigMode.naming.renameObject(objName.value);

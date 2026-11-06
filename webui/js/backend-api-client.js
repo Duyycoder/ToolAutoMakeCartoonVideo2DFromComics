@@ -35,6 +35,7 @@ export const api = {
   cancelJob: (id) => post(`/api/jobs/${id}/cancel`, {}),
   resultUrl: (id) => `/api/jobs/${id}/result.glb`,
   resultImageUrl: (id) => `/api/jobs/${id}/result.png`,
+  skinWeightsUrl: (id) => `/api/jobs/${id}/skin-weights.bin`,
   blenderStatus: () => request('/api/blender/status'),
   runBlender: (op, params, blob) => post(`/api/blender/${op}`, { params: JSON.stringify(params) }, blob),
 

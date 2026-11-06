@@ -624,7 +624,15 @@ await evaluate(`[...document.querySelectorAll('.rig-actions button')].find((b) =
 const added = await treeRows();
 await evaluate(`[...document.querySelectorAll('.rig-actions button')].find((b) => b.textContent.includes('Xoá')).click();`);
 check('Thêm khớp con rồi xoá: vẫn ở chế độ Ghép xương, 23 -> 22 khớp', added === 23 && (await treeRows()) === 22 && (await rigUi()).shown);
-await rigOp('bind'); await sleep(300);
+const bindRig = async () => {
+  await rigOp('bind');
+  for (let i = 0; i < 150; i++) {
+    if (await evaluate(`return window.easy3d.rigMode.stage === 'pose';`)) return;
+    await sleep(200);
+  }
+  throw new Error('Hết thời gian chờ gắn xương');
+};
+await bindRig();
 const bound = await evaluate(`const o = window.easy3d.store.selected; let sk = null; o.traverse((m) => { if (m.isSkinnedMesh) sk = m; });
   const w = sk.geometry.attributes.skinWeight; let bad = 0;
   for (let i = 0; i < w.count; i++) if (Math.abs(w.getX(i) + w.getY(i) + w.getZ(i) + w.getW(i) - 1) > 1e-3) bad++;
@@ -638,7 +646,7 @@ const boundElbow = await evaluate(`let sk; const o = window.easy3d.store.selecte
 await rigOp('editJoints');
 check('✏ Sửa khớp: quay lại bước 1, khớp ở đúng chỗ lúc gắn', (await rigUi()).info.stage === 'place' && (await jointArr(7)).join() === boundElbow.join(),
   `${boundElbow} vs ${await jointArr(7)}`);
-await rigOp('bind'); await sleep(300);
+await bindRig();
 ru = await rigUi();
 check('Bước 2: chỉ hiện hàng Tạo dáng', !ru.place && ru.pose);
 const boneExpr = (i) => `(() => { let sk; window.easy3d.store.selected.traverse((m) => { if (m.isSkinnedMesh) sk = m; }); return sk.skeleton.bones[${i}]; })()`;

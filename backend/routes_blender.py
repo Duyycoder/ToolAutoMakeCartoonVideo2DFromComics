@@ -19,6 +19,8 @@ BLEND_MAGIC = (b"BLENDER", bytes.fromhex("28b52ffd"), bytes.fromhex("1f8b"))
 
 
 def input_name_for(op: str, data: bytes) -> str:
+    if op == "skin_weights":
+        return "skin-input.bin"
     if op != "import_blend":
         return "input.glb"
     if not data.startswith(BLEND_MAGIC):
@@ -30,6 +32,7 @@ NUMBERS = {
     "bevel": {"amount": (0.01, 1, 0.3), "segments": (1, 8, 3)},
     "remesh": {"detail": (0, 1, 0.5)},
     "repair": {},
+    "skin_weights": {},
     "import_blend": {},  # .blend -> GLB (Easy3D mở được)
     "render": {"width": (64, 4096, 1920), "height": (64, 4096, 1080), "samples": (8, 1024, 96), "fov": (10, 120, 45),
                "sun_intensity": (0, 20, 2), "ambient": (0, 5, 1), "exposure": (0.1, 4, 1)},

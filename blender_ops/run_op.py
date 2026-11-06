@@ -33,7 +33,7 @@ def clamp(v, lo, hi):
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     p = argparse.ArgumentParser()
-    p.add_argument("--op", required=True, choices=["bevel", "remesh", "repair", "render", "import_blend"])
+    p.add_argument("--op", required=True, choices=["bevel", "remesh", "repair", "render", "import_blend", "skin_weights"])
     p.add_argument("--in", dest="src", required=True)
     p.add_argument("--out-dir", required=True)
     p.add_argument("--params", default="{}")
@@ -189,6 +189,13 @@ def main():
         args = parse_args()  # trong try: tham số hỏng cũng được báo theo giao thức
         out_dir = Path(args.out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
+        if args.op == "skin_weights":
+            from op_skin_weights import skin_weights
+
+            emit(type="progress", pct=30, msg="Blender đang tính Automatic Weights...")
+            stats = skin_weights(args.src, out_dir / "skin-weights.bin")
+            emit(type="done", stats={**stats, "op": args.op, "seconds": round(time.perf_counter() - t0, 1)})
+            return
         if args.op == "import_blend":
             emit(type="progress", pct=20, msg="Blender đang mở file .blend...")
             stats = op_import_blend(args.src, out_dir / "mesh.glb")
