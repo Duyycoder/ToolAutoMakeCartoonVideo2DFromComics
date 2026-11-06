@@ -9,6 +9,9 @@ import { createEditorActions } from './editor-actions.js';
 import { createMeshTools } from './mesh-tools-actions.js';
 import { createAppearanceActions } from './appearance-actions.js';
 import { openImageExportDialog } from './image-export-dialog.js';
+import { createEditMode } from './edit-mode-controller.js';
+import { attachEditModeInput } from './edit-mode-input.js';
+import { createEditToolbar } from './edit-mode-toolbar.js';
 import { createProjectFileActions } from './project-file-actions.js';
 import { IMAGE_EXTENSIONS, openImageTo3DWizard } from './image-to-3d-wizard.js';
 import { shouldShowWelcome, showWelcome } from './welcome-screen.js';
@@ -28,6 +31,11 @@ createOutliner($('#outliner'), store);
 const appearance = createAppearanceActions({ viewport, store, stack });
 createPropertiesPanel($('#props'), store, actions, createMeshTools({ store, stack }), appearance);
 initStatusBar(store);
+let editToolbar = null;
+const editMode = createEditMode({ viewport, store, stack, gizmo, onChange: (info) => editToolbar?.update(info) });
+editToolbar = createEditToolbar(viewportEl, editMode, attachEditModeInput(viewport, editMode, viewportEl));
+// Chỉ cho smoke test (tests/ui-smoke-test.mjs mở ?test=1) đọc vị trí vật/camera để kéo gizmo bằng chuột thật.
+if (new URLSearchParams(location.search).has('test')) window.easy3d = { viewport, store, editMode };
 
 const fileInput = $('#file-input');
 const openImageWizard = (initialFile = null) => openImageTo3DWizard({
@@ -39,6 +47,7 @@ const openImageWizard = (initialFile = null) => openImageTo3DWizard({
 // ---------- Toolbar & menu ----------
 function setMode(mode) {
   gizmo.setMode(mode);
+  if (editMode.active) editMode.setGizmoMode(mode);
   document.querySelectorAll('[data-mode]').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
 }
 const toggleMenu = (id) => {
@@ -56,8 +65,9 @@ const ACTIONS = {
   'toggle-lighting': () => toggleMenu('#lighting-menu'),
   'toggle-grid': () => appearance.toggleGrid(),
   'export-image': () => openImageExportDialog({ viewport, onExport: (url, size) => files.saveImage(url, size) }),
-  undo: () => { const c = stack.undo(); if (c) toast(`Đã hoàn tác: ${c.label}`, { timeout: 1800 }); },
-  redo: () => { const c = stack.redo(); if (c) toast(`Đã làm lại: ${c.label}`, { timeout: 1800 }); },
+  'edit-mode': () => (editMode.active ? editMode.exit() : editMode.enter(store.selected)),
+  undo: () => { if (editMode.active) return editMode.undo(); const c = stack.undo(); if (c) toast(`Đã hoàn tác: ${c.label}`, { timeout: 1800 }); },
+  redo: () => { if (editMode.active) return editMode.redo(); const c = stack.redo(); if (c) toast(`Đã làm lại: ${c.label}`, { timeout: 1800 }); },
   help: () => showWelcome(welcomeHandlers),
   'image-to-3d': () => openImageWizard(),
   'frame-all': () => viewport.frameObjects(store.selected ?? viewport.objectsRoot),
@@ -66,6 +76,10 @@ document.addEventListener('click', (e) => {
   const btn = e.target.closest('button');
   if (!btn?.closest('.menu')) document.querySelectorAll('.menu-list').forEach((m) => { m.hidden = true; });
   if (!btn) return;
+  // Bấm chức năng khác của app khi đang chỉnh điểm -> lưu lượt chỉnh trước (như bấm "Xong").
+  const keepsEditing = ['undo', 'redo', 'edit-mode', 'help'].includes(btn.dataset.action) || btn.dataset.mode
+    || btn.closest('.edit-toolbar') || btn.dataset.action?.startsWith('toggle-');
+  if (editMode.active && !keepsEditing) editMode.exit();
   if (btn.dataset.action) ACTIONS[btn.dataset.action]?.();
   if (btn.dataset.mode) setMode(btn.dataset.mode);
   if (btn.dataset.shape) actions.addShape(btn.dataset.shape);
@@ -91,7 +105,7 @@ let downAt = null;
 viewport.renderer.domElement.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY, b: e.button }; });
 viewport.renderer.domElement.addEventListener('pointerup', (e) => {
   const onGizmo = gizmo.consumePointer();
-  if (!downAt || downAt.b !== 0 || onGizmo) return;
+  if (!downAt || downAt.b !== 0 || onGizmo || editMode.active) return; // chỉnh điểm tự xử lý chuột
   if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 5) store.select(viewport.pick(e.clientX, e.clientY));
   downAt = null;
 });
@@ -109,6 +123,7 @@ document.addEventListener('keydown', (e) => {
     r: !ctrl && (() => setMode('scale')), f: !ctrl && ACTIONS['frame-all'],
     delete: sel && (() => actions.remove(sel)), backspace: sel && (() => actions.remove(sel)),
     escape: () => store.select(null),
+    tab: () => editMode.enter(store.selected),
   };
   if (map[key]) { e.preventDefault(); map[key](); }
 });

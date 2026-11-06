@@ -16,6 +16,7 @@ export function createGizmo(viewport, store, stack) {
   viewport.scene.add(helper);
 
   let before = null;
+  let enabled = true; // tắt khi đang "Chỉnh điểm" (gizmo riêng cho điểm)
   let pointerOnGizmo = false; // để click vào tay cầm không bị hiểu là "bỏ chọn"
 
   gizmo.addEventListener('mouseDown', () => { pointerOnGizmo = true; });
@@ -36,6 +37,7 @@ export function createGizmo(viewport, store, stack) {
   gizmo.addEventListener('objectChange', () => store.transformed());
 
   const sync = () => {
+    if (!enabled) return gizmo.detach();
     const obj = store.selected;
     if (obj && obj.visible && obj.parent) gizmo.attach(obj);
     else gizmo.detach();
@@ -45,6 +47,7 @@ export function createGizmo(viewport, store, stack) {
 
   return {
     setMode(mode) { gizmo.setMode(mode); },
+    setEnabled(value) { enabled = value; sync(); },
     get mode() { return gizmo.mode; },
     /** true nếu lần nhấn chuột vừa rồi rơi vào tay cầm gizmo (rồi reset cờ). */
     consumePointer() {

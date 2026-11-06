@@ -7,7 +7,7 @@ import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const APP = 'http://127.0.0.1:8200/';
+const APP = 'http://127.0.0.1:8200/?test=1';
 const PORT = 9333;
 const SHOT_DIR = process.argv[2] ?? tmpdir();
 const BROWSERS = [
@@ -215,6 +215,110 @@ await evaluate(`${q('[data-action="export-image"]')}.click();`); await sleep(200
 await evaluate(`${q('input[name=size][value="4k"]')}.checked = true; ${q('#transparent')}.checked = true; ${q('#go')}.click();`);
 await sleep(2500);
 check('Xuất ảnh 4K nền trong suốt', (await lastToast()).startsWith('Đã xuất ảnh 3840×2160'), await lastToast());
+// ---------- Chế độ "Chỉnh điểm" ----------
+/** Kéo chuột THẬT (qua DevTools) chéo khung 3D — giống người dùng kéo khung chọn. */
+async function dragAcrossCanvas() {
+  const r = await evaluate(`const b = document.querySelector('#viewport canvas').getBoundingClientRect();
+    return { l: b.left, t: b.top, r: b.right, b: b.bottom };`);
+  const mouse = (type, x, y, buttons) => send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons, clickCount: 1 });
+  await mouse('mousePressed', r.l + 5, r.t + 5, 1);
+  for (let i = 1; i <= 5; i++) await mouse('mouseMoved', r.l + 5 + (r.r - r.l - 10) * i / 5, r.t + 5 + (r.b - r.t - 10) * i / 5, 1);
+  await mouse('mouseReleased', r.r - 5, r.b - 5, 0);
+  await sleep(100);
+}
+const geomTest = await evaluate(`
+  const THREE = await import('three');
+  const G = await import('/js/edit-mode-geometry.js');
+  const S = await import('/js/mesh-subdivide-smooth.js');
+  const m = S.toIndexedByPosition(new THREE.BoxGeometry(1, 1, 1));
+  const box = G.buildGeometry(Array.from(m.attributes.position.array), null, 3, Array.from(m.index.array));
+  const manifold = (g) => { const use = new Map(), idx = g.index.array;
+    for (let f = 0; f < idx.length / 3; f++) for (let k = 0; k < 3; k++) {
+      const a = idx[f*3+k], b = idx[f*3+(k+1)%3], key = Math.min(a,b) + '_' + Math.max(a,b); use.set(key, (use.get(key) ?? 0) + 1); }
+    return [...use.values()].every((n) => n === 2); };
+  const selF = new Uint8Array(12); selF[0] = selF[1] = 1;           // 1 mặt vuông = 2 tam giác
+  const ex = G.extrudeFaces(box, selF, 0.5);
+  ex.geo.computeBoundingBox();
+  const del = G.deleteFaces(box, selF);
+  const selV = new Uint8Array(8); selV[0] = selV[1] = 1;
+  const merged = G.mergeSelected(box, selV);
+  return { verts: box.attributes.position.count, exVerts: ex.geo.attributes.position.count, exFaces: G.faceCount(ex.geo),
+           exManifold: manifold(ex.geo), boxManifold: manifold(box), exSize: ex.geo.boundingBox.getSize(new THREE.Vector3()).toArray(),
+           delFaces: G.faceCount(del), mergedVerts: merged.attributes.position.count, newSel: ex.selV.reduce((a, b) => a + b, 0) };`);
+check('Hộp gộp đỉnh = 8 điểm, lưới kín', geomTest.verts === 8 && geomTest.boxManifold, JSON.stringify(geomTest));
+check('Đùn 1 mặt: +4 điểm, +8 tam giác, lưới vẫn kín, dài thêm 0.5',
+  geomTest.exVerts === 12 && geomTest.exFaces === 20 && geomTest.exManifold && geomTest.newSel === 4
+  && Math.abs(Math.max(...geomTest.exSize) - 1.5) < 1e-6, JSON.stringify(geomTest));
+check('Xoá 1 mặt vuông còn 10 tam giác', geomTest.delFaces === 10);
+check('Dồn 2 điểm vào giữa còn 7 điểm', geomTest.mergedVerts === 7);
+
+const editText = (sel) => evaluate(`return document.querySelector('.edit-toolbar ${sel}')?.textContent ?? null;`);
+const editOp = (op) => evaluate(`document.querySelector('.edit-toolbar [data-op="${op}"]').click();`);
+await selectByName('Hộp 1 (1)');
+const trisBeforeEdit = await triStatus();
+await evaluate(`${q('[data-action="edit-mode"]')}.click();`);
+check('Vào chế độ Chỉnh điểm: hiện thanh công cụ, khoá panel phải',
+  await evaluate(`return !document.querySelector('.edit-toolbar').hidden && document.body.classList.contains('edit-mode');`));
+await key('a');
+check('Phím A chọn hết 8 điểm', await editText('#edit-count') === 'Đã chọn 8 điểm', await editText('#edit-count'));
+await key('2');
+check('Phím 2 sang chọn mặt: 12 mặt', await editText('#edit-count') === 'Đã chọn 12 mặt', await editText('#edit-count'));
+await key('a');
+await evaluate(`document.querySelector('.edit-toolbar [data-tool="box"]').click();`);
+await dragAcrossCanvas();
+const boxDrag = await editText('#edit-count');
+const facesPicked = Number(boxDrag.match(/\d+/)?.[0] ?? 0);
+check('Kéo khung chọn chỉ các mặt nhìn thấy (không chọn mặt sau)', facesPicked > 0 && facesPicked < 12, boxDrag);
+await editOp('extrude');
+check('Đùn ra', (await lastToast()).startsWith('Đã đùn ra'));
+await editOp('undo');
+check('Hoàn tác trong chế độ chỉnh điểm', await editText('#edit-count') === boxDrag, await editText('#edit-count'));
+await editOp('redo');
+await evaluate(`const i = document.querySelector('#edit-color'); i.value = '#5fd08a'; i.dispatchEvent(new Event('change'));`);
+check('Tô màu giữ nguyên vùng chọn', await editText('#edit-count') === boxDrag, await editText('#edit-count'));
+await shot('04-edit-mode.png');
+await editOp('exit');
+check('Xong: thoát chế độ, số tam giác tăng do đùn', await evaluate(`return document.querySelector('.edit-toolbar').hidden;`)
+  && await triStatus() !== trisBeforeEdit, `${trisBeforeEdit} -> ${await triStatus()}`);
+await evaluate(`${q('#btn-undo')}.click();`);
+check('Hoàn tác cả lượt chỉnh điểm bằng 1 lần Ctrl+Z', await triStatus() === trisBeforeEdit, await triStatus());
+
+await evaluate(`${q('[data-action="edit-mode"]')}.click();`);
+await key('2');
+await evaluate(`document.querySelector('.edit-toolbar [data-tool="box"]').click();`);
+await dragAcrossCanvas();
+await editOp('separate');
+names = await outliner();
+check('Tách các mặt chọn thành vật mới', names.some((n) => n.includes('phần tách')) && await evaluate(`return document.querySelector('.edit-toolbar').hidden;`), JSON.stringify(names));
+
+// Kéo gizmo bằng chuột thật để di chuyển các điểm đã chọn (tính vị trí tay cầm trục X giống TransformControls).
+await selectByName('Hộp 1 (2)');
+await evaluate(`${q('[data-action="edit-mode"]')}.click();`);
+await key('1'); await key('a'); await key('w');
+const handle = await evaluate(`
+  const THREE = await import('three');
+  const { viewport, store } = window.easy3d;
+  const mesh = store.selected, cam = viewport.camera;
+  const c = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());
+  const factor = c.distanceTo(cam.position) * Math.min(1.9 * Math.tan(Math.PI * cam.fov / 360) / cam.zoom, 7) / 4;
+  const r = viewport.renderer.domElement.getBoundingClientRect();
+  const toScreen = (v) => { const p = v.clone().project(cam); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; };
+  const a = toScreen(c.clone().add(new THREE.Vector3(0.4 * factor, 0, 0)));
+  const b = toScreen(c.clone().add(new THREE.Vector3(0.6 * factor, 0, 0)));
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  return { x: a.x, y: a.y, dx: (b.x - a.x) / len, dy: (b.y - a.y) / len, cx: c.x };`);
+const mouse = (type, x, y, buttons) => send('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons, clickCount: 1 });
+await mouse('mouseMoved', handle.x, handle.y, 0);
+await mouse('mousePressed', handle.x, handle.y, 1);
+for (let i = 1; i <= 8; i++) await mouse('mouseMoved', handle.x + handle.dx * 10 * i, handle.y + handle.dy * 10 * i, 1);
+await mouse('mouseReleased', handle.x + handle.dx * 80, handle.y + handle.dy * 80, 0);
+await sleep(150);
+check('Vẫn còn chọn 8 điểm sau khi kéo (không bị hiểu là bấm bỏ chọn)', await editText('#edit-count') === 'Đã chọn 8 điểm', await editText('#edit-count'));
+await editOp('exit');
+const movedX = await evaluate(`const THREE = await import('three');
+  return new THREE.Box3().setFromObject(window.easy3d.store.selected).getCenter(new THREE.Vector3()).x;`);
+check('Kéo mũi tên trục X bằng chuột thật -> các điểm dời sang phải', movedX > handle.cx + 0.05, `${handle.cx.toFixed(3)} -> ${movedX.toFixed(3)}`);
+
 await selectByName('Cầu 1');
 await shot('02-editor.png');
 
