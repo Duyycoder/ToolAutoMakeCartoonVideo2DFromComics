@@ -19,7 +19,8 @@ def client(tmp_path, monkeypatch):
     runner = JobRunner(python_exe=Path(sys.executable), worker_script=FAKE_WORKER, jobs_dir=tmp_path,
                        presets=routes_jobs._config["quality_presets"], env={"FAKE_MODE": "ok"})
     monkeypatch.setattr(routes_jobs, "runner", runner)
-    monkeypatch.setattr(routes_jobs, "get_ai_status", lambda: {"ready": True, "message": "Sẵn sàng."})
+    ready = {"ready": True, "message": "Sẵn sàng."}
+    monkeypatch.setattr(routes_jobs, "get_ai_status", lambda: {"models": {"triposr": ready, "hunyuan": ready}})
     return TestClient(app)
 
 
@@ -42,7 +43,8 @@ def test_upload_stream_and_download(client):
 
 
 def test_ai_not_ready_returns_409(client, monkeypatch):
-    monkeypatch.setattr(routes_jobs, "get_ai_status", lambda: {"ready": False, "message": "Chưa cài"})
+    not_ready = {"ready": False, "message": "Chưa cài"}
+    monkeypatch.setattr(routes_jobs, "get_ai_status", lambda: {"models": {"triposr": not_ready, "hunyuan": not_ready}})
     r = client.post("/api/image-to-3d", params={"filename": "a.png"}, content=b"x", headers=WRITE_HEADERS)
     assert r.status_code == 409 and r.json()["detail"] == "Chưa cài"
 

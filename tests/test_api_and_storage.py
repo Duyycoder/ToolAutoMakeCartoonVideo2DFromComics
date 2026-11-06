@@ -66,7 +66,8 @@ def test_image_upload_validation():
 
 def test_ai_status_shape():
     data = client.get("/api/system/ai-status").json()
-    assert set(data) == {"ready", "cuda", "checks", "message"}
+    assert set(data) == {"ready", "cuda", "checks", "message", "models"}
+    assert set(data["models"]) == {"triposr", "hunyuan"}
     assert isinstance(data["message"], str) and data["message"]
 
 

@@ -74,8 +74,8 @@ check('Thẻ "Ghép từ khối" thêm Hộp 1 + mở menu khối',
   JSON.stringify(await outliner()) === '["Hộp 1"]' && await evaluate(`return !${q('#shape-menu')}.hidden;`));
 await evaluate(`${q('[data-shape="sphere"]')}.click();`);
 check('Thêm Cầu 1, panel chỉnh hiện tên', await evaluate(`return ${q('#props input[type=text]')}?.value;`) === 'Cầu 1');
-await evaluate(`${q('.swatch[title="#ff5c5c"]')}.click();`);
-check('Đổi màu đỏ', await evaluate(`return ${q('.swatch.current')}?.title;`) === '#ff5c5c');
+await evaluate(`${q('#props .swatch[title="#ff5c5c"]')}.click();`);
+check('Đổi màu đỏ', await evaluate(`return ${q('#props .swatch.current')}?.title;`) === '#ff5c5c');
 await evaluate(`[...document.querySelectorAll('.chip')].find(c => c.textContent === 'Kim loại').click();`);
 check('Chất liệu Kim loại', await evaluate(`return ${q('.chip.current')}?.textContent;`) === 'Kim loại');
 await evaluate(`${q('#btn-undo')}.click();`);
@@ -284,6 +284,15 @@ await evaluate(`${q('#btn-undo')}.click();`);
 check('Hoàn tác cả lượt chỉnh điểm bằng 1 lần Ctrl+Z', await triStatus() === trisBeforeEdit, await triStatus());
 
 await evaluate(`${q('[data-action="edit-mode"]')}.click();`);
+// Lỗi từng gặp trên máy thật: vào chỉnh điểm LẦN 2 không thấy chấm điểm/lưới (lớp hiển thị bị gỡ khỏi cảnh).
+const overlayState = await evaluate(`const { viewport, store } = window.easy3d; let points = 0, wires = 0, ghosts = 0;
+  viewport.scene.traverse((o) => { if (o.isPoints && o.visible) points++; if (o.isMesh && o.material?.wireframe) wires++; });
+  store.objects.forEach((o) => o.traverse((m) => { if (m.isMesh && m.material.opacity < 0.2) ghosts++; }));
+  return { points, wires, ghosts, minimal: document.querySelector('#edit-minimal').checked };`);
+check('Vào chỉnh điểm lần 2: vẫn thấy chấm điểm + lưới, vật khác mờ đi, xem tối giản',
+  overlayState.points === 1 && overlayState.wires >= 1 && overlayState.ghosts > 0 && overlayState.minimal, JSON.stringify(overlayState));
+await evaluate(`const c = document.querySelector('#edit-minimal'); c.checked = false; c.dispatchEvent(new Event('change'));`);
+check('Bỏ "Xem tối giản" -> vật khác hiện lại bình thường', await evaluate(`let g = 0; window.easy3d.store.objects.forEach((o) => o.traverse((m) => { if (m.isMesh && m.material.opacity < 0.2) g++; })); return g === 0;`));
 await key('2');
 await evaluate(`document.querySelector('.edit-toolbar [data-tool="box"]').click();`);
 await dragAcrossCanvas();
@@ -319,11 +328,130 @@ const movedX = await evaluate(`const THREE = await import('three');
   return new THREE.Box3().setFromObject(window.easy3d.store.selected).getCenter(new THREE.Vector3()).x;`);
 check('Kéo mũi tên trục X bằng chuột thật -> các điểm dời sang phải', movedX > handle.cx + 0.05, `${handle.cx.toFixed(3)} -> ${movedX.toFixed(3)}`);
 
+// ---------- Chọn nhiều vật: gộp / ghép liền / nhóm / kéo cả nhóm ----------
+const clickName = (n, shift = false) => evaluate(`[...document.querySelectorAll('#outliner li')]
+  .find(li => li.querySelector('.name').textContent === ${JSON.stringify(n)})
+  .dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: ${shift} }));`);
+const bigAction = (t) => evaluate(`[...document.querySelectorAll('#props .big-action')].find(b => b.textContent.includes(${JSON.stringify(t)})).click();`);
+const countBefore = (await outliner()).length;
+await clickName('Hộp 1 (3)'); await clickName('Hộp 1 (4)', true);
+check('Shift + bấm chọn 2 vật -> panel "Đã chọn 2 vật"', await evaluate(`return document.querySelector('#props .multi-head b')?.textContent;`) === 'Đã chọn 2 vật');
+check('Danh sách tô đậm cả 2 vật', await evaluate(`return document.querySelectorAll('#outliner li.selected').length;`) === 2);
+await key('f'); await sleep(300); // F: camera nhìn trọn cả 2 vật đang chọn
+await key('w'); // công cụ Di chuyển (bước trước test đã chọn Xoay)
+
+const multi = await evaluate(`
+  const THREE = await import('three');
+  const { viewport, store } = window.easy3d; const cam = viewport.camera;
+  const box = new THREE.Box3(); store.selection.forEach((o) => box.expandByObject(o));
+  const c = box.getCenter(new THREE.Vector3());
+  const factor = c.distanceTo(cam.position) * Math.min(1.9 * Math.tan(Math.PI * cam.fov / 360) / cam.zoom, 7) / 4;
+  const r = viewport.renderer.domElement.getBoundingClientRect();
+  const toScreen = (v) => { const p = v.clone().project(cam); return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height }; };
+  const a = toScreen(c.clone().add(new THREE.Vector3(0.4 * factor, 0, 0))), b = toScreen(c.clone().add(new THREE.Vector3(0.6 * factor, 0, 0)));
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  return { x: a.x, y: a.y, dx: (b.x - a.x) / len, dy: (b.y - a.y) / len, xs: store.selection.map((o) => o.position.x) };`);
+const underCursor = await evaluate(`const e = document.elementFromPoint(${multi.x}, ${multi.y}); return e.tagName + '.' + e.className;`);
+await mouse('mouseMoved', multi.x, multi.y, 0);
+await mouse('mousePressed', multi.x, multi.y, 1);
+for (let i = 1; i <= 8; i++) await mouse('mouseMoved', multi.x + multi.dx * 10 * i, multi.y + multi.dy * 10 * i, 1);
+await mouse('mouseReleased', multi.x + multi.dx * 80, multi.y + multi.dy * 80, 0);
+await sleep(150);
+const xsAfter = await evaluate(`return window.easy3d.store.selection.map((o) => o.position.x);`);
+const moved = xsAfter.map((x, i) => x - multi.xs[i]);
+check('Kéo gizmo khi chọn 2 vật -> cả 2 cùng dời một khoảng', moved[0] > 0.05 && Math.abs(moved[0] - moved[1]) < 1e-6,
+  `${JSON.stringify(moved)} under=${underCursor}`);
+await evaluate(`${q('#btn-undo')}.click();`);
+const xsUndo = await evaluate(`return window.easy3d.store.selection.map((o) => o.position.x);`);
+check('1 lần hoàn tác trả cả 2 vật về chỗ cũ', xsUndo.every((x, i) => Math.abs(x - multi.xs[i]) < 1e-6), JSON.stringify(xsUndo));
+
+await bigAction('Gộp thành 1 vật');
+names = await outliner();
+check('Gộp 2 vật thành 1', names.length === countBefore - 1 && names.includes('Hộp 1 (3) + Hộp 1 (4)'), JSON.stringify(names));
+await clickName('Hộp 1 (5)', true);
+await bigAction('Gộp thành 1 vật');
+const mats = await evaluate(`const m = window.easy3d.store.selected; return Array.isArray(m.material) ? m.material.length : 1;`);
+check('Gộp tiếp vật đã gộp: giữ 3 chất liệu riêng', mats === 3, `materials=${mats}`);
+await evaluate(`${q('#btn-undo')}.click();`);
+await evaluate(`${q('#btn-undo')}.click();`); // gộp 2 lần -> hoàn tác 2 lần
+check('Hoàn tác gộp -> lại đủ vật', (await outliner()).length === countBefore, JSON.stringify(await outliner()));
+
+await clickName('Hộp 1 (3)'); await clickName('Hộp 1 (4)', true);
+await key('g', { ctrlKey: true });
+names = await outliner();
+check('Ctrl+G nhóm lại', names.includes('Nhóm 1') && names.length === countBefore - 1, JSON.stringify(names));
+await clickText('Tách phần rời'); await sleep(300);
+check('Tách nhóm ra lại từng vật', (await outliner()).length === countBefore, JSON.stringify(await outliner()));
+
+await clickName('Hộp 1 (3)'); await clickName('Hộp 1 (4)', true);
+await bigAction('Ghép liền'); await sleep(800);
+names = await outliner();
+check('Ghép liền 2 hộp (CSG)', names.length === countBefore - 1 && names.includes('Hộp 1 (3) + Hộp 1 (4)'), JSON.stringify(names));
+await key('a', { ctrlKey: true });
+check('Ctrl+A chọn tất cả vật đang hiện', await evaluate(`return document.querySelectorAll('#outliner li.selected').length;`) === names.length);
+
+// ---------- Tô vẽ: cọ, hoàn tác, hút màu, tô hết, dán ảnh ----------
+const paintInfo = () => evaluate(`const s = window.easy3d.paintMode.state; if (!s) return null;
+  const c = s.geo.attributes.color, n = c.count; let red = 0, blue = 0, same = true;
+  const r0 = c.getX(0), g0 = c.getY(0), b0 = c.getZ(0);
+  for (let i = 0; i < n; i++) { const r = c.getX(i), g = c.getY(i), b = c.getZ(i);
+    if (r > 0.6 && g < 0.3 && b < 0.3) red++; if (b > 0.6 && r < 0.3 && g < 0.3) blue++;
+    if (Math.abs(r - r0) + Math.abs(g - g0) + Math.abs(b - b0) > 1e-4) same = false; }
+  return { n, red, blue, same, brush: s.brush };`);
+await clickName('Hộp 1 (5)');
+await key('f'); await sleep(300);
+await key('b');
+check('Phím B vào Tô vẽ: hiện thanh công cụ, lưới được chia nhỏ để tô mịn',
+  await evaluate(`return !document.querySelector('.paint-toolbar').hidden && document.body.classList.contains('paint-mode');`)
+  && (await paintInfo()).n > 1000, JSON.stringify((await paintInfo())?.n));
+const center = await evaluate(`const THREE = await import('three'); const { viewport, store } = window.easy3d;
+  const c = new THREE.Box3().setFromObject(store.selected).getCenter(new THREE.Vector3()).project(viewport.camera);
+  const r = viewport.renderer.domElement.getBoundingClientRect();
+  return { x: r.left + (c.x + 1) / 2 * r.width, y: r.top + (1 - c.y) / 2 * r.height };`);
+await evaluate(`document.querySelector('.paint-toolbar .swatch[title="#ff5c5c"]').click();`);
+await evaluate(`const s = document.querySelector('#paint-strength'); s.value = 1; s.dispatchEvent(new Event('input'));`);
+await mouse('mouseMoved', center.x - 30, center.y, 0);
+await mouse('mousePressed', center.x - 30, center.y, 1);
+for (let i = 1; i <= 6; i++) await mouse('mouseMoved', center.x - 30 + i * 10, center.y, 1);
+await mouse('mouseReleased', center.x + 30, center.y, 0);
+let pi = await paintInfo();
+check('Kéo cọ trên vật -> có vùng màu đỏ', pi.red > 20, JSON.stringify({ red: pi.red, n: pi.n }));
+await evaluate(`document.querySelector('.paint-toolbar [data-op="undo"]').click();`);
+check('Hoàn tác nét cọ', (await paintInfo()).red === 0);
+await evaluate(`document.querySelector('.paint-toolbar [data-op="redo"]').click();`);
+await evaluate(`document.querySelector('.paint-toolbar .swatch[title="#5fd08a"]').click();`);
+await evaluate(`document.querySelector('.paint-toolbar [data-brush="pick"]').click();`);
+await mouse('mousePressed', center.x, center.y, 1); await mouse('mouseReleased', center.x, center.y, 0);
+pi = await paintInfo();
+check('Hút màu trên vùng đỏ -> cọ thành màu đỏ, quay về chế độ Tô', pi.brush.mode === 'paint' && pi.brush.color.startsWith('#ff'), JSON.stringify(pi.brush));
+await evaluate(`document.querySelector('.paint-toolbar [data-op="fill"]').click();`);
+check('Tô hết 1 màu', (await paintInfo()).same);
+await evaluate(`document.querySelector('.paint-toolbar [data-op="undo"]').click();`);
+
+await evaluate(`
+  const c = Object.assign(document.createElement('canvas'), { width: 64, height: 64 }), g = c.getContext('2d');
+  g.fillStyle = '#ff0000'; g.fillRect(0, 0, 32, 64); g.fillStyle = '#0000ff'; g.fillRect(32, 0, 32, 64);
+  const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
+  const dt = new DataTransfer(); dt.items.add(new File([blob], 'logo.png', { type: 'image/png' }));
+  const input = document.querySelector('#paint-file'); input.files = dt.files; input.dispatchEvent(new Event('change'));`);
+await sleep(400);
+check('Chọn ảnh -> hiện ảnh để đặt + hàng chỉnh ảnh', await evaluate(`return !document.querySelector('.image-placement').hidden && !document.querySelector('#paint-image-row').hidden;`));
+await shot('05-paint-image.png');
+await evaluate(`document.querySelector('.paint-toolbar [data-op="apply-image"]').click();`);
+pi = await paintInfo();
+check('Dán ảnh đỏ/xanh lên vật -> có cả điểm đỏ và xanh', pi.blue > 20 && pi.red > 20, JSON.stringify({ red: pi.red, blue: pi.blue }));
+check('Ảnh đặt tạm đã ẩn sau khi dán', await evaluate(`return document.querySelector('.image-placement').hidden;`));
+await evaluate(`document.querySelector('.paint-toolbar [data-op="exit"]').click();`);
+check('Xong: thoát Tô vẽ, vật giữ màu đã tô', await evaluate(`const m = window.easy3d.store.selected; return document.querySelector('.paint-toolbar').hidden && m.material.vertexColors && !!m.geometry.attributes.color;`));
+await evaluate(`${q('#btn-undo')}.click();`);
+check('1 lần hoàn tác bỏ cả lượt tô vẽ', await evaluate(`return !window.easy3d.store.selected.material.vertexColors;`));
+
 await selectByName('Cầu 1');
 await shot('02-editor.png');
 
 await evaluate(`${q('[data-action="image-to-3d"]')}.click();`); await sleep(800);
 await shot('03-image-wizard.png');
+check('Wizard có 2 lựa chọn mô hình (TripoSR / Hunyuan3D)', await evaluate(`return document.querySelectorAll('input[name=model]').length;`) === 2);
 check('Wizard tạo từ ảnh mở, báo trạng thái AI', await evaluate(`return !!${q('.dropzone')} && !!${q('.banner')} && ${q('#go')}.disabled;`));
 
 console.log(JSON.stringify({ results, errors }, null, 2));

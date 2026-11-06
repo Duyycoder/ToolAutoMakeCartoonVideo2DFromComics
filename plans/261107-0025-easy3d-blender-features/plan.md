@@ -28,6 +28,14 @@ sửa chi tiết trong khối, tách khối, vật liệu, các tính năng nân
 | 5 | [Ghép xương](phase-05-ghep-xuong.md) | Mẫu xương người/đuôi/chuỗi, đặt khớp bằng kéo, tự gán trọng lượng theo khoảng cách, chỉnh tư thế, dùng với Đợt 4 | pending |
 | 6 | [Blender headless](phase-06-blender-headless.md) | Bo tròn cạnh, Làm lưới đều, Sửa lỗi in 3D, Tạo UV, Render đẹp (Cycles) | pending |
 
+### Làm thêm theo yêu cầu (2026-11-07)
+| Tính năng | Trạng thái |
+|-----------|-----------|
+| Chọn nhiều vật (Shift + bấm, Ctrl+A): gộp N vật giữ màu từng phần, ghép liền, nhóm lại (Ctrl+G), kéo/xoay cả nhóm, tô cùng màu | DONE |
+| Tô vẽ (phím B): cọ Tô / Làm nhoè / Hút màu, cỡ + độ đậm, Tô hết, **Dán ảnh** lên mặt vật | DONE |
+| Chỉnh điểm: sửa lỗi vào lần 2 không thấy điểm/lưới; "Xem tối giản" (mặt lì, vật khác mờ) | DONE |
+| Hunyuan3D-2mini (chất lượng cao): `.venv-hunyuan` riêng, `scripts/setup-hunyuan3d.bat`, worker + tự dò hướng + chiếu màu ảnh, chọn model trong wizard | DONE — **chưa chạy thật trên GPU** |
+
 Thứ tự làm: 1 → 2 → 3 → 4 → 5 → 6 (mỗi đợt xong là chạy + test được).
 
 ## Thư viện thêm (vendor, offline)

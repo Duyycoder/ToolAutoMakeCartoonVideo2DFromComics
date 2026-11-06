@@ -72,3 +72,19 @@ def test_cancel_running_job(tmp_path):
 def test_invalid_quality_rejected(tmp_path):
     with pytest.raises(ValueError):
         make_runner(tmp_path).submit_image_to_3d(b"png", ".png", "ultra")
+
+
+def test_second_model_uses_own_worker_and_presets(tmp_path):
+    hunyuan_presets = {"fast": {"steps": 20}, "balanced": {"steps": 30}, "detailed": {"steps": 50}}
+    runner = JobRunner(python_exe=Path(sys.executable), worker_script=FAKE_WORKER, jobs_dir=tmp_path, presets=PRESETS,
+                       env={"FAKE_MODE": "ok"},
+                       extra_models={"hunyuan": {"python_exe": sys.executable, "worker_script": FAKE_WORKER,
+                                                 "presets": hunyuan_presets}})
+    job = wait_finished(runner.submit_image_to_3d(b"png", ".png", "balanced", model="hunyuan"))
+    assert job.status == "done" and job.model == "hunyuan"
+    assert job.result["steps"] == 30 and job.result["mc_resolution"] is None
+
+
+def test_unknown_model_rejected(tmp_path):
+    with pytest.raises(ValueError):
+        make_runner(tmp_path).submit_image_to_3d(b"png", ".png", "fast", model="trellis")

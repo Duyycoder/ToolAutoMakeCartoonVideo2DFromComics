@@ -24,7 +24,8 @@ def main() -> int:
     p.add_argument("--out-dir")
     p.add_argument("--chunk-size", type=int)
     p.add_argument("--mc-resolution", type=int)
-    args = p.parse_args()
+    p.add_argument("--steps", type=int)  # preset Hunyuan
+    args, _ = p.parse_known_args()
     mode = os.environ.get("FAKE_MODE", "ok")
     emit(type="progress", pct=10, msg="Đang tách nền ảnh...")
     if mode == "crash":
@@ -38,7 +39,7 @@ def main() -> int:
         emit(type="error", code="CUDA_OOM", msg="CUDA out of memory")
         return 1
     (Path(args.out_dir) / "mesh.glb").write_bytes(b"glTF-fake")
-    emit(type="done", stats={"tris": 123, "mc_resolution": args.mc_resolution})
+    emit(type="done", stats={"tris": 123, "mc_resolution": args.mc_resolution, "steps": args.steps})
     return 0
 
 
