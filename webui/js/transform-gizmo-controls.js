@@ -11,7 +11,9 @@ export function createGizmo(viewport, store, stack) {
   gizmo.setTranslationSnap(0.05);
   gizmo.setRotationSnap(THREE.MathUtils.degToRad(15));
   gizmo.setScaleSnap(0.05);
-  viewport.scene.add(gizmo.getHelper());
+  const helper = gizmo.getHelper();
+  helper.userData.editorOnly = true; // ẩn khi xuất ảnh
+  viewport.scene.add(helper);
 
   let before = null;
   let pointerOnGizmo = false; // để click vào tay cầm không bị hiểu là "bỏ chọn"

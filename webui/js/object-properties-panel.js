@@ -2,6 +2,9 @@
 // Mọi thay đổi đi qua `actions` (editor-actions.js) để có Undo.
 import * as THREE from 'three';
 import { MATERIAL_PRESETS, getColorHex, getPresetKey, hasOriginalLook } from './material-preset-library.js';
+import { meshToolsSection } from './mesh-tools-panel.js';
+import { appearanceSection, lightSection } from './appearance-panel-sections.js';
+import { isLightObject } from './scene-light-objects.js';
 
 const COLORS = ['#f5f5f5', '#9aa0b1', '#2b2d33', '#ff5c5c', '#ff9f43', '#f2c94c', '#5fd08a',
   '#2ec4b6', '#56ccf2', '#5b8cff', '#8a5bff', '#e056fd', '#b07a4f'];
@@ -13,7 +16,7 @@ const el = (tag, props = {}, children = []) => {
 };
 const field = (label, ...children) => el('div', { className: 'field' }, [el('label', { textContent: label }), ...children]);
 
-export function createPropertiesPanel(container, store, actions) {
+export function createPropertiesPanel(container, store, actions, meshTools, appearance) {
   let sizeInfo = null;
   let slider = null;
 
@@ -33,6 +36,20 @@ export function createPropertiesPanel(container, store, actions) {
 
     const name = el('input', { type: 'text', value: obj.name, spellcheck: false });
     name.onchange = () => actions.rename(obj, name.value.trim() || obj.name);
+    const quickButton = (text, title, fn, cls = '') => {
+      const b = el('button', { textContent: text, title, className: cls });
+      b.onclick = () => fn(obj);
+      return b;
+    };
+
+    if (isLightObject(obj)) { // đèn: chỉ màu + độ sáng, không có vật liệu/sửa hình
+      sizeInfo = slider = null;
+      container.append(field('Tên', name), lightSection(obj, appearance), el('div', { className: 'field btn-grid' }, [
+        quickButton('⧉ Nhân bản', 'Tạo bản sao (Ctrl+D)', actions.duplicate),
+        quickButton('🗑 Xoá', 'Xoá đèn (phím Delete)', actions.remove, 'danger'),
+      ]));
+      return;
+    }
 
     const current = getColorHex(obj);
     const swatches = el('div', { className: 'swatches' });
@@ -61,7 +78,7 @@ export function createPropertiesPanel(container, store, actions) {
 
     // Thanh trượt logarit: 10% .. 500%, giữ nguyên tỉ lệ các chiều.
     slider = el('input', { type: 'range', min: -1, max: 0.7, step: 0.01 });
-    slider.value = Math.log10(obj.scale.x || 1);
+    slider.value = Math.log10(Math.abs(obj.scale.x) || 1);
     slider.onpointerdown = () => actions.beginScale(obj);
     slider.oninput = () => actions.previewScale(obj, 10 ** Number(slider.value));
     slider.onchange = () => actions.commitScale(obj);
@@ -85,6 +102,8 @@ export function createPropertiesPanel(container, store, actions) {
         btn('🗑 Xoá', 'Xoá vật thể (phím Delete)', actions.remove, 'danger'),
       ]),
       sizeInfo,
+      appearanceSection(obj, appearance),
+      meshToolsSection(obj, store, meshTools),
     );
   }
 
@@ -94,7 +113,7 @@ export function createPropertiesPanel(container, store, actions) {
   store.addEventListener('transform', () => {
     if (!store.selected || !sizeInfo) return;
     sizeInfo.textContent = sizeText(store.selected);
-    if (document.activeElement !== slider) slider.value = Math.log10(store.selected.scale.x || 1);
+    if (document.activeElement !== slider) slider.value = Math.log10(Math.abs(store.selected.scale.x) || 1);
   });
   render();
 }

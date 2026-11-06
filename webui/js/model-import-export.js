@@ -28,7 +28,7 @@ export async function loadModelFile(file) {
       if (project) {
         // GLTFLoader đổi khoảng trắng trong tên node thành "_" -> lấy lại tên gốc đã cất khi lưu.
         project.children.forEach((o) => { o.name = o.userData.easy3dName ?? o.name; });
-        return { objects: [...project.children], isProject: true };
+        return { objects: [...project.children], isProject: true, lighting: project.userData.lighting };
       }
       obj = gltf.scene;
     } else if (ext === 'obj') {
@@ -80,7 +80,8 @@ export function floorPosition(obj) {
 /** Bản sao chỉ gồm vật đang hiện (STL/OBJ exporter không tự bỏ vật ẩn). */
 function visibleCopy(root, scale = 1) {
   const group = new THREE.Group();
-  root.children.filter((c) => c.visible).forEach((c) => group.add(c.clone()));
+  // Bỏ đèn: bóng đèn chỉ để nhìn thấy trong app, không phải hình cần in/xuất.
+  root.children.filter((c) => c.visible && c.userData.kind !== 'light').forEach((c) => group.add(c.clone()));
   group.scale.setScalar(scale);
   group.updateMatrixWorld(true);
   return group;

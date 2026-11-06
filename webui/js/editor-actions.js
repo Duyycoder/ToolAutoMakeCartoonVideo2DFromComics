@@ -10,6 +10,8 @@ import {
 } from './scene-edit-commands.js';
 import { baseNameOf, floorPosition, loadModelFile, loadModelUrl } from './model-import-export.js';
 import { toast } from './toast-notifications.js';
+import { applyLighting } from './lighting-presets.js';
+import { fixLightCopy } from './scene-light-objects.js';
 
 export function createEditorActions({ viewport, store, stack }) {
   const run = (cmd) => stack.execute(cmd);
@@ -59,8 +61,10 @@ export function createEditorActions({ viewport, store, stack }) {
 
     async openFile(file) {
       try {
-        const { objects, isProject } = await loadModelFile(file);
+        const { objects, isProject, lighting } = await loadModelFile(file);
         if (isProject) {
+          if (lighting) applyLighting(viewport, lighting);
+          objects.forEach(fixLightCopy);
           objects.forEach(rememberOriginalLook);
           run(batchCommand(`Mở "${file.name}"`, objects.map((o) => addObjectCommand(store, o))));
           viewport.frameObjects();
@@ -81,6 +85,7 @@ export function createEditorActions({ viewport, store, stack }) {
       copy.name = store.nextName(obj.name.replace(/\s\d+$/, ''));
       copy.position.x += 1.2;
       copyOriginalLook(obj, copy);
+      fixLightCopy(copy);
       run(addObjectCommand(store, copy));
     },
 
@@ -105,7 +110,7 @@ export function createEditorActions({ viewport, store, stack }) {
     beginScale(obj) { scaleBefore = snapshotTransform(obj); },
     previewScale(obj, factor) {
       if (!scaleBefore) actions.beginScale(obj); // kéo bằng bàn phím không có pointerdown
-      obj.scale.multiplyScalar(factor / (obj.scale.x || 1));
+      obj.scale.multiplyScalar(factor / (Math.abs(obj.scale.x) || 1)); // scale âm = vật lật gương
       store.transformed();
     },
     commitScale(obj) {

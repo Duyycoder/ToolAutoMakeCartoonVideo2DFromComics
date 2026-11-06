@@ -9,7 +9,9 @@
   <script type="importmap">
     { "imports": {
         "three": "./vendor/three/three.module.min.js",
-        "three/addons/": "./vendor/three/addons/"
+        "three/addons/": "./vendor/three/addons/",
+        "three-mesh-bvh": "./vendor/three-mesh-bvh/index.module.js",
+        "three-bvh-csg": "./vendor/three-bvh-csg/index.module.js"
     } }
   </script>
 </head>
@@ -27,7 +29,20 @@
           <button data-export="glb"><b>Cho game / Unity</b><small>GLB — giữ màu sắc, chất liệu</small></button>
           <button data-export="stl"><b>Để in 3D</b><small>STL — đơn vị milimét</small></button>
           <button data-export="obj"><b>Định dạng OBJ</b><small>Mở được ở hầu hết phần mềm 3D</small></button>
-          <button data-export="png"><b>Ảnh chụp màn hình</b><small>PNG — đúng góc nhìn hiện tại</small></button>
+          <button data-action="export-image"><b>📸 Xuất ảnh đẹp…</b><small>PNG — chọn HD/4K, nền trong suốt</small></button>
+        </div>
+      </div>
+      <div class="menu">
+        <button data-action="toggle-lighting">💡 Ánh sáng ▾</button>
+        <div class="menu-list" id="lighting-menu" hidden>
+          <button data-lighting="studio"><b>Studio</b><small>Sáng đều, nền tối — mặc định</small></button>
+          <button data-lighting="outdoor"><b>Ngoài trời</b><small>Trời xanh, nắng trưa</small></button>
+          <button data-lighting="sunset"><b>Hoàng hôn</b><small>Nắng cam chiếu xiên</small></button>
+          <button data-lighting="night"><b>Ban đêm</b><small>Tối, hợp với đèn và vật phát sáng</small></button>
+          <button data-lighting="stage"><b>Sân khấu</b><small>Nền đen, đèn rọi từ trên</small></button>
+          <button data-light="point"><b>➕ Thêm đèn tròn</b><small>Toả sáng mọi hướng</small></button>
+          <button data-light="spot"><b>➕ Thêm đèn rọi</b><small>Chiếu xuống, có bóng đổ</small></button>
+          <button data-action="toggle-grid"><b>▦ Ẩn / hiện lưới sàn</b><small>Lưới chỉ để căn chỉnh</small></button>
         </div>
       </div>
     </div>

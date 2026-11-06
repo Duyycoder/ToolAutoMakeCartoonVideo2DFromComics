@@ -3,7 +3,7 @@ import { api } from './backend-api-client.js';
 import { exportObjects } from './model-import-export.js';
 import { toast } from './toast-notifications.js';
 
-const FORMAT_LABELS = { glb: 'GLB (cho game)', stl: 'STL (in 3D)', obj: 'OBJ', png: 'ảnh PNG' };
+const FORMAT_LABELS = { glb: 'GLB (cho game)', stl: 'STL (in 3D)', obj: 'OBJ' };
 
 function openFolderAction(kind) {
   return { label: 'Mở thư mục', onClick: () => api.openFolder(kind).catch((e) => toast(e.message, { type: 'err' })) };
@@ -35,11 +35,17 @@ export function createProjectFileActions({ viewport, store, getProjectName }) {
       }
     },
 
+    /** Ảnh đã render (image-export-dialog.js) -> file PNG. */
+    async saveImage(dataUrl, sizeLabel) {
+      try {
+        await writeFile('output', 'png', dataUrlToBlob(dataUrl), `Đã xuất ảnh ${sizeLabel}`);
+      } catch (err) {
+        toast(`Xuất ảnh thất bại: ${err.message}`, { type: 'err', timeout: 8000 });
+      }
+    },
+
     async export(format) {
       try {
-        if (format === 'png') {
-          return await writeFile('output', 'png', dataUrlToBlob(viewport.screenshot()), 'Đã chụp ảnh');
-        }
         if (!hasVisible()) return toast('Không có vật thể nào đang hiện để xuất.', { type: 'warn' });
         const { data, ext } = await exportObjects(viewport.objectsRoot, format);
         await writeFile('output', ext, data, `Đã xuất ${FORMAT_LABELS[format]}`);

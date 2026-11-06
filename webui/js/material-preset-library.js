@@ -12,6 +12,23 @@ export const MATERIAL_PRESETS = {
   },
   toon: { label: 'Hoạt hình', make: () => new THREE.MeshToonMaterial() },
   glow: { label: 'Phát sáng', make: () => new THREE.MeshStandardMaterial({ emissiveIntensity: 1.2 }) },
+  // `color`: preset tự đặt màu đặc trưng (vàng phải có màu vàng).
+  rubber: { label: 'Cao su', make: () => new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 }) },
+  gold: { label: 'Vàng', color: '#ffc845', make: () => new THREE.MeshStandardMaterial({ roughness: 0.2, metalness: 1 }) },
+  chrome: { label: 'Chrome', color: '#e8e8ea', make: () => new THREE.MeshStandardMaterial({ roughness: 0.03, metalness: 1 }) },
+  ceramic: {
+    label: 'Gốm sứ',
+    make: () => new THREE.MeshPhysicalMaterial({ roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.08 }),
+  },
+  fabric: {
+    label: 'Vải',
+    make: () => new THREE.MeshPhysicalMaterial({ roughness: 1, sheen: 1, sheenRoughness: 0.6, sheenColor: 0xffffff }),
+  },
+  jade: {
+    label: 'Ngọc',
+    color: '#4fbf8a',
+    make: () => new THREE.MeshPhysicalMaterial({ roughness: 0.25, transmission: 0.6, thickness: 0.5 }),
+  },
 };
 
 // Màu/texture gốc của model AI hoặc file nhập vào — để nút "Màu gốc" khôi phục.
@@ -56,6 +73,10 @@ export function applyPreset(obj, key) {
     if (old.color) mat.color.copy(old.color);
     mat.map = old.map ?? null;
     mat.vertexColors = old.vertexColors;
+    if (preset.color) {
+      mat.color.set(preset.color);
+      mat.vertexColors = false;
+    }
     if (key === 'glow') mat.emissive.copy(mat.color);
     mat.userData.preset = key;
     return mat;

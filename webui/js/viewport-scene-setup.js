@@ -5,7 +5,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 export function createViewport(container) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true }); // alpha: xuất ảnh nền trong suốt
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -25,7 +25,8 @@ export function createViewport(container) {
   orbit.enableDamping = true;
   orbit.maxPolarAngle = Math.PI * 0.495; // không cho camera chui xuống dưới sàn
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3d4a, 0.6));
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x3a3d4a, 0.6);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffffff, 2.0);
   sun.position.set(5, 8, 4);
   sun.castShadow = true;
@@ -37,6 +38,7 @@ export function createViewport(container) {
   const grid = new THREE.GridHelper(10, 20, 0x5b6275, 0x353946);
   grid.material.transparent = true;
   grid.material.opacity = 0.8;
+  grid.userData.editorOnly = true; // ẩn khi xuất ảnh
   scene.add(grid);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40),
     new THREE.ShadowMaterial({ opacity: 0.28 }));
@@ -93,9 +95,36 @@ export function createViewport(container) {
     camera.position.copy(center).addScaledVector(dir, dist);
   }
 
-  const screenshot = () => renderer.domElement.toDataURL('image/png');
+  /** Render ảnh PNG ở độ phân giải tuỳ ý, ẩn lưới/gizmo, tuỳ chọn nền trong suốt. */
+  function renderImage({ width, height, transparent = false, hideHelpers = true }) {
+    const size = renderer.getSize(new THREE.Vector2());
+    const ratio = renderer.getPixelRatio();
+    const background = scene.background;
+    const hidden = [];
+    if (hideHelpers) {
+      scene.traverse((o) => { if (o.userData.editorOnly && o.visible) { o.visible = false; hidden.push(o); } });
+    }
+    renderer.setPixelRatio(1);
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    if (transparent) scene.background = null;
+    try {
+      renderer.render(scene, camera);
+      return renderer.domElement.toDataURL('image/png');
+    } finally {
+      scene.background = background;
+      hidden.forEach((o) => { o.visible = true; });
+      renderer.setPixelRatio(ratio);
+      renderer.setSize(size.x, size.y, false);
+      camera.aspect = size.x / size.y;
+      camera.updateProjectionMatrix();
+    }
+  }
 
-  return { scene, camera, renderer, orbit, objectsRoot, pick, frameObjects, screenshot };
+  const canvasSize = () => renderer.getDrawingBufferSize(new THREE.Vector2());
+
+  return { scene, camera, renderer, orbit, objectsRoot, grid, lights: { hemi, sun }, pick, frameObjects, renderImage, canvasSize };
 }
 
 function isVisibleChain(obj, stopAt) {

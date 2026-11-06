@@ -101,7 +101,7 @@ check('Bấm vào vật trong khung 3D để chọn', picked !== null, `chọn: 
 
 const lastToast = () => evaluate(`return [...document.querySelectorAll('.toast span')].pop()?.textContent ?? '';`);
 for (const [sel, expected] of [['[data-export="glb"]', 'Đã xuất GLB'], ['[data-export="stl"]', 'Đã xuất STL'],
-  ['[data-export="obj"]', 'Đã xuất OBJ'], ['[data-export="png"]', 'Đã chụp ảnh'], ['[data-action="save"]', 'Đã lưu dự án']]) {
+  ['[data-export="obj"]', 'Đã xuất OBJ'], ['[data-action="save"]', 'Đã lưu dự án']]) {
   await evaluate(`${q(sel)}.click();`); await sleep(700);
   const text = await lastToast();
   check(`Nút ${sel} -> "${expected}"`, text.startsWith(expected), text);
@@ -121,6 +121,101 @@ const roundTrip = await evaluate(`
 check('Lưu dự án rồi mở lại: tách đúng từng vật, giữ tên + loại',
   roundTrip.isProject && JSON.stringify(roundTrip.names) === '["Hộp A","Hộp B"]' && roundTrip.kind === 'box',
   JSON.stringify(roundTrip));
+// ---------- Đợt 1: công cụ sửa hình ----------
+const pure = await evaluate(`
+  const THREE = await import('three');
+  const S = await import('/js/mesh-subdivide-smooth.js');
+  const M = await import('/js/mesh-split-merge-operations.js');
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const smooth = S.smoothGeometry(box, 3);
+  smooth.computeBoundingBox();
+  const sz = smooth.boundingBox.getSize(new THREE.Vector3());
+  const sphere = new THREE.SphereGeometry(0.5, 64, 32);
+  const simp = S.simplifyGeometry(sphere, 0.3);
+  const two = M.unifyAttributes([new THREE.BoxGeometry().toNonIndexed().translate(-2, 0, 0), new THREE.BoxGeometry().translate(2, 0, 0)]);
+  const { mergeGeometries } = await import('three/addons/utils/BufferGeometryUtils.js');
+  const parts = M.splitLooseParts(mergeGeometries(two.map((g) => g.index ? g : g.setIndex([...Array(g.attributes.position.count).keys()]))));
+  const carved = M.booleanGeometry(new THREE.BoxGeometry(1, 1, 1), new THREE.SphereGeometry(0.7, 32, 16), 'subtract');
+  return { smoothVerts: smooth.attributes.position.count, smoothSize: sz.x, sphereTris: S.triangleCountOf(sphere),
+           simpTris: S.triangleCountOf(simp), parts: parts.length, carvedVerts: carved.attributes.position.count };`);
+check('Làm mượt hộp: chia nhỏ lưới + bo tròn, không teo quá', pure.smoothVerts > 1000 && pure.smoothSize > 0.75 && pure.smoothSize < 1.01, JSON.stringify(pure));
+check('Giảm chi tiết cầu còn ~30%', pure.simpTris < pure.sphereTris * 0.45, `${pure.sphereTris} -> ${pure.simpTris}`);
+check('Tách 2 hộp rời thành 2 phần', pure.parts === 2);
+check('Khoét hộp bằng cầu ra lưới khác rỗng', pure.carvedVerts > 0);
+
+const clickText = (text) => evaluate(`[...document.querySelectorAll('#props button')].find(b => b.textContent.includes(${JSON.stringify(text)})).click();`);
+const triStatus = () => evaluate(`return document.querySelector('#status-stats').textContent;`);
+await evaluate(`[...document.querySelectorAll('#outliner li')].find(li => li.textContent.includes('Hộp 1')).click();`);
+const trisBefore = await triStatus();
+await clickText('Làm mượt'); await sleep(600);
+const trisAfter = await triStatus();
+check('Nút Làm mượt tăng số tam giác', trisAfter !== trisBefore, `${trisBefore} -> ${trisAfter}`);
+await evaluate(`${q('#btn-undo')}.click();`);
+check('Hoàn tác làm mượt', await triStatus() === trisBefore);
+
+await evaluate(`[...document.querySelectorAll('#props select')].pop().value = '0';`); // dropdown "vật khác": Cầu 1
+await clickText('Khoét đi'); await sleep(800);
+let names = await outliner();
+check('Khoét Hộp 1 bằng Cầu 1 -> còn 2 vật, có "(đã khoét)"', names.length === 2 && names.some((n) => n.includes('đã khoét')), JSON.stringify(names));
+await evaluate(`${q('#btn-undo')}.click();`);
+check('Hoàn tác khoét -> lại 3 vật', (await outliner()).length === 3);
+
+await evaluate(`[...document.querySelectorAll('#outliner li')].find(li => li.textContent.includes('Hộp 1')).click();`);
+await clickText('Tạo'); await sleep(300);
+names = await outliner();
+check('Nhân 5 bản thành hàng -> nhóm "Hộp 1 ×5"', names.includes('Hộp 1 ×5'), JSON.stringify(names));
+await clickText('Tách phần rời'); await sleep(500);
+names = await outliner();
+check('Tách nhóm -> 5 hộp riêng có số thứ tự + 2 cầu', names.length === 7 && names.includes('Hộp 1 (5)'), JSON.stringify(names));
+// ---------- Đợt 2: vật liệu, ánh sáng, xuất ảnh ----------
+const selectByName = (n) => evaluate(`[...document.querySelectorAll('#outliner li')].find(li => li.querySelector('.name').textContent === ${JSON.stringify(n)}).click();`);
+const chipCurrent = () => evaluate(`return [...document.querySelectorAll('#props .chip.current')].map(c => c.textContent);`);
+await selectByName('Cầu 1');
+await evaluate(`[...document.querySelectorAll('#props .chip')].find(c => c.textContent === 'Vàng').click();`);
+check('Preset Vàng', (await chipCurrent()).includes('Vàng'));
+await evaluate(`[...document.querySelectorAll('#props summary')].find(s => s.textContent.includes('Vân')).click();`);
+await evaluate(`[...document.querySelectorAll('#props .chip')].find(c => c.textContent === 'Gỗ').click();`);
+check('Vân Gỗ', (await chipCurrent()).includes('Gỗ'), JSON.stringify(await chipCurrent()));
+const glossSlider = `[...document.querySelectorAll('#props .field')].find(f => f.querySelector('label')?.textContent === 'Độ bóng').querySelector('input')`;
+const glossBefore = Number(await evaluate(`return ${glossSlider}.value;`));
+await evaluate(`const s = ${glossSlider}; s.dispatchEvent(new PointerEvent('pointerdown')); s.value = 0.95;
+  s.dispatchEvent(new Event('input')); s.dispatchEvent(new Event('change'));`);
+check('Thanh Độ bóng áp dụng', Math.abs(Number(await evaluate(`return ${glossSlider}.value;`)) - 0.95) < 0.02);
+await evaluate(`${q('#btn-undo')}.click();`);
+check('Hoàn tác Độ bóng', Math.abs(Number(await evaluate(`return ${glossSlider}.value;`)) - glossBefore) < 0.02);
+
+await evaluate(`${q('[data-lighting="sunset"]')}.click();`);
+check('Preset ánh sáng Hoàng hôn', (await lastToast()).includes('Hoàng hôn'));
+await evaluate(`${q('[data-light="point"]')}.click();`);
+await evaluate(`${q('[data-light="spot"]')}.click();`);
+names = await outliner();
+check('Thêm đèn tròn + đèn rọi', names.includes('Đèn tròn 1') && names.includes('Đèn rọi 1'), JSON.stringify(names));
+check('Panel đèn có Độ sáng, không có Sửa hình', await evaluate(`return document.querySelector('#props').textContent.includes('Độ sáng') && !document.querySelector('#props').textContent.includes('Sửa hình');`));
+await evaluate(`${q('#props .swatch[title="#7aa8ff"]')}.click();`);
+check('Đổi màu đèn', await evaluate(`return ${q('#props .swatch.current')}?.title;`) === '#7aa8ff');
+await key('d', { ctrlKey: true });
+check('Nhân bản đèn rọi', (await outliner()).includes('Đèn rọi 2'));
+
+const lightTrip = await evaluate(`
+  const THREE = await import('three');
+  const L = await import('/js/scene-light-objects.js');
+  const m = await import('/js/model-import-export.js');
+  const root = new THREE.Group(); root.userData.easy3dProject = true; root.userData.lighting = 'night';
+  root.add(L.createLightObject('spot', 'Đèn rọi A'));
+  const { data } = await m.exportObjects(root, 'glb');
+  const res = await m.loadModelFile(new File([data], 'p.glb'));
+  const obj = res.objects[0]; L.fixLightCopy(obj); obj.updateMatrixWorld(true);
+  const light = L.lightOf(obj); light.target.updateMatrixWorld(true);
+  const lp = light.getWorldPosition(new THREE.Vector3()), tp = light.target.getWorldPosition(new THREE.Vector3());
+  return { kind: obj.userData.kind, lighting: res.lighting, pointsDown: tp.y < lp.y - 0.5, spot: !!light.isSpotLight };`);
+check('Lưu/mở dự án giữ đèn rọi, hướng chiếu xuống, preset ánh sáng',
+  lightTrip.kind === 'light' && lightTrip.spot && lightTrip.pointsDown && lightTrip.lighting === 'night', JSON.stringify(lightTrip));
+
+await evaluate(`${q('[data-action="export-image"]')}.click();`); await sleep(200);
+await evaluate(`${q('input[name=size][value="4k"]')}.checked = true; ${q('#transparent')}.checked = true; ${q('#go')}.click();`);
+await sleep(2500);
+check('Xuất ảnh 4K nền trong suốt', (await lastToast()).startsWith('Đã xuất ảnh 3840×2160'), await lastToast());
+await selectByName('Cầu 1');
 await shot('02-editor.png');
 
 await evaluate(`${q('[data-action="image-to-3d"]')}.click();`); await sleep(800);

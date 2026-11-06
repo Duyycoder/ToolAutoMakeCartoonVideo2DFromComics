@@ -113,3 +113,17 @@ kbd { font: 11px Consolas, monospace; color: var(--muted); border: 1px solid var
              font-size: 12px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--line); }
 .statusbar .ok { color: var(--ok); } .statusbar .warn { color: var(--warn); }
 .statusbar .tip { margin-left: auto; }
+
+/* ---------- Nhóm công cụ gập/mở trong panel ---------- */
+.tool-section { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 6px; }
+.tool-section summary { cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: .8px;
+                        color: var(--muted); padding: 8px 0; list-style: none; }
+.tool-section summary::before { content: '▸ '; }
+.tool-section[open] summary::before { content: '▾ '; }
+.inline { display: flex; gap: 6px; align-items: center; }
+.inline input[type=range] { flex: 1; }
+.field .value { color: var(--text); float: right; }
+.field select, .field .num { background: var(--bg); color: var(--text); border: 1px solid var(--line);
+                             border-radius: 6px; padding: 6px 8px; font: inherit; }
+.field > select { width: 100%; }
+.field .num { width: 64px; }

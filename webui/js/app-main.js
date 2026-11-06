@@ -6,6 +6,9 @@ import { createGizmo } from './transform-gizmo-controls.js';
 import { createOutliner } from './scene-outliner-panel.js';
 import { createPropertiesPanel } from './object-properties-panel.js';
 import { createEditorActions } from './editor-actions.js';
+import { createMeshTools } from './mesh-tools-actions.js';
+import { createAppearanceActions } from './appearance-actions.js';
+import { openImageExportDialog } from './image-export-dialog.js';
 import { createProjectFileActions } from './project-file-actions.js';
 import { IMAGE_EXTENSIONS, openImageTo3DWizard } from './image-to-3d-wizard.js';
 import { shouldShowWelcome, showWelcome } from './welcome-screen.js';
@@ -22,7 +25,8 @@ const gizmo = createGizmo(viewport, store, stack);
 const actions = createEditorActions({ viewport, store, stack });
 const files = createProjectFileActions({ viewport, store, getProjectName: () => $('#project-name').value.trim() });
 createOutliner($('#outliner'), store);
-createPropertiesPanel($('#props'), store, actions);
+const appearance = createAppearanceActions({ viewport, store, stack });
+createPropertiesPanel($('#props'), store, actions, createMeshTools({ store, stack }), appearance);
 initStatusBar(store);
 
 const fileInput = $('#file-input');
@@ -49,6 +53,9 @@ const ACTIONS = {
   save: () => files.save(),
   'toggle-export': () => toggleMenu('#export-menu'),
   'toggle-shapes': () => toggleMenu('#shape-menu'),
+  'toggle-lighting': () => toggleMenu('#lighting-menu'),
+  'toggle-grid': () => appearance.toggleGrid(),
+  'export-image': () => openImageExportDialog({ viewport, onExport: (url, size) => files.saveImage(url, size) }),
   undo: () => { const c = stack.undo(); if (c) toast(`Đã hoàn tác: ${c.label}`, { timeout: 1800 }); },
   redo: () => { const c = stack.redo(); if (c) toast(`Đã làm lại: ${c.label}`, { timeout: 1800 }); },
   help: () => showWelcome(welcomeHandlers),
@@ -61,8 +68,12 @@ document.addEventListener('click', (e) => {
   if (!btn) return;
   if (btn.dataset.action) ACTIONS[btn.dataset.action]?.();
   if (btn.dataset.mode) setMode(btn.dataset.mode);
-  if (btn.dataset.shape) { actions.addShape(btn.dataset.shape); btn.closest('.menu-list').hidden = true; }
-  if (btn.dataset.export) { files.export(btn.dataset.export); btn.closest('.menu-list').hidden = true; }
+  if (btn.dataset.shape) actions.addShape(btn.dataset.shape);
+  if (btn.dataset.export) files.export(btn.dataset.export);
+  if (btn.dataset.lighting) appearance.setLighting(btn.dataset.lighting);
+  if (btn.dataset.light) appearance.addLight(btn.dataset.light);
+  const menuList = btn.closest('.menu-list');
+  if (menuList) menuList.hidden = true; // chọn xong 1 mục thì đóng menu
 });
 fileInput.onchange = () => {
   if (fileInput.files[0]) actions.openFile(fileInput.files[0]);
