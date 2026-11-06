@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Easy3D</title>
+  <style>
+    body { font-family: "Segoe UI", sans-serif; background: #1e1f24; color: #e8e8ea; margin: 0;
+           display: flex; align-items: center; justify-content: center; height: 100vh; }
+    .card { background: #2a2c33; padding: 32px 40px; border-radius: 12px; min-width: 420px; }
+    h1 { margin-top: 0; }
+    .ok { color: #6fd08c; } .warn { color: #f0b35a; }
+  </style>
+</head>
+<body>
+  <!-- Phase 01: màn hình kiểm tra môi trường. Viewport Three.js thay thế ở Phase 02. -->
+  <div class="card">
+    <h1>Easy3D</h1>
+    <p>Kiểm tra môi trường:</p>
+    <p id="gpu">Đang đọc thông tin GPU...</p>
+  </div>
+  <script>
+    fetch("/api/system/gpu-info").then(r => r.json()).then(info => {
+      const el = document.getElementById("gpu");
+      if (info.cuda_available) {
+        const g = info.gpus[0];
+        el.className = "ok";
+        el.textContent = `GPU NVIDIA: ${g.name} (${g.vram_total_mb} MB VRAM) — AI chạy GPU.`;
+      } else {
+        el.className = "warn";
+        const names = info.other_adapters.join(", ") || "không rõ";
+        el.textContent = `Không thấy GPU NVIDIA (card: ${names}) — AI sẽ chạy CPU, rất chậm.`;
+      }
+    }).catch(() => { document.getElementById("gpu").textContent = "Không kết nối được backend."; });
+  </script>
+</body>
+</html>

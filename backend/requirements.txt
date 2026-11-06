@@ -1,0 +1,5 @@
+# Backend nhẹ — KHÔNG có torch. Các bước AI chạy trong .venv-ai qua subprocess.
+fastapi>=0.115
+uvicorn>=0.30
+pywebview>=5.3
+pytest>=8.0

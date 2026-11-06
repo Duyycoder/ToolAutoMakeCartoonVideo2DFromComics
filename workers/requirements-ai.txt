@@ -1,0 +1,16 @@
+# .venv-ai: cài SAU torch (setup.bat chọn bản cu121 hoặc cpu).
+# Lấy từ third_party/TripoSR/requirements.txt, bỏ torchmcubes (cần compile CUDA trên Windows)
+# và gradio (không dùng UI của TripoSR). Thiếu torchmcubes -> workers/marching_cubes_fallback.py.
+omegaconf==2.3.0
+Pillow>=10.1
+einops==0.7.0
+transformers==4.35.0
+trimesh>=4.0
+huggingface-hub>=0.20
+imageio[ffmpeg]
+xatlas==0.0.9
+moderngl==5.10.0
+PyMCubes>=0.1.4
+rembg>=2.0.50
+onnxruntime
+numpy<2

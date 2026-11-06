@@ -1,0 +1,32 @@
+# Easy3D — không đưa lên Git: venv, trọng số model, tool tải về, dữ liệu người dùng, bí mật.
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.log
+
+# --- Môi trường ảo (setup.bat tạo) ---
+.venv/
+.venv-ai/
+
+# --- Mã nguồn/tool bên thứ ba tải về bởi setup.bat ---
+/third_party/
+/tools/
+
+# --- Trọng số model (HF cache đặt trong repo) ---
+/models/
+
+# --- Cấu hình cá nhân ---
+configs/config.json
+.env
+.env.*
+
+# --- Dữ liệu người dùng & output ---
+/projects/
+/output/
+/logs/
+
+# --- Plan/report nội bộ (giống repo AutoCartoon) ---
+/plans/
