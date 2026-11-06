@@ -8,6 +8,12 @@ const worldOf = (bone) => bone.getWorldPosition(new THREE.Vector3());
 const boneChildren = (bone) => bone.children.filter((child) => child.isBone);
 const nameOf = (bone) => UNITY_NAME_OF_LABEL[bone.name] ?? UNITY_NAME_OF_LABEL[bone.userData.label] ?? bone.name;
 
+export function wristOfHandTip(bone) {
+  const name = nameOf(bone);
+  return name.endsWith('Hand_End') && bone.parent?.isBone && nameOf(bone.parent) === name.replace(/Hand_End$/, 'Hand')
+    ? bone.parent : null;
+}
+
 function aim(joint, child, target) {
   const from = child.position.clone().multiply(joint.scale).applyQuaternion(joint.quaternion);
   const to = target.clone().sub(joint.position);

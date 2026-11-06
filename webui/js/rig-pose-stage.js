@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { disableSkinFrustumCulling, skinnedMeshOf } from './rig-builder.js';
 import { dragPlane } from './rig-joint-drag.js';
-import { createBoneMove } from './rig-limb-ik.js';
+import { createBoneMove, wristOfHandTip } from './rig-limb-ik.js';
 
 export const snapshotPose = (bones) => bones.map((b) => ({ position: b.position.clone(), quaternion: b.quaternion.clone() }));
 export const applyPose = (bones, pose) => bones.forEach((b, i) => {
@@ -94,7 +94,8 @@ export function createPoseStage({ camera, helpers, tc, pivot, stack, store, getS
     else if (s.poseMode === 'rotate') {
       tc.setMode('rotate');
       tc.setSpace('local');
-      tc.attach(s.bones[i]);
+      const bone = s.bones[i];
+      tc.attach(wristOfHandTip(bone) ?? bone);
     } else {
       // Tay cầm ở hệ thế giới; dùng ma trận cha để giữ đúng trục kể cả khi rig bị co giãn.
       s.bones[i].getWorldPosition(pivot.position);

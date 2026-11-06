@@ -5,7 +5,7 @@ import { listRigTemplates, loadRigTemplate } from './rig-template-library.js';
 import { toast } from './toast-notifications.js';
 
 const POSE_HINTS = {
-  rotate: 'Kéo vòng tròn màu để xoay khớp đang có tay cầm.',
+  rotate: 'Kéo vòng tròn màu để xoay. Chọn cổ tay hoặc chấm cuối bàn tay để xoay cả bàn tay quanh cổ tay.',
   translate: 'Kéo mũi tên X, Y hoặc Z để đặt đích theo trục của cảnh.',
   screen: 'Kéo chấm khớp để đặt đích theo mặt phẳng màn hình.',
 };
