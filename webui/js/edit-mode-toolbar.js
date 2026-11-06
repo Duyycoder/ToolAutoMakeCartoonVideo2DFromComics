@@ -11,6 +11,7 @@ export function createEditToolbar(viewportEl, editMode, input) {
       <div class="seg"><button data-tool="click" title="Bấm vào điểm/mặt để chọn. Shift: chọn thêm">👆 Bấm chọn</button>
         <button data-tool="box" title="Kéo chuột vẽ khung để chọn nhiều. Chuột phải vẫn kéo khung nhìn">⬚ Kéo khung</button></div>
       <label class="edit-check" title="Chọn cả điểm bị che ở mặt sau"><input type="checkbox" id="edit-through"> Xuyên qua</label>
+      <label class="edit-check" title="Mặt phẳng lì + vật khác mờ đi để nhìn rõ điểm/mặt. Bỏ tích để xem màu thật"><input type="checkbox" id="edit-minimal" checked> Xem tối giản</label>
       <span class="edit-count" id="edit-count"></span>
       <button data-op="undo" title="Hoàn tác (Ctrl+Z)">↶</button><button data-op="redo" title="Làm lại (Ctrl+Y)">↷</button>
       <button class="primary" data-op="exit" title="Xong (Tab)">✔ Xong</button>
@@ -42,6 +43,7 @@ export function createEditToolbar(viewportEl, editMode, input) {
   bar.querySelector('#edit-soft').oninput = (e) => editMode.setSoft(Number(e.target.value));
   bar.querySelector('#edit-color').onchange = (e) => editMode.colorize(e.target.value);
   bar.querySelector('#edit-through').onchange = (e) => input.setThroughAll(e.target.checked);
+  bar.querySelector('#edit-minimal').onchange = (e) => editMode.setMinimalView(e.target.checked);
 
   return {
     update(info) {
@@ -55,6 +57,7 @@ export function createEditToolbar(viewportEl, editMode, input) {
       bar.querySelector('[data-op="undo"]').disabled = !info.canUndo;
       bar.querySelector('[data-op="redo"]').disabled = !info.canRedo;
       bar.querySelector('#edit-soft').value = info.soft;
+      bar.querySelector('#edit-minimal').checked = info.minimal;
     },
   };
 }

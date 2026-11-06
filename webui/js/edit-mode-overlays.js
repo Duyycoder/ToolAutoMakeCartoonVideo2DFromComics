@@ -10,8 +10,9 @@ export function createEditOverlays(scene) {
   group.matrixAutoUpdate = false; // đi theo ma trận của vật đang chỉnh
   scene.add(group);
 
-  const wireMat = new THREE.MeshBasicMaterial({ color: 0x0b0d12, wireframe: true, transparent: true, opacity: 0.4 });
-  const pointMat = new THREE.PointsMaterial({ size: 7, sizeAttenuation: false, vertexColors: true });
+  // Lưới + chấm vẽ đè lên trên (depthTest bật để không thấy điểm mặt sau), đậm cho dễ nhìn.
+  const wireMat = new THREE.MeshBasicMaterial({ color: 0x0b0d12, wireframe: true, transparent: true, opacity: 0.75 });
+  const pointMat = new THREE.PointsMaterial({ size: 9, sizeAttenuation: false, vertexColors: true });
   const faceMat = new THREE.MeshBasicMaterial({
     color: SELECTED, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
@@ -57,9 +58,9 @@ export function createEditOverlays(scene) {
       faces.geometry.setIndex(sel);
     },
 
-    dispose() {
+    /** Thoát chế độ: chỉ gỡ lớp hiển thị, GIỮ group trong cảnh để lần sau vào lại vẫn thấy. */
+    hide() {
       clear();
-      scene.remove(group);
     },
   };
 }

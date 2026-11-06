@@ -10,14 +10,15 @@ import { boxSelect, pickElement } from './edit-mode-selection.js';
 import { firstMaterialOf, meshesOf } from './mesh-split-merge-operations.js';
 import { addObjectCommand, batchCommand } from './scene-edit-commands.js';
 import { toast } from './toast-notifications.js';
+import { createEditViewStyle } from './edit-mode-view-style.js';
 import { createEditOperations } from './edit-mode-operations.js';
 
 const MAX_VERTICES = 100000;
-const WHITE = new THREE.Color(1, 1, 1);
 
 export function createEditMode({ viewport, store, stack, gizmo, onChange }) {
   let s = null;
   const overlays = createEditOverlays(viewport.scene);
+  const view = createEditViewStyle(store);
   const transform = createEditTransform(viewport, {
     onBegin: () => { s.dragBefore = { geo: s.geo.clone(), selV: s.selV.slice() }; },
     onEnd: () => {
@@ -37,11 +38,7 @@ export function createEditMode({ viewport, store, stack, gizmo, onChange }) {
     s.geo = geo;
     s.mesh.geometry = geo;
     s.selV = selV ?? new Uint8Array(geo.attributes.position.count);
-    // Có màu đỉnh (vd. vừa tô màu) -> bật vertexColors; vật vốn không có màu đỉnh thì màu nền trắng.
-    const hasColor = !!geo.attributes.color;
-    s.editMaterial.vertexColors = hasColor;
-    s.editMaterial.color.copy(hasColor && !s.hadColors ? WHITE : s.baseColor);
-    s.editMaterial.needsUpdate = true;
+    view.syncColors(!!geo.attributes.color);
     overlays.rebuild(s.mesh, geo);
     refresh();
   }
@@ -77,6 +74,7 @@ export function createEditMode({ viewport, store, stack, gizmo, onChange }) {
 
   const unlock = (on) => document.body.classList.toggle('edit-mode', on);
 
+
   const api = {
     get active() { return !!s; },
     get tool() { return s?.tool; },
@@ -95,15 +93,11 @@ export function createEditMode({ viewport, store, stack, gizmo, onChange }) {
       }
       const original = firstMaterialOf(mesh);
       if (Array.isArray(mesh.material)) toast('Vật gộp nhiều chất liệu sẽ dùng chung 1 chất liệu sau khi chỉnh.', { timeout: 6000 });
-      const editMaterial = original.clone();
-      Object.assign(editMaterial, { flatShading: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
       s = {
-        obj, mesh, editMaterial, originalGeometry: mesh.geometry, originalMaterial: mesh.material,
-        baseColor: original.color?.clone() ?? WHITE.clone(),
-        hadColors: !!(original.vertexColors && mesh.geometry.attributes.color),
+        obj, mesh, original, originalGeometry: mesh.geometry, originalMaterial: mesh.material,
         mode: 'vertex', tool: 'click', soft: 0, undo: [], redo: [],
       };
-      mesh.material = editMaterial;
+      view.begin(obj, mesh, original, !!(original.vertexColors && mesh.geometry.attributes.color));
       gizmo.setEnabled(false);
       unlock(true);
       setGeometry(toIndexed(mesh.geometry));
@@ -113,9 +107,11 @@ export function createEditMode({ viewport, store, stack, gizmo, onChange }) {
     /** Kết thúc: ghi cả lượt chỉnh thành 1 bước Undo. `extra`: vật mới sinh ra (vd. "Tách ra"). */
     exit(extra = []) {
       if (!s) return;
-      const { mesh, originalGeometry, originalMaterial, editMaterial, undo } = s;
+      const { mesh, originalGeometry, originalMaterial, undo } = s;
+      const editMaterial = view.current;
       transform.detach();
-      overlays.dispose();
+      overlays.hide();
+      view.end();
       mesh.geometry = originalGeometry;
       mesh.material = originalMaterial;
       if (undo.length || extra.length) {
@@ -153,6 +149,7 @@ export function createEditMode({ viewport, store, stack, gizmo, onChange }) {
     setSelectMode(mode) { s.mode = mode; refresh(); },
     setTool(tool) { s.tool = tool; onChange(api.info()); },
     setSoft(value) { s.soft = value; refresh(); },
+    setMinimalView(on) { view.setMinimal(on); onChange(api.info()); },
     setGizmoMode(mode) { transform.setMode(mode); },
     consumeGizmoPointer: () => transform.consumePointer(),
 
@@ -184,13 +181,13 @@ export function createEditMode({ viewport, store, stack, gizmo, onChange }) {
       return {
         name: s.obj.name, mode: s.mode, tool: s.tool, soft: s.soft,
         vertices: s.selV.reduce((a, b) => a + b, 0), faces: s.selF.reduce((a, b) => a + b, 0),
-        canUndo: s.undo.length > 0, canRedo: s.redo.length > 0,
+        canUndo: s.undo.length > 0, canRedo: s.redo.length > 0, minimal: view.minimal,
       };
     },
   };
 
   Object.assign(api, createEditOperations({
-    state: () => s, apply, pushUndo, setGeometry, exit: (extra) => api.exit(extra), store, transform,
+    state: () => s, view, apply, pushUndo, setGeometry, exit: (extra) => api.exit(extra), store, transform,
   }));
   return api;
 }

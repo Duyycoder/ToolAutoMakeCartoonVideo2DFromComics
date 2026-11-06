@@ -6,7 +6,7 @@ import { recenter } from './mesh-split-merge-operations.js';
 import { rememberOriginalLook } from './material-preset-library.js';
 import { toast } from './toast-notifications.js';
 
-export function createEditOperations({ state: S, apply, pushUndo, setGeometry, exit, store, transform }) {
+export function createEditOperations({ state: S, view, apply, pushUndo, setGeometry, exit, store, transform }) {
   const anySelectedFace = () => S().selF.some(Boolean);
 
   function makePartMesh(part) {
@@ -14,8 +14,10 @@ export function createEditOperations({ state: S, apply, pushUndo, setGeometry, e
     const world = S().mesh.matrixWorld.clone();
     geo.applyMatrix4(world);
     const center = recenter(geo);
-    const mat = S().editMaterial.clone();
-    Object.assign(mat, { flatShading: false, polygonOffset: false });
+    // Vật liệu GỐC (không phải vật liệu xem tối giản), giữ trạng thái màu đỉnh hiện tại.
+    const mat = S().original.clone();
+    mat.vertexColors = view.current.vertexColors;
+    mat.color.copy(view.current.color);
     const m = new THREE.Mesh(geo, mat);
     m.position.copy(center);
     m.castShadow = m.receiveShadow = true;
@@ -50,7 +52,7 @@ export function createEditOperations({ state: S, apply, pushUndo, setGeometry, e
     },
     colorize(hex) {
       const c = new THREE.Color(hex);
-      apply(() => G.colorizeSelected(S().geo, S().selV, [c.r, c.g, c.b], [S().baseColor.r, S().baseColor.g, S().baseColor.b]));
+      apply(() => G.colorizeSelected(S().geo, S().selV, [c.r, c.g, c.b], [view.baseColor.r, view.baseColor.g, view.baseColor.b]));
     },
     smoothSelection() { apply(() => G.smoothSelected(S().geo, S().selV, 3)); },
     mergeSelection() { apply(() => G.mergeSelected(S().geo, S().selV), 'Chọn ít nhất 2 điểm để dồn lại.'); },
