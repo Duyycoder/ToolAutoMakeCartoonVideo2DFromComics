@@ -34,5 +34,8 @@ export function createPrimitive(type, name) {
 export function iconFor(obj) {
   const kind = obj.userData.kind;
   if (kind === 'ai') return '🪄';
+  if (kind === 'array') return '▦';
+  if (kind === 'edited') return '🛠';
+  if (kind === 'light') return '💡';
   return SHAPES[kind]?.icon ?? '📦';
 }
