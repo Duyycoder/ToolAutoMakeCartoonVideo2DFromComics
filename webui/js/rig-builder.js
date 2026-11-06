@@ -25,6 +25,11 @@ export const skinnedMeshOf = (obj) => {
   return found;
 };
 
+/** Biên da thay đổi theo xương. Tránh tính lại toàn bộ đỉnh trong mỗi khung hình. */
+export function disableSkinFrustumCulling(obj) {
+  obj.traverse((o) => { if (o.isSkinnedMesh) o.frustumCulled = false; });
+}
+
 /** Geometry của mesh (duy nhất) trong `obj`, đưa về hệ toạ độ của chính `obj`. */
 export function objectLocalGeometry(obj) {
   const mesh = meshesOf(obj)[0];
@@ -79,13 +84,14 @@ export function buildRiggedObject(obj, joints, softness) {
   group.add(skinned, bones[joints.findIndex((j) => j.parent < 0)]);
   group.updateMatrixWorld(true);
   skinned.bind(new THREE.Skeleton(bones));
+  group.userData.bindPositions = bones.map((b) => b.position.toArray());
   copyOriginalLook(obj, group);
   return group;
 }
 
 /**
  * Khớp (toạ độ local của nhóm) của vật do Easy3D gắn xương -> quay lại bước Đặt khớp.
- * Tạo dáng chỉ XOAY xương, vị trí xương (so với cha) giữ nguyên -> cộng dồn vị trí = đúng chỗ lúc gắn.
+ * Controller đưa xương về tư thế lúc gắn trước khi gọi. Cộng dồn vị trí local để lấy khớp gốc.
  */
 export function jointsFromRig(group) {
   const bones = skinnedMeshOf(group).skeleton.bones;

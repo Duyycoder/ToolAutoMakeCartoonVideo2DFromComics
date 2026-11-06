@@ -1,6 +1,6 @@
 // Chế độ "Ghép xương" 2 bước cho người mới:
 //  1) Đặt khớp (rig-place-editing.js): mẫu tự khớp theo hình thật (rig-body-frame + skeleton-auto-fit), kéo chỉnh -> "Gắn vào hình".
-//  2) Tạo dáng: bấm khớp, kéo vòng tròn để xoay. Undo riêng từng lần xoay; "Xong" = 1 bước Undo của app.
+//  2) Tạo dáng: bấm khớp rồi xoay, dời 3D hoặc kéo 2D. "Xong" = 1 bước Undo của app.
 //  Vật đã gắn bằng Easy3D: "Sửa khớp" quay lại bước 1 với khớp cũ (gắn lại thay vật cũ, giữ chuyển động).
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
@@ -12,7 +12,7 @@ import { createRigHelpers } from './rig-helpers-view.js';
 import { createPlaceEditing } from './rig-place-editing.js';
 import { prepareRaycastMesh } from './rig-joint-drag.js';
 import { createRigNaming } from './rig-bone-naming.js';
-import { applyQuats, bindQuatsOf, createPoseStage, snapshotQuats } from './rig-pose-stage.js';
+import { applyPose, bindPoseOf, createPoseStage, snapshotPose } from './rig-pose-stage.js';
 import { jointsToTemplate, templateToJoints } from './rig-template-library.js';
 import { createGhosting } from './scene-ghosting.js';
 import { meshesOf } from './mesh-split-merge-operations.js';
@@ -28,12 +28,12 @@ export function createRigMode({ viewport, store, stack, gizmo, onChange }) {
   const tc = new TransformControls(viewport.camera, viewport.renderer.domElement);
   tc.getHelper().userData.editorOnly = true;
   viewport.scene.add(tc.getHelper());
-  const pivot = new THREE.Object3D(); // tâm biến đổi "cả bộ xương"
+  const pivot = new THREE.Object3D(); // tay cầm của cả bộ xương hoặc khớp đang dời 3D
   pivot.userData.editorOnly = true;
   viewport.scene.add(pivot);
   const notify = () => onChange(api.info());
   const place = createPlaceEditing({ viewport, helpers, tc, pivot, onChange: notify });
-  const pose = createPoseStage({ helpers, tc, stack, store, getState: () => s, notify });
+  const pose = createPoseStage({ camera: viewport.camera, helpers, tc, pivot, stack, store, getState: () => s, notify });
   let pointerOnGizmo = false;
 
   tc.addEventListener('mouseDown', () => { pointerOnGizmo = true; });
@@ -42,9 +42,20 @@ export function createRigMode({ viewport, store, stack, gizmo, onChange }) {
     if (s?.stage === 'place') place.gizmoDrag(e.value);
     else if (s?.stage === 'pose') pose.dragChanged(e.value);
   });
-  tc.addEventListener('objectChange', () => { if (s?.stage === 'place') place.gizmoMoved(); });
+  tc.addEventListener('objectChange', () => {
+    if (s?.stage === 'place') place.gizmoMoved();
+    else if (s?.stage === 'pose') pose.gizmoMoved();
+  });
+  const cancelPoseGizmo = () => {
+    if (s?.stage !== 'pose' || !tc.dragging) return;
+    pose.cancelGizmoDrag();
+    tc.pointerUp(null);
+    pointerOnGizmo = false;
+  };
+  viewport.renderer.domElement.addEventListener('pointercancel', cancelPoseGizmo);
+  viewport.renderer.domElement.addEventListener('lostpointercapture', cancelPoseGizmo);
 
-  const busy = () => place.dragging || tc.dragging; // đang kéo: Undo giữa chừng làm lệch trạng thái
+  const busy = () => place.dragging || pose.dragging || tc.dragging; // đang kéo: Undo giữa chừng làm lệch trạng thái
   const closePlace = () => { s?.cleanupRaycast?.(); if (s) s.cleanupRaycast = null; place.detach(); };
   const symOf = (frame) => ({ P0: frame.toLocal((frame.min[0] + frame.max[0]) / 2, 0, 0), U: frame.U.clone() });
 
@@ -81,7 +92,7 @@ export function createRigMode({ viewport, store, stack, gizmo, onChange }) {
     get active() { return !!s; },
     get stage() { return s?.stage; },
     get joints() { return s?.joints ?? null; }, // smoke test: tìm vị trí chấm khớp để bấm chuột thật
-    place,
+    place, pose,
 
     enter(obj) {
       if (s) return;
@@ -101,8 +112,8 @@ export function createRigMode({ viewport, store, stack, gizmo, onChange }) {
 
     exit() {
       if (!s) return;
-      if (s.stage === 'pose') pose.commit();
-      if (s.restoreQuats) applyQuats(s.bones, s.restoreQuats); // huỷ "Sửa khớp" -> về tư thế đang tạo
+      if (s.stage === 'pose') { cancelPoseGizmo(); pose.cancelDrag(); pose.commit(); }
+      if (s.restorePose) applyPose(s.bones, s.restorePose); // huỷ "Sửa khớp" -> về tư thế đang tạo
       pose.stop();
       closePlace();
       tc.detach();
@@ -115,9 +126,15 @@ export function createRigMode({ viewport, store, stack, gizmo, onChange }) {
       onChange(null);
     },
 
-    select(i) {
+    select(i, additive = false) {
+      if (!s || busy()) return;
       if (s.stage === 'place') place.select(i);
-      else pose.select(i);
+      else pose.select(i, additive);
+      notify();
+    },
+    selectBox(rect) {
+      if (s?.stage !== 'pose' || busy()) return;
+      pose.selectBox(rect, viewport.renderer.domElement.getBoundingClientRect());
       notify();
     },
     pick(raycaster) { return helpers.pick(raycaster); },
@@ -134,6 +151,11 @@ export function createRigMode({ viewport, store, stack, gizmo, onChange }) {
     /** Đoán sai hướng: xoay khung thân quanh trục lên rồi tự khớp lại. */
     turn(quarterTurns) { s.frame = turnFrame(s.frame, quarterTurns, s.positions); api.autoFit(); },
     setOption(key, v) { s[key] = v; notify(); },
+    setPoseMode(mode) {
+      if (s?.stage !== 'pose' || busy()) return;
+      pose.setMode(mode);
+      notify();
+    },
     /** Bật/tắt (bấm lại) chế độ dời / xoay / co giãn CẢ bộ xương. */
     setWhole(mode) { place.setWhole(place.wholeMode === mode ? null : mode); notify(); },
     useTemplate(tpl) { s.template = 'custom'; place.replaceJoints(templateToJoints(tpl, s.frame), symOf(s.frame)); },
@@ -144,29 +166,38 @@ export function createRigMode({ viewport, store, stack, gizmo, onChange }) {
       const old = s.obj, oldNames = isRigged(old) ? skinnedMeshOf(old).skeleton.bones.map((b) => b.name).join('|') : '';
       closePlace();
       const group = buildRiggedObject(old, s.joints, s.softness);
-      if (old.userData.anim) { // giữ chuyển động; số xương đổi thì bỏ phần tư thế xương
+      if (old.userData.anim) {
         group.userData.anim = JSON.parse(JSON.stringify(old.userData.anim));
-        if (oldNames !== s.joints.map((j) => j.name).join('|')) group.userData.anim.keys.forEach((k) => delete k.bones); // khớp đổi -> chỉ số lệch
+        const sameBones = oldNames === s.joints.map((j) => j.name).join('|');
+        const oldRest = old.userData.bindPositions, newRest = group.userData.bindPositions;
+        for (const key of group.userData.anim.keys) {
+          if (!sameBones) { delete key.bones; delete key.bonePositions; }
+          else if (oldRest && key.bonePositions) {
+            // Giữ độ dời của từng xương so với vị trí gắn mới.
+            key.bonePositions = key.bonePositions.map((p, i) => p?.map((v, axis) => v - oldRest[i][axis] + newRest[i][axis]));
+          }
+        }
       }
-      if (s.restoreQuats) applyQuats(s.bones, s.restoreQuats); // vật cũ (nằm trong Undo) giữ tư thế cũ
-      s.restoreQuats = null;
+      if (s.restorePose) applyPose(s.bones, s.restorePose); // vật cũ (nằm trong Undo) giữ tư thế cũ
+      s.restorePose = null;
       stack.execute(batchCommand('Gắn xương', [removeObjectCommand(store, old), addObjectCommand(store, group)]));
       ghosting.on(group);
       startPose(group);
-      toast('Đã gắn xương! Bấm vào 1 khớp rồi kéo vòng tròn màu để xoay — tạo dáng tuỳ ý.', { type: 'ok', timeout: 8000 });
+      toast('Đã gắn xương! Chọn khớp rồi dùng Xoay, Dời 3D hoặc Dời 2D để tạo dáng.', { type: 'ok', timeout: 8000 });
     },
 
     /** Bước 2 -> 1 (vật gắn bằng Easy3D): chỉnh lại vị trí / thêm / xoá khớp rồi gắn lại. */
     editJoints() {
+      if (busy()) return;
       if (s.obj.userData.kind !== 'rigged') return toast('Chỉ sửa khớp được với xương gắn bằng Easy3D.', { type: 'warn', timeout: 6000 });
       pose.commit();
-      const bones = s.bones, current = snapshotQuats(bones);
-      applyQuats(bones, bindQuatsOf(s.obj)); // về tư thế lúc gắn: hình khớp đúng chỗ xương
+      const bones = s.bones, current = snapshotPose(bones);
+      applyPose(bones, bindPoseOf(s.obj)); // về tư thế lúc gắn: hình khớp đúng chỗ xương
       startPlace({ template: 'custom', joints: relinkMirrors(jointsFromRig(s.obj)) });
-      Object.assign(s, { bones, restoreQuats: current });
+      Object.assign(s, { bones, restorePose: current });
     },
 
-    resetPose: () => pose.resetPose(),
+    resetPose: () => { if (!busy()) pose.resetPose(); },
     /** Gỡ xương, giữ dáng đang tạo thành hình thường (để sửa hình / nặn / tô tiếp). */
     unrig() {
       const group = s.obj;
@@ -189,8 +220,10 @@ export function createRigMode({ viewport, store, stack, gizmo, onChange }) {
     info() {
       if (!s) return null;
       const t = api.tree()[s.selected];
+      const selectedIndices = s.stage === 'pose' ? [...s.selectedBones] : (s.selected >= 0 ? [s.selected] : []);
       return { name: s.obj.name, stage: s.stage, template: s.template, mirror: s.mirror, branch: s.branch, autoDepth: s.autoDepth,
-        softness: s.softness, whole: s.stage === 'place' ? place.wholeMode : null, index: s.selected,
+        softness: s.softness, whole: s.stage === 'place' ? place.wholeMode : null, poseMode: s.poseMode, index: s.selected,
+        selectedIndices, selectedCount: selectedIndices.length,
         selected: t?.label ?? null, selectedName: t?.name ?? null, canEdit: s.obj.userData.kind === 'rigged',
         canUndo: s.undo.length > 0, canRedo: s.redo.length > 0 };
     },

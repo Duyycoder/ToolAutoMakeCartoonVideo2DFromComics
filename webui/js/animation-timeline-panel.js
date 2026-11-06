@@ -12,7 +12,7 @@ export function createTimelinePanel(viewportEl, { viewport, store, stack, onVide
     <div class="timeline-track"><input type="range" id="tl-time" min="0" step="0.01" value="0"><div class="tl-keys"></div></div>
     <span class="tl-label" id="tl-label"></span>
     <label class="edit-soft" title="Độ dài (giây)">⏱<input type="number" id="tl-duration" min="1" max="30" step="1" class="num"></label>
-    <button data-op="key" class="primary" title="Ghi tư thế hiện tại của vật đang chọn tại thời điểm này">📍 Ghi tư thế</button>
+    <button data-op="key" class="primary" title="Ghi biến đổi của vật và tư thế từng xương tại thời điểm này">📍 Ghi tư thế</button>
     <button data-op="unkey" title="Xoá khoá tại thời điểm này">🗑 Xoá khoá</button>
     <select id="tl-preset"><option value="">✨ Mẫu nhanh…</option>${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${p.label}</option>`).join('')}</select>
     <button data-op="video" title="Quay toàn bộ chuyển động thành video">🎥 Xuất video</button>`;

@@ -1,37 +1,97 @@
-// Bước 2 "Tạo dáng": bấm khớp, kéo vòng tròn để xoay xương; Undo riêng từng lần xoay;
+// Bước 2 "Tạo dáng": xoay, dời theo trục hoặc kéo trên mặt phẳng màn hình;
 // kết thúc lượt (Xong / Sửa khớp) = 1 bước Undo của app. Chấm khớp đi theo xương mỗi frame.
 import * as THREE from 'three';
-import { skinnedMeshOf } from './rig-builder.js';
+import { disableSkinFrustumCulling, skinnedMeshOf } from './rig-builder.js';
+import { dragPlane } from './rig-joint-drag.js';
 
-export const snapshotQuats = (bones) => bones.map((b) => b.quaternion.clone());
-export const applyQuats = (bones, quats) => bones.forEach((b, i) => b.quaternion.copy(quats[i]));
-export const bindQuatsOf = (group) => group.userData.bindQuats.map((q) => new THREE.Quaternion().fromArray(q));
+export const snapshotPose = (bones) => bones.map((b) => ({ position: b.position.clone(), quaternion: b.quaternion.clone() }));
+export const applyPose = (bones, pose) => bones.forEach((b, i) => {
+  b.position.copy(pose[i].position);
+  b.quaternion.copy(pose[i].quaternion);
+});
+export const bindPoseOf = (group) => group.userData.bindPositions.map((p, i) => ({
+  position: new THREE.Vector3().fromArray(p), quaternion: new THREE.Quaternion().fromArray(group.userData.bindQuats[i]),
+}));
+const poseChanged = (bones, before) => bones.some((b, i) =>
+  !b.position.equals(before[i].position) || !b.quaternion.equals(before[i].quaternion));
 
-export function createPoseStage({ helpers, tc, stack, store, getState, notify }) {
+function startWorldMove(s, origin) {
+  const selected = new Set([...s.selectedBones].map((i) => s.bones[i]));
+  const roots = [...selected].filter((bone) => {
+    for (let parent = bone.parent; parent; parent = parent.parent) {
+      if (selected.has(parent)) return false; // xương con đi theo xương cha đã chọn
+    }
+    return true;
+  });
+  return { origin: origin.clone(), starts: roots.map((bone) => ({ bone, world: bone.getWorldPosition(new THREE.Vector3()) })) };
+}
+
+function moveInWorld(move, target) {
+  const delta = target.clone().sub(move.origin);
+  for (const { bone, world } of move.starts) {
+    const next = world.clone().add(delta);
+    bone.position.copy(bone.parent ? bone.parent.worldToLocal(next) : next);
+  }
+}
+
+export function createPoseStage({ camera, helpers, tc, pivot, stack, store, getState, notify }) {
   let raf = 0;
-  let dragBefore = null;
+  let gizmoDrag = null;
+  let screenDrag = null;
   const boneWorld = (s) => s.bones.map((b) => b.getWorldPosition(new THREE.Vector3()));
   const tick = () => {
     const s = getState();
     if (s?.stage !== 'pose') return;
-    helpers.update(boneWorld(s));
+    const points = boneWorld(s);
+    helpers.update(points);
+    if (s.poseMode === 'translate' && s.selected >= 0 && !tc.dragging) pivot.position.copy(points[s.selected]);
     raf = requestAnimationFrame(tick);
   };
 
   function swap(from, to) {
     const s = getState();
     if (!from.length) return;
-    to.push(snapshotQuats(s.bones));
-    applyQuats(s.bones, from.pop());
+    to.push(snapshotPose(s.bones));
+    applyPose(s.bones, from.pop());
     notify();
   }
 
-  return {
+  function remember(before) {
+    const s = getState();
+    if (!poseChanged(s.bones, before)) return;
+    s.undo.push(before);
+    s.redo = [];
+    notify();
+  }
+
+  function focus(s, i) {
+    s.selected = i;
+    helpers.setSelected(i, s.selectedBones);
+    if (i < 0 || s.poseMode === 'screen') tc.detach();
+    else if (s.poseMode === 'rotate') {
+      tc.setMode('rotate');
+      tc.setSpace('local');
+      tc.attach(s.bones[i]);
+    } else {
+      // Tay cầm ở hệ thế giới; dùng ma trận cha để giữ đúng trục kể cả khi rig bị co giãn.
+      s.bones[i].getWorldPosition(pivot.position);
+      pivot.quaternion.identity();
+      pivot.scale.setScalar(1);
+      tc.setMode('translate');
+      tc.setSpace('world');
+      tc.attach(pivot);
+    }
+  }
+
+  const api = {
     start(group) {
       const s = getState();
       const bones = skinnedMeshOf(group).skeleton.bones;
+      disableSkinFrustumCulling(group);
       group.userData.bindQuats ??= bones.map((b) => b.quaternion.toArray()); // lưu cùng project -> "Đặt lại tư thế"
-      Object.assign(s, { stage: 'pose', obj: group, bones, startQuats: snapshotQuats(bones), selected: -1, undo: [], redo: [], restoreQuats: null });
+      group.userData.bindPositions ??= bones.map((b) => b.position.toArray());
+      Object.assign(s, { stage: 'pose', poseMode: 'rotate', obj: group, bones, startPose: snapshotPose(bones),
+        selected: -1, selectedBones: new Set(), undo: [], redo: [], restorePose: null });
       tc.detach();
       group.updateWorldMatrix(true, true);
       const size = new THREE.Box3().setFromObject(group).getSize(new THREE.Vector3()).length();
@@ -40,37 +100,106 @@ export function createPoseStage({ helpers, tc, stack, store, getState, notify })
       raf = requestAnimationFrame(tick);
       notify();
     },
-    stop() { cancelAnimationFrame(raf); },
+    stop() { cancelAnimationFrame(raf); gizmoDrag = screenDrag = null; },
+    get dragging() { return !!screenDrag; },
 
     /** Ghi lượt tạo dáng (nếu có đổi) thành 1 bước Undo của app. */
     commit() {
       const s = getState();
-      const before = s.startQuats, after = snapshotQuats(s.bones), bones = s.bones;
-      if (before.some((q, i) => !q.equals(after[i]))) {
-        stack.push({ label: 'Tạo dáng', do: () => { applyQuats(bones, after); store.changed(); },
-          undo: () => { applyQuats(bones, before); store.changed(); } });
-      }
-      s.startQuats = after;
+      const { startPose: before, bones } = s;
+      if (!poseChanged(bones, before)) return;
+      const after = snapshotPose(bones);
+      const apply = (snapshot) => { applyPose(bones, snapshot); store.changed(); };
+      stack.push({ label: 'Tạo dáng', do: () => apply(after), undo: () => apply(before) });
+      s.startPose = after;
     },
 
     dragChanged(started) {
       const s = getState();
-      if (started) dragBefore = snapshotQuats(s.bones);
-      else if (dragBefore) { s.undo.push(dragBefore); s.redo = []; dragBefore = null; notify(); }
+      if (started) {
+        gizmoDrag = { before: snapshotPose(s.bones), move: s.poseMode === 'translate' ? startWorldMove(s, pivot.position) : null };
+      } else if (gizmoDrag) {
+        remember(gizmoDrag.before);
+        gizmoDrag = null;
+      }
     },
-    select(i) {
+    cancelGizmoDrag() {
+      if (!gizmoDrag) return;
+      applyPose(getState().bones, gizmoDrag.before);
+      gizmoDrag = null;
+    },
+    setMode(mode) {
       const s = getState();
-      s.selected = i;
-      helpers.setSelected(i);
-      if (i < 0) tc.detach(); else { tc.setMode('rotate'); tc.setSpace('local'); tc.attach(s.bones[i]); }
+      s.poseMode = mode;
+      focus(s, s.selected);
+    },
+    select(i, additive = false) {
+      const s = getState();
+      if (!additive) s.selectedBones.clear();
+      if (i < 0) { if (!additive) focus(s, -1); return; }
+      if (additive && s.selectedBones.delete(i)) {
+        focus(s, s.selected === i ? ([...s.selectedBones].at(-1) ?? -1) : s.selected);
+        return;
+      }
+      s.selectedBones.add(i);
+      focus(s, i);
+    },
+    selectBox(box, canvas) {
+      const s = getState();
+      let active = s.selected;
+      boneWorld(s).forEach((point, i) => {
+        const { x, y, z } = point.project(camera);
+        if (Math.abs(x) > 1 || Math.abs(y) > 1 || Math.abs(z) > 1) return;
+        const left = canvas.left + (x + 1) * canvas.width / 2;
+        const top = canvas.top + (1 - y) * canvas.height / 2;
+        if (left < box.left || left > box.right || top < box.top || top > box.bottom) return;
+        if (!s.selectedBones.has(i)) active = i;
+        s.selectedBones.add(i);
+      });
+      focus(s, active);
+    },
+    gizmoMoved() { if (gizmoDrag?.move) moveInWorld(gizmoDrag.move, pivot.position); },
+
+    beginDrag(raycaster) {
+      const s = getState();
+      const i = helpers.pick(raycaster);
+      if (i < 0) return false;
+      const bone = s.bones[i];
+      const world = bone.getWorldPosition(new THREE.Vector3());
+      const plane = dragPlane(world, camera);
+      const hit = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+      if (!hit) return false;
+      if (s.selectedBones.has(i)) focus(s, i);
+      else api.select(i);
+      screenDrag = { plane, move: startWorldMove(s, hit), before: snapshotPose(s.bones) };
+      notify();
+      return true;
+    },
+    dragTo(raycaster) {
+      if (!screenDrag) return;
+      const world = raycaster.ray.intersectPlane(screenDrag.plane, new THREE.Vector3());
+      if (world) moveInWorld(screenDrag.move, world);
+    },
+    endDrag() {
+      if (!screenDrag) return;
+      const { before } = screenDrag;
+      screenDrag = null;
+      remember(before);
+    },
+    cancelDrag() {
+      if (!screenDrag) return;
+      applyPose(getState().bones, screenDrag.before);
+      screenDrag = null;
+      notify();
     },
     resetPose() {
       const s = getState();
-      s.undo.push(snapshotQuats(s.bones)); s.redo = [];
-      applyQuats(s.bones, bindQuatsOf(s.obj));
-      notify();
+      const before = snapshotPose(s.bones);
+      applyPose(s.bones, bindPoseOf(s.obj));
+      remember(before);
     },
     undo() { const s = getState(); swap(s.undo, s.redo); },
     redo() { const s = getState(); swap(s.redo, s.undo); },
   };
+  return api;
 }

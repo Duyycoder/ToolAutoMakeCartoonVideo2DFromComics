@@ -51,9 +51,9 @@ export function createRigHelpers(scene) {
       });
       attr.needsUpdate = true;
     },
-    setSelected(i) {
+    setSelected(i, selection = null) {
       selected = i;
-      spheres.forEach((s, k) => s.material.color.copy(k === i ? SELECTED : NORMAL));
+      spheres.forEach((s, k) => s.material.color.copy(k === i || selection?.has(k) ? SELECTED : NORMAL));
     },
     get selected() { return selected; },
     handle: (i) => spheres[i],

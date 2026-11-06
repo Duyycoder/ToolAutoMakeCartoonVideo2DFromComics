@@ -68,6 +68,9 @@ export function createViewport(container) {
   });
 
   const raycaster = new THREE.Raycaster();
+  const clearSkinBounds = (obj) => obj.traverse((o) => {
+    if (o.isSkinnedMesh && !o.frustumCulled) o.boundingBox = o.boundingSphere = null;
+  });
 
   /** Trả về vật thể cấp cao nhất (con trực tiếp của objectsRoot) dưới con trỏ, hoặc null. */
   function pick(clientX, clientY) {
@@ -75,6 +78,7 @@ export function createViewport(container) {
     const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1,
       -((clientY - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
+    clearSkinBounds(objectsRoot);
     const hits = raycaster.intersectObjects(objectsRoot.children, true)
       .filter((h) => isVisibleChain(h.object, objectsRoot));
     if (!hits.length) return null;
@@ -86,7 +90,10 @@ export function createViewport(container) {
   /** Đưa camera nhìn trọn 1 vật, nhiều vật (mảng) hoặc cả cảnh. */
   function frameObjects(target = objectsRoot) {
     const box = new THREE.Box3();
-    (Array.isArray(target) ? target : [target]).forEach((o) => box.expandByObject(o));
+    (Array.isArray(target) ? target : [target]).forEach((o) => {
+      clearSkinBounds(o);
+      box.expandByObject(o);
+    });
     if (box.isEmpty()) box.set(new THREE.Vector3(-1, 0, -1), new THREE.Vector3(1, 1, 1));
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3()).length();

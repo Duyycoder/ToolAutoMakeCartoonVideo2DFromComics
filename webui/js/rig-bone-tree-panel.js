@@ -34,13 +34,13 @@ export function createBoneTreePanel(viewportEl, rigMode, { onTemplateSaved }) {
   function treeList(info) {
     const tree = rigMode.tree(), depth = depthsOf(tree);
     return h('ul', { className: 'rig-tree' }, tree.map((b, i) => {
-      const li = h('li', { title: 'Bấm: chọn · Bấm đúp: đổi tên' }, [
+      const li = h('li', { title: info.stage === 'pose' ? 'Bấm: chọn · Shift + bấm: thêm/bỏ chọn · Bấm đúp: đổi tên' : 'Bấm: chọn · Bấm đúp: đổi tên' }, [
         h('span', { className: 'rig-label', textContent: b.label }),
         h('small', { textContent: b.name === b.label ? '' : b.name }),
       ]);
       li.style.paddingLeft = `${6 + depth[i] * 12}px`;
-      li.classList.toggle('selected', i === info.index);
-      li.onclick = () => rigMode.select(i);
+      li.classList.toggle('selected', info.selectedIndices.includes(i));
+      li.onclick = (e) => rigMode.select(i, e.shiftKey);
       li.ondblclick = () => renameInline(li, i, b.name);
       return li;
     }));
