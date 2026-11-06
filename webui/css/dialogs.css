@@ -65,3 +65,15 @@
 .toast button { padding: 3px 10px; font-size: 12px; pointer-events: auto; }
 @keyframes toast-in { from { transform: translateY(10px); opacity: 0; } }
 .quality label.unavailable { opacity: .55; }
+
+/* Camera khi xuất ảnh (render-camera-controls.js) */
+.render-camera { display: grid; grid-template-columns: 1fr 340px; grid-template-rows: auto; gap: 6px 16px; margin-top: 16px;
+  padding-top: 12px; border-top: 1px solid var(--line); align-items: center; }
+.render-camera > b, .render-camera .cam-views, .render-camera label, .render-camera .cam-actions { grid-column: 1; }
+.render-camera .cam-preview { grid-column: 2; grid-row: 1 / span 7; width: 340px; border: 1px solid var(--line); border-radius: 8px;
+  background: repeating-conic-gradient(#2a2d36 0 25%, #22252d 0 50%) 0 0 / 16px 16px; }
+.render-camera .cam-views, .render-camera .cam-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.render-camera button { padding: 4px 9px; font-size: 12.5px; }
+.render-camera label { display: grid; grid-template-columns: 90px 1fr 56px; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+.render-camera input[type=range] { accent-color: var(--accent); }
+.render-camera label span { color: var(--text); text-align: right; }

@@ -77,6 +77,7 @@ const ACTIONS = {
   'toggle-timeline': () => timeline.toggle(),
   'export-image': () => openImageExportDialog({
     viewport, onExport: (url, size, renderBlob) => files.saveImage(url, size, renderBlob),
+    frameTarget: () => (store.selection.length ? store.selection : viewport.objectsRoot),
     cycles: { ready: blenderReady(), message: blenderMessage(), render: (opts) => meshTools.blender.render(viewport, opts) },
   }),
   'edit-mode': () => (editMode.active ? editMode.exit() : (leaveModes(), editMode.enter(store.selected))),
