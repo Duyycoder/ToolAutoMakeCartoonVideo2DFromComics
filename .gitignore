@@ -28,5 +28,3 @@ configs/config.json
 /output/
 /logs/
 
-# --- Plan/report nội bộ (giống repo AutoCartoon) ---
-/plans/
