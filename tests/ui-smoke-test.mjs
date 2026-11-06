@@ -446,6 +446,93 @@ check('Xong: thoát Tô vẽ, vật giữ màu đã tô', await evaluate(`const 
 await evaluate(`${q('#btn-undo')}.click();`);
 check('1 lần hoàn tác bỏ cả lượt tô vẽ', await evaluate(`return !window.easy3d.store.selected.material.vertexColors;`));
 
+// ---------- Nặn hình: đắp, lõm, kéo, đối xứng, hoàn tác ----------
+const sculptStats = () => evaluate(`const s = window.easy3d.sculptMode.state; if (!s) return null;
+  const p = s.geo.attributes.position.array; let sum = 0, maxX = -Infinity, check = 0;
+  const cx = s.symX;
+  for (let i = 0; i < p.length; i += 3) { sum += Math.hypot(p[i] - cx, p[i + 1] - 0.5, p[i + 2]); maxX = Math.max(maxX, p[i]); check += p[i] * 1.3 + p[i + 1] * 0.7 + p[i + 2]; }
+  return { n: p.length / 3, mean: sum / (p.length / 3), maxX, check, brush: s.brush };`);
+// So với bản chụp `window.__sculptBase`: tổng dời ra xa tâm (+ phồng, - lõm), tổng dời theo x, số điểm bị dời.
+const markSculptBase = () => evaluate(`const g = window.easy3d.sculptMode.state.geo; g.computeBoundingBox();
+  window.__sculptBase = g.attributes.position.array.slice(); window.__sculptCenter = g.boundingBox.getCenter(new (await import('three')).Vector3());`);
+const sculptDiff = () => evaluate(`const p = window.easy3d.sculptMode.state.geo.attributes.position.array, o = window.__sculptBase, c = window.__sculptCenter;
+  let radial = 0, dx = 0, moved = 0;
+  for (let i = 0; i < p.length; i += 3) {
+    const d = Math.hypot(p[i] - o[i], p[i + 1] - o[i + 1], p[i + 2] - o[i + 2]);
+    if (d < 1e-6) continue;
+    moved++; dx += p[i] - o[i];
+    radial += Math.hypot(p[i] - c.x, p[i + 1] - c.y, p[i + 2] - c.z) - Math.hypot(o[i] - c.x, o[i + 1] - c.y, o[i + 2] - c.z);
+  }
+  return { radial: +radial.toFixed(4), dx: +dx.toFixed(4), moved };`);
+const sculptOp = (op) => evaluate(`document.querySelector('.sculpt-toolbar [data-op="${op}"]').click();`);
+const sculptBrush = (b) => evaluate(`document.querySelector('.sculpt-toolbar [data-sculpt="${b}"]').click();`);
+const strokeAcross = async (cx, cy, dx, shift = false) => {
+  const mods = shift ? 8 : 0; // 8 = Shift trong DevTools Protocol
+  const m = (type, x, buttons) => send('Input.dispatchMouseEvent', { type, x, y: cy, button: 'left', buttons, clickCount: 1, modifiers: mods });
+  await m('mouseMoved', cx, 0); await m('mousePressed', cx, 1);
+  for (let i = 1; i <= 6; i++) await m('mouseMoved', cx + dx * i / 6, 1);
+  await m('mouseReleased', cx + dx, 0);
+  await sleep(100);
+};
+
+await clickName('Cầu 2');
+await key('f'); await sleep(300);
+await key('n');
+let ss = await sculptStats();
+check('Phím N vào Nặn hình: hiện thanh công cụ, lưới đủ dày', await evaluate(`return !document.querySelector('.sculpt-toolbar').hidden && document.body.classList.contains('sculpt-mode');`)
+  && ss.n > 5000, JSON.stringify(ss?.n));
+check('Khi nặn, các vật khác mờ đi (không che chỗ đang nặn)', await evaluate(`let g = 0; window.easy3d.store.objects.forEach((o) => o.traverse((m) => { if (m.isMesh && m.material.opacity < 0.2) g++; })); return g > 0;`));
+const sc = await evaluate(`const THREE = await import('three'); const { viewport, store } = window.easy3d;
+  const c = new THREE.Box3().setFromObject(store.selected).getCenter(new THREE.Vector3()).project(viewport.camera);
+  const r = viewport.renderer.domElement.getBoundingClientRect();
+  return { x: r.left + (c.x + 1) / 2 * r.width, y: r.top + (1 - c.y) / 2 * r.height };`);
+const base = ss;
+await markSculptBase();
+await evaluate(`const s = document.querySelector('#sculpt-strength'); s.value = 1; s.dispatchEvent(new Event('input'));`);
+await strokeAcross(sc.x - 20, sc.y, 40);
+let sd = await sculptDiff();
+check('Cọ Đắp làm vật phồng ra', sd.moved > 50 && sd.radial > 0.5, JSON.stringify(sd));
+await sculptOp('undo');
+check('Hoàn tác nét nặn trả đúng hình cũ', Math.abs((await sculptStats()).check - base.check) < 1e-3);
+await strokeAcross(sc.x - 20, sc.y, 40, true);
+sd = await sculptDiff();
+check('Giữ Shift khi Đắp -> lõm vào', sd.moved > 50 && sd.radial < -0.5, JSON.stringify(sd));
+await sculptOp('undo');
+await sculptBrush('carve');
+await strokeAcross(sc.x - 20, sc.y, 40);
+sd = await sculptDiff();
+check('Cọ Lõm làm vật lõm vào', sd.moved > 50 && sd.radial < -0.5, JSON.stringify(sd));
+await sculptBrush('smooth');
+const beforeSmooth = (await sculptStats()).check;
+await strokeAcross(sc.x - 20, sc.y, 40);
+check('Cọ Làm mượt có tác dụng', Math.abs((await sculptStats()).check - beforeSmooth) > 1e-4);
+await sculptOp('undo'); await sculptOp('undo');
+check('Hoàn tác nhiều bước về hình gốc', Math.abs((await sculptStats()).check - base.check) < 1e-3);
+
+await sculptBrush('grab');
+await strokeAcross(sc.x, sc.y, 80);
+sd = await sculptDiff();
+check('Cọ Kéo dời cả vùng theo chuột (sang phải)', sd.moved > 50 && sd.dx > 1, JSON.stringify(sd));
+await sculptOp('undo');
+
+await key('x'); // bật đối xứng
+const symmetry = await evaluate(`return window.easy3d.sculptMode.state.brush.symmetry;`);
+await sculptBrush('draw');
+await evaluate(`window.__sculptBefore = window.easy3d.sculptMode.state.geo.attributes.position.array.slice();`);
+await strokeAcross(sc.x + 25, sc.y, 15); // chỉ nặn bên phải
+const sides = await evaluate(`const s = window.easy3d.sculptMode.state, p = s.geo.attributes.position.array, old = window.__sculptBefore;
+  let left = 0, right = 0;
+  for (let i = 0; i < p.length; i += 3) {
+    if (Math.hypot(p[i] - old[i], p[i + 1] - old[i + 1], p[i + 2] - old[i + 2]) > 1e-5) { if (old[i] < s.symX) left++; else right++; } }
+  return { left, right };`);
+check('Đối xứng (phím X): nặn bên phải, bên trái cũng đổi theo', symmetry && sides.left > 10 && sides.right > 10, JSON.stringify(sides));
+await shot('06-sculpt.png');
+await sculptOp('exit');
+check('Xong: thoát Nặn hình, hình mới được giữ', await evaluate(`return document.querySelector('.sculpt-toolbar').hidden && !document.body.classList.contains('sculpt-mode');`));
+const sculptedTris = await triStatus();
+await evaluate(`${q('#btn-undo')}.click();`);
+check('1 lần hoàn tác bỏ cả lượt nặn', await triStatus() !== sculptedTris, `${sculptedTris} -> ${await triStatus()}`);
+
 await selectByName('Cầu 1');
 await shot('02-editor.png');
 

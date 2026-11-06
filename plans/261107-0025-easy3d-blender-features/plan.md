@@ -23,7 +23,7 @@ sửa chi tiết trong khối, tách khối, vật liệu, các tính năng nân
 |---|-----|----------|-----------|
 | 1 | [Công cụ sửa hình](phase-01-cong-cu-sua-hinh.md) | Làm mượt, Giảm chi tiết, Đối xứng, Nhân mảng, Ghép/Cắt/Giao 2 vật (CSG), Tách phần rời, Gộp vật | DONE |
 | 2 | [Vật liệu + ánh sáng + xuất ảnh](phase-02-vat-lieu-anh-sang-xuat-anh.md) | Thêm preset, chỉnh nâng cao, texture vân (gỗ, gạch, ca-rô...), ảnh làm texture; preset ánh sáng/nền, thêm đèn; xuất ảnh HD/nền trong suốt | DONE |
-| 3 | [Nặn hình + sửa chi tiết](phase-03-nan-hinh-sua-chi-tiet.md) | **Chỉnh điểm (Edit Mode)** — DONE: chọn điểm/mặt, kéo khung, kéo mềm, đùn, xoá, tách, tô màu, làm mượt, dồn, thêm điểm. Còn: cọ nặn (Đắp/Lõm/Kéo/Phẳng) | in-progress |
+| 3 | [Nặn hình + sửa chi tiết](phase-03-nan-hinh-sua-chi-tiet.md) | Chỉnh điểm (Edit Mode) + **Nặn hình** (phím N): Đắp, Lõm (Shift đảo chiều), Kéo, Làm mượt, Làm phẳng, đối xứng trái↔phải | DONE |
 | 4 | [Chuyển động](phase-04-chuyen-dong-animation.md) | Thanh thời gian, "Ghi tư thế" (keyframe), Bàn xoay 360°, phát/dừng, xuất video + GLB có animation | pending |
 | 5 | [Ghép xương](phase-05-ghep-xuong.md) | Mẫu xương người/đuôi/chuỗi, đặt khớp bằng kéo, tự gán trọng lượng theo khoảng cách, chỉnh tư thế, dùng với Đợt 4 | pending |
 | 6 | [Blender headless](phase-06-blender-headless.md) | Bo tròn cạnh, Làm lưới đều, Sửa lỗi in 3D, Tạo UV, Render đẹp (Cycles) | pending |

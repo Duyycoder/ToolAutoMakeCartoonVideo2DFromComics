@@ -172,3 +172,6 @@ body.edit-mode [data-action="edit-mode"] { background: #2b3a63; border-color: va
 body.paint-mode .sidepanel { pointer-events: none; opacity: .4; }
 body.paint-mode [data-action="paint-mode"] { background: #2b3a63; border-color: var(--accent); }
 body.paint-mode #viewport canvas { cursor: crosshair; }
+body.sculpt-mode .sidepanel { pointer-events: none; opacity: .4; }
+body.sculpt-mode [data-action="sculpt-mode"] { background: #2b3a63; border-color: var(--accent); }
+body.sculpt-mode #viewport canvas { cursor: crosshair; }

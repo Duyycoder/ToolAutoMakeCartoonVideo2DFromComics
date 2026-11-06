@@ -1,24 +1,15 @@
 // Kiểu xem khi "Chỉnh điểm": TỐI GIẢN (mặt phẳng lì, vật khác mờ đi -> nhìn rõ điểm/mặt/cạnh)
 // hoặc ĐẸP (vật liệu thật). Người dùng bật/tắt bằng ô "Xem tối giản".
 import * as THREE from 'three';
+import { createGhosting } from './scene-ghosting.js';
 
 const WHITE = new THREE.Color(1, 1, 1);
 const OFFSET = { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }; // đẩy mặt ra sau -> lưới/điểm nổi lên
 
 export function createEditViewStyle(store) {
-  const ghost = new THREE.MeshBasicMaterial({ color: 0x8a90a0, transparent: true, opacity: 0.12, depthWrite: false });
-  let ghosted = [];
+  const ghosting = createGhosting(store);
   let st = null; // { mesh, minimal, simple, pretty, baseColor, hadColors }
-
-  function ghostOthers(active, on) {
-    ghosted.forEach(([m, mat]) => { m.material = mat; });
-    ghosted = [];
-    if (!on) return;
-    for (const o of store.objects) {
-      if (o === active) continue;
-      o.traverse((m) => { if (m.isMesh) { ghosted.push([m, m.material]); m.material = ghost; } });
-    }
-  }
+  const ghostOthers = (active, on) => (on ? ghosting.on(active) : ghosting.off());
 
   const api = {
     /** original: vật liệu đầu tiên của mesh (vật gộp nhiều chất liệu -> dùng chất liệu đầu). */

@@ -13,7 +13,9 @@ import { createEditMode } from './edit-mode-controller.js';
 import { attachEditModeInput } from './edit-mode-input.js';
 import { createEditToolbar } from './edit-mode-toolbar.js';
 import { createPaintMode } from './paint-mode-controller.js';
-import { attachPaintModeInput } from './paint-mode-input.js';
+import { attachSurfaceInput } from './surface-input.js';
+import { createSculptMode } from './sculpt-mode-controller.js';
+import { createSculptToolbar } from './sculpt-mode-toolbar.js';
 import { createImagePlacement } from './paint-image-placement.js';
 import { createPaintToolbar } from './paint-mode-toolbar.js';
 import { createProjectFileActions } from './project-file-actions.js';
@@ -42,14 +44,21 @@ editToolbar = createEditToolbar(viewportEl, editMode, attachEditModeInput(viewpo
 let paintToolbar = null;
 const paintMode = createPaintMode({ viewport, store, stack, gizmo, onChange: (info) => paintToolbar?.update(info) });
 const placement = createImagePlacement(viewport, paintMode, viewportEl, () => paintToolbar?.update(paintMode.info()));
-attachPaintModeInput(viewport, paintMode, viewportEl, {
-  onPickColor: (hex) => { paintMode.setBrush({ color: hex, mode: 'paint' }); toast(`Đã lấy màu ${hex} — kéo để tô.`, { timeout: 2000 }); },
-});
+attachSurfaceInput(viewport, viewportEl, paintMode.inputAdapter((hex) => {
+  paintMode.setBrush({ color: hex, mode: 'paint' });
+  toast(`Đã lấy màu ${hex} — kéo để tô.`, { timeout: 2000 });
+}));
 paintToolbar = createPaintToolbar(viewportEl, paintMode, placement);
+let sculptToolbar = null;
+const sculptMode = createSculptMode({ viewport, store, stack, gizmo, onChange: (info) => sculptToolbar?.update(info) });
+attachSurfaceInput(viewport, viewportEl, sculptMode.inputAdapter());
+sculptToolbar = createSculptToolbar(viewportEl, sculptMode);
+const modes = [editMode, paintMode, sculptMode]; // các chế độ chỉnh trực tiếp (chỉ 1 cái bật tại 1 lúc)
 /** Thoát Chỉnh điểm / Tô vẽ (lưu lượt chỉnh) trước khi làm việc khác: lưu file, mở file... */
-const leaveModes = () => { if (editMode.active) editMode.exit(); if (paintMode.active) paintMode.exit(); };
+const leaveModes = () => modes.forEach((m) => { if (m.active) m.exit(); });
+const activeMode = () => modes.find((m) => m.active);
 // Chỉ cho smoke test (tests/ui-smoke-test.mjs mở ?test=1) đọc vị trí vật/camera để kéo gizmo bằng chuột thật.
-if (new URLSearchParams(location.search).has('test')) window.easy3d = { viewport, store, editMode, paintMode };
+if (new URLSearchParams(location.search).has('test')) window.easy3d = { viewport, store, editMode, paintMode, sculptMode };
 
 const fileInput = $('#file-input');
 const openImageWizard = (initialFile = null) => openImageTo3DWizard({
@@ -81,8 +90,9 @@ const ACTIONS = {
   'export-image': () => openImageExportDialog({ viewport, onExport: (url, size) => files.saveImage(url, size) }),
   'edit-mode': () => (editMode.active ? editMode.exit() : (leaveModes(), editMode.enter(store.selected))),
   'paint-mode': () => (paintMode.active ? paintMode.exit() : (leaveModes(), paintMode.enter(store.selected))),
-  undo: () => { if (editMode.active) return editMode.undo(); if (paintMode.active) return paintMode.undo(); const c = stack.undo(); if (c) toast(`Đã hoàn tác: ${c.label}`, { timeout: 1800 }); },
-  redo: () => { if (editMode.active) return editMode.redo(); if (paintMode.active) return paintMode.redo(); const c = stack.redo(); if (c) toast(`Đã làm lại: ${c.label}`, { timeout: 1800 }); },
+  'sculpt-mode': () => (sculptMode.active ? sculptMode.exit() : (leaveModes(), sculptMode.enter(store.selected))),
+  undo: () => { if (activeMode()) return activeMode().undo(); const c = stack.undo(); if (c) toast(`Đã hoàn tác: ${c.label}`, { timeout: 1800 }); },
+  redo: () => { if (activeMode()) return activeMode().redo(); const c = stack.redo(); if (c) toast(`Đã làm lại: ${c.label}`, { timeout: 1800 }); },
   help: () => showWelcome(welcomeHandlers),
   'image-to-3d': () => openImageWizard(),
   'frame-all': () => viewport.frameObjects(store.selection.length ? store.selection : viewport.objectsRoot),
@@ -92,7 +102,7 @@ document.addEventListener('click', (e) => {
   if (!btn?.closest('.menu')) document.querySelectorAll('.menu-list').forEach((m) => { m.hidden = true; });
   if (!btn) return;
   // Bấm chức năng khác của app khi đang chỉnh điểm -> lưu lượt chỉnh trước (như bấm "Xong").
-  const keepsEditing = ['undo', 'redo', 'edit-mode', 'paint-mode', 'help'].includes(btn.dataset.action) || btn.dataset.mode
+  const keepsEditing = ['undo', 'redo', 'edit-mode', 'paint-mode', 'sculpt-mode', 'help'].includes(btn.dataset.action) || btn.dataset.mode
     || btn.closest('.edit-toolbar') || btn.dataset.action?.startsWith('toggle-');
   if (!keepsEditing) leaveModes();
   if (btn.dataset.action) ACTIONS[btn.dataset.action]?.();
@@ -120,7 +130,7 @@ let downAt = null;
 viewport.renderer.domElement.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY, b: e.button }; });
 viewport.renderer.domElement.addEventListener('pointerup', (e) => {
   const onGizmo = gizmo.consumePointer();
-  if (!downAt || downAt.b !== 0 || onGizmo || editMode.active || paintMode.active) return; // 2 chế độ này tự xử lý chuột
+  if (!downAt || downAt.b !== 0 || onGizmo || activeMode()) return; // các chế độ chỉnh trực tiếp tự xử lý chuột
   if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 5) {
     const picked = viewport.pick(e.clientX, e.clientY);
     if (e.shiftKey || e.ctrlKey) store.toggleSelect(picked); // Shift + bấm: chọn nhiều
@@ -147,6 +157,7 @@ document.addEventListener('keydown', (e) => {
     escape: () => store.select(null),
     tab: () => editMode.enter(store.selected),
     b: !ctrl && (() => { leaveModes(); paintMode.enter(store.selected); }),
+    n: !ctrl && (() => { leaveModes(); sculptMode.enter(store.selected); }),
   };
   if (map[key]) { e.preventDefault(); map[key](); }
 });

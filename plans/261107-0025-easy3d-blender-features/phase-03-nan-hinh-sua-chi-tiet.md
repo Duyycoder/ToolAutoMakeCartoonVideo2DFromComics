@@ -1,6 +1,6 @@
 # Đợt 3 — Nặn hình + sửa chi tiết trong khối
 
-**Ưu tiên:** P1 · **Trạng thái:** in-progress
+**Ưu tiên:** P1 · **Trạng thái:** DONE
 
 - Nút **✋ Nặn** → vào chế độ nặn cho vật đang chọn (thanh công cụ nổi, nút "Xong" để thoát).
 - Cọ: Đắp (phồng theo pháp tuyến), Lõm, Kéo (grab), Làm mượt, Làm phẳng; Kích thước cọ, Độ mạnh; Đối xứng trái/phải.
@@ -18,3 +18,10 @@
 - Files: `edit-mode-controller.js`, `edit-mode-operations.js`, `edit-mode-geometry.js`, `edit-mode-selection.js`,
   `edit-mode-transform.js`, `edit-mode-overlays.js`, `edit-mode-input.js`, `edit-mode-toolbar.js`.
 - Giới hạn: tối đa 100k điểm; vật nhiều mesh con phải Gộp/Tách trước; UV mất sau khi chỉnh (vân dùng chiếu hộp).
+
+## Đã làm: Nặn hình
+- Phím N / nút 🗿. Cọ: Đắp, Lõm (Shift đảo chiều), Kéo (theo mặt phẳng song song màn hình), Làm mượt, Làm phẳng (phím 1-5);
+  cỡ cọ ([ ]), độ mạnh, đối xứng trái↔phải (phím X, mặt phẳng = giữa khung bao vật). Vật khác mờ đi khi nặn.
+- Dùng chung với Tô vẽ: `surface-session.js` (vào/thoát, chia nhỏ lưới, BVH, Undo theo nét) + `surface-input.js` (chuột/phím).
+- Files: `sculpt-brush-engine.js`, `sculpt-mode-controller.js`, `sculpt-mode-toolbar.js`, `scene-ghosting.js`.
+- Chưa có: nặn động (thêm điểm tự động chỗ đang nặn) — hiện chia nhỏ lưới 1 lần khi vào chế độ (≥ 40k điểm).
