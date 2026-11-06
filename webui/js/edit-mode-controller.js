@@ -11,6 +11,7 @@ import { firstMaterialOf, meshesOf } from './mesh-split-merge-operations.js';
 import { addObjectCommand, batchCommand } from './scene-edit-commands.js';
 import { toast } from './toast-notifications.js';
 import { createEditViewStyle } from './edit-mode-view-style.js';
+import { isRigged, RIGGED_WARNING } from './rig-builder.js';
 import { createEditOperations } from './edit-mode-operations.js';
 
 const MAX_VERTICES = 100000;
@@ -83,6 +84,7 @@ export function createEditMode({ viewport, store, stack, gizmo, onChange }) {
       if (s) return;
       if (!obj) return toast('Hãy bấm chọn 1 vật trước.', { type: 'warn' });
       if (obj.userData.kind === 'light') return toast('Đèn không có điểm để chỉnh.', { type: 'warn' });
+      if (isRigged(obj)) return toast(RIGGED_WARNING, { type: 'warn', timeout: 7000 });
       const meshes = meshesOf(obj);
       if (meshes.length !== 1) {
         return toast('Vật này gồm nhiều phần — hãy "Gộp lưới" hoặc "Tách phần rời" (mục Sửa hình) trước.', { type: 'warn', timeout: 7000 });

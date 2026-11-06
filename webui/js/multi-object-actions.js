@@ -5,6 +5,7 @@ import { bakeWorldGeometry, booleanGeometry, firstMaterialOf, meshesOf, objectWo
 import { copyOriginalLook } from './material-preset-library.js';
 import { fixLightCopy, isLightObject } from './scene-light-objects.js';
 import { toast } from './toast-notifications.js';
+import { cloneObject, isRigged, RIGGED_WARNING } from './rig-builder.js';
 
 /**
  * Lưới toạ độ thế giới + chất liệu của từng phần. Vật đã gộp trước đó (nhiều chất liệu, có `groups`)
@@ -25,6 +26,7 @@ function meshParts(mesh) {
 export function createMultiObjectTools({ store, busy, replaceObjects, makeMesh }) {
   /** Bỏ đèn ra (đèn không có hình để gộp); cần ít nhất 2 vật. */
   function shapesOnly(objs) {
+    if (objs.some(isRigged)) { toast(RIGGED_WARNING, { type: 'warn', timeout: 7000 }); return null; }
     const shapes = objs.filter((o) => !isLightObject(o));
     if (shapes.length < objs.length) toast('Đèn không gộp được — đã bỏ qua đèn.', { type: 'warn' });
     if (shapes.length < 2) { toast('Hãy chọn ít nhất 2 vật (giữ Shift + bấm).', { type: 'warn' }); return null; }
@@ -63,7 +65,7 @@ export function createMultiObjectTools({ store, busy, replaceObjects, makeMesh }
       group.userData.kind = 'group';
       group.position.copy(center);
       for (const o of objs) {
-        const c = o.clone();
+        const c = cloneObject(o);
         c.position.sub(center); // nhóm không xoay/co giãn -> chỉ cần trừ tâm
         copyOriginalLook(o, c);
         fixLightCopy(c);

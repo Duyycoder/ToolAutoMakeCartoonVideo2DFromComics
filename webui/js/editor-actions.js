@@ -12,6 +12,7 @@ import { baseNameOf, floorPosition, loadModelFile, loadModelUrl } from './model-
 import { toast } from './toast-notifications.js';
 import { applyLighting } from './lighting-presets.js';
 import { fixLightCopy } from './scene-light-objects.js';
+import { cloneObject } from './rig-builder.js';
 
 export function createEditorActions({ viewport, store, stack, onModelAdded = null }) {
   const run = (cmd) => stack.execute(cmd);
@@ -32,7 +33,7 @@ export function createEditorActions({ viewport, store, stack, onModelAdded = nul
   }
 
   function makeCopy(obj) {
-    const copy = obj.clone();
+    const copy = cloneObject(obj);
     copy.name = store.nextName(obj.name.replace(/\s\d+$/, ''));
     copy.position.x += 1.2;
     copyOriginalLook(obj, copy);

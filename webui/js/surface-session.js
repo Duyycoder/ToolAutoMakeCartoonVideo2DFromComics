@@ -7,6 +7,7 @@ import { densify, toIndexedByPosition } from './mesh-subdivide-smooth.js';
 import { firstMaterialOf, meshesOf } from './mesh-split-merge-operations.js';
 import { batchCommand } from './scene-edit-commands.js';
 import { toast } from './toast-notifications.js';
+import { isRigged, RIGGED_WARNING } from './rig-builder.js';
 
 const MAX_UNDO = 40;
 const MAX_TRIANGLES_TO_EDIT = 600000; // nặng hơn -> mỗi nét cọ quá chậm
@@ -21,6 +22,7 @@ export function enableBVH(geo) {
 export function openSurfaceSession(obj, { minVertices, maxTriangles, verb }) {
   if (!obj) { toast('Hãy bấm chọn 1 vật trước.', { type: 'warn' }); return null; }
   if (obj.userData.kind === 'light') { toast(`Đèn không ${verb} được.`, { type: 'warn' }); return null; }
+  if (isRigged(obj)) { toast(RIGGED_WARNING, { type: 'warn', timeout: 7000 }); return null; }
   const meshes = meshesOf(obj);
   if (meshes.length !== 1) {
     toast(`Vật này gồm nhiều phần — hãy "Gộp lưới" trước khi ${verb}.`, { type: 'warn', timeout: 7000 });

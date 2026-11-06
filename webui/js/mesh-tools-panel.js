@@ -17,10 +17,16 @@ function sliderRow(label, { min, max, value, step = 1, format }, buttonText, onA
   ]);
 }
 
+import { isRigged, RIGGED_WARNING } from './rig-builder.js';
+
 export function meshToolsSection(obj, store, tools) {
   const details = el('details', { className: 'tool-section', open: sectionOpen });
   details.ontoggle = () => { sectionOpen = details.open; };
   details.append(el('summary', { textContent: '🛠 Sửa hình' }));
+  if (isRigged(obj)) { // sửa hình sẽ làm hỏng phần da gắn với xương
+    details.append(el('div', { className: 'info-line', textContent: RIGGED_WARNING }));
+    return details;
+  }
 
   details.append(
     sliderRow('Làm mượt', { min: 1, max: 10, value: 3, format: (v) => `mức ${v}` }, 'Làm mượt',
