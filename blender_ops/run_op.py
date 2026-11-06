@@ -127,13 +127,49 @@ def export_glb(path, objs):
     bpy.ops.export_scene.gltf(filepath=str(path), export_format="GLB", use_selection=True, export_apply=True)
 
 
+def blend_file_version(path):
+    """(major, minor) của Blender đã lưu file, đọc từ header; None nếu không đọc được.
+
+    Header cũ: b"BLENDER" + "_"/"-" + "v"/"V" + "402"; từ Blender 5.0: b"BLENDER" + "17-01v0500".
+    File nén (zstd từ 3.0, gzip bản cũ) thì giải nén đoạn đầu nếu có thư viện.
+    """
+    raw = Path(path).read_bytes()[:64]
+    try:
+        if raw.startswith(bytes.fromhex("1f8b")):
+            import gzip
+            raw = gzip.open(path).read(64)
+        elif raw.startswith(bytes.fromhex("28b52ffd")):
+            import zstandard  # có trong Python của Blender (3.0+); thiếu -> không biết phiên bản
+            raw = zstandard.ZstdDecompressor().stream_reader(open(path, "rb")).read(64)
+    except Exception:  # noqa: BLE001 — chỉ để báo lỗi cho rõ, không đọc được thì thôi
+        return None
+    head = raw[7:17].decode("ascii", "replace")
+    if len(head) >= 5 and head[0] in "_-" and head[1] in "vV" and head[2:5].isdigit():
+        number = int(head[2:5])
+    elif len(head) >= 10 and head[:2].isdigit() and head[2] == "-" and head[5] in "vV" and head[6:10].isdigit():
+        number = int(head[6:10])
+    else:
+        return None
+    return number // 100, number % 100
+
+
 def op_import_blend(src, out_path):
     """Mở .blend (script nhúng KHÔNG chạy: --disable-autoexec), xuất mọi vật đang hiện sang GLB.
 
     Giữ: lưới, vật liệu Principled BSDF + ảnh texture, xương + chuyển động, modifier đã áp.
     Mất: vật liệu node phức tạp/procedural (glTF không có), ảnh texture nằm ngoài file mà không tìm thấy.
     """
-    bpy.ops.wm.open_mainfile(filepath=str(src), load_ui=False)
+    try:
+        bpy.ops.wm.open_mainfile(filepath=str(src), load_ui=False)
+    except RuntimeError as exc:
+        saved_with = blend_file_version(src)
+        running = ".".join(map(str, bpy.app.version[:2]))
+        if saved_with and saved_with > tuple(bpy.app.version[:2]):
+            raise ValueError(f"File .blend được lưu bằng Blender {'.'.join(map(str, saved_with))}, mới hơn Blender {running} "
+                             "đi kèm Easy3D nên không đọc được. Chạy lại scripts\\setup-blender.bat để cập nhật Blender, "
+                             "hoặc mở file trong Blender rồi File > Export > glTF (.glb).") from exc
+        raise ValueError(f"Blender {running} không đọc được file .blend này (file hỏng, hoặc lưu bằng Blender mới hơn"
+                         f"{'' if saved_with else ' — file nén nên không xem được phiên bản'}).") from exc
     if bpy.context.object and bpy.context.object.mode != "OBJECT":
         bpy.ops.object.mode_set(mode="OBJECT")
     meshes = [o for o in bpy.context.scene.objects if o.type == "MESH" and o.visible_get()]
