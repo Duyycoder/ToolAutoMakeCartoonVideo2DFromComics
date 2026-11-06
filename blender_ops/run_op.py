@@ -3,7 +3,8 @@
   blender --background --factory-startup --python blender_ops/run_op.py -- \
       --op bevel --in input.glb --out-dir job_dir --params '{"amount": 0.3}'
 
-Thao tác: bevel (bo tròn cạnh), remesh (làm lưới đều), repair (sửa lỗi để in 3D), render (Cycles).
+Thao tác: bevel (bo tròn cạnh), remesh (làm lưới đều), repair (sửa lỗi để in 3D), render (Cycles),
+import_blend (mở file .blend -> GLB để Easy3D sửa tiếp).
 Giao thức stdout giống worker AI: mỗi dòng JSON progress/done/error (Blender in log khác -> runner bỏ qua).
 """
 import argparse
@@ -32,7 +33,7 @@ def clamp(v, lo, hi):
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     p = argparse.ArgumentParser()
-    p.add_argument("--op", required=True, choices=["bevel", "remesh", "repair", "render"])
+    p.add_argument("--op", required=True, choices=["bevel", "remesh", "repair", "render", "import_blend"])
     p.add_argument("--in", dest="src", required=True)
     p.add_argument("--out-dir", required=True)
     p.add_argument("--params", default="{}")
@@ -126,12 +127,37 @@ def export_glb(path, objs):
     bpy.ops.export_scene.gltf(filepath=str(path), export_format="GLB", use_selection=True, export_apply=True)
 
 
+def op_import_blend(src, out_path):
+    """Mở .blend (script nhúng KHÔNG chạy: --disable-autoexec), xuất mọi vật đang hiện sang GLB.
+
+    Giữ: lưới, vật liệu Principled BSDF + ảnh texture, xương + chuyển động, modifier đã áp.
+    Mất: vật liệu node phức tạp/procedural (glTF không có), ảnh texture nằm ngoài file mà không tìm thấy.
+    """
+    bpy.ops.wm.open_mainfile(filepath=str(src), load_ui=False)
+    if bpy.context.object and bpy.context.object.mode != "OBJECT":
+        bpy.ops.object.mode_set(mode="OBJECT")
+    meshes = [o for o in bpy.context.scene.objects if o.type == "MESH" and o.visible_get()]
+    if not meshes:
+        raise ValueError("File .blend không có vật thể (lưới) nào đang hiện")
+    missing = [img.name for img in bpy.data.images
+               if img.source == "FILE" and not img.packed_file and not Path(bpy.path.abspath(img.filepath)).exists()]
+    bpy.ops.export_scene.gltf(filepath=str(out_path), export_format="GLB", use_visible=True, export_apply=True,
+                              export_lights=False, export_cameras=False, export_animations=True)
+    return {"objects": len(meshes), "tris": sum(len(p.vertices) - 2 for o in meshes for p in o.data.polygons),
+            "missing_images": missing[:10]}
+
+
 def main():
     t0 = time.perf_counter()
     try:
         args = parse_args()  # trong try: tham số hỏng cũng được báo theo giao thức
         out_dir = Path(args.out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
+        if args.op == "import_blend":
+            emit(type="progress", pct=20, msg="Blender đang mở file .blend...")
+            stats = op_import_blend(args.src, out_dir / "mesh.glb")
+            emit(type="done", stats={**stats, "op": args.op, "seconds": round(time.perf_counter() - t0, 1)})
+            return
         emit(type="progress", pct=10, msg="Blender đang mở mô hình...")
         objs = load_meshes(args.src)
         size = scene_size(objs)

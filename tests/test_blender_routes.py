@@ -51,3 +51,21 @@ def test_command_job_runs_once_and_reports(tmp_path):
         time.sleep(0.05)
     assert job.status == "done" and job.model == "blender"
     assert (job.work_dir / "input.glb").read_bytes() == b"glTF" and (job.work_dir / "mesh.glb").exists()
+
+
+def test_import_blend_checks_file_header_and_disables_autoexec(monkeypatch):
+    monkeypatch.setattr(routes_blender, "find_blender", lambda: Path(sys.executable))
+    r = client.post("/api/blender/import_blend", content=b"not a blend file", headers=WRITE)
+    assert r.status_code == 400 and ".blend" in r.json()["detail"]
+    captured = {}
+
+    def fake_submit(build, data, input_name):
+        captured["argv"] = build(Path("w"), Path("w") / input_name)
+        captured["input_name"] = input_name
+        return type("J", (), {"public": lambda self: {"id": "x"}})()
+
+    monkeypatch.setattr(routes_blender.runner, "submit_command", fake_submit)
+    assert client.post("/api/blender/import_blend", content=b"BLENDER-v402....", headers=WRITE).status_code == 200
+    assert captured["input_name"] == "input.blend"
+    assert "--disable-autoexec" in captured["argv"]
+    assert captured["argv"][captured["argv"].index("--op") + 1] == "import_blend"

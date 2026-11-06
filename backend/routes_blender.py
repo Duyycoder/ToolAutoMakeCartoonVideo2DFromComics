@@ -1,4 +1,4 @@
-"""Routes chạy Blender ẩn: bo tròn cạnh, làm lưới đều, sửa lỗi in 3D, render Cycles.
+"""Routes chạy Blender ẩn: bo tròn cạnh, làm lưới đều, sửa lỗi in 3D, render Cycles, mở file .blend.
 
 Chỉ nhận thao tác trong danh sách + tham số đã kiểm tra/giới hạn -> không bao giờ chạy code tuỳ ý trong Blender.
 Dùng chung hàng đợi job (routes_jobs.runner) -> không chạy song song với AI (tranh VRAM).
@@ -14,12 +14,23 @@ from backend.routes_jobs import runner
 router = APIRouter(prefix="/api/blender")
 MAX_BYTES = 200 * 1024 * 1024
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+# .blend: "BLENDER" (thường), zstd (Blender 3.0+ nén) hoặc gzip (bản cũ nén)
+BLEND_MAGIC = (b"BLENDER", bytes.fromhex("28b52ffd"), bytes.fromhex("1f8b"))
+
+
+def input_name_for(op: str, data: bytes) -> str:
+    if op != "import_blend":
+        return "input.glb"
+    if not data.startswith(BLEND_MAGIC):
+        raise HTTPException(400, "File không phải .blend của Blender")
+    return "input.blend"
 
 # Tham số số: (nhỏ nhất, lớn nhất, mặc định)
 NUMBERS = {
     "bevel": {"amount": (0.01, 1, 0.3), "segments": (1, 8, 3)},
     "remesh": {"detail": (0, 1, 0.5)},
     "repair": {},
+    "import_blend": {},  # .blend -> GLB (Easy3D mở được)
     "render": {"width": (64, 4096, 1920), "height": (64, 4096, 1080), "samples": (8, 1024, 96), "fov": (10, 120, 45),
                "sun_intensity": (0, 20, 2), "ambient": (0, 5, 1)},
 }
@@ -75,8 +86,11 @@ async def run_blender_op(op: str, request: Request, params: str = "{}"):
     if len(data) > MAX_BYTES:
         raise HTTPException(413, "Mô hình quá lớn (tối đa 200 MB)")
 
+    input_name = input_name_for(op, data)
+
     def command(work_dir, input_path):
-        return [exe, "--background", "--factory-startup", "--python", BLENDER_OPS, "--",
+        # --disable-autoexec: file .blend có thể nhúng script Python -> không bao giờ tự chạy
+        return [exe, "--background", "--factory-startup", "--disable-autoexec", "--python", BLENDER_OPS, "--",
                 "--op", op, "--in", input_path, "--out-dir", work_dir, "--params", json.dumps(clean)]
 
-    return runner.submit_command(command, data, "input.glb").public()
+    return runner.submit_command(command, data, input_name).public()

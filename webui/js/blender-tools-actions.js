@@ -1,4 +1,5 @@
-// Gửi vật/cảnh sang Blender chạy ẩn (backend/routes_blender.py): bo tròn cạnh, làm lưới đều, sửa lỗi in 3D, render Cycles.
+// Gửi vật/cảnh sang Blender chạy ẩn (backend/routes_blender.py): bo tròn cạnh, làm lưới đều, sửa lỗi in 3D, render Cycles,
+// mở file .blend (Blender đổi sang GLB).
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -9,16 +10,16 @@ import { addObjectCommand, batchCommand, removeObjectCommand } from './scene-edi
 import { copyOriginalLook } from './material-preset-library.js';
 import { toast } from './toast-notifications.js';
 
-const LABELS = { bevel: 'Bo tròn cạnh', remesh: 'Làm lưới đều', repair: 'Sửa lỗi để in 3D', render: 'Render đẹp' };
+const LABELS = { bevel: 'Bo tròn cạnh', remesh: 'Làm lưới đều', repair: 'Sửa lỗi để in 3D', render: 'Render đẹp', import_blend: 'Mở file .blend' };
 let status = null; // lấy 1 lần khi mở app (panel vẽ đồng bộ)
 export const refreshBlenderStatus = () => api.blenderStatus().then((s) => { status = s; }).catch(() => { status = null; });
 export const blenderReady = () => !!status?.ready;
 export const blenderMessage = () => status?.message ?? 'Đang kiểm tra Blender...';
 
 /** Chạy 1 thao tác Blender, hiện tiến độ trên toast; trả về job đã xong (hoặc ném lỗi). */
-async function runJob(op, params, glbData) {
+async function runJob(op, params, data) {
   if (!blenderReady()) throw new Error(blenderMessage());
-  const job = await api.runBlender(op, params, new Blob([glbData], { type: 'model/gltf-binary' }));
+  const job = await api.runBlender(op, params, data instanceof Blob ? data : new Blob([data], { type: 'model/gltf-binary' }));
   const note = toast(`${LABELS[op]}: đang xếp hàng...`, { timeout: 0 });
   try {
     return await new Promise((resolve, reject) => {
@@ -32,6 +33,15 @@ async function runJob(op, params, glbData) {
   } finally {
     note.remove();
   }
+}
+
+/**
+ * File .blend -> Blender (script nhúng không chạy) xuất GLB -> URL kết quả + thống kê.
+ * Giữ lưới, vật liệu Principled + ảnh, xương; vật liệu node procedural không sang được glTF.
+ */
+export async function convertBlendFile(file) {
+  const job = await runJob('import_blend', {}, file);
+  return { url: api.resultUrl(job.id), stats: job.result ?? {} };
 }
 
 /** Vật đặt ở gốc toạ độ (không xoay/co giãn) -> kết quả trả về nằm đúng hệ toạ độ của vật. */

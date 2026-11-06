@@ -8,7 +8,8 @@ import {
   addObjectCommand, batchCommand, materialCommand, removeObjectCommand, renameCommand,
   sameTransform, snapshotMaterials, snapshotTransform, transformCommand,
 } from './scene-edit-commands.js';
-import { baseNameOf, floorPosition, loadModelFile, loadModelUrl } from './model-import-export.js';
+import { baseNameOf, extOf, floorPosition, loadModelFile, loadModelUrl } from './model-import-export.js';
+import { convertBlendFile } from './blender-tools-actions.js';
 import { toast } from './toast-notifications.js';
 import { applyLighting } from './lighting-presets.js';
 import { fixLightCopy } from './scene-light-objects.js';
@@ -47,6 +48,16 @@ export function createEditorActions({ viewport, store, stack, onModelAdded = nul
     if (!sameTransform(before, after)) run(transformCommand(store, obj, before, after, label));
   }
 
+  /** .blend: Blender ẩn đổi sang GLB rồi mở như model thường (sửa, tô, gắn xương... như mọi vật khác). */
+  async function openBlend(file) {
+    const { url, stats } = await convertBlendFile(file);
+    const obj = await loadModelUrl(url);
+    obj.name = store.nextName(baseNameOf(file.name));
+    actions.addModel(obj, 'imported');
+    const missing = stats.missing_images?.length ? ` — thiếu ${stats.missing_images.length} ảnh texture nằm ngoài file (${stats.missing_images.join(', ')})` : '';
+    toast(`Đã mở "${file.name}": ${stats.objects ?? '?'} vật${missing}`, { type: missing ? 'warn' : 'ok', timeout: missing ? 10000 : 5000 });
+  }
+
   const actions = {
     addShape(type) {
       const obj = createPrimitive(type, store.nextName(SHAPES[type].label));
@@ -72,6 +83,7 @@ export function createEditorActions({ viewport, store, stack, onModelAdded = nul
 
     async openFile(file) {
       try {
+        if (extOf(file.name) === 'blend') return await openBlend(file);
         const { objects, isProject, lighting } = await loadModelFile(file);
         if (isProject) {
           if (lighting) applyLighting(viewport, lighting);

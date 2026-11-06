@@ -10,7 +10,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
 
-export const MODEL_EXTENSIONS = ['glb', 'gltf', 'obj', 'stl', 'fbx', 'meshy'];
+export const MODEL_EXTENSIONS = ['glb', 'gltf', 'obj', 'stl', 'fbx', 'meshy', 'blend']; // blend: đổi qua Blender ẩn (editor-actions)
 export const extOf = (name) => name.split('.').pop().toLowerCase();
 export const baseNameOf = (name) => name.replace(/\.[^.]+$/, '');
 

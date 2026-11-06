@@ -22,7 +22,7 @@ export function showWelcome({ onImage, onShapes, onOpen }) {
       </button>
       <button class="welcome-card" data-choice="open">
         <span class="big">📂</span><b>Mở file có sẵn</b>
-        <small>Mở mô hình GLB, GLTF, OBJ, STL, FBX, MESHY hoặc dự án đã lưu.</small>
+        <small>Mở mô hình GLB, GLTF, OBJ, STL, FBX, MESHY, BLEND hoặc dự án đã lưu.</small>
       </button>
     </div>
     <div class="tips">

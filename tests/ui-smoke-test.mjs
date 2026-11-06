@@ -3,7 +3,7 @@
 //   1) chạy backend:  .venv\Scripts\python.exe -m uvicorn backend.main:app --port 8200
 //   2) node tests/ui-smoke-test.mjs [thư-mục-ảnh-chụp]
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -723,6 +723,13 @@ if (blenderStatus.ready) {
   await evaluate(`${q('input[name=size][value="hd"]')}.checked = true; ${q('#cycles')}.checked = true; ${q('#go')}.click();`);
   const cyclesToast = await waitToast('Đã xuất ảnh 1280×720 (Cycles)', 180);
   check('Blender: Render đẹp Cycles 1280×720', !!cyclesToast, cyclesToast ?? await lastToast());
+  const blendB64 = readFileSync(new URL('./fixtures/blue-cube.blend', import.meta.url)).toString('base64');
+  await evaluate(`const bin = atob(${JSON.stringify(blendB64)}); const u = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    const dt = new DataTransfer(); dt.items.add(new File([u], 'blue-cube.blend'));
+    const fi = document.querySelector('#file-input'); fi.files = dt.files; fi.dispatchEvent(new Event('change'));`);
+  const blendToast = await waitToast('Đã mở "blue-cube.blend"', 90);
+  check('Blender: mở file .blend (nén zstd) -> vật có màu xanh từ vật liệu Blender', !!blendToast && await evaluate(`let c = null;
+    window.easy3d.store.selected?.traverse((m) => { if (m.isMesh) c = m.material.color; }); return !!c && c.b > c.r * 2;`), blendToast ?? await lastToast());
 } else {
   check('Blender chưa cài -> nút Blender hiện hướng dẫn cài', true, blenderStatus.message);
 }
