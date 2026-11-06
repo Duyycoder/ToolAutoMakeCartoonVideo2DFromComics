@@ -3,34 +3,94 @@
 <head>
   <meta charset="utf-8">
   <title>Easy3D</title>
-  <style>
-    body { font-family: "Segoe UI", sans-serif; background: #1e1f24; color: #e8e8ea; margin: 0;
-           display: flex; align-items: center; justify-content: center; height: 100vh; }
-    .card { background: #2a2c33; padding: 32px 40px; border-radius: 12px; min-width: 420px; }
-    h1 { margin-top: 0; }
-    .ok { color: #6fd08c; } .warn { color: #f0b35a; }
-  </style>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧊</text></svg>">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/dialogs.css">
+  <script type="importmap">
+    { "imports": {
+        "three": "./vendor/three/three.module.min.js",
+        "three/addons/": "./vendor/three/addons/"
+    } }
+  </script>
 </head>
 <body>
-  <!-- Phase 01: màn hình kiểm tra môi trường. Viewport Three.js thay thế ở Phase 02. -->
-  <div class="card">
-    <h1>Easy3D</h1>
-    <p>Kiểm tra môi trường:</p>
-    <p id="gpu">Đang đọc thông tin GPU...</p>
-  </div>
-  <script>
-    fetch("/api/system/gpu-info").then(r => r.json()).then(info => {
-      const el = document.getElementById("gpu");
-      if (info.cuda_available) {
-        const g = info.gpus[0];
-        el.className = "ok";
-        el.textContent = `GPU NVIDIA: ${g.name} (${g.vram_total_mb} MB VRAM) — AI chạy GPU.`;
-      } else {
-        el.className = "warn";
-        const names = info.other_adapters.join(", ") || "không rõ";
-        el.textContent = `Không thấy GPU NVIDIA (card: ${names}) — AI sẽ chạy CPU, rất chậm.`;
-      }
-    }).catch(() => { document.getElementById("gpu").textContent = "Không kết nối được backend."; });
-  </script>
+  <header class="topbar">
+    <div class="brand">Easy<span>3D</span></div>
+    <input id="project-name" class="project-name" value="Dự án của tôi" title="Tên dự án — bấm để đổi" spellcheck="false">
+    <div class="topbar-group">
+      <button data-action="new" title="Xoá hết, bắt đầu lại">🗋 Mới</button>
+      <button data-action="open" title="Mở file GLB, OBJ, STL, FBX (Ctrl+O)">📂 Mở file</button>
+      <button data-action="save" title="Lưu dự án (Ctrl+S)">💾 Lưu</button>
+      <div class="menu">
+        <button data-action="toggle-export" class="accent-outline">⬇ Xuất file ▾</button>
+        <div class="menu-list" id="export-menu" hidden>
+          <button data-export="glb"><b>Cho game / Unity</b><small>GLB — giữ màu sắc, chất liệu</small></button>
+          <button data-export="stl"><b>Để in 3D</b><small>STL — đơn vị milimét</small></button>
+          <button data-export="obj"><b>Định dạng OBJ</b><small>Mở được ở hầu hết phần mềm 3D</small></button>
+          <button data-export="png"><b>Ảnh chụp màn hình</b><small>PNG — đúng góc nhìn hiện tại</small></button>
+        </div>
+      </div>
+    </div>
+    <div class="topbar-group">
+      <button data-action="undo" id="btn-undo" title="Hoàn tác (Ctrl+Z)">↶ Hoàn tác</button>
+      <button data-action="redo" id="btn-redo" title="Làm lại (Ctrl+Y)">↷ Làm lại</button>
+    </div>
+    <button data-action="help" class="help-btn" title="Hướng dẫn">? Hướng dẫn</button>
+  </header>
+
+  <aside class="toolbar">
+    <button class="tool ai" data-action="image-to-3d" title="Tạo mô hình 3D từ 1 tấm ảnh bằng AI">
+      <span class="ico">🪄</span>Tạo từ ảnh</button>
+    <div class="tool-sep"></div>
+    <button class="tool active" data-mode="translate" title="Kéo mũi tên để di chuyển (phím W)">
+      <span class="ico">✥</span>Di chuyển<kbd>W</kbd></button>
+    <button class="tool" data-mode="rotate" title="Kéo vòng tròn để xoay (phím E)">
+      <span class="ico">⟳</span>Xoay<kbd>E</kbd></button>
+    <button class="tool" data-mode="scale" title="Kéo khối vuông để phóng to/thu nhỏ (phím R)">
+      <span class="ico">⤢</span>Co giãn<kbd>R</kbd></button>
+    <div class="tool-sep"></div>
+    <div class="menu side">
+      <button class="tool" data-action="toggle-shapes" title="Thêm khối có sẵn">
+        <span class="ico">➕</span>Thêm khối</button>
+      <div class="menu-list shapes" id="shape-menu" hidden>
+        <button data-shape="box">⬛ Hộp</button>
+        <button data-shape="sphere">⚪ Cầu</button>
+        <button data-shape="cylinder">🛢 Trụ</button>
+        <button data-shape="cone">🔺 Nón</button>
+        <button data-shape="torus">🍩 Vòng xuyến</button>
+        <button data-shape="plane">▭ Tấm phẳng</button>
+      </div>
+    </div>
+    <button class="tool" data-action="frame-all" title="Đưa camera nhìn toàn bộ (phím F)">
+      <span class="ico">⌖</span>Nhìn tất cả<kbd>F</kbd></button>
+  </aside>
+
+  <main id="viewport">
+    <div class="viewport-hint">🖱 Chuột trái: xoay · Chuột phải: kéo · Lăn: phóng to · 1 ô lưới = 50 cm</div>
+    <div class="empty-hint" id="empty-hint">
+      <div class="empty-icon">📦</div>
+      <p>Cảnh đang trống</p>
+      <small>Kéo thả ảnh hoặc file 3D vào đây, hoặc bấm <b>Tạo từ ảnh</b> / <b>Thêm khối</b></small>
+    </div>
+    <div class="drop-overlay" id="drop-overlay" hidden>Thả vào đây để mở</div>
+  </main>
+
+  <aside class="sidepanel">
+    <section>
+      <h3>Vật thể trong cảnh</h3>
+      <ul id="outliner" class="outliner"></ul>
+    </section>
+    <section id="props"></section>
+  </aside>
+
+  <footer class="statusbar">
+    <span id="status-gpu">Đang kiểm tra GPU...</span>
+    <span id="status-stats"></span>
+    <span id="status-tip" class="tip"></span>
+  </footer>
+
+  <div id="toasts" class="toasts"></div>
+  <input type="file" id="file-input" accept=".glb,.gltf,.obj,.stl,.fbx" hidden>
+  <script type="module" src="js/app-main.js"></script>
 </body>
 </html>

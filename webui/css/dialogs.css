@@ -1,0 +1,65 @@
+/* Hộp thoại (màn hình chào, wizard tạo từ ảnh) + thông báo toast */
+.modal-backdrop { position: fixed; inset: 0; z-index: 50; background: #0009; backdrop-filter: blur(3px);
+                  display: flex; align-items: center; justify-content: center; }
+.modal { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; width: min(760px, 92vw);
+         max-height: 90vh; overflow-y: auto; padding: 26px 30px; box-shadow: 0 20px 60px #000a; position: relative; }
+.modal h2 { margin: 0 0 4px; font-size: 22px; }
+.modal .sub { color: var(--muted); margin: 0 0 20px; }
+.modal-close { position: absolute; top: 14px; right: 14px; background: transparent; border: none;
+               font-size: 18px; color: var(--muted); }
+.modal-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; gap: 10px; }
+.modal-footer label { color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+
+/* ---------- Màn hình chào ---------- */
+.welcome-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.welcome-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px;
+                text-align: left; border-radius: 14px; min-height: 150px; }
+.welcome-card .big { font-size: 32px; }
+.welcome-card b { font-size: 15px; }
+.welcome-card small { color: var(--muted); }
+.welcome-card.ai { background: linear-gradient(135deg, #2c3f7a, #45307a); border-color: var(--accent); }
+.tips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+.tips div { background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; color: var(--muted); }
+.tips b { color: var(--text); display: block; margin-bottom: 2px; }
+
+/* ---------- Wizard tạo từ ảnh ---------- */
+.dropzone { border: 2px dashed var(--line); border-radius: 14px; min-height: 220px; display: flex;
+            align-items: center; justify-content: center; flex-direction: column; gap: 8px; cursor: pointer;
+            color: var(--muted); text-align: center; padding: 16px; transition: border-color .15s, background .15s; }
+.dropzone:hover, .dropzone.over { border-color: var(--accent); background: #5b8cff11; }
+.dropzone img { max-height: 240px; max-width: 100%; border-radius: 10px; }
+.dropzone .big { font-size: 40px; }
+.wizard-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+.quality { display: flex; flex-direction: column; gap: 8px; }
+.quality label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line);
+                 border-radius: 10px; cursor: pointer; }
+.quality label:has(input:checked) { border-color: var(--accent); background: #2b3a63; }
+.quality input { accent-color: var(--accent); margin-top: 3px; }
+.quality small { display: block; color: var(--muted); }
+.good-photo { font-size: 12.5px; color: var(--muted); background: var(--bg); border-radius: 10px;
+              padding: 10px 14px; margin-top: 12px; }
+.good-photo ul { margin: 4px 0 0; padding-left: 18px; }
+.banner { border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; }
+.banner.warn { background: #4a3a1f; color: #ffd79a; }
+.banner.err { background: #4a2228; color: #ffb3b3; }
+.progress-wrap { text-align: center; padding: 30px 10px; }
+.progress-bar { height: 12px; background: var(--bg); border-radius: 10px; overflow: hidden; margin: 18px 0 10px; }
+.progress-bar div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2));
+                    transition: width .4s; }
+.progress-msg { color: var(--muted); }
+.spinner { width: 46px; height: 46px; border-radius: 50%; border: 4px solid var(--line);
+           border-top-color: var(--accent); animation: spin 1s linear infinite; margin: 0 auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Toast ---------- */
+/* Giữa phía dưới khung 3D: không che panel phải, không che nút của hộp thoại (z-index thấp hơn modal). */
+.toasts { position: fixed; left: calc(96px + (100vw - 96px - 290px) / 2); transform: translateX(-50%);
+          bottom: 44px; z-index: 40; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.toast { background: var(--panel-2); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+         border-radius: 10px; padding: 10px 14px; min-width: 260px; max-width: 380px; box-shadow: 0 8px 24px #0008;
+         display: flex; gap: 10px; align-items: center; animation: toast-in .2s ease-out; }
+.toast.ok { border-left-color: var(--ok); } .toast.warn { border-left-color: var(--warn); }
+.toast.err { border-left-color: var(--err); }
+.toast span { flex: 1; }
+.toast button { padding: 3px 10px; font-size: 12px; }
+@keyframes toast-in { from { transform: translateY(10px); opacity: 0; } }
