@@ -14,7 +14,7 @@ FOLDERS = {
     "projects": ROOT_DIR / "projects",
     "output": ROOT_DIR / "output" / "exports",
 }
-ALLOWED_EXTENSIONS = {".glb", ".gltf", ".stl", ".obj", ".png"}
+ALLOWED_EXTENSIONS = {".glb", ".gltf", ".stl", ".obj", ".png", ".mp4", ".webm"}  # video: thanh Chuyển động
 MAX_BYTES = 200 * 1024 * 1024
 
 

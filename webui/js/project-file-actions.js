@@ -35,6 +35,11 @@ export function createProjectFileActions({ viewport, store, getProjectName }) {
       }
     },
 
+    /** Video quay từ thanh Chuyển động (animation-timeline-panel.js). */
+    async saveVideo(blob, ext) {
+      await writeFile('output', ext, blob, `Đã xuất video ${ext.toUpperCase()}`);
+    },
+
     /** Ảnh đã render (image-export-dialog.js) -> file PNG. */
     async saveImage(dataUrl, sizeLabel) {
       try {

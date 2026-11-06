@@ -1,6 +1,7 @@
 // Mở file 3D (GLB/GLTF/OBJ/STL/FBX) và xuất cảnh (GLB/STL/OBJ).
 import * as THREE from 'three';
 import { createGLTFLoader, friendlyGLTFError } from './gltf-loader-factory.js';
+import { buildClip } from './keyframe-animation.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
@@ -91,7 +92,9 @@ function visibleCopy(root, scale = 1) {
 export async function exportObjects(root, format) {
   if (format === 'glb') {
     root.children.forEach((o) => { o.userData.easy3dName = o.name; }); // xem loadModelFile
-    const data = await new GLTFExporter().parseAsync(root, { binary: true, onlyVisible: true });
+    // Kèm chuyển động (nếu có) -> Unity/Godot/Blender phát được ngay.
+    const clip = buildClip(root.children, root.userData.animDuration ?? 4);
+    const data = await new GLTFExporter().parseAsync(root, { binary: true, onlyVisible: true, animations: clip ? [clip] : [] });
     return { data, ext: 'glb' };
   }
   if (format === 'stl') {

@@ -546,6 +546,110 @@ const sculptedTris = await triStatus();
 await evaluate(`${q('#btn-undo')}.click();`);
 check('1 lần hoàn tác bỏ cả lượt nặn', await triStatus() !== sculptedTris, `${sculptedTris} -> ${await triStatus()}`);
 
+// ---------- Ghép xương + tạo dáng ----------
+const rigUi = () => evaluate(`const b = document.querySelector('.rig-toolbar');
+  const shown = (sel) => getComputedStyle(b.querySelector(sel)).display !== 'none';
+  return { shown: !b.hidden, place: shown('#rig-place'), pose: shown('#rig-pose'), info: window.easy3d.rigMode.info() };`);
+// Nút có ở cả 2 hàng (Đặt khớp / Tạo dáng) -> bấm nút đang hiển thị.
+const rigOp = (op) => evaluate(`[...document.querySelectorAll('.rig-toolbar [data-op="${op}"]')].find((b) => b.offsetParent)?.click();`);
+const clickWorld = async (exprWorldVec) => {
+  const p = await evaluate(`const THREE = await import('three'); const { viewport } = window.easy3d;
+    const v = (${exprWorldVec}).project(viewport.camera); const r = viewport.renderer.domElement.getBoundingClientRect();
+    return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };`);
+  await mouse('mouseMoved', p.x, p.y, 0); await mouse('mousePressed', p.x, p.y, 1); await mouse('mouseReleased', p.x, p.y, 0);
+  await sleep(100);
+};
+
+await clickName('Hộp 1 (5)');
+await key('f'); await sleep(300);
+await key('j');
+let ru = await rigUi();
+check('Phím J vào Ghép xương bước 1: chỉ hiện hàng Đặt khớp, mẫu Người 22 khớp',
+  ru.shown && ru.place && !ru.pose && ru.info.template === 'human' && (await evaluate(`return window.easy3d.rigMode.joints.length;`)) === 22, JSON.stringify(ru));
+await clickWorld(`window.easy3d.rigMode.joints[7].position.clone().applyMatrix4(window.easy3d.store.selected.matrixWorld)`);
+check('Bấm chuột thật vào chấm khớp -> chọn đúng khớp', (await rigUi()).info.selected === 'Khuỷu trái', JSON.stringify((await rigUi()).info));
+await evaluate(`[...document.querySelectorAll('.rig-toolbar [data-template]')].find((b) => b.dataset.template === 'chain').click();`);
+check('Đổi mẫu Chuỗi -> 6 khớp', (await evaluate(`return window.easy3d.rigMode.joints.length;`)) === 6);
+await evaluate(`[...document.querySelectorAll('.rig-toolbar [data-template]')].find((b) => b.dataset.template === 'human').click();`);
+await rigOp('bind'); await sleep(300);
+const bound = await evaluate(`const o = window.easy3d.store.selected; let sk = null; o.traverse((m) => { if (m.isSkinnedMesh) sk = m; });
+  const w = sk.geometry.attributes.skinWeight; let bad = 0;
+  for (let i = 0; i < w.count; i++) if (Math.abs(w.getX(i) + w.getY(i) + w.getZ(i) + w.getW(i) - 1) > 1e-3) bad++;
+  return { kind: o.userData.kind, bones: sk.skeleton.bones.length, bad, stage: window.easy3d.rigMode.stage };`);
+check('Gắn vào hình: vật có 22 xương, tổng trọng lượng mỗi đỉnh = 1, sang bước Tạo dáng',
+  bound.kind === 'rigged' && bound.bones === 22 && bound.bad === 0 && bound.stage === 'pose', JSON.stringify(bound));
+ru = await rigUi();
+check('Bước 2: chỉ hiện hàng Tạo dáng', !ru.place && ru.pose);
+const boneExpr = (i) => `(() => { let sk; window.easy3d.store.selected.traverse((m) => { if (m.isSkinnedMesh) sk = m; }); return sk.skeleton.bones[${i}]; })()`;
+await clickWorld(`${boneExpr(7)}.getWorldPosition(new THREE.Vector3())`);
+check('Bấm chuột thật vào khớp xương -> chọn "Khuỷu trái"', (await rigUi()).info.selected === 'Khuỷu trái', JSON.stringify((await rigUi()).info));
+const poseBox = () => evaluate(`const THREE = await import('three'); let sk; window.easy3d.store.selected.traverse((m) => { if (m.isSkinnedMesh) sk = m; });
+  // Xương là anh em của SkinnedMesh trong nhóm -> cập nhật từ nhóm (app thật: mỗi frame render tự cập nhật).
+  window.easy3d.store.selected.updateMatrixWorld(true); sk.skeleton.update();
+  // Tự tính khung bao từ vị trí ĐÃ UỐN theo xương (getVertexPosition áp skinning).
+  const b = new THREE.Box3(), v = new THREE.Vector3();
+  for (let i = 0; i < sk.geometry.attributes.position.count; i++) b.expandByPoint(sk.localToWorld(sk.getVertexPosition(i, v)));
+  return [...b.min.toArray(), ...b.max.toArray()].map((x) => +x.toFixed(3));`);
+const boxBefore = await poseBox();
+await evaluate(`${boneExpr(6)}.rotateZ(-1.2);`); // nâng tay trái lên
+const boxAfter = await poseBox();
+await sleep(200); await shot('08-rig-pose.png');
+check('Xoay xương vai -> hình uốn theo (da đi theo xương)', JSON.stringify(boxBefore) !== JSON.stringify(boxAfter), `${boxBefore} -> ${boxAfter}`);
+await rigOp('exit');
+check('Xong: thoát Ghép xương', !(await rigUi()).shown);
+await evaluate(`${q('#btn-undo')}.click();`);
+check('1 lần hoàn tác trả tư thế', (await poseBox()).join() === boxBefore.join(), `${await poseBox()}`);
+await evaluate(`${q('#btn-redo')}.click();`);
+
+await key('d', { ctrlKey: true });
+const dup = await evaluate(`const objs = window.easy3d.store.objects; const sks = []; objs.forEach((o) => o.traverse((m) => { if (m.isSkinnedMesh) sks.push(m); }));
+  return { n: sks.length, shared: sks.length === 2 && sks[0].skeleton.bones[0] === sks[1].skeleton.bones[0] };`);
+check('Nhân bản vật có xương -> bản sao có bộ xương riêng', dup.n === 2 && !dup.shared, JSON.stringify(dup));
+await evaluate(`${q('#btn-undo')}.click();`);
+await clickName('Hộp 1 (5)'); // hoàn tác nhân bản -> bản sao bị xoá khỏi vùng chọn
+
+// ---------- Chuyển động ----------
+await evaluate(`${q('[data-action="toggle-timeline"]')}.click();`);
+check('Bấm 🎬 Chuyển động -> hiện thanh thời gian', await evaluate(`return !document.querySelector('.timeline').hidden;`));
+const tl = (op) => evaluate(`document.querySelector('.timeline [data-op="${op}"]').click();`);
+const seekTo = (t) => evaluate(`const s = document.querySelector('#tl-time'); s.value = ${t}; s.dispatchEvent(new Event('input'));`);
+const elbowQ = () => evaluate(`return ${boneExpr(6)}.quaternion.toArray().map((v) => +v.toFixed(4));`);
+await seekTo(0); await tl('key');
+const q0 = await elbowQ();
+await seekTo(2);
+await evaluate(`${boneExpr(6)}.rotateZ(1.2); window.easy3d.store.selected.position.x += 0.5;`);
+await tl('key');
+const q2 = await elbowQ();
+check('Ghi 2 tư thế -> 2 chấm khoá trên thanh thời gian', await evaluate(`return document.querySelectorAll('.tl-key').length;`) === 2);
+await seekTo(1);
+const q1 = await elbowQ();
+check('Kéo thời gian giữa 2 khoá -> xương nội suy ở giữa', q1.join() !== q0.join() && q1.join() !== q2.join(), `${q0} | ${q1} | ${q2}`);
+await seekTo(0);
+check('Về 0s -> trở lại tư thế khoá đầu', (await elbowQ()).join() === q0.join());
+
+const glb = await evaluate(`const THREE = await import('three'); const m = await import('/js/model-import-export.js');
+  const { createGLTFLoader } = await import('/js/gltf-loader-factory.js');
+  const { data } = await m.exportObjects(window.easy3d.viewport.objectsRoot, 'glb');
+  const gltf = await createGLTFLoader().parseAsync(data, '');
+  return { anims: gltf.animations.length, tracks: gltf.animations[0]?.tracks.length ?? 0, skins: (() => { let n = 0; gltf.scene.traverse((o) => { if (o.isSkinnedMesh) n++; }); return n; })() };`);
+check('Xuất GLB có xương + chuyển động (game engine đọc được)', glb.anims === 1 && glb.tracks >= 3 + 22 && glb.skins === 1, JSON.stringify(glb));
+
+await clickName('Cầu 1');
+await evaluate(`const s = document.querySelector('#tl-preset'); s.value = 'turntable'; s.dispatchEvent(new Event('change'));`);
+await sleep(600);
+check('Mẫu nhanh Bàn xoay 360° -> đang phát, vật xoay', await evaluate(`return document.querySelector('.timeline [data-op="play"]').textContent === '⏸' && window.easy3d.store.selected.userData.anim.keys.length === 4;`));
+await tl('play');
+await evaluate(`const d = document.querySelector('#tl-duration'); d.value = 1; d.dispatchEvent(new Event('change'));`);
+await tl('video'); await sleep(2500);
+check('Xuất video', (await lastToast()).startsWith('Đã xuất video'), await lastToast());
+
+await clickName('Hộp 1 (5)');
+await key('j');
+check('Vào lại vật đã có xương -> thẳng bước Tạo dáng', (await rigUi()).info.stage === 'pose');
+await rigOp('unrig'); await sleep(200);
+check('Gỡ xương (giữ dáng) -> thành hình thường', await evaluate(`let sk = 0; window.easy3d.store.selected.traverse((m) => { if (m.isSkinnedMesh) sk++; }); return sk === 0;`));
+await evaluate(`${q('[data-action="toggle-timeline"]')}.click();`);
+
 await selectByName('Cầu 1');
 await shot('02-editor.png');
 
