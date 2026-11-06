@@ -1,6 +1,6 @@
 // Mở file 3D (GLB/GLTF/OBJ/STL/FBX) và xuất cảnh (GLB/STL/OBJ).
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createGLTFLoader, friendlyGLTFError } from './gltf-loader-factory.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
@@ -23,7 +23,7 @@ export async function loadModelFile(file) {
   let obj;
   try {
     if (ext === 'glb' || ext === 'gltf') {
-      const gltf = await new GLTFLoader().parseAsync(buffer, '');
+      const gltf = await createGLTFLoader().parseAsync(buffer, '');
       const project = gltf.scene.children.find((c) => c.userData?.easy3dProject);
       if (project) {
         // GLTFLoader đổi khoảng trắng trong tên node thành "_" -> lấy lại tên gốc đã cất khi lưu.
@@ -43,7 +43,7 @@ export async function loadModelFile(file) {
     }
   } catch (err) {
     const hint = ext === 'gltf' ? ' File .gltf có file .bin/texture đi kèm — hãy dùng .glb.' : '';
-    throw new Error(`Không đọc được file "${file.name}". ${err.message}${hint}`);
+    throw new Error(`Không đọc được file "${file.name}". ${friendlyGLTFError(err)}${hint}`);
   }
   prepareImported(obj);
   return { objects: [obj], isProject: false };
@@ -51,7 +51,7 @@ export async function loadModelFile(file) {
 
 /** Tải GLB từ URL (kết quả AI). */
 export async function loadModelUrl(url) {
-  const gltf = await new GLTFLoader().loadAsync(url);
+  const gltf = await createGLTFLoader().loadAsync(url);
   prepareImported(gltf.scene);
   return gltf.scene;
 }

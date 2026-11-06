@@ -1,7 +1,7 @@
-// Chia nhỏ lưới, làm mượt (Taubin), giảm chi tiết — hàm thuần trên BufferGeometry.
+// Chia nhỏ lưới, làm mượt (Taubin), giảm chi tiết (meshoptimizer) — hàm thuần trên BufferGeometry.
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
-import { SimplifyModifier } from 'three/addons/modifiers/SimplifyModifier.js';
+import { MeshoptSimplifier } from 'meshoptimizer/simplifier';
 
 const GETTERS = ['getX', 'getY', 'getZ', 'getW'];
 
@@ -102,16 +102,46 @@ export function smoothGeometry(geometry, level = 3) {
   return finish(g);
 }
 
-/** Giảm số tam giác, giữ lại `keepRatio` (0.1..0.9) số đỉnh. */
-export function simplifyGeometry(geometry, keepRatio) {
-  const g = toIndexedByPosition(geometry);
-  const remove = Math.floor(g.attributes.position.count * (1 - keepRatio));
-  return finish(new SimplifyModifier().modify(g, remove));
+/**
+ * Giảm số tam giác còn `keepRatio` (0..1). meshoptimizer (WebAssembly): nhanh cả với model hàng triệu
+ * tam giác; chỉ bỏ bớt tam giác, đỉnh còn lại giữ nguyên -> UV/texture/màu không hỏng, đường nối UV không nứt.
+ */
+export async function simplifyGeometry(geometry, keepRatio) {
+  await MeshoptSimplifier.ready;
+  const g = geometry.index ? geometry : toIndexedByPosition(geometry); // STL không có index
+  const positions = toFloatAttribute(g.attributes.position).array;
+  const indices = Uint32Array.from(g.index.array);
+  const target = Math.max(3, Math.floor((indices.length * keepRatio) / 3) * 3);
+  const [kept] = MeshoptSimplifier.simplify(indices, positions, 3, target, 0.2); // sai số tối đa 20% cỡ vật
+  return finish(compactUsed(g, kept), true); // giữ pháp tuyến gốc -> cạnh sắc/mượt như cũ
 }
 
-export function finish(g) {
+/** Geometry mới chỉ gồm đỉnh mà `index` còn dùng (mọi attribute -> Float32). */
+export function compactUsed(g, index) {
+  const remap = new Int32Array(g.attributes.position.count).fill(-1);
+  let n = 0;
+  const newIndex = new Uint32Array(index.length);
+  for (let i = 0; i < index.length; i++) {
+    const v = index[i];
+    if (remap[v] < 0) remap[v] = n++;
+    newIndex[i] = remap[v];
+  }
+  const out = new THREE.BufferGeometry();
+  for (const [name, attr] of Object.entries(g.attributes)) {
+    const src = toFloatAttribute(attr).array, size = attr.itemSize;
+    const data = new Float32Array(n * size);
+    for (let v = 0; v < remap.length; v++) {
+      if (remap[v] >= 0) for (let k = 0; k < size; k++) data[remap[v] * size + k] = src[v * size + k];
+    }
+    out.setAttribute(name, new THREE.Float32BufferAttribute(data, size));
+  }
+  out.setIndex(new THREE.BufferAttribute(newIndex, 1));
+  return out;
+}
+
+export function finish(g, keepNormals = false) {
   g.attributes.position.needsUpdate = true;
-  g.computeVertexNormals();
+  if (!keepNormals || !g.attributes.normal) g.computeVertexNormals();
   g.computeBoundingBox();
   g.computeBoundingSphere();
   return g;

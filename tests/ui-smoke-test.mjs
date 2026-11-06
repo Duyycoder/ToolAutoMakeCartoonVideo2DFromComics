@@ -131,15 +131,28 @@ const pure = await evaluate(`
   smooth.computeBoundingBox();
   const sz = smooth.boundingBox.getSize(new THREE.Vector3());
   const sphere = new THREE.SphereGeometry(0.5, 64, 32);
-  const simp = S.simplifyGeometry(sphere, 0.3);
+  const simp = await S.simplifyGeometry(sphere, 0.3);
   const two = M.unifyAttributes([new THREE.BoxGeometry().toNonIndexed().translate(-2, 0, 0), new THREE.BoxGeometry().translate(2, 0, 0)]);
   const { mergeGeometries } = await import('three/addons/utils/BufferGeometryUtils.js');
   const parts = M.splitLooseParts(mergeGeometries(two.map((g) => g.index ? g : g.setIndex([...Array(g.attributes.position.count).keys()]))));
   const carved = M.booleanGeometry(new THREE.BoxGeometry(1, 1, 1), new THREE.SphereGeometry(0.7, 32, 16), 'subtract');
   return { smoothVerts: smooth.attributes.position.count, smoothSize: sz.x, sphereTris: S.triangleCountOf(sphere),
-           simpTris: S.triangleCountOf(simp), parts: parts.length, carvedVerts: carved.attributes.position.count };`);
+           simpTris: S.triangleCountOf(simp), simpUV: !!simp.attributes.uv, simpVerts: simp.attributes.position.count,
+           sphereVerts: sphere.attributes.position.count, parts: parts.length, carvedVerts: carved.attributes.position.count };`);
 check('Làm mượt hộp: chia nhỏ lưới + bo tròn, không teo quá', pure.smoothVerts > 1000 && pure.smoothSize > 0.75 && pure.smoothSize < 1.01, JSON.stringify(pure));
-check('Giảm chi tiết cầu còn ~30%', pure.simpTris < pure.sphereTris * 0.45, `${pure.sphereTris} -> ${pure.simpTris}`);
+check('Giảm chi tiết cầu còn ~30%, giữ UV, bỏ đỉnh thừa', pure.simpTris < pure.sphereTris * 0.45 && pure.simpUV
+  && pure.simpVerts < pure.sphereVerts, `${pure.sphereTris} -> ${pure.simpTris} tris, verts ${pure.sphereVerts} -> ${pure.simpVerts}`);
+const loader = await evaluate(`
+  const F = await import('/js/gltf-loader-factory.js');
+  const { MeshoptDecoder } = await import('three/addons/libs/meshopt_decoder.module.js');
+  await MeshoptDecoder.ready;
+  const l = F.createGLTFLoader();
+  const wasm = await fetch('/vendor/three/addons/libs/draco/gltf/draco_decoder.wasm');
+  return { meshopt: !!l.meshoptDecoder && MeshoptDecoder.supported, draco: !!l.dracoLoader, wasm: wasm.ok,
+    msg: F.friendlyGLTFError(new Error('THREE.GLTFLoader: Unknown extension "KHR_texture_basisu".')) };`);
+check('Đọc được GLB nén (meshopt + Draco): loader có bộ giải nén, file wasm tải được',
+  loader.meshopt && loader.draco && loader.wasm, JSON.stringify(loader));
+check('Định dạng nén lạ -> báo lỗi tiếng Việt kèm tên định dạng', loader.msg.includes('KHR_texture_basisu') && loader.msg.includes('chưa đọc được'), loader.msg);
 check('Tách 2 hộp rời thành 2 phần', pure.parts === 2);
 check('Khoét hộp bằng cầu ra lưới khác rỗng', pure.carvedVerts > 0);
 

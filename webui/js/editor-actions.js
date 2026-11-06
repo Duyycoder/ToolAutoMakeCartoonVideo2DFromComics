@@ -13,7 +13,7 @@ import { toast } from './toast-notifications.js';
 import { applyLighting } from './lighting-presets.js';
 import { fixLightCopy } from './scene-light-objects.js';
 
-export function createEditorActions({ viewport, store, stack }) {
+export function createEditorActions({ viewport, store, stack, onModelAdded = null }) {
   const run = (cmd) => stack.execute(cmd);
   let scaleBefore = null;
 
@@ -60,6 +60,7 @@ export function createEditorActions({ viewport, store, stack }) {
       spreadPosition(obj);
       run(addObjectCommand(store, obj));
       viewport.frameObjects(obj);
+      onModelAdded?.(obj); // vd. cảnh báo model quá nặng
     },
 
     async addModelFromUrl(url, name) {

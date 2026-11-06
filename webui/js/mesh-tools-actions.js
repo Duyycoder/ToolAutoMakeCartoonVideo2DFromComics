@@ -28,10 +28,10 @@ export function createMeshTools({ store, stack }) {
     }
   }
 
-  function replaceGeometries(obj, label, transform) {
+  async function replaceGeometries(obj, label, transform) {
     const meshes = meshesOf(obj);
     const before = meshes.map((m) => m.geometry);
-    const after = meshes.map((m) => transform(m.geometry));
+    const after = await Promise.all(meshes.map((m) => transform(m.geometry)));
     stack.execute({
       label,
       do: () => { meshes.forEach((m, i) => { m.geometry = after[i]; }); store.changed(); },
@@ -63,9 +63,11 @@ export function createMeshTools({ store, stack }) {
   return {
     smooth: (obj, level) => busy('Đang làm mượt', () => replaceGeometries(obj, 'Làm mượt', (g) => smoothGeometry(g, level))),
 
-    simplify: (obj, keepRatio) => busy('Đang giảm chi tiết', () => {
-      if (store.triangleCount(obj) < 200) return toast('Vật này đã rất ít chi tiết rồi.', { type: 'warn' });
-      replaceGeometries(obj, 'Giảm chi tiết', (g) => (triangleCountOf(g) < 50 ? g : simplifyGeometry(g, keepRatio)));
+    simplify: (obj, keepRatio) => busy('Đang giảm chi tiết', async () => {
+      const before = store.triangleCount(obj);
+      if (before < 200) return toast('Vật này đã rất ít chi tiết rồi.', { type: 'warn' });
+      await replaceGeometries(obj, 'Giảm chi tiết', (g) => (triangleCountOf(g) < 50 ? g : simplifyGeometry(g, keepRatio)));
+      toast(`Đã giảm từ ${before.toLocaleString('vi-VN')} còn ${store.triangleCount(obj).toLocaleString('vi-VN')} tam giác.`, { type: 'ok' });
     }),
 
     /** Bản sao lật gương ở phía bên kia (trái <-> phải), vd. tai, cánh, tay. */

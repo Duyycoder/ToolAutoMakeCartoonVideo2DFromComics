@@ -9,6 +9,7 @@ import { batchCommand } from './scene-edit-commands.js';
 import { toast } from './toast-notifications.js';
 
 const MAX_UNDO = 40;
+const MAX_TRIANGLES_TO_EDIT = 600000; // nặng hơn -> mỗi nét cọ quá chậm
 
 export function enableBVH(geo) {
   geo.computeBoundsTree = computeBoundsTree;
@@ -26,6 +27,12 @@ export function openSurfaceSession(obj, { minVertices, maxTriangles, verb }) {
     return null;
   }
   const mesh = meshes[0];
+  const tris = (mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3;
+  if (tris > MAX_TRIANGLES_TO_EDIT) {
+    toast(`Vật quá nặng (${Math.round(tris).toLocaleString('vi-VN')} tam giác) — hãy "Giảm chi tiết" (mục Sửa hình) trước khi ${verb}.`,
+      { type: 'warn', timeout: 8000 });
+    return null;
+  }
   const geo = densify(toIndexedByPosition(mesh.geometry), minVertices, maxTriangles);
   geo.computeVertexNormals();
   enableBVH(geo);

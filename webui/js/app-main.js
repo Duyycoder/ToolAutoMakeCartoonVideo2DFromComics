@@ -31,7 +31,15 @@ const viewport = createViewport(viewportEl);
 const store = new SceneObjectStore(viewport.objectsRoot);
 const stack = new CommandStack();
 const gizmo = createGizmo(viewport, store, stack);
-const actions = createEditorActions({ viewport, store, stack });
+// Model tải trên mạng có thể hàng triệu tam giác -> app chậm, Chỉnh điểm/Nặn khó. Gợi ý giảm ngay.
+const HEAVY_TRIANGLES = 300000, TARGET_TRIANGLES = 200000;
+const warnIfHeavy = (obj) => {
+  const tris = store.triangleCount(obj);
+  if (tris <= HEAVY_TRIANGLES) return;
+  toast(`Mô hình rất nặng (${tris.toLocaleString('vi-VN')} tam giác) nên app có thể chậm. Giảm còn ~200 nghìn? (vẫn giữ màu/texture)`,
+    { type: 'warn', timeout: 20000, action: { label: 'Giảm chi tiết', onClick: () => meshTools.simplify(obj, TARGET_TRIANGLES / tris) } });
+};
+const actions = createEditorActions({ viewport, store, stack, onModelAdded: warnIfHeavy });
 const files = createProjectFileActions({ viewport, store, getProjectName: () => $('#project-name').value.trim() });
 createOutliner($('#outliner'), store);
 const appearance = createAppearanceActions({ viewport, store, stack });
