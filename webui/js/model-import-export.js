@@ -1,6 +1,7 @@
-// Mở file 3D (GLB/GLTF/OBJ/STL/FBX) và xuất cảnh (GLB/STL/OBJ).
+// Mở file 3D (GLB/GLTF/OBJ/STL/FBX/MESHY) và xuất cảnh (GLB/STL/OBJ).
 import * as THREE from 'three';
 import { createGLTFLoader, friendlyGLTFError } from './gltf-loader-factory.js';
+import { decodeMeshyFile } from './meshy-decoder.js';
 import { buildClip } from './keyframe-animation.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
@@ -9,7 +10,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
 
-export const MODEL_EXTENSIONS = ['glb', 'gltf', 'obj', 'stl', 'fbx'];
+export const MODEL_EXTENSIONS = ['glb', 'gltf', 'obj', 'stl', 'fbx', 'meshy'];
 export const extOf = (name) => name.split('.').pop().toLowerCase();
 export const baseNameOf = (name) => name.replace(/\.[^.]+$/, '');
 
@@ -23,8 +24,9 @@ export async function loadModelFile(file) {
   const buffer = await file.arrayBuffer();
   let obj;
   try {
-    if (ext === 'glb' || ext === 'gltf') {
-      const gltf = await createGLTFLoader().parseAsync(buffer, '');
+    if (ext === 'glb' || ext === 'gltf' || ext === 'meshy') {
+      const gltfBuffer = ext === 'meshy' ? await decodeMeshyFile(buffer) : buffer;
+      const gltf = await createGLTFLoader().parseAsync(gltfBuffer, '');
       const project = gltf.scene.children.find((c) => c.userData?.easy3dProject);
       if (project) {
         // GLTFLoader đổi khoảng trắng trong tên node thành "_" -> lấy lại tên gốc đã cất khi lưu.

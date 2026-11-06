@@ -167,7 +167,7 @@ window.addEventListener('drop', (e) => {
   const ext = extOf(file.name);
   if (IMAGE_EXTENSIONS.includes(ext)) openImageWizard(file);
   else if (MODEL_EXTENSIONS.includes(ext)) actions.openFile(file);
-  else toast(`Không mở được file .${ext}. Hỗ trợ: ảnh PNG/JPG, mô hình GLB/OBJ/STL/FBX.`, { type: 'warn' });
+  else toast(`Không mở được file .${ext}. Hỗ trợ: ảnh PNG/JPG, mô hình ${MODEL_EXTENSIONS.join('/').toUpperCase()}.`, { type: 'warn' });
 });
 
 // ---------- Màn hình chào ----------
