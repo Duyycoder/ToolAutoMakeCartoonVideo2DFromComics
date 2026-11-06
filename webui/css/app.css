@@ -153,3 +153,22 @@ kbd { font: 11px Consolas, monospace; color: var(--muted); border: 1px solid var
 /* Khoá panel phải khi đang chỉnh điểm — tránh sửa vật khác giữa chừng. */
 body.edit-mode .sidepanel { pointer-events: none; opacity: .4; }
 body.edit-mode [data-action="edit-mode"] { background: #2b3a63; border-color: var(--accent); }
+
+/* ---------- Panel chọn nhiều vật ---------- */
+.multi-head { background: var(--bg); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 10px; }
+.multi-head b { display: block; color: var(--accent); }
+.multi-head small { color: var(--muted); display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.big-action { display: flex; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 6px; }
+.big-action .ico { font-size: 22px; }
+.big-action small { display: block; color: var(--muted); font-size: 11.5px; }
+.big-action.primary-soft { border-color: var(--accent); background: #2b3a63; }
+
+/* ---------- Chế độ "Tô vẽ" ---------- */
+.paint-swatches { display: flex; gap: 3px; }
+.paint-swatches .swatch { width: 20px; height: 20px; aspect-ratio: auto; }
+.image-placement { position: absolute; z-index: 18; border: 2px dashed var(--accent); cursor: move; touch-action: none; }
+.image-placement[hidden] { display: none; }
+.image-placement img { width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; }
+body.paint-mode .sidepanel { pointer-events: none; opacity: .4; }
+body.paint-mode [data-action="paint-mode"] { background: #2b3a63; border-color: var(--accent); }
+body.paint-mode #viewport canvas { cursor: crosshair; }
