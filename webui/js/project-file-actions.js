@@ -1,12 +1,14 @@
 // Lưu dự án / xuất file / chụp ảnh — ghi qua backend (cửa sổ desktop không có hộp thoại tải xuống).
+import * as THREE from 'three';
 import { api } from './backend-api-client.js';
 import { exportObjects } from './model-import-export.js';
+import { cloneObject, isRigged } from './rig-builder.js';
 import { toast } from './toast-notifications.js';
 
 const FORMAT_LABELS = { glb: 'GLB (cho game)', stl: 'STL (in 3D)', obj: 'OBJ' };
 
-function openFolderAction(kind) {
-  return { label: 'Mở thư mục', onClick: () => api.openFolder(kind).catch((e) => toast(e.message, { type: 'err' })) };
+function openFolderAction(kind, folder = null) {
+  return { label: 'Mở thư mục', onClick: () => api.openFolder(kind, folder).catch((e) => toast(e.message, { type: 'err' })) };
 }
 
 function dataUrlToBlob(dataUrl) {
@@ -47,6 +49,24 @@ export function createProjectFileActions({ viewport, store, getProjectName }) {
         await writeFile('output', 'png', blob, `Đã xuất ảnh ${sizeLabel}`);
       } catch (err) {
         toast(`Xuất ảnh thất bại: ${err.message}`, { type: 'err', timeout: 8000 });
+      }
+    },
+
+    /** 1 nhân vật -> output/game/<Tên>/<Tên>.glb (xương tên Unity + chuyển động) để kéo thẳng vào project game. */
+    async exportCharacter(obj) {
+      if (!obj || obj.userData.kind === 'light') return toast('Hãy bấm chọn nhân vật cần xuất trước.', { type: 'warn' });
+      try {
+        const root = new THREE.Group();
+        root.userData.animDuration = viewport.objectsRoot.userData.animDuration;
+        root.add(cloneObject(obj));
+        const { data } = await exportObjects(root, 'glb');
+        const name = obj.name.trim() || 'NhanVat';
+        const res = await api.saveFile('game', `${name}.glb`, data, name);
+        const folder = res.path.split(/[\\/]/).slice(-2, -1)[0];
+        toast(`Đã xuất nhân vật: game/${folder}/${res.name}${isRigged(obj) ? ' (có xương)' : ''}`,
+          { type: 'ok', action: openFolderAction('game', folder), timeout: 8000 });
+      } catch (err) {
+        toast(`Xuất nhân vật thất bại: ${err.message}`, { type: 'err', timeout: 8000 });
       }
     },
 

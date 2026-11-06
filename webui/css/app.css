@@ -179,6 +179,25 @@ body.sculpt-mode #viewport canvas { cursor: crosshair; }
 /* `display:flex` của .edit-row ghi đè [hidden] của trình duyệt -> phải ẩn tường minh. */
 .edit-row[hidden] { display: none; }
 body.rig-mode .sidepanel { pointer-events: none; opacity: .4; }
+.rig-toolbar select { font-size: 13px; padding: 4px 6px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; }
+/* Panel cây xương: nổi bên phải khung 3D (panel phải của app bị khoá khi ghép xương). */
+.rig-tree-panel { position: absolute; top: 150px; right: 10px; bottom: 50px; width: 250px; z-index: 21; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.rig-tree-panel[hidden] { display: none; }
+.rig-tree-panel h4 { margin: 0; color: var(--accent); }
+.rig-tree-panel input { width: 100%; box-sizing: border-box; padding: 4px 6px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; }
+.rig-field { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 12px; }
+.rig-xyz { display: flex; gap: 4px; }
+.rig-tree { list-style: none; margin: 0; padding: 0; max-height: 40vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; }
+.rig-tree li { display: flex; gap: 6px; align-items: baseline; padding: 3px 6px; cursor: pointer; white-space: nowrap; }
+.rig-tree li:hover { background: var(--panel-2); }
+.rig-tree li.selected { background: #2b3a63; }
+.rig-tree small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.rig-selected { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
+.rig-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.rig-actions.col { flex-direction: column; border-top: 1px solid var(--line); padding-top: 6px; }
+.rig-actions button { padding: 4px 8px; font-size: 12.5px; }
+.rig-save { display: flex; gap: 4px; }
 body.rig-mode [data-action="rig-mode"] { background: #2b3a63; border-color: var(--accent); }
 
 /* ---------- Thanh Chuyển động ---------- */

@@ -62,7 +62,11 @@ export function buildRiggedObject(obj, joints, softness) {
   geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndex, 4));
   geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeight, 4));
 
-  const bones = joints.map((j) => Object.assign(new THREE.Bone(), { name: j.name }));
+  const bones = joints.map((j) => {
+    const bone = Object.assign(new THREE.Bone(), { name: j.name });
+    bone.userData.label = j.label ?? j.name; // nhãn tiếng Việt hiển thị trong cây xương
+    return bone;
+  });
   joints.forEach((j, i) => {
     const parentPos = j.parent >= 0 ? joints[j.parent].position : new THREE.Vector3();
     bones[i].position.copy(j.position).sub(parentPos);
@@ -77,6 +81,19 @@ export function buildRiggedObject(obj, joints, softness) {
   skinned.bind(new THREE.Skeleton(bones));
   copyOriginalLook(obj, group);
   return group;
+}
+
+/**
+ * Khớp (toạ độ local của nhóm) của vật do Easy3D gắn xương -> quay lại bước Đặt khớp.
+ * Tạo dáng chỉ XOAY xương, vị trí xương (so với cha) giữ nguyên -> cộng dồn vị trí = đúng chỗ lúc gắn.
+ */
+export function jointsFromRig(group) {
+  const bones = skinnedMeshOf(group).skeleton.bones;
+  return bones.map((b) => {
+    const position = new THREE.Vector3();
+    for (let x = b; x?.isBone; x = x.parent) position.add(x.position);
+    return { name: b.name, label: b.userData.label ?? b.name, parent: bones.indexOf(b.parent), position };
+  });
 }
 
 /** Gỡ xương nhưng GIỮ dáng đang tạo: nướng vị trí đã uốn vào lưới thường. */

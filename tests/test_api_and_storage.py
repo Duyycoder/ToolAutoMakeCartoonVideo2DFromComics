@@ -74,3 +74,36 @@ def test_ai_status_shape():
 def test_webui_served():
     r = client.get("/")
     assert r.status_code == 200 and "Easy3D" in r.text
+
+
+@pytest.fixture
+def rig_folders(tmp_path, monkeypatch):
+    monkeypatch.setitem(file_storage.FOLDERS, "rigs", tmp_path / "rigs")
+    monkeypatch.setitem(file_storage.FOLDERS, "game", tmp_path / "game")
+    return tmp_path
+
+
+def test_rig_template_save_list_read(rig_folders):
+    r = client.post("/api/files/save", params={"kind": "rigs", "name": "Golem.json"},
+                    content=b'{"joints": []}', headers=WRITE_HEADERS)
+    assert r.status_code == 200, r.text
+    assert client.get("/api/files/list", params={"kind": "rigs"}).json() == {"files": ["Golem.json"]}
+    assert client.get("/api/files/read", params={"kind": "rigs", "name": "../rigs/Golem.json"}).json() == {"joints": []}
+    assert client.get("/api/files/read", params={"kind": "rigs", "name": "missing.json"}).status_code == 404
+
+
+def test_rigs_folder_only_accepts_json_and_other_kinds_not_listable(rig_folders):
+    r = client.post("/api/files/save", params={"kind": "rigs", "name": "x.glb"}, content=b"glTF", headers=WRITE_HEADERS)
+    assert r.status_code == 400
+    assert client.get("/api/files/list", params={"kind": "projects"}).status_code == 400
+    assert client.get("/api/files/read", params={"kind": "output", "name": "a.glb"}).status_code == 404
+
+
+def test_game_export_goes_to_own_subfolder(rig_folders):
+    r = client.post("/api/files/save", params={"kind": "game", "name": "Golem.glb", "folder": "../../Golem"},
+                    content=b"glTF", headers=WRITE_HEADERS)
+    assert r.status_code == 200, r.text
+    assert (rig_folders / "game" / "Golem" / "Golem.glb").read_bytes() == b"glTF"
+    r = client.post("/api/files/save", params={"kind": "projects", "name": "a.glb", "folder": "x"},
+                    content=b"glTF", headers=WRITE_HEADERS)
+    assert r.status_code == 400

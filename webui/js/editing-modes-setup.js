@@ -10,6 +10,7 @@ import { createSculptMode } from './sculpt-mode-controller.js';
 import { createSculptToolbar } from './sculpt-mode-toolbar.js';
 import { createRigMode } from './rig-mode-controller.js';
 import { attachRigInput, createRigToolbar } from './rig-mode-toolbar.js';
+import { createBoneTreePanel } from './rig-bone-tree-panel.js';
 import { toast } from './toast-notifications.js';
 
 export function setupEditingModes({ viewport, viewportEl, store, stack, gizmo }) {
@@ -31,8 +32,9 @@ export function setupEditingModes({ viewport, viewportEl, store, stack, gizmo })
   attachSurfaceInput(viewport, viewportEl, sculptMode.inputAdapter());
   bars.sculpt = createSculptToolbar(viewportEl, sculptMode);
 
-  const rigMode = createRigMode({ ...ctx, onChange: (info) => bars.rig?.update(info) });
+  const rigMode = createRigMode({ ...ctx, onChange: (info) => { bars.rig?.update(info); bars.rigTree?.update(info); } });
   bars.rig = createRigToolbar(viewportEl, rigMode);
+  bars.rigTree = createBoneTreePanel(viewportEl, rigMode, { onTemplateSaved: () => bars.rig.refreshSaved() });
   attachRigInput(viewport, rigMode);
 
   const modes = [editMode, paintMode, sculptMode, rigMode];

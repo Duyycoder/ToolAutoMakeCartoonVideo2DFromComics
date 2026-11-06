@@ -69,6 +69,7 @@ const ACTIONS = {
   new: () => actions.clearScene(),
   open: () => { leaveModes(); fileInput.click(); },
   save: () => { leaveModes(); files.save(); },
+  'export-character': () => files.exportCharacter(store.selected),
   'toggle-export': () => toggleMenu('#export-menu'),
   'toggle-shapes': () => toggleMenu('#shape-menu'),
   'toggle-lighting': () => toggleMenu('#lighting-menu'),

@@ -571,6 +571,40 @@ check('Bấm chuột thật vào chấm khớp -> chọn đúng khớp', (await 
 await evaluate(`[...document.querySelectorAll('.rig-toolbar [data-template]')].find((b) => b.dataset.template === 'chain').click();`);
 check('Đổi mẫu Chuỗi -> 6 khớp', (await evaluate(`return window.easy3d.rigMode.joints.length;`)) === 6);
 await evaluate(`[...document.querySelectorAll('.rig-toolbar [data-template]')].find((b) => b.dataset.template === 'human').click();`);
+// ---- Ghép xương v2: kéo thẳng chấm khớp, xoay hướng, cây xương ----
+const jointWorld = (i) => `window.easy3d.rigMode.joints[${i}].position.clone().applyMatrix4(window.easy3d.store.selected.matrixWorld)`;
+const jointArr = (i) => evaluate(`const THREE = await import('three'); return ${jointWorld(i)}.toArray().map((v) => +v.toFixed(4));`);
+const camArr = () => evaluate(`return window.easy3d.viewport.camera.position.toArray().map((v) => +v.toFixed(4));`);
+const jp = await evaluate(`const THREE = await import('three'); const { viewport } = window.easy3d; const v = ${jointWorld(7)}.project(viewport.camera);
+  const r = viewport.renderer.domElement.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };`);
+const [elbow0, cam0] = [await jointArr(7), await camArr()];
+await mouse('mouseMoved', jp.x, jp.y, 0); await mouse('mousePressed', jp.x, jp.y, 1);
+for (let i = 1; i <= 5; i++) await mouse('mouseMoved', jp.x + 6 * i, jp.y - 6 * i, 1);
+await mouse('mouseReleased', jp.x + 30, jp.y - 30, 0);
+const [elbow1, cam1] = [await jointArr(7), await camArr()];
+const sym = await evaluate(`const THREE = await import('three'); const { rigMode, store } = window.easy3d; const a = ${jointWorld(7)}, b = ${jointWorld(11)};
+  return Math.abs(a.y - b.y) < 1e-4;`);
+check('Kéo thẳng chấm khớp bằng chuột: khớp dời, khớp đối xứng đi theo, góc nhìn đứng yên',
+  elbow0.join() !== elbow1.join() && cam0.join() === cam1.join() && sym, `${elbow0} -> ${elbow1}, cam ${cam0} -> ${cam1}`);
+await rigOp('undo');
+check('Hoàn tác ở bước Đặt khớp trả khớp về chỗ cũ', (await jointArr(7)).join() === elbow0.join());
+const turn = (n) => evaluate(`document.querySelector('.rig-toolbar [data-op="turn"][data-arg="${n}"]').click();`);
+const arm0 = await jointArr(6);
+await turn(1);
+const arm90 = await jointArr(6);
+await turn(1); await turn(2);
+check('Nút ↻ 90° xoay hướng bộ xương; xoay đủ vòng về đúng chỗ cũ', arm90.join() !== arm0.join() && (await jointArr(6)).join() === arm0.join(), `${arm0} | ${arm90}`);
+const treeRows = () => evaluate(`return document.querySelectorAll('.rig-tree-panel .rig-tree li').length;`);
+check('Panel cây xương hiện 22 khớp (tên Unity)', (await treeRows()) === 22
+  && await evaluate(`return document.querySelector('.rig-tree li small').textContent === 'Hips';`));
+await evaluate(`document.querySelectorAll('.rig-tree li')[7].click();`);
+check('Bấm dòng trong cây -> chọn khớp', (await rigUi()).info.selectedName === 'LeftLowerArm');
+await evaluate(`const i = document.querySelector('.rig-selected input'); i.value = 'Khuỷu tay'; i.dispatchEvent(new Event('change'));`);
+check('Tên xương có dấu/khoảng trắng bị từ chối (game không đọc được)', (await rigUi()).info.selectedName === 'LeftLowerArm');
+await evaluate(`[...document.querySelectorAll('.rig-actions button')].find((b) => b.textContent.includes('Khớp con')).click();`);
+const added = await treeRows();
+await evaluate(`[...document.querySelectorAll('.rig-actions button')].find((b) => b.textContent.includes('Xoá')).click();`);
+check('Thêm khớp con rồi xoá: vẫn ở chế độ Ghép xương, 23 -> 22 khớp', added === 23 && (await treeRows()) === 22 && (await rigUi()).shown);
 await rigOp('bind'); await sleep(300);
 const bound = await evaluate(`const o = window.easy3d.store.selected; let sk = null; o.traverse((m) => { if (m.isSkinnedMesh) sk = m; });
   const w = sk.geometry.attributes.skinWeight; let bad = 0;
@@ -578,6 +612,14 @@ const bound = await evaluate(`const o = window.easy3d.store.selected; let sk = n
   return { kind: o.userData.kind, bones: sk.skeleton.bones.length, bad, stage: window.easy3d.rigMode.stage };`);
 check('Gắn vào hình: vật có 22 xương, tổng trọng lượng mỗi đỉnh = 1, sang bước Tạo dáng',
   bound.kind === 'rigged' && bound.bones === 22 && bound.bad === 0 && bound.stage === 'pose', JSON.stringify(bound));
+check('Xương mang tên chuẩn Unity Humanoid + nhãn tiếng Việt', await evaluate(`let sk; window.easy3d.store.selected.traverse((m) => { if (m.isSkinnedMesh) sk = m; });
+  const b = sk.skeleton.bones; return b[0].name === 'Hips' && b[7].name === 'LeftLowerArm' && b[7].userData.label === 'Khuỷu trái';`));
+const boundElbow = await evaluate(`let sk; const o = window.easy3d.store.selected; o.traverse((m) => { if (m.isSkinnedMesh) sk = m; }); o.updateMatrixWorld(true);
+  return sk.skeleton.bones[7].getWorldPosition(new (await import('three')).Vector3()).toArray().map((v) => +v.toFixed(4));`);
+await rigOp('editJoints');
+check('✏ Sửa khớp: quay lại bước 1, khớp ở đúng chỗ lúc gắn', (await rigUi()).info.stage === 'place' && (await jointArr(7)).join() === boundElbow.join(),
+  `${boundElbow} vs ${await jointArr(7)}`);
+await rigOp('bind'); await sleep(300);
 ru = await rigUi();
 check('Bước 2: chỉ hiện hàng Tạo dáng', !ru.place && ru.pose);
 const boneExpr = (i) => `(() => { let sk; window.easy3d.store.selected.traverse((m) => { if (m.isSkinnedMesh) sk = m; }); return sk.skeleton.bones[${i}]; })()`;
@@ -591,7 +633,7 @@ const poseBox = () => evaluate(`const THREE = await import('three'); let sk; win
   for (let i = 0; i < sk.geometry.attributes.position.count; i++) b.expandByPoint(sk.localToWorld(sk.getVertexPosition(i, v)));
   return [...b.min.toArray(), ...b.max.toArray()].map((x) => +x.toFixed(3));`);
 const boxBefore = await poseBox();
-await evaluate(`${boneExpr(6)}.rotateZ(-1.2);`); // nâng tay trái lên
+await evaluate(`${boneExpr(6)}.rotateZ(1.2);`); // nâng tay trái lên (bên trái nhân vật = +X, chuẩn glTF/Unity)
 const boxAfter = await poseBox();
 await sleep(200); await shot('08-rig-pose.png');
 check('Xoay xương vai -> hình uốn theo (da đi theo xương)', JSON.stringify(boxBefore) !== JSON.stringify(boxAfter), `${boxBefore} -> ${boxAfter}`);

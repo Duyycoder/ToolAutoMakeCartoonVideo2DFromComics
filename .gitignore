@@ -26,5 +26,6 @@ configs/config.json
 # --- Dữ liệu người dùng & output ---
 /projects/
 /output/
+/library/
 /logs/
 

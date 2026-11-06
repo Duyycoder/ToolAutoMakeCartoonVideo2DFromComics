@@ -27,8 +27,10 @@ const post = (path, params, body) =>
 export const api = {
   gpuInfo: () => request('/api/system/gpu-info'),
   aiStatus: () => request('/api/system/ai-status'),
-  saveFile: (kind, name, data) => post('/api/files/save', { kind, name }, data),
-  openFolder: (kind) => post('/api/files/open-folder', { kind }),
+  saveFile: (kind, name, data, folder = null) => post('/api/files/save', folder ? { kind, name, folder } : { kind, name }, data),
+  openFolder: (kind, folder = null) => post('/api/files/open-folder', folder ? { kind, folder } : { kind }),
+  listFiles: (kind) => request(`/api/files/list?${new URLSearchParams({ kind })}`).then((r) => r.files),
+  readJson: (kind, name) => request(`/api/files/read?${new URLSearchParams({ kind, name })}`),
   startImageTo3D: (file, quality, model = 'triposr') => post('/api/image-to-3d', { filename: file.name, quality, model }, file),
   cancelJob: (id) => post(`/api/jobs/${id}/cancel`, {}),
   resultUrl: (id) => `/api/jobs/${id}/result.glb`,
