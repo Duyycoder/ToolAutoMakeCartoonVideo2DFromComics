@@ -16,8 +16,9 @@ def _version_key(folder: str) -> tuple:
 
 
 def find_blender() -> Path | None:
-    """Bản mới nhất trong tools/blender/*/blender.exe (đặt sẵn bản khác cũng được)."""
-    found = sorted(BLENDER_DIR.glob("*/blender.exe"), key=lambda p: _version_key(p.parent.name))
+    """Bản mới nhất trong tools/blender/*/blender.exe (Linux: */blender). Đặt sẵn bản khác cũng được."""
+    exes = [p for p in BLENDER_DIR.glob("*/blender*") if p.name in ("blender.exe", "blender") and p.is_file()]
+    found = sorted(exes, key=lambda p: _version_key(p.parent.name))
     return found[-1] if found else None
 
 

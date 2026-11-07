@@ -1,4 +1,5 @@
-// Lưu dự án / xuất file / chụp ảnh — ghi qua backend (cửa sổ desktop không có hộp thoại tải xuống).
+// Lưu dự án / xuất file / chụp ảnh. Bản desktop ghi qua backend (cửa sổ desktop không có hộp thoại tải xuống);
+// bản online (mở qua tên miền, không phải localhost) tải thẳng về máy người dùng.
 import * as THREE from 'three';
 import { api } from './backend-api-client.js';
 import { exportObjects } from './model-import-export.js';
@@ -9,6 +10,15 @@ const FORMAT_LABELS = { glb: 'GLB (cho game)', stl: 'STL (in 3D)', obj: 'OBJ' };
 
 function openFolderAction(kind, folder = null) {
   return { label: 'Mở thư mục', onClick: () => api.openFolder(kind, folder).catch((e) => toast(e.message, { type: 'err' })) };
+}
+
+const IS_ONLINE = !['127.0.0.1', 'localhost'].includes(location.hostname);
+
+function downloadToBrowser(name, data) {
+  const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data]));
+  const link = Object.assign(document.createElement('a'), { href: url, download: name });
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function dataUrlToBlob(dataUrl) {
@@ -22,6 +32,10 @@ export function createProjectFileActions({ viewport, store, getProjectName }) {
 
   async function writeFile(kind, ext, data, successLabel) {
     const name = `${getProjectName() || 'du-an'}.${ext}`;
+    if (IS_ONLINE) {
+      downloadToBrowser(name, data);
+      return toast(`${successLabel}: ${name}`, { type: 'ok' });
+    }
     const res = await api.saveFile(kind, name, data);
     toast(`${successLabel}: ${res.name}`, { type: 'ok', action: openFolderAction(kind), timeout: 7000 });
   }
@@ -61,6 +75,10 @@ export function createProjectFileActions({ viewport, store, getProjectName }) {
         root.add(cloneObject(obj));
         const { data } = await exportObjects(root, 'glb');
         const name = obj.name.trim() || 'NhanVat';
+        if (IS_ONLINE) {
+          downloadToBrowser(`${name}.glb`, data);
+          return toast(`Đã tải nhân vật: ${name}.glb`, { type: 'ok' });
+        }
         const res = await api.saveFile('game', `${name}.glb`, data, name);
         const folder = res.path.split(/[\\/]/).slice(-2, -1)[0];
         toast(`Đã xuất nhân vật: game/${folder}/${res.name}${isRigged(obj) ? ' (có xương)' : ''}`,

@@ -1,5 +1,7 @@
 """FastAPI backend Easy3D. Chỉ bind 127.0.0.1. KHÔNG import torch ở đây —
 AI chạy trong subprocess .venv-ai (backend/job_runner.py)."""
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
@@ -12,8 +14,10 @@ from backend.gpu_info import get_gpu_info
 CSRF_HEADER = "x-easy3d"
 
 app = FastAPI(title="Easy3D")
-# Chống DNS rebinding: chỉ nhận Host là localhost.
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
+# Chống DNS rebinding: chỉ nhận Host là localhost. Bản online thêm tên miền qua
+# EASY3D_ALLOWED_HOSTS="rr.example.ts.net,..." (xem scripts/setup-online-linux.sh).
+EXTRA_HOSTS = [h.strip() for h in os.environ.get("EASY3D_ALLOWED_HOSTS", "").split(",") if h.strip()]
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver", *EXTRA_HOSTS])
 
 
 @app.middleware("http")
