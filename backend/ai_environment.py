@@ -1,17 +1,24 @@
 """Kiểm tra môi trường AI (.venv-ai + TripoSR + trọng số) — để UI báo rõ cho người dùng
 thay vì bấm "Tạo từ ảnh" rồi mới lỗi."""
+import os
 from pathlib import Path
 
 from backend.config import ROOT_DIR
 from backend.gpu_info import query_nvidia_gpus
 
-AI_PYTHON = ROOT_DIR / ".venv-ai" / "Scripts" / "python.exe"
+
+def venv_python(name: str) -> Path:
+    """Python trong venv: Windows `Scripts/python.exe`, Linux `bin/python` (bản online, scripts/setup-ai-linux.sh)."""
+    return ROOT_DIR / name / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+
+
+AI_PYTHON = venv_python(".venv-ai")
 TRIPOSR_DIR = ROOT_DIR / "third_party" / "TripoSR"
 HF_HOME = ROOT_DIR / "models" / "hf"
 WORKER_IMAGE_TO_3D = ROOT_DIR / "workers" / "worker_image_to_3d.py"
 
 # Hunyuan3D-2mini (chất lượng cao): venv + mã nguồn + trọng số RIÊNG (scripts/setup-hunyuan3d.bat).
-HUNYUAN_PYTHON = ROOT_DIR / ".venv-hunyuan" / "Scripts" / "python.exe"
+HUNYUAN_PYTHON = venv_python(".venv-hunyuan")
 HUNYUAN_DIR = ROOT_DIR / "third_party" / "Hunyuan3D-2"
 HUNYUAN_MODELS = ROOT_DIR / "models" / "hy3dgen"
 HUNYUAN_WEIGHTS = HUNYUAN_MODELS / "tencent" / "Hunyuan3D-2mini" / "hunyuan3d-dit-v2-mini" / "model.fp16.safetensors"
