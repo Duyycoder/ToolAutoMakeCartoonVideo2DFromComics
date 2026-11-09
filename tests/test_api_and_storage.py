@@ -51,6 +51,12 @@ def test_post_without_custom_header_is_blocked():
     assert r.status_code == 403
 
 
+@pytest.mark.parametrize("path", ["/", "/js/app-main.js"])
+def test_webui_files_are_revalidated_after_deploy(path):
+    r = client.get(path)
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-cache"
+
+
 def test_foreign_host_is_blocked():
     r = client.get("/api/health", headers={"Host": "evil.example.com"})
     assert r.status_code == 400

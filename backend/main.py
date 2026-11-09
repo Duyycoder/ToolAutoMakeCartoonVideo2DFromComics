@@ -39,6 +39,15 @@ def health():
     return {"status": "ok"}
 
 
+@app.middleware("http")
+async def revalidate_webui_files(request: Request, call_next):
+    """Bản online qua Cloudflare: không có header này thì trình duyệt giữ HTML/JS cũ tới 4 giờ sau mỗi lần deploy."""
+    response = await call_next(request)
+    if not request.url.path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @app.get("/api/system/gpu-info")
 def gpu_info():
     return get_gpu_info()
