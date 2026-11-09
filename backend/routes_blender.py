@@ -18,10 +18,25 @@ HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 BLEND_MAGIC = (b"BLENDER", bytes.fromhex("28b52ffd"), bytes.fromhex("1f8b"))
 
 
+def reject_external_refs(data: bytes) -> None:
+    """GLB chỉ được chứa dữ liệu nhúng: uri trỏ ra ngoài sẽ khiến Blender đọc file trên server rồi nhúng vào kết quả."""
+    if data[:4] != b"glTF" or data[16:20] != b"JSON":
+        raise HTTPException(400, "File không phải GLB")
+    try:
+        doc = json.loads(data[20:20 + int.from_bytes(data[12:16], "little")])
+        external = [x for x in doc.get("images", []) + doc.get("buffers", [])
+                    if x.get("uri") and not x["uri"].startswith("data:")]
+    except (ValueError, AttributeError, TypeError) as exc:
+        raise HTTPException(400, "File GLB bị hỏng") from exc
+    if external:
+        raise HTTPException(400, "GLB không được tham chiếu file bên ngoài")
+
+
 def input_name_for(op: str, data: bytes) -> str:
     if op == "skin_weights":
         return "skin-input.bin"
     if op != "import_blend":
+        reject_external_refs(data)
         return "input.glb"
     if not data.startswith(BLEND_MAGIC):
         raise HTTPException(400, "File không phải .blend của Blender")
@@ -34,6 +49,7 @@ NUMBERS = {
     "repair": {},
     "skin_weights": {},
     "import_blend": {},  # .blend -> GLB (Easy3D mở được)
+    "export_fbx": {},  # GLB -> FBX cho Unity
     "render": {"width": (64, 4096, 1920), "height": (64, 4096, 1080), "samples": (8, 1024, 96), "fov": (10, 120, 45),
                "sun_intensity": (0, 20, 2), "ambient": (0, 5, 1), "exposure": (0.1, 4, 1)},
 }

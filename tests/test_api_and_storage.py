@@ -107,3 +107,18 @@ def test_game_export_goes_to_own_subfolder(rig_folders):
     r = client.post("/api/files/save", params={"kind": "projects", "name": "a.glb", "folder": "x"},
                     content=b"glTF", headers=WRITE_HEADERS)
     assert r.status_code == 400
+
+
+@pytest.mark.parametrize("name", ["Golem.fbx", "Golem_MetallicSmoothness.png", "texture_0.jpg"])
+def test_game_folder_accepts_fbx_and_its_metallic_map(rig_folders, name):
+    r = client.post("/api/files/save", params={"kind": "game", "name": name, "folder": "Golem"},
+                    content=b"data", headers=WRITE_HEADERS)
+    assert r.status_code == 200, r.text
+    assert (rig_folders / "game" / "Golem" / name).read_bytes() == b"data"
+
+
+def test_projects_folder_accepts_fbx_but_rigs_does_not(temp_folders, rig_folders):
+    r = client.post("/api/files/save", params={"kind": "projects", "name": "a.fbx"}, content=b"FBX", headers=WRITE_HEADERS)
+    assert r.status_code == 200, r.text
+    r = client.post("/api/files/save", params={"kind": "rigs", "name": "a.fbx"}, content=b"FBX", headers=WRITE_HEADERS)
+    assert r.status_code == 400

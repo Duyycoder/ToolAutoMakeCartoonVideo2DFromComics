@@ -16,8 +16,8 @@ FOLDERS = {
     "game": ROOT_DIR / "output" / "game",  # mỗi nhân vật 1 thư mục: game/<Tên>/<Tên>.glb -> kéo thẳng vào Unity
     "rigs": ROOT_DIR / "library" / "rigs",  # mẫu xương tự lưu (Ghép xương)
 }
-ALLOWED_EXTENSIONS = {".glb", ".gltf", ".stl", ".obj", ".png", ".mp4", ".webm"}  # video: thanh Chuyển động
-KIND_EXTENSIONS = {"game": {".glb"}, "rigs": {".json"}}  # thư mục chỉ nhận đúng loại file của nó
+ALLOWED_EXTENSIONS = {".glb", ".gltf", ".fbx", ".stl", ".obj", ".png", ".mp4", ".webm"}  # video: thanh Chuyển động
+KIND_EXTENSIONS = {"game": {".glb", ".fbx", ".png", ".jpg"}, "rigs": {".json"}}  # thư mục chỉ nhận đúng loại file của nó (ảnh: texture đi kèm FBX)
 LISTABLE_KINDS = {"rigs"}  # UI được liệt kê / đọc lại file
 MAX_BYTES = 200 * 1024 * 1024
 MAX_READ_BYTES = 2 * 1024 * 1024

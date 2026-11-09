@@ -2,11 +2,17 @@
 // bản online (mở qua tên miền, không phải localhost) tải thẳng về máy người dùng.
 import * as THREE from 'three';
 import { api } from './backend-api-client.js';
+import { convertGlbToFbx } from './blender-tools-actions.js';
 import { exportObjects } from './model-import-export.js';
 import { cloneObject, isRigged } from './rig-builder.js';
 import { toast } from './toast-notifications.js';
 
-const FORMAT_LABELS = { glb: 'GLB (cho game)', stl: 'STL (in 3D)', obj: 'OBJ' };
+const FORMAT_LABELS = { glb: 'GLB (cho game)', fbx: 'FBX (cho Unity)', stl: 'STL (in 3D)', obj: 'OBJ' };
+
+/** Tên file map: 1 map -> theo nhân vật; nhiều map -> thêm tên chất liệu để biết gán cho chất liệu nào. Rút gọn vì tên file tối đa 120 ký tự. */
+function metallicMapName(name, material, total) {
+  return `${name.slice(0, 60)}${total > 1 ? `_${material.slice(0, 40)}` : ''}_MetallicSmoothness.png`;
+}
 
 function openFolderAction(kind, folder = null) {
   return { label: 'Mở thư mục', onClick: () => api.openFolder(kind, folder).catch((e) => toast(e.message, { type: 'err' })) };
@@ -19,6 +25,27 @@ function downloadToBrowser(name, data) {
   const link = Object.assign(document.createElement('a'), { href: url, download: name });
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+/** FBX + texture + map vào chung 1 thư mục game/<Tên>/ -> kéo cả thư mục vào Unity là có đủ hình. */
+async function saveFbxBundle(name, fbx, label) {
+  const maps = fbx.metallicMaps;
+  const files = [
+    [`${name}.fbx`, fbx.data],
+    ...fbx.textures.map((t) => [t.name, t.blob]),
+    ...maps.map((m) => [metallicMapName(name, m.material, maps.length), m.blob]),
+  ];
+  if (fbx.tintDropped) toast(`${fbx.tintDropped} chất liệu mất màu phủ (tint) trên texture vì FBX không chứa được. Texture vẫn giữ.`, { type: 'warn', timeout: 9000 });
+  // Map là dữ liệu tuyến tính: để sRGB bật thì Unity đọc sai độ kim loại.
+  const mapNote = maps.length ? ` Map Metallic: gán tay vào Metallic Map, tắt sRGB.` : '';
+  if (IS_ONLINE) {
+    files.forEach(([file, data]) => downloadToBrowser(file, data));
+    return toast(`${label}: đã tải ${files.length} file. Để chung 1 thư mục rồi kéo vào Assets của Unity.${mapNote}`, { type: 'ok', timeout: 10000 });
+  }
+  const saved = [];
+  for (const [file, data] of files) saved.push(await api.saveFile('game', file, data, name));
+  const folder = saved[0].path.split(/[\\/]/).slice(-2, -1)[0];
+  toast(`${label}: game/${folder}/ — kéo cả thư mục vào Assets của Unity.${mapNote}`, { type: 'ok', action: openFolderAction('game', folder), timeout: 10000 });
 }
 
 function dataUrlToBlob(dataUrl) {
@@ -66,8 +93,8 @@ export function createProjectFileActions({ viewport, store, getProjectName }) {
       }
     },
 
-    /** 1 nhân vật -> output/game/<Tên>/<Tên>.glb (xương tên Unity + chuyển động) để kéo thẳng vào project game. */
-    async exportCharacter(obj) {
+    /** 1 nhân vật -> output/game/<Tên>/<Tên>.glb|.fbx (xương tên Unity + chuyển động) để kéo thẳng vào project game. */
+    async exportCharacter(obj, format = 'glb') {
       if (!obj || obj.userData.kind === 'light') return toast('Hãy bấm chọn nhân vật cần xuất trước.', { type: 'warn' });
       try {
         const root = new THREE.Group();
@@ -75,6 +102,7 @@ export function createProjectFileActions({ viewport, store, getProjectName }) {
         root.add(cloneObject(obj));
         const { data } = await exportObjects(root, 'glb');
         const name = obj.name.trim() || 'NhanVat';
+        if (format === 'fbx') return await saveFbxBundle(name, await convertGlbToFbx(data), `Đã xuất nhân vật FBX${isRigged(obj) ? ' (có xương)' : ''}`);
         if (IS_ONLINE) {
           downloadToBrowser(`${name}.glb`, data);
           return toast(`Đã tải nhân vật: ${name}.glb`, { type: 'ok' });
@@ -91,6 +119,10 @@ export function createProjectFileActions({ viewport, store, getProjectName }) {
     async export(format) {
       try {
         if (!hasVisible()) return toast('Không có vật thể nào đang hiện để xuất.', { type: 'warn' });
+        if (format === 'fbx') {
+          const { data: glb } = await exportObjects(viewport.objectsRoot, 'glb');
+          return await saveFbxBundle(getProjectName() || 'du-an', await convertGlbToFbx(glb), `Đã xuất ${FORMAT_LABELS.fbx}`);
+        }
         const { data, ext } = await exportObjects(viewport.objectsRoot, format);
         await writeFile('output', ext, data, `Đã xuất ${FORMAT_LABELS[format]}`);
       } catch (err) {

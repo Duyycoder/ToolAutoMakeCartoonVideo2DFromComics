@@ -108,6 +108,35 @@ def job_result(job_id: str):
     return FileResponse(path, media_type="model/gltf-binary")
 
 
+@router.get("/jobs/{job_id}/result.fbx")
+def job_result_fbx(job_id: str):
+    job = _job_or_404(job_id)
+    path = job.work_dir / "model.fbx"
+    if job.status != "done" or not path.exists():
+        raise HTTPException(404, "Chưa có kết quả")
+    return FileResponse(path, media_type="application/octet-stream")
+
+
+@router.get("/jobs/{job_id}/texture/{index}")
+def job_texture(job_id: str, index: int):
+    """Ảnh texture đi kèm FBX (texture_<index>.jpg hoặc .png)."""
+    job = _job_or_404(job_id)
+    path = next(job.work_dir.glob(f"texture_{index}.*"), None)
+    if job.status != "done" or path is None:
+        raise HTTPException(404, "Không có texture này")
+    return FileResponse(path)
+
+
+@router.get("/jobs/{job_id}/metallic-smoothness/{index}.png")
+def job_metallic_smoothness(job_id: str, index: int):
+    """Map Metallic-Smoothness đi kèm FBX (FBX không chứa được map này)."""
+    job = _job_or_404(job_id)
+    path = job.work_dir / f"metallic-smoothness-{index}.png"
+    if job.status != "done" or not path.exists():
+        raise HTTPException(404, "Không có map này")
+    return FileResponse(path, media_type="image/png")
+
+
 @router.get("/jobs/{job_id}/skin-weights.bin")
 def job_skin_weights(job_id: str):
     job = _job_or_404(job_id)

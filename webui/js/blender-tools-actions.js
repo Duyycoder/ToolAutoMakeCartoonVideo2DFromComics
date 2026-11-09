@@ -11,7 +11,7 @@ import { copyOriginalLook } from './material-preset-library.js';
 import { toast } from './toast-notifications.js';
 
 const LABELS = { bevel: 'Bo tròn cạnh', remesh: 'Làm lưới đều', repair: 'Sửa lỗi để in 3D', render: 'Render đẹp', import_blend: 'Mở file .blend',
-  skin_weights: 'Gắn xương bằng Blender' };
+  skin_weights: 'Gắn xương bằng Blender', export_fbx: 'Xuất FBX' };
 let status = null; // lấy 1 lần khi mở app (panel vẽ đồng bộ)
 export const refreshBlenderStatus = () => api.blenderStatus().then((s) => { status = s; }).catch(() => { status = null; });
 export const blenderReady = () => !!status?.ready;
@@ -43,6 +43,33 @@ async function runJob(op, params, data) {
 export async function convertBlendFile(file) {
   const job = await runJob('import_blend', {}, file);
   return { url: api.resultUrl(job.id), stats: job.result ?? {} };
+}
+
+async function fetchBlob(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Không tải được kết quả từ Blender.');
+  return response.blob();
+}
+
+/**
+ * GLB -> FBX cho Unity. `textures`: [{ name, blob }] phải nằm cạnh FBX để Unity tự gán;
+ * `metallicMaps`: [{ material, blob }] PNG Metallic-Smoothness (FBX không chứa được).
+ */
+export async function convertGlbToFbx(glb) {
+  const job = await runJob('export_fbx', {}, glb);
+  const names = job.result?.textures ?? [];
+  const materials = job.result?.metallic_maps ?? [];
+  const [data, textures, maps] = await Promise.all([
+    fetchBlob(api.resultFbxUrl(job.id)),
+    Promise.all(names.map((_, i) => fetchBlob(api.textureUrl(job.id, i)))),
+    Promise.all(materials.map((_, i) => fetchBlob(api.metallicMapUrl(job.id, i)))),
+  ]);
+  return {
+    data,
+    textures: textures.map((blob, i) => ({ name: names[i], blob })),
+    metallicMaps: maps.map((blob, i) => ({ material: materials[i], blob })),
+    tintDropped: job.result?.tint_dropped ?? 0,
+  };
 }
 
 /** Blender chỉ nhận lưới + khớp trong hệ local và trả trọng số đúng thứ tự đỉnh. */

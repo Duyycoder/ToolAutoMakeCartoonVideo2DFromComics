@@ -4,7 +4,7 @@
       --op bevel --in input.glb --out-dir job_dir --params '{"amount": 0.3}'
 
 Thao tác: bevel (bo tròn cạnh), remesh (làm lưới đều), repair (sửa lỗi để in 3D), render (Cycles),
-import_blend (mở file .blend -> GLB để Easy3D sửa tiếp).
+import_blend (mở file .blend -> GLB để Easy3D sửa tiếp), export_fbx (GLB -> FBX cho Unity).
 Giao thức stdout giống worker AI: mỗi dòng JSON progress/done/error (Blender in log khác -> runner bỏ qua).
 """
 import argparse
@@ -33,7 +33,7 @@ def clamp(v, lo, hi):
 def parse_args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     p = argparse.ArgumentParser()
-    p.add_argument("--op", required=True, choices=["bevel", "remesh", "repair", "render", "import_blend", "skin_weights"])
+    p.add_argument("--op", required=True, choices=["bevel", "remesh", "repair", "render", "import_blend", "skin_weights", "export_fbx"])
     p.add_argument("--in", dest="src", required=True)
     p.add_argument("--out-dir", required=True)
     p.add_argument("--params", default="{}")
@@ -44,7 +44,8 @@ def parse_args():
 
 def load_meshes(path):
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    bpy.ops.import_scene.gltf(filepath=str(path))
+    # disable_bone_shape: không tạo lưới Icosphere minh hoạ xương (nó sẽ lẫn vào kết quả như 1 vật thật)
+    bpy.ops.import_scene.gltf(filepath=str(path), disable_bone_shape=True)
     return [o for o in bpy.context.scene.objects if o.type == "MESH"]
 
 
@@ -207,6 +208,11 @@ def main():
         if args.op == "render":
             emit(type="progress", pct=25, msg="Blender đang render (Cycles) — có thể mất vài phút...")
             stats = render_scene(args.params, out_dir / "render.png")
+        elif args.op == "export_fbx":
+            from op_export_fbx import export_fbx
+
+            emit(type="progress", pct=40, msg="Blender đang đổi sang FBX...")
+            stats = export_fbx(objs, out_dir)
         else:
             emit(type="progress", pct=40, msg="Blender đang xử lý lưới...")
             stats = {"bevel": op_bevel, "remesh": op_remesh, "repair": op_repair}[args.op](objs, args.params, size)

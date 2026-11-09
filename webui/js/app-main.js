@@ -80,6 +80,7 @@ const ACTIONS = {
   open: () => { leaveModes(); fileInput.click(); },
   save: () => { leaveModes(); files.save(); },
   'export-character': () => files.exportCharacter(store.selected),
+  'export-character-fbx': () => files.exportCharacter(store.selected, 'fbx'),
   'toggle-export': () => toggleMenu('#export-menu'),
   'toggle-shapes': () => toggleMenu('#shape-menu'),
   'toggle-lighting': () => toggleMenu('#lighting-menu'),
