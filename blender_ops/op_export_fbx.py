@@ -91,20 +91,27 @@ def unmix_base_color():
     """Màu tint khiến glTF importer chèn node MIX, FBX exporter không lần qua được nên mất texture.
 
     Nối thẳng ảnh vào Base Color để giữ texture, bỏ tint. Trả về số material bị bỏ tint.
+    Không có ảnh (MIX = màu đỉnh x màu material, lưới AI luôn kèm màu đỉnh): ghi màu material vào
+    Base Color, nếu không FBX ra xám 0.8. Easy3D tắt màu đỉnh khi đã chọn màu nên kết quả vẫn giống editor.
     """
     dropped = 0
     for material in bpy.data.materials:
         bsdf = principled_of(material)
         if bsdf is None or not bsdf.inputs["Base Color"].is_linked:
             continue
-        mix = bsdf.inputs["Base Color"].links[0].from_node
+        base = bsdf.inputs["Base Color"]
+        mix = base.links[0].from_node
         if mix.type not in ("MIX", "MIX_RGB"):
             continue
         image_node = next((s.links[0].from_node for s in mix.inputs
                            if s.is_linked and s.links[0].from_node.type == "TEX_IMAGE"), None)
+        constant = next((s for s in mix.inputs if s.type == "RGBA" and s.enabled and not s.is_linked), None)
         if image_node:
-            material.node_tree.links.new(image_node.outputs["Color"], bsdf.inputs["Base Color"])
+            material.node_tree.links.new(image_node.outputs["Color"], base)
             dropped += 1
+        elif constant:
+            material.node_tree.links.remove(base.links[0])
+            base.default_value = constant.default_value
     return dropped
 
 
