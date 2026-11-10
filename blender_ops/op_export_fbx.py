@@ -51,7 +51,7 @@ def read_channel(traced):
 
 def save_metallic_smoothness(metal, rough, metal_default, rough_default, path):
     """Ghép 2 kênh thành PNG Unity: R = Metallic, A = 1 - Roughness."""
-    width, height, _ = metal or rough
+    width, height = (metal or rough or (4, 4))[:2]  # không có ảnh: map 4x4 một màu là đủ
     count = width * height
     metal_values = metal[2] if metal and metal[0] == width and metal[1] == height else np.full(count, metal_default)
     rough_values = rough[2] if rough and rough[0] == width and rough[1] == height else np.full(count, rough_default)
@@ -69,18 +69,23 @@ def save_metallic_smoothness(metal, rough, metal_default, rough_default, path):
 
 
 def write_metallic_maps(out_dir):
-    """Mỗi material có map -> metallic-smoothness-<i>.png. Trả về tên các material đó, theo thứ tự <i>."""
+    """Mỗi material có map, hoặc kim loại không ảnh -> metallic-smoothness-<i>.png.
+
+    Unity (shader Standard) không đọc Metallic từ FBX nên vật kim loại chỉ có màu cũng cần map.
+    Trả về tên các material đó, theo thứ tự <i>.
+    """
     saved = []
     for material in list(bpy.data.materials):
         bsdf = principled_of(material)
         if bsdf is None:
             continue
         metal_input, rough_input = bsdf.inputs["Metallic"], bsdf.inputs["Roughness"]
-        if not (metal_input.is_linked or rough_input.is_linked):
+        constant_metal = not (metal_input.is_linked or rough_input.is_linked) and metal_input.default_value > 0
+        if not (metal_input.is_linked or rough_input.is_linked or constant_metal):
             continue
         metal = read_channel(trace_to_image(metal_input))
         rough = read_channel(trace_to_image(rough_input))
-        if metal or rough:
+        if metal or rough or constant_metal:
             save_metallic_smoothness(metal, rough, metal_input.default_value, rough_input.default_value,
                                      out_dir / f"metallic-smoothness-{len(saved)}.png")
             saved.append(material.name)
