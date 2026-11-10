@@ -51,7 +51,7 @@ def read_channel(traced):
 
 def save_metallic_smoothness(metal, rough, metal_default, rough_default, path):
     """Ghép 2 kênh thành PNG Unity: R = Metallic, A = 1 - Roughness."""
-    width, height = (metal or rough or (4, 4))[:2]  # không có ảnh: map 4x4 một màu là đủ
+    width, height, _ = metal or rough
     count = width * height
     metal_values = metal[2] if metal and metal[0] == width and metal[1] == height else np.full(count, metal_default)
     rough_values = rough[2] if rough and rough[0] == width and rough[1] == height else np.full(count, rough_default)
@@ -69,23 +69,18 @@ def save_metallic_smoothness(metal, rough, metal_default, rough_default, path):
 
 
 def write_metallic_maps(out_dir):
-    """Mỗi material có map, hoặc kim loại không ảnh -> metallic-smoothness-<i>.png.
-
-    Unity (shader Standard) không đọc Metallic từ FBX nên vật kim loại chỉ có màu cũng cần map.
-    Trả về tên các material đó, theo thứ tự <i>.
-    """
+    """Mỗi material có map -> metallic-smoothness-<i>.png. Trả về tên các material đó, theo thứ tự <i>."""
     saved = []
     for material in list(bpy.data.materials):
         bsdf = principled_of(material)
         if bsdf is None:
             continue
         metal_input, rough_input = bsdf.inputs["Metallic"], bsdf.inputs["Roughness"]
-        constant_metal = not (metal_input.is_linked or rough_input.is_linked) and metal_input.default_value > 0
-        if not (metal_input.is_linked or rough_input.is_linked or constant_metal):
+        if not (metal_input.is_linked or rough_input.is_linked):
             continue
         metal = read_channel(trace_to_image(metal_input))
         rough = read_channel(trace_to_image(rough_input))
-        if metal or rough or constant_metal:
+        if metal or rough:
             save_metallic_smoothness(metal, rough, metal_input.default_value, rough_input.default_value,
                                      out_dir / f"metallic-smoothness-{len(saved)}.png")
             saved.append(material.name)
@@ -118,6 +113,30 @@ def unmix_base_color():
             material.node_tree.links.remove(base.links[0])
             base.default_value = constant.default_value
     return dropped
+
+
+def mark_plain_metals():
+    """Unity bỏ qua Metallic của FBX thường; chỉ đọc khi material khai báo là Autodesk Interactive
+    (renderAPI = SFX_PBS_SHADER, đã kiểm tra Unity 6). Shader đó hiểu roughness đúng nghĩa, không cần đảo.
+
+    Chỉ áp dụng kim loại không ảnh, đục: nhánh này không nhận texture và tự bật trong suốt khi có opacity.
+    Trả về số material đã đánh dấu.
+    """
+    marked = 0
+    for material in bpy.data.materials:
+        bsdf = principled_of(material)
+        if bsdf is None:
+            continue
+        inputs = [bsdf.inputs[n] for n in ("Base Color", "Metallic", "Roughness", "Alpha")]
+        base, metal, rough, alpha = inputs
+        if any(s.is_linked for s in inputs) or metal.default_value <= 0 or alpha.default_value < 1:
+            continue
+        material["renderAPI"] = "SFX_PBS_SHADER"
+        material["base_color"] = list(base.default_value)[:3]  # 3 số: Unity mới đọc là vector màu
+        material["metallic"] = float(metal.default_value)
+        material["roughness"] = float(rough.default_value)
+        marked += 1
+    return marked
 
 
 def fit_timeline_to_actions():
@@ -162,15 +181,17 @@ def write_textures(out_dir):
 def export_fbx(objs, out_dir):
     maps = write_metallic_maps(out_dir)
     tint_dropped = unmix_base_color()
+    metals = mark_plain_metals()
     frames = fit_timeline_to_actions()
     textures = write_textures(out_dir)
     bpy.ops.export_scene.fbx(
         filepath=str(out_dir / "model.fbx"), path_mode="STRIP",
         axis_forward="-Z", axis_up="Y", apply_scale_options="FBX_SCALE_ALL",
         object_types={"ARMATURE", "MESH"}, mesh_smooth_type="FACE", add_leaf_bones=False,
+        use_custom_props=True,  # mang thông số Autodesk Interactive của mark_plain_metals
         bake_space_transform=True,  # Unity: vật không bị xoay -90° (đã kiểm tra: lưới, xương, clip không đổi)
         bake_anim=frames > 0, bake_anim_use_all_actions=False, bake_anim_use_nla_strips=False,
     )
     return {"objects": len(objs), "tris": sum(len(p.vertices) - 2 for o in objs for p in o.data.polygons),
             "armatures": sum(o.type == "ARMATURE" for o in bpy.context.scene.objects),
-            "anim_frames": frames, "metallic_maps": maps, "tint_dropped": tint_dropped, "textures": textures}
+            "anim_frames": frames, "metallic_maps": maps, "tint_dropped": tint_dropped, "textures": textures, "plain_metals": metals}
