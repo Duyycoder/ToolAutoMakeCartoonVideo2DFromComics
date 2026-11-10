@@ -7,6 +7,7 @@ import { standardizeMaterials } from './material-standardize.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { TGALoader } from 'three/addons/loaders/TGALoader.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
@@ -47,6 +48,7 @@ function companionManager(companions, missing) {
     urls.push(URL.createObjectURL(file));
     return urls.at(-1);
   });
+  manager.addHandler(/\.tga$/i, new TGALoader(manager)); // FBX từ Unity/3ds Max hay dùng ảnh TGA, trình duyệt không tự đọc được
   return manager;
 }
 
