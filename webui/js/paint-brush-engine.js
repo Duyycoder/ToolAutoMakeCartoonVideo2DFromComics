@@ -62,6 +62,41 @@ export function ensureColorAttribute(geo, baseColor) {
   geo.setAttribute('color', new THREE.Float32BufferAttribute(data, 3));
 }
 
+/** Điểm ảnh RGBA của texture (ảnh thường hoặc DataTexture như TGA). Null nếu ảnh chưa tải xong. */
+function texturePixels(texture) {
+  const img = texture.image;
+  if (img?.data && img.width) return { data: img.data, width: img.width, height: img.height };
+  if (!img?.width) return null;
+  const ctx = Object.assign(document.createElement('canvas'), { width: img.width, height: img.height }).getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  return ctx.getImageData(0, 0, img.width, img.height);
+}
+
+/**
+ * Màu đỉnh = màu texture tại UV của đỉnh (x màu vật liệu) -> tô vẽ tiếp trên vân sẵn có thay vì nền trắng.
+ * Trả về false nếu không lấy được (không UV / ảnh chưa tải).
+ */
+export function colorsFromTexture(geo, texture, tint) {
+  const uv = geo.attributes.uv;
+  const px = uv && texturePixels(texture);
+  if (!px) return false;
+  const n = geo.attributes.position.count;
+  const data = new Float32Array(n * 3);
+  const c = new THREE.Color();
+  const wrap = (t) => t - Math.floor(t);
+  for (let v = 0; v < n; v++) {
+    // Hàng 0 của ảnh là đỉnh trên khi flipY (ảnh thường), đáy khi không (glTF) -> cùng 1 công thức.
+    const x = Math.min(px.width - 1, Math.floor(wrap(uv.getX(v)) * px.width));
+    const yv = wrap(uv.getY(v));
+    const y = Math.min(px.height - 1, Math.floor((texture.flipY ? 1 - yv : yv) * px.height));
+    const i = (y * px.width + x) * 4;
+    c.setRGB(px.data[i] / 255, px.data[i + 1] / 255, px.data[i + 2] / 255, THREE.SRGBColorSpace).multiply(tint);
+    data[v * 3] = c.r; data[v * 3 + 1] = c.g; data[v * 3 + 2] = c.b;
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(data, 3));
+  return true;
+}
+
 /**
  * Dán ảnh: chiếu ảnh (đặt trong khung `imageRect` trên màn hình) lên các điểm QUAY VỀ camera.
  * Điểm bị che ở mặt sau không bị tô. Màu ảnh là sRGB -> đổi sang tuyến tính trước khi pha.

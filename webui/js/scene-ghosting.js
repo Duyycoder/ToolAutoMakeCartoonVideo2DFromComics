@@ -5,12 +5,14 @@ export function createGhosting(store) {
   const ghost = new THREE.MeshBasicMaterial({ color: 0x8a90a0, transparent: true, opacity: 0.12, depthWrite: false });
   let saved = [];
   return {
+    /** `active` có thể là phần con (chọn trong cây) -> chỉ giữ nó và các phần bên trong; thân vật chứa nó cũng mờ. */
     on(active) {
       this.off();
-      for (const o of store.objects) {
-        if (o === active) continue;
-        o.traverse((m) => { if (m.isMesh) { saved.push([m, m.material]); m.material = ghost; } });
-      }
+      const keep = new Set();
+      active?.traverse((m) => keep.add(m));
+      store.root.traverse((m) => {
+        if (m.isMesh && !keep.has(m)) { saved.push([m, m.material]); m.material = ghost; }
+      });
     },
     off() {
       saved.forEach(([m, mat]) => { m.material = mat; });

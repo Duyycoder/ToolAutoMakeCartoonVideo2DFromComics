@@ -1,7 +1,7 @@
 // Chế độ "Tô vẽ": tô màu trực tiếp lên bề mặt bằng cọ, làm nhoè, hút màu, dán ảnh.
 // Trong chế độ: Undo riêng từng nét. "Xong": cả lượt = 1 bước Undo của app.
 import * as THREE from 'three';
-import { colorAtFace, ensureColorAttribute, fillAll, paintSphere } from './paint-brush-engine.js';
+import { colorAtFace, colorsFromTexture, ensureColorAttribute, fillAll, paintSphere } from './paint-brush-engine.js';
 import { brushKeys } from './surface-input.js';
 import { applySession, closeSurfaceSession, openSurfaceSession, pushUndo, swapAttribute } from './surface-session.js';
 import { toast } from './toast-notifications.js';
@@ -20,13 +20,15 @@ export function createPaintMode({ store, stack, gizmo, onChange }) {
 
     enter(obj) {
       if (s) return;
-      const session = openSurfaceSession(obj, { ...DENSITY, verb: 'tô vẽ' });
+      const session = openSurfaceSession(obj, { ...DENSITY, verb: 'tô vẽ', keepUv: true });
       if (!session) return;
       const { geo, original } = session;
-      // Vật chưa có màu đỉnh (hoặc vật liệu không dùng) -> bắt đầu từ màu vật liệu hiện tại.
+      const tint = original.color ?? new THREE.Color(1, 1, 1);
+      // Vật chưa có màu đỉnh (hoặc vật liệu không dùng) -> bắt đầu từ vân texture, không có thì màu vật liệu.
       if (!original.vertexColors) geo.deleteAttribute('color');
-      ensureColorAttribute(geo, original.color ?? new THREE.Color(1, 1, 1));
-      if (original.map) toast('Vân bề mặt sẽ được thay bằng màu tô.', { timeout: 5000 });
+      const fromTexture = !original.vertexColors && original.map && colorsFromTexture(geo, original.map, tint);
+      ensureColorAttribute(geo, tint);
+      if (original.map && !fromTexture) toast('Vân bề mặt sẽ được thay bằng màu tô.', { timeout: 5000 });
       const paintMaterial = Object.assign(original.clone(), { vertexColors: true, map: null });
       paintMaterial.color.set(1, 1, 1);
       s = { ...session, paintMaterial, brush: { mode: 'paint', color: '#ff5c5c', size: 0.3, strength: 0.6 } };

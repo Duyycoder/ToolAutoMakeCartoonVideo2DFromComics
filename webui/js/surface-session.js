@@ -19,7 +19,8 @@ export function enableBVH(geo) {
 }
 
 /** Mở phiên trên vật `obj`; trả về null (kèm thông báo) nếu vật không hợp lệ. */
-export function openSurfaceSession(obj, { minVertices, maxTriangles, verb }) {
+/** `keepUv`: giữ UV (Tô vẽ lấy màu khởi đầu từ texture). Nặn hình bỏ UV: đỉnh tách ở đường may UV làm rách bề mặt. */
+export function openSurfaceSession(obj, { minVertices, maxTriangles, verb, keepUv = false }) {
   if (!obj) { toast('Hãy bấm chọn 1 vật trước.', { type: 'warn' }); return null; }
   if (obj.userData.kind === 'light') { toast(`Đèn không ${verb} được.`, { type: 'warn' }); return null; }
   if (isRigged(obj)) { toast(RIGGED_WARNING, { type: 'warn', timeout: 7000 }); return null; }
@@ -35,7 +36,8 @@ export function openSurfaceSession(obj, { minVertices, maxTriangles, verb }) {
       { type: 'warn', timeout: 8000 });
     return null;
   }
-  const geo = densify(toIndexedByPosition(mesh.geometry), minVertices, maxTriangles);
+  const keep = keepUv ? ['position', 'color', 'uv'] : undefined;
+  const geo = densify(toIndexedByPosition(mesh.geometry, keep), minVertices, maxTriangles);
   geo.computeVertexNormals();
   enableBVH(geo);
   geo.computeBoundingBox();
