@@ -7,62 +7,26 @@ import { standardizeMaterials } from './material-standardize.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
-import { TGALoader } from 'three/addons/loaders/TGALoader.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
-import { unzipSync } from 'three/addons/libs/fflate.module.js';
+import { createCompanionLoader } from './model-companion-files.js';
 
 export const MODEL_EXTENSIONS = ['glb', 'gltf', 'obj', 'stl', 'fbx', 'meshy', 'blend']; // blend: đổi qua Blender ẩn (editor-actions)
 export const extOf = (name) => name.split('.').pop().toLowerCase();
 export const baseNameOf = (name) => name.replace(/\.[^.]+$/, '');
-const fileNameOf = (path) => path.split(/[\\/]/).pop();
-const WHITE_PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC';
-
-/** .zip (vd. bộ FBX + ảnh Easy3D xuất trên web) -> các file bên trong, bỏ thư mục. */
-export async function expandZips(files) {
-  const out = [];
-  for (const file of files) {
-    if (extOf(file.name) !== 'zip') { out.push(file); continue; }
-    const entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
-    for (const [path, data] of Object.entries(entries)) {
-      if (!path.endsWith('/') && !path.startsWith('__MACOSX/')) out.push(new File([data], fileNameOf(path)));
-    }
-  }
-  return out;
-}
 
 /**
- * File đi kèm (ảnh texture, .bin của .gltf) chọn cùng lúc với model: loader đòi theo tên file
- * -> trả về blob của file cùng tên (không phân biệt hoa thường). Tên không có thì ghi vào `missing`.
- */
-function companionManager(companions, missing) {
-  const byName = new Map(companions.map((f) => [f.name.toLowerCase(), f]));
-  const urls = [];
-  const manager = new THREE.LoadingManager(() => urls.splice(0).forEach((u) => URL.revokeObjectURL(u)));
-  manager.setURLModifier((url) => {
-    if (/^(blob|data):/.test(url)) return url; // ảnh nhúng sẵn trong file
-    const name = decodeURIComponent(fileNameOf(url));
-    const file = byName.get(name.toLowerCase());
-    if (!file) { missing.add(name); return WHITE_PIXEL; } // ảnh hỏng -> vật đen; trắng thì vẫn hiện màu vật liệu
-    urls.push(URL.createObjectURL(file));
-    return urls.at(-1);
-  });
-  manager.addHandler(/\.tga$/i, new TGALoader(manager)); // FBX từ Unity/3ds Max hay dùng ảnh TGA, trình duyệt không tự đọc được
-  return manager;
-}
-
-/**
- * Đọc file người dùng chọn. Trả về { objects, isProject, missing }:
+ * Đọc file người dùng chọn. Trả về { objects, isProject, missing, assigned, unused }:
  *  - isProject = true: file .glb do Easy3D lưu -> tách lại từng vật thể như lúc lưu.
  *  - ngược lại: 1 vật thể đã chuẩn hoá (đặt giữa, chạm sàn, cỡ hợp lý).
- *  - missing: tên file texture model cần mà không có trong `companions`.
+ *  - missing: tên ảnh texture model cần mà không có trong `companions`.
+ *  - assigned / unused: ảnh trong `companions` model không nhắc tới, đã tự gán theo tên / không gán được.
  */
 export async function loadModelFile(file, companions = []) {
   const ext = extOf(file.name);
   const buffer = await file.arrayBuffer();
-  const missing = new Set();
-  const manager = companionManager(companions, missing);
+  const { manager, missing, assignUnreferenced } = createCompanionLoader(companions);
   let obj;
   try {
     if (ext === 'glb' || ext === 'gltf' || ext === 'meshy') {
@@ -89,8 +53,9 @@ export async function loadModelFile(file, companions = []) {
     const hint = ext === 'gltf' ? ' File .gltf cần file .bin/ảnh đi kèm — chọn tất cả cùng lúc, hoặc dùng .glb.' : '';
     throw new Error(`Không đọc được file "${file.name}". ${friendlyGLTFError(err)}${hint}`);
   }
+  const { assigned, unused } = assignUnreferenced(obj); // trước prepareImported: đổi sang PBR mang theo ảnh đã gán
   prepareImported(obj);
-  return { objects: [obj], isProject: false, missing: [...missing] };
+  return { objects: [obj], isProject: false, missing: [...missing], assigned, unused };
 }
 
 /** Tải GLB từ URL (kết quả AI). */

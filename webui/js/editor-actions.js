@@ -9,8 +9,9 @@ import {
   sameTransform, snapshotMaterials, snapshotTransform, transformCommand,
 } from './scene-edit-commands.js';
 import {
-  MODEL_EXTENSIONS, baseNameOf, expandZips, extOf, floorPosition, loadModelFile, loadModelUrl,
+  MODEL_EXTENSIONS, baseNameOf, extOf, floorPosition, loadModelFile, loadModelUrl,
 } from './model-import-export.js';
+import { expandZips } from './model-companion-files.js';
 import { convertBlendFile } from './blender-tools-actions.js';
 import { toast } from './toast-notifications.js';
 import { restoreLighting } from './lighting-presets.js';
@@ -99,7 +100,7 @@ export function createEditorActions({ viewport, store, stack, onModelAdded = nul
     async openFile(file, extras = []) {
       try {
         if (extOf(file.name) === 'blend') return await openBlend(file);
-        const { objects, isProject, lighting, lightSettings, missing = [] } = await loadModelFile(file, extras);
+        const { objects, isProject, lighting, lightSettings, missing = [], assigned = [], unused = [] } = await loadModelFile(file, extras);
         if (isProject) {
           if (lighting || lightSettings) restoreLighting(viewport, lighting, lightSettings);
           objects.forEach(fixLightCopy);
@@ -114,7 +115,11 @@ export function createEditorActions({ viewport, store, stack, onModelAdded = nul
           return toast(`Đã mở "${file.name}" nhưng thiếu ${missing.length} ảnh texture: ${missing.join(', ')}. `
             + 'Hãy chọn (giữ Ctrl) hoặc kéo thả file mô hình cùng các ảnh này một lượt.', { type: 'warn', timeout: 12000 });
         }
-        toast(`Đã mở "${file.name}"${extras.length ? ' kèm texture' : ''}`, { type: 'ok' });
+        const notes = [
+          assigned.length && `file không ghi tên ảnh nên đã tự gán theo tên: ${assigned.join(', ')}`,
+          unused.length && `chưa biết gán ảnh ${unused.join(', ')} vào đâu (tên ảnh cần có BaseColor/Albedo hoặc Normal)`,
+        ].filter(Boolean);
+        toast(`Đã mở "${file.name}"${notes.length ? ` — ${notes.join('; ')}` : ''}`, { type: unused.length ? 'warn' : 'ok', timeout: notes.length ? 10000 : 4000 });
       } catch (err) {
         toast(err.message, { type: 'err', timeout: 8000 });
       }
