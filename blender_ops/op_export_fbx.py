@@ -8,6 +8,8 @@ import math
 import bpy
 import numpy as np
 
+from op_bake_vertex_colors import bake_vertex_colors
+
 
 def trace_to_image(socket):
     """Lần ngược từ input của Principled tới ảnh. Trả về (image, kênh, hệ số nhân) hoặc None."""
@@ -180,6 +182,7 @@ def write_textures(out_dir):
 
 def export_fbx(objs, out_dir):
     maps = write_metallic_maps(out_dir)
+    baked = bake_vertex_colors(objs)  # trước unmix: màu đỉnh đang hiện thành texture, không bị thay bằng màu đơn
     tint_dropped = unmix_base_color()
     metals = mark_plain_metals()
     frames = fit_timeline_to_actions()
@@ -194,4 +197,4 @@ def export_fbx(objs, out_dir):
     )
     return {"objects": len(objs), "tris": sum(len(p.vertices) - 2 for o in objs for p in o.data.polygons),
             "armatures": sum(o.type == "ARMATURE" for o in bpy.context.scene.objects),
-            "anim_frames": frames, "metallic_maps": maps, "tint_dropped": tint_dropped, "textures": textures, "plain_metals": metals}
+            "anim_frames": frames, "metallic_maps": maps, "tint_dropped": tint_dropped, "textures": textures, "plain_metals": metals, "baked_vertex_colors": baked}

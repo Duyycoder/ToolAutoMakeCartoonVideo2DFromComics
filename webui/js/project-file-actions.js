@@ -56,6 +56,23 @@ async function saveFbxBundle(name, fbx, label) {
   toast(`${label}: game/${folder}/ — kéo cả thư mục vào Assets của Unity.${mapNote}`, { type: 'ok', action: openFolderAction('game', folder), timeout: 10000 });
 }
 
+/** GLB để đổi FBX: bỏ màu đỉnh ở vật đang không hiện nó (đã chọn màu/preset), vì Blender bake mọi màu đỉnh còn lại thành texture. */
+async function exportGlbForFbx(root) {
+  const hidden = [];
+  root.traverse((o) => {
+    const color = o.isMesh && o.geometry.attributes.color;
+    if (color && ![o.material].flat().some((m) => m?.vertexColors)) {
+      hidden.push([o.geometry, color]);
+      o.geometry.deleteAttribute('color');
+    }
+  });
+  try {
+    return (await exportObjects(root, 'glb')).data;
+  } finally {
+    hidden.forEach(([geometry, color]) => geometry.setAttribute('color', color));
+  }
+}
+
 function dataUrlToBlob(dataUrl) {
   const bin = atob(dataUrl.split(',')[1]);
   const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
@@ -108,9 +125,9 @@ export function createProjectFileActions({ viewport, store, getProjectName }) {
         const root = new THREE.Group();
         root.userData.animDuration = viewport.objectsRoot.userData.animDuration;
         root.add(cloneObject(obj));
-        const { data } = await exportObjects(root, 'glb');
         const name = obj.name.trim() || 'NhanVat';
-        if (format === 'fbx') return await saveFbxBundle(name, await convertGlbToFbx(data), `Đã xuất nhân vật FBX${isRigged(obj) ? ' (có xương)' : ''}`);
+        if (format === 'fbx') return await saveFbxBundle(name, await convertGlbToFbx(await exportGlbForFbx(root)),`Đã xuất nhân vật FBX${isRigged(obj) ? ' (có xương)' : ''}`);
+        const { data } = await exportObjects(root, 'glb');
         if (IS_ONLINE) {
           downloadToBrowser(`${name}.glb`, data);
           return toast(`Đã tải nhân vật: ${name}.glb`, { type: 'ok' });
@@ -128,8 +145,8 @@ export function createProjectFileActions({ viewport, store, getProjectName }) {
       try {
         if (!hasVisible()) return toast('Không có vật thể nào đang hiện để xuất.', { type: 'warn' });
         if (format === 'fbx') {
-          const { data: glb } = await exportObjects(viewport.objectsRoot, 'glb');
-          return await saveFbxBundle(getProjectName() || 'du-an', await convertGlbToFbx(glb), `Đã xuất ${FORMAT_LABELS.fbx}`);
+          const glb = await exportGlbForFbx(viewport.objectsRoot);
+          return await saveFbxBundle(getProjectName() || 'du-an', await convertGlbToFbx(glb),`Đã xuất ${FORMAT_LABELS.fbx}`);
         }
         const { data, ext } = await exportObjects(viewport.objectsRoot, format);
         await writeFile('output', ext, data, `Đã xuất ${FORMAT_LABELS[format]}`);
