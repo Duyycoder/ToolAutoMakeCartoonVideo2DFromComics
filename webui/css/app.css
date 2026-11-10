@@ -87,6 +87,7 @@ kbd { font: 11px Consolas, monospace; color: var(--muted); border: 1px solid var
 .outliner li.hidden-obj .name { opacity: .45; text-decoration: line-through; }
 .outliner .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .outliner .eye { background: none; border: none; padding: 0 4px; opacity: .7; }
+.outliner .twisty { background: none; border: none; padding: 0; width: 14px; flex: none; color: var(--muted); }
 .outliner .empty { color: var(--muted); cursor: default; font-style: italic; }
 .outliner .empty:hover { background: none; }
 .props-empty { color: var(--muted); background: var(--bg); border-radius: var(--radius); padding: 16px;

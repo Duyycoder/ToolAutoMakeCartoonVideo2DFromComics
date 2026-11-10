@@ -54,14 +54,27 @@ export function rememberOriginalLook(obj) {
   originalLooks.set(obj, meshesOf(obj).map((m) => m.material));
 }
 
-export function copyOriginalLook(from, to) {
-  if (originalLooks.has(from)) originalLooks.set(to, originalLooks.get(from));
+/** Vật liệu gốc theo thứ tự meshesOf(obj). Phần con (chọn trong cây) chưa ghi riêng -> lấy từ vật chứa nó. */
+function lookOf(obj) {
+  if (originalLooks.has(obj)) return originalLooks.get(obj);
+  for (let p = obj.parent; p; p = p.parent) {
+    const mats = originalLooks.get(p);
+    if (!mats) continue;
+    const all = meshesOf(p);
+    return meshesOf(obj).map((m) => mats[all.indexOf(m)]);
+  }
+  return null;
 }
 
-export const hasOriginalLook = (obj) => originalLooks.has(obj);
+export function copyOriginalLook(from, to) {
+  const mats = lookOf(from);
+  if (mats) originalLooks.set(to, mats);
+}
+
+export const hasOriginalLook = (obj) => !!lookOf(obj);
 
 export function restoreOriginalLook(obj) {
-  const mats = originalLooks.get(obj);
+  const mats = lookOf(obj);
   if (!mats) return;
   meshesOf(obj).forEach((m, i) => { if (mats[i]) m.material = mats[i]; });
 }

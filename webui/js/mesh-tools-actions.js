@@ -10,6 +10,7 @@ import { copyOriginalLook, rememberOriginalLook } from './material-preset-librar
 import { toast } from './toast-notifications.js';
 import { createMultiObjectTools } from './multi-object-actions.js';
 import { createBlenderTools } from './blender-tools-actions.js';
+import { detachParts } from './scene-object-parts.js';
 
 const BOOLEAN_NAMES = { union: (a, b) => `${a} + ${b}`, subtract: (a) => `${a} (đã khoét)`, intersect: () => 'Phần chung' };
 
@@ -124,18 +125,12 @@ export function createMeshTools({ store, stack }) {
     many,
     blender: createBlenderTools({ store, stack }),
 
-    /** Nhóm -> từng vật riêng; 1 lưới có nhiều mảnh rời -> mỗi mảnh 1 vật. */
+    /** Nhóm / model nhiều phần -> từng vật riêng (trả về các vật mới); 1 lưới có nhiều mảnh rời -> mỗi mảnh 1 vật. */
     separate: (obj) => busy('Đang tách', () => {
-      if (!obj.isMesh && obj.children.length > 1) {
-        const parts = obj.children.map((child) => {
-          const c = child.clone();
-          child.updateWorldMatrix(true, false);
-          child.matrixWorld.decompose(c.position, c.quaternion, c.scale);
-          c.name = child.name || obj.name;
-          copyOriginalLook(child, c);
-          return c;
-        });
-        return replaceObjects('Tách nhóm', [obj], parts);
+      const named = detachParts(obj);
+      if (named.length) {
+        replaceObjects('Tách nhóm', [obj], named);
+        return named;
       }
       const parts = meshesOf(obj).flatMap((m) => splitLooseParts(bakeWorldGeometry(m))
         .map((g) => ({ g, material: firstMaterialOf(m) })));

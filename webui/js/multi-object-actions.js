@@ -66,6 +66,8 @@ export function createMultiObjectTools({ store, busy, replaceObjects, makeMesh }
       group.position.copy(center);
       for (const o of objs) {
         const c = cloneObject(o);
+        o.updateWorldMatrix(true, false); // phần con lồng trong vật khác: lấy vị trí/hướng/cỡ thật
+        o.matrixWorld.decompose(c.position, c.quaternion, c.scale);
         c.position.sub(center); // nhóm không xoay/co giãn -> chỉ cần trừ tâm
         copyOriginalLook(o, c);
         fixLightCopy(c);

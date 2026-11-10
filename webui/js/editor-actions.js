@@ -134,7 +134,8 @@ export function createEditorActions({ viewport, store, stack, onModelAdded = nul
     },
     duplicateMany(objs) {
       const copies = objs.map(makeCopy);
-      run(batchCommand(`Nhân bản ${copies.length} vật`, copies.map((c) => addObjectCommand(store, c))));
+      // Bản sao phần con nằm cùng vật cha với bản gốc (toạ độ là toạ độ trong vật cha).
+      run(batchCommand(`Nhân bản ${copies.length} vật`, copies.map((c, i) => addObjectCommand(store, c, objs[i].parent))));
       store.selectMany(copies); // chọn sẵn các bản sao để kéo đi luôn
     },
     duplicate(obj) { actions.duplicateMany([obj]); },
@@ -182,9 +183,9 @@ export function createEditorActions({ viewport, store, stack, onModelAdded = nul
 
     dropToFloor(obj) { moveTo(obj, floorPosition(obj), 'Đặt lên sàn'); },
     center(obj) {
-      const box = new THREE.Box3().setFromObject(obj);
-      const c = box.getCenter(new THREE.Vector3());
-      moveTo(obj, obj.position.clone().sub(new THREE.Vector3(c.x, 0, c.z)), 'Về giữa');
+      const c = new THREE.Box3().setFromObject(obj).getCenter(new THREE.Vector3());
+      const target = obj.getWorldPosition(new THREE.Vector3()).sub(new THREE.Vector3(c.x, 0, c.z));
+      moveTo(obj, obj.parent.worldToLocal(target), 'Về giữa'); // phần con: đổi về toạ độ trong vật cha
     },
   };
   return actions;

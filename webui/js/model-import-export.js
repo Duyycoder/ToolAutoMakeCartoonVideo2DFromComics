@@ -84,7 +84,9 @@ export function prepareImported(obj) {
 /** Vị trí mới (chưa áp dụng) để vật chạm sàn. */
 export function floorPosition(obj) {
   const box = new THREE.Box3().setFromObject(obj);
-  return obj.position.clone().setY(obj.position.y - box.min.y);
+  const target = obj.getWorldPosition(new THREE.Vector3());
+  target.y -= box.min.y;
+  return obj.parent ? obj.parent.worldToLocal(target) : target; // phần con: toạ độ trong vật cha
 }
 
 /** Bản sao chỉ gồm vật đang hiện (STL/OBJ exporter không tự bỏ vật ẩn). */

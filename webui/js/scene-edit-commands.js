@@ -1,16 +1,22 @@
 // Các command có thể Undo cho mọi thao tác chỉnh sửa cảnh.
 
-export const addObjectCommand = (store, obj) => ({
+/** `parent`: thêm làm phần con của vật khác (vd. nhân bản 1 phần con); mặc định gốc cảnh. */
+export const addObjectCommand = (store, obj, parent = undefined) => ({
   label: `Thêm "${obj.name}"`,
-  do: () => store.add(obj),
+  do: () => store.add(obj, { parent }),
   undo: () => store.remove(obj),
 });
 
-export const removeObjectCommand = (store, obj) => ({
-  label: `Xoá "${obj.name}"`,
-  do: () => store.remove(obj),
-  undo: () => store.add(obj),
-});
+/** Hoàn tác trả vật về đúng chỗ cũ trong cây (phần con lồng trong vật cha). */
+export const removeObjectCommand = (store, obj) => {
+  let parent;
+  let index;
+  return {
+    label: `Xoá "${obj.name}"`,
+    do: () => { parent = obj.parent; index = parent.children.indexOf(obj); store.remove(obj); },
+    undo: () => store.add(obj, { parent, index }),
+  };
+};
 
 /** Gộp nhiều command thành 1 bước Undo (vd. "Mới" xoá hết, mở project nhiều vật). */
 export const batchCommand = (label, cmds) => ({
