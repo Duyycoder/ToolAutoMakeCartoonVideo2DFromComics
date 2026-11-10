@@ -22,7 +22,7 @@
     <input id="project-name" class="project-name" value="Dự án của tôi" title="Tên dự án — bấm để đổi" spellcheck="false">
     <div class="topbar-group">
       <button data-action="new" title="Xoá hết, bắt đầu lại">🗋 Mới</button>
-      <button data-action="open" title="Mở file GLB, GLTF, OBJ, STL, FBX, MESHY, BLEND (Ctrl+O)">📂 Mở file</button>
+      <button data-action="open" title="Mở file GLB, GLTF, OBJ, STL, FBX, MESHY, BLEND, ZIP — chọn cùng lúc các ảnh texture đi kèm (Ctrl+O)">📂 Mở file</button>
       <button data-action="save" title="Lưu dự án (Ctrl+S)">💾 Lưu</button>
       <div class="menu">
         <button data-action="toggle-export" class="accent-outline">⬇ Xuất file ▾</button>
@@ -119,7 +119,7 @@
   </footer>
 
   <div id="toasts" class="toasts"></div>
-  <input type="file" id="file-input" accept=".glb,.gltf,.obj,.stl,.fbx,.meshy,.blend" hidden>
+  <input type="file" id="file-input" accept=".glb,.gltf,.obj,.stl,.fbx,.meshy,.blend,.zip,.bin,.png,.jpg,.jpeg,.webp" multiple hidden>
   <script type="module" src="js/app-main.js"></script>
 </body>
 </html>

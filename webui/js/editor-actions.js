@@ -8,7 +8,9 @@ import {
   addObjectCommand, batchCommand, materialCommand, removeObjectCommand, renameCommand,
   sameTransform, snapshotMaterials, snapshotTransform, transformCommand,
 } from './scene-edit-commands.js';
-import { baseNameOf, extOf, floorPosition, loadModelFile, loadModelUrl } from './model-import-export.js';
+import {
+  MODEL_EXTENSIONS, baseNameOf, expandZips, extOf, floorPosition, loadModelFile, loadModelUrl,
+} from './model-import-export.js';
 import { convertBlendFile } from './blender-tools-actions.js';
 import { toast } from './toast-notifications.js';
 import { restoreLighting } from './lighting-presets.js';
@@ -81,10 +83,23 @@ export function createEditorActions({ viewport, store, stack, onModelAdded = nul
       actions.addModel(obj, 'ai');
     },
 
-    async openFile(file) {
+    /** Chọn/thả nhiều file cùng lúc (hoặc .zip): mỗi file mô hình được mở, các file còn lại (ảnh texture...) là đồ đi kèm. */
+    async openFiles(files) {
+      try {
+        const all = await expandZips(files);
+        const models = all.filter((f) => MODEL_EXTENSIONS.includes(extOf(f.name)));
+        if (!models.length) return toast(`Không thấy file mô hình (${MODEL_EXTENSIONS.join('/').toUpperCase()}) trong các file đã chọn.`, { type: 'warn' });
+        const extras = all.filter((f) => !models.includes(f));
+        for (const model of models) await actions.openFile(model, extras);
+      } catch (err) {
+        toast(`Không mở được file: ${err.message}`, { type: 'err', timeout: 8000 });
+      }
+    },
+
+    async openFile(file, extras = []) {
       try {
         if (extOf(file.name) === 'blend') return await openBlend(file);
-        const { objects, isProject, lighting, lightSettings } = await loadModelFile(file);
+        const { objects, isProject, lighting, lightSettings, missing = [] } = await loadModelFile(file, extras);
         if (isProject) {
           if (lighting || lightSettings) restoreLighting(viewport, lighting, lightSettings);
           objects.forEach(fixLightCopy);
@@ -95,7 +110,11 @@ export function createEditorActions({ viewport, store, stack, onModelAdded = nul
           objects[0].name = store.nextName(baseNameOf(file.name));
           actions.addModel(objects[0], 'imported');
         }
-        toast(`Đã mở "${file.name}"`, { type: 'ok' });
+        if (missing.length) {
+          return toast(`Đã mở "${file.name}" nhưng thiếu ${missing.length} ảnh texture: ${missing.join(', ')}. `
+            + 'Hãy chọn (giữ Ctrl) hoặc kéo thả file mô hình cùng các ảnh này một lượt.', { type: 'warn', timeout: 12000 });
+        }
+        toast(`Đã mở "${file.name}"${extras.length ? ' kèm texture' : ''}`, { type: 'ok' });
       } catch (err) {
         toast(err.message, { type: 'err', timeout: 8000 });
       }

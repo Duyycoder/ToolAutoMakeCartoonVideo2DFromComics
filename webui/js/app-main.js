@@ -120,7 +120,7 @@ document.addEventListener('click', (e) => {
   if (menuList) menuList.hidden = true; // chọn xong 1 mục thì đóng menu
 });
 fileInput.onchange = () => {
-  if (fileInput.files[0]) actions.openFile(fileInput.files[0]);
+  if (fileInput.files.length) actions.openFiles([...fileInput.files]); // mô hình + ảnh texture chọn cùng lúc
   fileInput.value = '';
 };
 const syncUndoButtons = () => {
@@ -176,12 +176,13 @@ window.addEventListener('dragleave', (e) => { if (!e.relatedTarget) overlay.hidd
 window.addEventListener('drop', (e) => {
   e.preventDefault();
   overlay.hidden = true;
-  const file = e.dataTransfer.files[0];
-  if (!file || document.querySelector('.modal-backdrop')) return;
-  const ext = extOf(file.name);
-  if (IMAGE_EXTENSIONS.includes(ext)) openImageWizard(file);
-  else if (MODEL_EXTENSIONS.includes(ext)) actions.openFile(file);
-  else toast(`Không mở được file .${ext}. Hỗ trợ: ảnh PNG/JPG, mô hình ${MODEL_EXTENSIONS.join('/').toUpperCase()}.`, { type: 'warn' });
+  const files = [...e.dataTransfer.files];
+  if (!files.length || document.querySelector('.modal-backdrop')) return;
+  const exts = files.map((f) => extOf(f.name));
+  // Có mô hình/zip -> mở mô hình, ảnh thả cùng là texture của nó; chỉ 1 ảnh -> tạo 3D từ ảnh.
+  if (exts.some((x) => MODEL_EXTENSIONS.includes(x) || x === 'zip')) actions.openFiles(files);
+  else if (IMAGE_EXTENSIONS.includes(exts[0])) openImageWizard(files[0]);
+  else toast(`Không mở được file .${exts[0]}. Hỗ trợ: ảnh PNG/JPG, mô hình ${MODEL_EXTENSIONS.join('/').toUpperCase()}, ZIP.`, { type: 'warn' });
 });
 
 // ---------- Màn hình chào ----------

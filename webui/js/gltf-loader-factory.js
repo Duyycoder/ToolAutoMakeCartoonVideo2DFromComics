@@ -7,12 +7,13 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 let draco = null;
 
-export function createGLTFLoader() {
+/** `manager`: LoadingManager tìm file .bin/ảnh đi kèm (model-import-export). */
+export function createGLTFLoader(manager = undefined) {
   if (!draco) {
     draco = new DRACOLoader();
     draco.setDecoderPath(new URL('../vendor/three/addons/libs/draco/gltf/', import.meta.url).href);
   }
-  return new GLTFLoader().setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
+  return new GLTFLoader(manager).setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
 }
 
 /** Lỗi đọc glTF -> câu tiếng Việt dễ hiểu (vd. file dùng kiểu nén chưa hỗ trợ). */

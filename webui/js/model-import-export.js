@@ -10,24 +10,62 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+import { unzipSync } from 'three/addons/libs/fflate.module.js';
 
 export const MODEL_EXTENSIONS = ['glb', 'gltf', 'obj', 'stl', 'fbx', 'meshy', 'blend']; // blend: đổi qua Blender ẩn (editor-actions)
 export const extOf = (name) => name.split('.').pop().toLowerCase();
 export const baseNameOf = (name) => name.replace(/\.[^.]+$/, '');
+const fileNameOf = (path) => path.split(/[\\/]/).pop();
+const WHITE_PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC';
+
+/** .zip (vd. bộ FBX + ảnh Easy3D xuất trên web) -> các file bên trong, bỏ thư mục. */
+export async function expandZips(files) {
+  const out = [];
+  for (const file of files) {
+    if (extOf(file.name) !== 'zip') { out.push(file); continue; }
+    const entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
+    for (const [path, data] of Object.entries(entries)) {
+      if (!path.endsWith('/') && !path.startsWith('__MACOSX/')) out.push(new File([data], fileNameOf(path)));
+    }
+  }
+  return out;
+}
 
 /**
- * Đọc file người dùng chọn. Trả về { objects, isProject }:
+ * File đi kèm (ảnh texture, .bin của .gltf) chọn cùng lúc với model: loader đòi theo tên file
+ * -> trả về blob của file cùng tên (không phân biệt hoa thường). Tên không có thì ghi vào `missing`.
+ */
+function companionManager(companions, missing) {
+  const byName = new Map(companions.map((f) => [f.name.toLowerCase(), f]));
+  const urls = [];
+  const manager = new THREE.LoadingManager(() => urls.splice(0).forEach((u) => URL.revokeObjectURL(u)));
+  manager.setURLModifier((url) => {
+    if (/^(blob|data):/.test(url)) return url; // ảnh nhúng sẵn trong file
+    const name = decodeURIComponent(fileNameOf(url));
+    const file = byName.get(name.toLowerCase());
+    if (!file) { missing.add(name); return WHITE_PIXEL; } // ảnh hỏng -> vật đen; trắng thì vẫn hiện màu vật liệu
+    urls.push(URL.createObjectURL(file));
+    return urls.at(-1);
+  });
+  return manager;
+}
+
+/**
+ * Đọc file người dùng chọn. Trả về { objects, isProject, missing }:
  *  - isProject = true: file .glb do Easy3D lưu -> tách lại từng vật thể như lúc lưu.
  *  - ngược lại: 1 vật thể đã chuẩn hoá (đặt giữa, chạm sàn, cỡ hợp lý).
+ *  - missing: tên file texture model cần mà không có trong `companions`.
  */
-export async function loadModelFile(file) {
+export async function loadModelFile(file, companions = []) {
   const ext = extOf(file.name);
   const buffer = await file.arrayBuffer();
+  const missing = new Set();
+  const manager = companionManager(companions, missing);
   let obj;
   try {
     if (ext === 'glb' || ext === 'gltf' || ext === 'meshy') {
       const gltfBuffer = ext === 'meshy' ? await decodeMeshyFile(buffer) : buffer;
-      const gltf = await createGLTFLoader().parseAsync(gltfBuffer, '');
+      const gltf = await createGLTFLoader(manager).parseAsync(gltfBuffer, '');
       const project = gltf.scene.children.find((c) => c.userData?.easy3dProject);
       if (project) {
         // GLTFLoader đổi khoảng trắng trong tên node thành "_" -> lấy lại tên gốc đã cất khi lưu.
@@ -41,16 +79,16 @@ export async function loadModelFile(file) {
       const geometry = new STLLoader().parse(buffer);
       obj = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xb8c0d0, roughness: 0.5 }));
     } else if (ext === 'fbx') {
-      obj = new FBXLoader().parse(buffer, '');
+      obj = new FBXLoader(manager).parse(buffer, '');
     } else {
       throw new Error(`Chưa hỗ trợ định dạng .${ext}`);
     }
   } catch (err) {
-    const hint = ext === 'gltf' ? ' File .gltf có file .bin/texture đi kèm — hãy dùng .glb.' : '';
+    const hint = ext === 'gltf' ? ' File .gltf cần file .bin/ảnh đi kèm — chọn tất cả cùng lúc, hoặc dùng .glb.' : '';
     throw new Error(`Không đọc được file "${file.name}". ${friendlyGLTFError(err)}${hint}`);
   }
   prepareImported(obj);
-  return { objects: [obj], isProject: false };
+  return { objects: [obj], isProject: false, missing: [...missing] };
 }
 
 /** Tải GLB từ URL (kết quả AI). */
