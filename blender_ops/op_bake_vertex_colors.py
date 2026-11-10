@@ -3,7 +3,9 @@
 Lưới AI tô màu bằng màu đỉnh (COLOR_0); Unity (shader Standard/Lit) không hiển thị màu đỉnh nên vào Unity mất màu.
 Easy3D đã bỏ COLOR_0 ở vật không dùng màu đỉnh trước khi gửi -> còn COLOR_0 nghĩa là màu đang hiện, cần bake.
 """
+import bmesh
 import bpy
+import numpy as np
 
 BAKE_SIZE = 2048
 
@@ -21,16 +23,61 @@ def needs_bake(material):
     return "VERTEX_COLOR" in types and "TEX_IMAGE" not in types
 
 
-def ensure_uv(obj):
-    """Lưới AI không có UV -> trải UV tự động để có chỗ bake."""
-    if obj.data.uv_layers:
-        return
+def smooth_face_normals(mesh, rounds=4):
+    """Pháp tuyến mặt đã làm mượt qua các đỉnh: mặt lưới AI lởm chởm (bậc thang), pháp tuyến thô nhảy lung tung."""
+    count = len(mesh.polygons)
+    faces = np.empty(count * 3, dtype=np.int64)
+    mesh.polygons.foreach_get("vertices", faces)  # lưới glTF luôn là tam giác
+    faces = faces.reshape(-1, 3)
+    normals = np.empty(count * 3)
+    mesh.polygons.foreach_get("normal", normals)
+    normals = normals.reshape(-1, 3)
+    for _ in range(rounds):
+        per_vertex = np.zeros((len(mesh.vertices), 3))
+        for corner in range(3):
+            np.add.at(per_vertex, faces[:, corner], normals)
+        normals = per_vertex[faces].sum(axis=1)
+        normals /= np.linalg.norm(normals, axis=1, keepdims=True) + 1e-12
+    return faces, normals
+
+
+def box_unwrap(obj):
+    """Chiếu phẳng mỗi mặt theo 1 trong 6 hướng ±X/±Y/±Z -> mặt liền nhau cùng hướng thành 1 mảng lớn liền mạch.
+
+    smart_project/lightmap cắt lưới AI thành hàng chục nghìn mảnh 1 tam giác; Unity nén texture theo khối 4x4
+    và mipmap trộn các mảnh không liên quan -> noise. Mảng lớn thì pixel cạnh nhau là điểm cạnh nhau trên bề mặt.
+    """
+    mesh = obj.data
+    # GLB từ three.js thường không dùng chung đỉnh (mỗi tam giác 3 đỉnh riêng) -> mọi mặt rời nhau. Gộp đỉnh trùng.
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bm.to_mesh(mesh)
+    bm.free()
+    faces, normals = smooth_face_normals(mesh)
+    axis = np.abs(normals).argmax(axis=1)
+    sign = np.sign(normals[np.arange(len(axis)), axis])
+    co = np.empty(len(mesh.vertices) * 3)
+    mesh.vertices.foreach_get("co", co)
+    corners = co.reshape(-1, 3)[faces]  # (mặt, 3 góc, xyz)
+    u_axis, v_axis = np.array([1, 0, 0])[axis], np.array([2, 2, 1])[axis]  # X->(y,z) Y->(x,z) Z->(x,y)
+    u = np.take_along_axis(corners, u_axis[:, None, None], axis=2)[..., 0]
+    v = np.take_along_axis(corners, v_axis[:, None, None], axis=2)[..., 0]
+    uv = np.stack([u * sign[:, None], v], axis=-1)  # hướng âm lật u: mặt trước/sau cùng trục không đè nhau
+    layer = mesh.uv_layers.new(name="UVMap")
+    layer.data.foreach_set("uv", uv.reshape(-1).astype(np.float32))
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
-    # Lưới AI nhiễu: smart_project cắt ra hàng chục nghìn island, margin nuốt hết ảnh. Lightmap xếp đều mọi mặt.
-    bpy.ops.uv.lightmap_pack(PREF_CONTEXT="ALL_FACES", PREF_PACK_IN_ONE=True, PREF_MARGIN_DIV=0.05)
+    bpy.ops.uv.select_all(action="SELECT")
+    bpy.ops.uv.pack_islands(margin=0.003, rotate=True)
     bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def ensure_uv(obj):
+    """Lưới AI không có UV -> trải UV tự động để có chỗ bake."""
+    if not obj.data.uv_layers:
+        box_unwrap(obj)
 
 
 def bake_vertex_colors(objs):
