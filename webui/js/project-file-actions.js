@@ -1,6 +1,7 @@
 // Lưu dự án / xuất file / chụp ảnh. Bản desktop ghi qua backend (cửa sổ desktop không có hộp thoại tải xuống);
 // bản online (mở qua tên miền, không phải localhost) tải thẳng về máy người dùng.
 import * as THREE from 'three';
+import { zipSync } from 'three/addons/libs/fflate.module.js';
 import { api } from './backend-api-client.js';
 import { convertGlbToFbx } from './blender-tools-actions.js';
 import { exportObjects } from './model-import-export.js';
@@ -38,9 +39,16 @@ async function saveFbxBundle(name, fbx, label) {
   if (fbx.tintDropped) toast(`${fbx.tintDropped} chất liệu mất màu phủ (tint) trên texture vì FBX không chứa được. Texture vẫn giữ.`, { type: 'warn', timeout: 9000 });
   // Map là dữ liệu tuyến tính: để sRGB bật thì Unity đọc sai độ kim loại.
   const mapNote = maps.length ? ` Map Metallic: gán tay vào Metallic Map, tắt sRGB.` : '';
+  if (IS_ONLINE && files.length === 1) {
+    downloadToBrowser(files[0][0], files[0][1]);
+    return toast(`${label}: ${files[0][0]} — kéo vào Assets của Unity.`, { type: 'ok', timeout: 10000 });
+  }
   if (IS_ONLINE) {
-    files.forEach(([file, data]) => downloadToBrowser(file, data));
-    return toast(`${label}: đã tải ${files.length} file. Để chung 1 thư mục rồi kéo vào Assets của Unity.${mapNote}`, { type: 'ok', timeout: 10000 });
+    // Trình duyệt chặn tải nhiều file liên tiếp (chỉ file đầu lọt) -> gói 1 zip, trong có sẵn thư mục <Tên>/.
+    const folder = {};
+    for (const [file, data] of files) folder[file] = new Uint8Array(await data.arrayBuffer());
+    downloadToBrowser(`${name}.zip`, new Blob([zipSync({ [name]: folder })], { type: 'application/zip' }));
+    return toast(`${label}: ${name}.zip (${files.length} file). Giải nén rồi kéo thư mục ${name} vào Assets của Unity.${mapNote}`, { type: 'ok', timeout: 12000 });
   }
   const saved = [];
   for (const [file, data] of files) saved.push(await api.saveFile('game', file, data, name));
