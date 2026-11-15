@@ -91,3 +91,7 @@ storage/kb_index.db
 
 # Mat khau ban chay mang noi bo (run-lan.bat) - sinh tu dong tren tung may
 /configs/mat_khau_mang_noi_bo.txt
+
+# May xuat tu xa (run-worker.bat): ma bi mat + cache file video tren laptop
+/configs/may_xuat_token.txt
+/storage/may_xuat/

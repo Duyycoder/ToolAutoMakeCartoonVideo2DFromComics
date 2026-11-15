@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from orchestrator.config import load_global_config, save_global_config
 from orchestrator.editor import (ai_bridge, chuan_hoa_file, hang_doi, luu_tru, mau_nang_cao, media, render,
-                                 srt, tai_len, workspace)
+                                 srt, tai_len, workspace, xuat_tu_xa)
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 AI_MODE = os.environ.get("EDITOR_AI_MODE", "all" if os.environ.get("EDITOR_ENABLE_AI", "1").strip().lower() not in {"0", "false", "no"} else "off").strip().lower()
@@ -947,6 +947,25 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
             fh.write(noi)
         return {"ten": ten_an + ".cube"}
 
+    # --------------------------------------------------------------- Máy xuất từ xa (laptop GPU)
+    @r.get("/api/may-xuat")
+    def get_remote_exporter():
+        c = _cfg_editor().get("may_xuat") or {}
+        return {"url": c.get("url", ""), "co_token": bool(c.get("token"))}
+
+    @r.post("/api/may-xuat")
+    def set_remote_exporter(body: Dict[str, Any]):
+        """Lưu địa chỉ/mã (mã để trống = giữ mã cũ) rồi thử kết nối."""
+        cu_ = _cfg_editor().get("may_xuat") or {}
+        moi = {"url": (body.get("url") or "").strip().rstrip("/"), "token": (body.get("token") or "").strip() or cu_.get("token", "")}
+        if moi["url"] and not moi["url"].startswith(("http://", "https://")):
+            moi["url"] = "http://" + moi["url"]
+        _luu_cfg_editor(may_xuat=moi)
+        try:
+            return {"ok": True, **xuat_tu_xa.MayXuat(moi["url"], moi["token"]).ping()}
+        except (xuat_tu_xa.LoiMayXuat, RuntimeError) as e:
+            return {"ok": False, "loi": str(e)}
+
     # --------------------------------------------------------------- Xuất
     nvenc: Dict[str, bool] = {}
 
@@ -961,6 +980,15 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         ff = media.ffmpeg_exe()
         if not ff:
             raise RuntimeError("Không tìm thấy ffmpeg (imageio_ffmpeg).")
+        may, canh_bao = None, ""
+        if tc.get("may_xuat") == "laptop":
+            cau_hinh = _cfg_editor().get("may_xuat") or {}
+            try:
+                may = xuat_tu_xa.MayXuat(cau_hinh.get("url", ""), cau_hinh.get("token", ""))
+                tc["bo_ma_hoa"] = "nvenc" if may.ping().get("nvenc") else "x264"
+            except (xuat_tu_xa.LoiMayXuat, RuntimeError) as e:
+                may, canh_bao = None, f"{e} — xuất ở máy này"
+                tc["bo_ma_hoa"] = "auto"
         if tc.get("bo_ma_hoa", "auto") == "auto":
             if "co" not in nvenc:
                 nvenc["co"] = render.co_nvenc(ff)
@@ -974,18 +1002,31 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         except ValueError as e:
             raise RuntimeError(str(e))
         viec = hang_doi.Viec("xuat", lambda ctx: None, du_an=folder, du_an_id=pid,
-                             nhan=f"Xuất {os.path.basename(ra)}", tham_so={k: v for k, v in tc.items()})
+                             nhan=f"Xuất {os.path.basename(ra)}" + (" (laptop)" if may else f" ({canh_bao})" if canh_bao else ""),
+                             tham_so={k: v for k, v in tc.items()})
 
         def lam(ctx):
+            kq_dung, bo = kq, tc["bo_ma_hoa"]
+            if may is not None:
+                try:
+                    ctx.bao(0, "Chuẩn bị xuất trên laptop…")
+                    may.xuat(kq, ra, lambda p, t: ctx.bao(p, t), lambda: ctx.da_huy)
+                    return ket_qua(kq, "laptop " + tc["bo_ma_hoa"])
+                except InterruptedError:
+                    raise hang_doi.DaHuy()
+                except xuat_tu_xa.LoiMayXuat as e:
+                    tc_may = {**tc, "bo_ma_hoa": "nvenc" if nvenc.get("co") else "x264"}
+                    kq_dung, bo = render.dung_lenh_xuat(folder, du_an, tl, tc_may, ra, ff), tc_may["bo_ma_hoa"]
+                    ctx.bao(0, f"{e} — xuất ở máy này…")
             thu_muc = luu_tru._p(folder, luu_tru.CACHE, "xuat", viec.id)
             os.makedirs(thu_muc, exist_ok=True)
             with open(os.path.join(thu_muc, "loc.txt"), "w", encoding="utf-8") as fh:
-                fh.write(kq["loc"])
+                fh.write(kq_dung["loc"])
             with open(os.path.join(thu_muc, "sub.ass"), "w", encoding="utf-8") as fh:
-                fh.write(kq["ass"])
-            ghi_tep_phu(thu_muc, kq)
-            T = max(0.001, float(kq["thoi_luong"]))
-            ctx.bao(0, f"Đang xuất {kq['kich_thuoc'][0]}×{kq['kich_thuoc'][1]} ({tc['bo_ma_hoa']})…")
+                fh.write(kq_dung["ass"])
+            ghi_tep_phu(thu_muc, kq_dung)
+            T = max(0.001, float(kq_dung["thoi_luong"]))
+            ctx.bao(0, f"Đang xuất {kq_dung['kich_thuoc'][0]}×{kq_dung['kich_thuoc'][1]} ({bo})…")
             cuoi = []
 
             def dong(line):
@@ -999,16 +1040,16 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                     cuoi.append(line)
                     del cuoi[:-15]
             try:
-                code = ctx.chay_doc_dong(kq["cmd"], thu_muc, dong, log=os.path.join(thu_muc, "log.txt"))
+                code = ctx.chay_doc_dong(kq_dung["cmd"], thu_muc, dong, log=os.path.join(thu_muc, "log.txt"))
             except hang_doi.DaHuy:
                 if os.path.exists(ra):
                     os.remove(ra)
                 raise
 
-            if code != 0 and "-hwaccel" in kq["cmd"]:
+            if code != 0 and "-hwaccel" in kq_dung["cmd"]:
                 cmd2 = []
                 skip_next = False
-                for x in kq["cmd"]:
+                for x in kq_dung["cmd"]:
                     if skip_next:
                         skip_next = False
                         continue
@@ -1027,6 +1068,9 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                 if os.path.exists(ra):
                     os.remove(ra)
                 raise RuntimeError("ffmpeg lỗi: " + " | ".join(x for x in cuoi[-4:] if x.strip())[-600:])
+            return ket_qua(kq_dung, bo)
+
+        def ket_qua(k, bo_ma_hoa):
             srt_rel = ""
             if tc.get("xuat_srt"):
                 noi = render.xuat_srt(tl)
@@ -1035,8 +1079,8 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                     with open(p_srt, "w", encoding="utf-8") as fh:
                         fh.write(noi)
                     srt_rel = os.path.relpath(p_srt, folder).replace("\\", "/")
-            return {"file": os.path.relpath(ra, folder).replace("\\", "/"), "thoi_luong": kq["thoi_luong"],
-                    "kich_thuoc": kq["kich_thuoc"], "bo_ma_hoa": tc["bo_ma_hoa"], "srt": srt_rel,
+            return {"file": os.path.relpath(ra, folder).replace("\\", "/"), "thoi_luong": k["thoi_luong"],
+                    "kich_thuoc": k["kich_thuoc"], "bo_ma_hoa": bo_ma_hoa, "srt": srt_rel,
                     "dung_luong": os.path.getsize(ra)}
         viec.ham = lam
         hang_gpu.them(viec)

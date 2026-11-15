@@ -34,6 +34,7 @@ Updated 2026-11-15. Branch: `feat/editor`.
 ## Running on a local GPU machine
 
 - `run.bat`: desktop window on that machine (full AI, NVENC export).
+- `run-worker.bat` (`orchestrator/may_xuat.py`): remote export worker on the GPU laptop, reached over Tailscale on port 8300 with a bearer token (`configs/may_xuat_token.txt`, git-ignored). The editor machine picks "Laptop GPU qua Tailscale" in the export dialog; `orchestrator/editor/xuat_tu_xa.py` sends the ffmpeg command, uploads missing media once (content-keyed cache in `storage/may_xuat/`, kept 14 days) and downloads the result. Worker commands may only read cached files (`@tep:`) and write `@ra`. If the laptop is unreachable, export falls back to the local machine.
 - `run-lan.bat` (`orchestrator/chay_mang_noi_bo.py`): serves on port 8200 for phones on the same Wi-Fi, Basic Auth user `game`, password generated into `configs/mat_khau_mang_noi_bo.txt` (git-ignored). Proxies use NVDEC/NVENC when available (`media.co_gpu`, disable with `EDITOR_NO_GPU=1`) and fall back to CPU.
 
 ## Git status and handoff

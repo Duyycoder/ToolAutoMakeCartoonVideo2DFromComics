@@ -479,3 +479,25 @@ def test_trich_am_thanh_tu_video(ws, monkeypatch):
     am = r.json()
     assert am["loai"] == "audio" and am["file"].endswith("(âm thanh).m4a") and am["tu_media"] == m["id"]
     assert ws.get(f"/api/du-an/{pid}/media/{am['id']}/file").content[4:8] == b"ftyp"
+
+
+def test_may_xuat_cau_hinh_va_laptop_tat_thi_xuat_o_may_nay(ws):
+    r = ws.post("/api/may-xuat", json={"url": "127.0.0.1:1", "token": "bi-mat"})
+    assert r.status_code == 200 and r.json()["ok"] is False and "Không kết nối" in r.json()["loi"]
+    assert ws.get("/api/may-xuat").json() == {"url": "http://127.0.0.1:1", "co_token": True}, "mã không trả về trình duyệt"
+    ws.post("/api/may-xuat", json={"url": "http://127.0.0.1:1", "token": ""})
+    assert ws.cfg["editor"]["may_xuat"]["token"] == "bi-mat", "để trống mã thì giữ mã cũ"
+
+    pid = _tao(ws)["id"]
+    mo = ws.get(f"/api/du-an/{pid}").json()
+    phien = mo["khoa"]["phien"]
+    d = ws.tmp / "a.mp4"
+    d.write_bytes(b"0" * 100)
+    m = ws.post(f"/api/du-an/{pid}/media/nhap", json={"phien": phien, "files": [str(d)]}).json()["media"][0]
+    _cho_media(ws)
+    tl = mo["timeline"]
+    tl["clips"].append({"id": "c_1", "track": "V1", "media": m["id"], "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1})
+    assert ws.put(f"/api/du-an/{pid}/timeline", json={"phien": phien, "timeline": tl, "phien_ban": tl["phien_ban"]}).status_code == 200
+    viec, _ = ws.router.xep_xuat(mo["du_an"]["folder"], pid, {"may_xuat": "laptop", "bo_ma_hoa": "x264"})
+    assert "xuất ở máy này" in viec.nhan and viec.tham_so["bo_ma_hoa"] in ("x264", "nvenc")
+    viec.huy_event.set()
