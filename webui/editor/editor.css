@@ -457,3 +457,69 @@ select { cursor: pointer; }
 .preview-man .lop-ve-vung.bat { display: block; background: rgba(0, 0, 0, .25); }
 .preview-man .ve-khung { position: absolute; display: none; border: 2px solid var(--cam); background: rgba(245, 158, 11, .15); }
 .preview-man .ve-goi-y { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); background: rgba(0, 0, 0, .75); padding: 3px 10px; border-radius: 6px; font-size: 12px; white-space: nowrap; }
+
+/* -------------------------------------------------- Điện thoại / màn hình hẹp */
+@media (max-width: 760px) {
+    html, body { min-width: 320px; overflow: hidden; }
+    .ed { height: 100dvh; }
+    .ed-dau { height: 48px; gap: 5px; padding: 0 6px; }
+    .ed-dau .ten-da { max-width: min(28vw, 140px); font-size: 12px; }
+    .ed-dau .thong-so, #btnPhienBan { display: none; }
+    .ed-dau .nut { padding: 5px 7px; font-size: 11px; }
+    .ed-dau .nut-icon { flex: none; width: 36px; height: 36px; }
+    .ed-dau .gian { min-width: 0; }
+
+    .ed-than {
+        position: relative;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 48px minmax(120px, 1fr) 5px minmax(145px, 30dvh);
+    }
+    .thanh-icon {
+        grid-row: 1; grid-column: 1; z-index: 12; flex-direction: row; justify-content: flex-start;
+        overflow-x: auto; overflow-y: hidden; padding: 3px 6px; gap: 3px; scrollbar-width: none;
+        border-right: 0; border-bottom: 1px solid var(--vien); touch-action: pan-x;
+    }
+    .thanh-icon::-webkit-scrollbar { display: none; }
+    .thanh-icon button { width: 42px; height: 42px; flex: 0 0 42px; font-size: 18px; }
+    .thanh-icon button.bat::before { left: 9px; right: 9px; top: auto; bottom: 0; width: auto; height: 3px; }
+    .thanh-icon .gian, #btnCaiDat2 { display: none; }
+
+    .vung-preview { grid-row: 2; grid-column: 1; }
+    .preview-khung { padding: 4px; }
+    .dieu-khien { grid-template-columns: 1fr auto; gap: 4px; padding: 3px 6px max(6px, env(safe-area-inset-bottom)); }
+    .dieu-khien .gio { font-size: 11px; }
+    .dieu-khien .nhom-nut { gap: 1px; }
+    .dieu-khien .nhom-nut .nut-icon { width: 34px; height: 38px; }
+    .dieu-khien .am-luong { display: none; }
+    .nut-phat { width: 40px; height: 40px; }
+
+    .keo { display: none; }
+    .keo-ngang { display: block; grid-row: 3; grid-column: 1; height: 5px; cursor: row-resize; }
+    .vung-timeline { grid-row: 4; grid-column: 1; overflow: hidden; }
+
+    /* Hai bảng mở từ thanh công cụ trở thành ngăn trượt; giữ được thao tác chọn công cụ
+       và thuộc tính mà không làm preview/timeline biến mất trên màn hình nhỏ. */
+    .bang-trai, .bang-phai {
+        position: fixed; z-index: 11; top: calc(48px + 48px); bottom: calc(30dvh + 53px);
+        width: min(88vw, 380px); max-width: 380px; box-shadow: 0 12px 32px rgba(0, 0, 0, .55);
+    }
+    .bang-trai { left: 0; grid-row: auto; grid-column: auto; border-right: 1px solid var(--vien-sang); }
+    .bang-phai { right: 0; grid-row: auto; grid-column: auto; border-left: 1px solid var(--vien-sang); }
+    .ed-than.dong-trai .bang-trai, .ed-than.dong-phai .bang-phai { display: none; }
+    .bang-dau { padding-top: 8px; }
+    .bang-noi { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+    .tab-thuoc-tinh { overflow-x: auto; }
+    .tab-thuoc-tinh button { white-space: nowrap; min-height: 42px; }
+    .toast-box { right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); left: 8px; max-width: none; }
+    .modal-nen { padding: 8px; }
+    .modal { max-height: calc(100dvh - 16px); }
+    .modal-lon { height: calc(100dvh - 16px); }
+}
+
+@media (max-width: 420px) {
+    .ed-dau .nut-luu { width: 34px; height: 34px; justify-content: center; padding: 0; font-size: 0; }
+    .ed-dau .nut-luu .cham { width: 10px; height: 10px; }
+    #btnXuat { padding: 5px 6px; font-size: 10px; }
+    .dieu-khien .nhom-nut .nut-icon { width: 30px; }
+    .bang-trai, .bang-phai { width: min(94vw, 380px); }
+}
