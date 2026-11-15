@@ -60,3 +60,20 @@ def test_rac_khong_doc_duoc_bi_tu_choi(tmp_path):
     with pytest.raises(LoiTaiLen):
         chuan_hoa_file.chuan_hoa(str(rac))
     assert not rac.exists()
+
+
+def test_heic_iphone_doi_jpg_du_khung_dung_huong(tmp_path):
+    """HEIC dọc 300x400 (nửa trên đỏ, dưới xanh) → JPG đủ khung, đúng hướng, EXIF Orientation=1."""
+    pillow_heif = pytest.importorskip("pillow_heif")
+    from PIL import Image
+    anh = Image.new("RGB", (300, 400), (220, 30, 30))
+    anh.paste((30, 30, 220), (0, 200, 300, 400))
+    src = tmp_path / "IMG_0278.HEIC"
+    pillow_heif.from_pillow(anh).save(str(src), quality=95)
+    out = chuan_hoa_file.chuan_hoa(str(src))
+    assert out.endswith(".jpg") and not src.exists()
+    with Image.open(out) as im:
+        assert im.size == (300, 400), "giữ nguyên khung dọc, không phải ô 512x512"
+        r, g, b = im.getpixel((150, 50))
+        assert r > 180 and b < 80, "nửa trên vẫn đỏ (không bị xoay/lật)"
+        assert im.getexif().get(0x0112, 1) == 1
