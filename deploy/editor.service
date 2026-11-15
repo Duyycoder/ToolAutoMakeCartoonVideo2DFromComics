@@ -1,0 +1,15 @@
+[Unit]
+Description=Game Video Editor web app
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/game-editor
+EnvironmentFile=-%h/game-editor/.env
+Environment=EDITOR_ENABLE_AI=0
+ExecStart=%h/game-editor/.venv/bin/uvicorn orchestrator.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

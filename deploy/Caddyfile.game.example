@@ -1,0 +1,33 @@
+admin 127.0.0.1:2029
+auto_https off
+
+http://:8080 {
+	bind 127.0.0.1
+	@game host game.ririmimivn.id.vn
+	handle @game {
+		reverse_proxy 127.0.0.1:8000
+	}
+	@easy3d host easy3dtool.ririmimivn.id.vn
+	handle @easy3d {
+		reverse_proxy 127.0.0.1:8200
+	}
+	handle {
+		reverse_proxy 127.0.0.1:8000
+	}
+}
+
+http://:8081 {
+	@outside not remote_ip private_ranges
+	respond @outside 403
+	@game host game.ririmimivn.id.vn
+	handle @game {
+		reverse_proxy 127.0.0.1:8000
+	}
+	@easy3d host easy3dtool.ririmimivn.id.vn
+	handle @easy3d {
+		reverse_proxy 127.0.0.1:8200
+	}
+	handle {
+		reverse_proxy 127.0.0.1:8000
+	}
+}
