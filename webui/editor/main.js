@@ -12,6 +12,7 @@ import { BangAi } from './bang_ai.js';
 import { BangChe } from './bang_che.js';
 import { BangChu } from './bang_chu.js';
 import { BangDieuChinh } from './bang_dieu_chinh.js';
+import { moHopKhung } from './khung_hinh.js';
 import { BangHieuUng } from './bang_hieu_ung.js';
 import { BangChuyenCanh } from './bang_chuyen_canh.js';
 import { ganXuat } from './xuat.js';
@@ -95,6 +96,9 @@ async function khoiDong() {
         $('thongSo').textContent = ts.rong ? `${ts.rong}×${ts.cao} │ ${ts.fps}fps` : '';
     };
     veThongSo();
+    $('thongSo').title = 'Bấm để đổi khung hình (dọc / ngang / vuông), độ phân giải, FPS';
+    $('thongSo').classList.add('bam-duoc');
+    $('thongSo').addEventListener('click', () => moHopKhung(ctx));
 
     // ------------------------------------------------------------ bộ lưu
     const nutLuu = $('btnLuu');

@@ -239,6 +239,7 @@ export class BangMedia {
             if (r.thong_so && JSON.stringify(r.thong_so) !== JSON.stringify(this.ctx.du.thong_so)) {
                 this.ctx.du.thong_so = r.thong_so;   // "Lấy theo video đầu tiên" vừa áp
                 this.ctx.bus.emit('thong_so');
+                toast(`Khung dự án lấy theo video đầu: ${r.thong_so.rong}×${r.thong_so.cao} — bấm vào kích thước ở thanh trên để đổi dọc/ngang.`, 'info', 8000);
             }
             this._baoKetQuaTai();
             this.ctx.bus.emit('media');

@@ -576,3 +576,14 @@ body.ai-translate-only .the-ai:not(:has([data-l="dich"])) { display: none !impor
     .clip.chon .mep::after { content: ''; position: absolute; top: 30%; bottom: 30%; left: 50%; width: 2px; margin-left: -1px; background: #333; border-radius: 1px; }
     .clip.dang-keo { box-shadow: 0 4px 14px rgba(0, 0, 0, .6); transform: translateY(-2px); }
 }
+
+
+/* ---- Chọn khung hình dự án (khung_hinh.js) ---- */
+.thong-so.bam-duoc { cursor: pointer; border-bottom: 1px dashed var(--chu-3); }
+.thong-so.bam-duoc:hover { color: var(--chu); }
+.khung-chon { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.khung-o { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; border: 2px solid var(--vien); border-radius: 8px; cursor: pointer; font-size: 11px; text-align: center; }
+.khung-o input { display: none; }
+.khung-o i { display: block; height: 40px; max-width: 72px; border: 2px solid var(--chu-2); border-radius: 3px; }
+.khung-o.bat { border-color: var(--nhan); background: var(--nhan-mo); }
+.khung-o.bat i { border-color: var(--nhan-sang); }

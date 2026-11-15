@@ -2,6 +2,7 @@
  * Xuất chạy ở hàng đợi GPU của server; tiến độ hiện ngay trên nút "Xuất video". */
 import { $, api, esc, toast, fmtThoiGian, coFile } from './chung.js';
 import { thoiLuong } from './store.js';
+import { KHUNG, khungHienTai, datKhung } from './khung_hinh.js';
 
 export function ganXuat(ctx) {
     const nut = $('btnXuat');
@@ -49,6 +50,9 @@ function moHop(ctx) {
         <p class="modal-noi-dung">Dài ${fmtThoiGian(tong)} · khung dự án ${ts.rong}×${ts.cao} · ${ts.fps} fps. Lưu vào thư mục xuat/ của dự án.</p>
         <div class="o-form">
             <label>Tên file<input type="text" name="ten" value="${esc(nho.ten || ctx.du.name)}"></label>
+            <label>Khung hình (đổi cả màn xem trước)<select name="khung">
+                ${KHUNG.map(([v, t]) => `<option value="${v}" ${khungHienTai(ts).khung === v ? 'selected' : ''}>${t}</option>`).join('')}
+                ${khungHienTai(ts).khung ? '' : `<option value="" selected>Như dự án (${ts.rong}×${ts.cao})</option>`}</select></label>
             <div class="hang">
                 <label>Độ phân giải<select name="do_phan_giai">
                     ${[['', `Theo dự án (${ts.rong}×${ts.cao})`], ['720p', '720p'], ['1080p', '1080p'], ['1440p', '1440p (2K)'], ['4k', '4K']]
@@ -97,6 +101,7 @@ function moHop(ctx) {
         const nut = f.querySelector('[type=submit]');
         nut.disabled = true;
         try {
+            if (f.khung.value && f.khung.value !== khungHienTai(ts).khung) await datKhung(ctx, { khung: f.khung.value });
             await ctx.boLuu.flush();        // xuất đọc timeline TRÊN ĐĨA — phải lưu hết trước
             const kq = await api(`/api/du-an/${encodeURIComponent(ctx.id)}/xuat`, { method: 'POST', body: { phien: ctx.boLuu.phien, tuy_chon: tc } });
             dong();
