@@ -17,3 +17,6 @@
 *.html text
 *.css  text
 *.js   text
+
+# Script shell chay tren server Linux: luon LF (CRLF lam bash tren Linux bao loi).
+*.sh text eol=lf
