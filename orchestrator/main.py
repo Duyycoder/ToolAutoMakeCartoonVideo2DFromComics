@@ -5,6 +5,8 @@ mỗi loại chỉ chạy một lần một (GPU 6GB không kham nổi song song
 diện nối lại luồng log sau khi F5 mà không cần nhớ mã tác vụ.
 """
 import datetime
+import base64
+import hmac
 import json
 import logging
 import os
@@ -39,6 +41,19 @@ TASK_IMPORT = "import"
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 app = FastAPI(title="Cào & Dịch Video — Orchestrator")
+
+
+@app.middleware("http")
+async def bao_ve_truy_cap_cong_khai(request, call_next):
+    """Bật HTTP Basic khi chạy sau tunnel công khai; desktop cục bộ giữ nguyên luồng cũ."""
+    mat_khau = os.environ.get("EDITOR_PUBLIC_PASSWORD", "")
+    if mat_khau:
+        user = os.environ.get("EDITOR_PUBLIC_USER", "editor")
+        expected = "Basic " + base64.b64encode(f"{user}:{mat_khau}".encode()).decode()
+        if not hmac.compare_digest(request.headers.get("authorization", ""), expected):
+            from starlette.responses import Response
+            return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Game Editor", charset="UTF-8"'})
+    return await call_next(request)
 
 app.add_middleware(
     CORSMiddleware,

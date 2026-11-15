@@ -12,9 +12,10 @@ import os
 import subprocess
 import sys
 import threading
+import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -22,6 +23,7 @@ from orchestrator.config import load_global_config, save_global_config
 from orchestrator.editor import ai_bridge, hang_doi, luu_tru, media, render, srt, workspace
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+AI_ENABLED = os.environ.get("EDITOR_ENABLE_AI", "1").strip().lower() not in {"0", "false", "no"}
 
 class WorkspaceSchema(BaseModel):
     duong_dan: str
@@ -479,6 +481,41 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         except OSError as e:
             raise HTTPException(status_code=500, detail=f"Không ghi được vào dự án: {e}")
 
+    @r.post("/api/du-an/{pid}/media/tai-len")
+    async def upload_media(pid: str, phien: str = Form(...), files: List[UploadFile] = File(...)):
+        """Nhập file từ trình duyệt điện thoại/máy khác vào workspace trên server."""
+        folder = folder_cua(pid)
+        khoa_ghi(folder, phien)
+        if not files:
+            raise HTTPException(status_code=400, detail="Chưa chọn file nào.")
+        thu_muc = os.path.join(folder, luu_tru.CACHE, "tai_len")
+        os.makedirs(thu_muc, exist_ok=True)
+        paths = []
+        try:
+            for f in files:
+                if f.size is not None and f.size > 2 * 1024 * 1024 * 1024:
+                    raise HTTPException(status_code=413, detail="Mỗi file tải lên tối đa 2 GB.")
+                ten = os.path.basename((f.filename or "media").replace("\\", "/")).replace("\x00", "")
+                if not ten or ten in {".", ".."}:
+                    raise HTTPException(status_code=400, detail="Tên file không hợp lệ.")
+                path = os.path.join(thu_muc, f"{uuid.uuid4().hex[:10]}_{ten}")
+                with open(path, "wb") as out:
+                    while chunk := await f.read(1024 * 1024):
+                        out.write(chunk)
+                paths.append(path)
+            try:
+                return {"media": qlm.nhap(folder, pid, paths)}
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        except Exception:
+            for path in paths:
+                try: os.remove(path)
+                except OSError: pass
+            raise
+        finally:
+            for f in files:
+                await f.close()
+
     @r.post("/api/du-an/{pid}/media/url")
     def import_url(pid: str, body: UrlSchema):
         from orchestrator.pipeline import AIVOICE_DIR, DOWNLOAD_ADAPTER, PYTHON_EXE
@@ -749,6 +786,8 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
 
     @r.post("/api/du-an/{pid}/ai/{loai}")
     def start_ai(pid: str, loai: str, body: AiSchema):
+        if not AI_ENABLED:
+            raise HTTPException(status_code=503, detail="Các tính năng AI đang tắt trên máy chủ này; chỉnh sửa và xuất video vẫn dùng được.")
         tham_so = body.tham_so or {}
         if loai == 'dich':
             if not tham_so.get('cau'): raise HTTPException(400, detail='Chưa có câu để dịch')
@@ -931,8 +970,10 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
     from orchestrator.editor import hang_loat
     @r.get("/api/ai/models")
     def ai_models():
+        if not AI_ENABLED:
+            return {"enabled": False}
         from orchestrator.pipeline import AIVOICE_DIR
-        res = {}
+        res = {"enabled": True}
         esrgan_dir = os.path.join(AIVOICE_DIR, "apps", "MediaComposer", "models", "realesrgan")
         if os.path.exists(os.path.join(esrgan_dir, "realesr-animevideov3.pth")):
             res["realesr_animevideov3"] = True

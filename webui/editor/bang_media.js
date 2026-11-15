@@ -245,14 +245,23 @@ export class BangMedia {
 
     async nhap() {
         if (this.ctx.store.chiDoc) { toast('Cửa sổ này chỉ xem.', 'warn'); return; }
-        try {
-            const files = await chonFile('media');
-            if (!files.length) return;
-            const r = await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/nhap`,
-                { method: 'POST', body: { phien: this.ctx.boLuu.phien, files } });
-            toast(`Đang chép ${r.media.length} file vào dự án…`, 'info', 2500);
-            this.tai();
-        } catch (e) { toast(e.message, 'error'); }
+        const input = document.createElement('input');
+        input.type = 'file'; input.multiple = true;
+        input.accept = 'video/*,audio/*,image/*,.srt,.vtt,.ass,.ssa';
+        input.onchange = async () => {
+            if (!input.files?.length) return;
+            const form = new FormData();
+            form.append('phien', this.ctx.boLuu.phien);
+            for (const f of input.files) form.append('files', f, f.name);
+            try {
+                const res = await fetch(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/tai-len`, { method: 'POST', body: form });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+                toast(`Đã tải ${data.media.length} file lên server.`, 'success', 3000);
+                this.tai();
+            } catch (e) { toast(e.message, 'error'); }
+        };
+        input.click();
     }
 
     async nhapUrl() {

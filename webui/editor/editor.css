@@ -213,6 +213,7 @@ select { cursor: pointer; }
 .thanh-icon button.bat { background: var(--nhan-mo); color: var(--nhan-sang); }
 .thanh-icon button.bat::before { content: ''; position: absolute; left: -6px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--nhan); }
 .thanh-icon .gian { flex: 1; }
+#thanhIcon button[hidden] { display: none !important; }
 
 .bang-trai { grid-row: 1 / 4; grid-column: 2; background: var(--nen-2); border-right: 1px solid var(--vien); min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
 .keo { background: transparent; position: relative; z-index: 5; }
@@ -481,6 +482,7 @@ select { cursor: pointer; }
     }
     .thanh-icon::-webkit-scrollbar { display: none; }
     .thanh-icon button { width: 42px; height: 42px; flex: 0 0 42px; font-size: 18px; }
+    .thanh-icon button[hidden] { display: none; }
     .thanh-icon button.bat::before { left: 9px; right: 9px; top: auto; bottom: 0; width: auto; height: 3px; }
     .thanh-icon .gian, #btnCaiDat2 { display: none; }
 
