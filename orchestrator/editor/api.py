@@ -23,7 +23,8 @@ from orchestrator.config import load_global_config, save_global_config
 from orchestrator.editor import ai_bridge, hang_doi, luu_tru, media, render, srt, workspace
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-AI_ENABLED = os.environ.get("EDITOR_ENABLE_AI", "1").strip().lower() not in {"0", "false", "no"}
+AI_MODE = os.environ.get("EDITOR_AI_MODE", "all" if os.environ.get("EDITOR_ENABLE_AI", "1").strip().lower() not in {"0", "false", "no"} else "off").strip().lower()
+AI_ENABLED = AI_MODE != "off"
 
 class WorkspaceSchema(BaseModel):
     duong_dan: str
@@ -788,6 +789,8 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
     def start_ai(pid: str, loai: str, body: AiSchema):
         if not AI_ENABLED:
             raise HTTPException(status_code=503, detail="Các tính năng AI đang tắt trên máy chủ này; chỉnh sửa và xuất video vẫn dùng được.")
+        if AI_MODE == "translate" and loai != "dich":
+            raise HTTPException(status_code=503, detail="Máy chủ này chỉ bật AI dịch bằng Ollama; Whisper, OCR, lồng tiếng và các tác vụ nặng đang tắt.")
         tham_so = body.tham_so or {}
         if loai == 'dich':
             if not tham_so.get('cau'): raise HTTPException(400, detail='Chưa có câu để dịch')
@@ -972,8 +975,10 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
     def ai_models():
         if not AI_ENABLED:
             return {"enabled": False}
+        if AI_MODE == "translate":
+            return {"enabled": True, "features": ["dich"]}
         from orchestrator.pipeline import AIVOICE_DIR
-        res = {"enabled": True}
+        res = {"enabled": True, "features": ["phu-de", "ocr", "dich", "long-tieng", "tach-giong", "lam-net", "can-gio", "tao-anh", "doc-van-ban"]}
         esrgan_dir = os.path.join(AIVOICE_DIR, "apps", "MediaComposer", "models", "realesrgan")
         if os.path.exists(os.path.join(esrgan_dir, "realesr-animevideov3.pth")):
             res["realesr_animevideov3"] = True

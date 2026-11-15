@@ -52,8 +52,12 @@ const BANG_SAP_CO = {
 async function khoiDong() {
     const id = new URLSearchParams(location.search).get('id');
     if (!id) { location.href = '/home.html'; return; }
-    let aiEnabled = true;
-    try { aiEnabled = (await api('/api/ai/models')).enabled !== false; } catch (e) { /* bản máy cũ chưa có cờ này */ }
+    let aiFeatures = null;
+    try {
+        const capabilities = await api('/api/ai/models');
+        if (capabilities.enabled === false) aiFeatures = [];
+        else if (Array.isArray(capabilities.features)) aiFeatures = capabilities.features;
+    } catch (e) { /* bản máy cũ chưa có cờ này */ }
     const khoaPhien = `phien:${id}`;
     let phienCu = '';
     try { phienCu = sessionStorage.getItem(khoaPhien) || ''; } catch (e) { /* bỏ qua */ }
@@ -73,10 +77,12 @@ async function khoiDong() {
     const store = new Store(mo.timeline, mo.hoan_tac);
     store.chiDoc = mo.khoa.chi_doc;
     const ui = tron(UI_MAC_DINH, mo.ui);
-    if (!aiEnabled) {
+    if (aiFeatures && !aiFeatures.length) {
         const nutAi = document.querySelector('#thanhIcon [data-bang="ai"]');
         if (nutAi) nutAi.hidden = true;
         if (ui.bang_trai === 'ai') { ui.bang_trai = 'media'; ui.bang_trai_mo = true; }
+    } else if (aiFeatures && aiFeatures.length === 1 && aiFeatures[0] === 'dich') {
+        document.body.classList.add('ai-translate-only');
     }
     const cfg = mo.cau_hinh || {};
     const bus = taoBus();
