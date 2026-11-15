@@ -50,10 +50,9 @@ export function moHopKhung(ctx) {
     nen.className = 'modal-nen';
     nen.innerHTML = `<form class="modal" style="width:min(420px,100%)">
         <h3>Khung hình dự án</h3>
-        <p class="modal-noi-dung">Đang là ${ts.rong}×${ts.cao} · ${ts.fps} fps. Đổi ở đây thì cả màn xem trước và video xuất đều đổi theo;
-            clip tự co vừa khung mới.</p>
+        <p class="modal-noi-dung">Đang là ${ts.rong}×${ts.cao} · ${ts.fps} fps. Đổi ở đây thì cả màn xem trước và video xuất đều đổi theo; clip tự co vừa khung mới.</p>
         <div class="o-form">
-            <div class="khung-chon">${KHUNG.map(([id, ten, a, b]) => `<label class="khung-o ${id === hien.khung ? 'bat' : ''}">
+            <div class="khung-luoi">${KHUNG.map(([id, ten, a, b]) => `<label class="khung-o ${id === hien.khung ? 'bat' : ''}">
                 <input type="radio" name="khung" value="${id}" ${id === hien.khung ? 'checked' : ''}>
                 <i style="aspect-ratio:${a}/${b}"></i><span>${esc(ten)}</span></label>`).join('')}</div>
             <div class="hang">
