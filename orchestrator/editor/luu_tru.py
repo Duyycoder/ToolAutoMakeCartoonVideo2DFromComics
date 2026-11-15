@@ -37,6 +37,7 @@ THU_MUC_EDITOR = ".duan"
 LICH_SU = "lich_su"
 CACHE = "cache"
 MEDIA_DIR = "media"
+LUT_DIR = "luts"                 # LUT .cube người dùng nhập (chỉnh màu nâng cao)
 PHU_DE_DIR = "phu_de"
 LONG_TIENG_DIR = "long_tieng"
 XUAT_DIR = "xuat"
@@ -602,7 +603,7 @@ def tao_thu_muc_con_nhe(folder: str) -> None:
 
 
 def _chon_thong_so(ts: Dict[str, Any]) -> Dict[str, Any]:
-    keys = ("thoi_luong", "rong", "cao", "fps", "co_am_thanh", "co_hinh", "codec", "codec_am")
+    keys = ("thoi_luong", "rong", "cao", "fps", "co_am_thanh", "co_hinh", "codec", "codec_am", "hdr", "bit")
     return {k: ts[k] for k in keys if k in ts and ts[k] is not None}
 
 

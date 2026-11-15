@@ -1,6 +1,6 @@
 # Handoff: video editor on `game`
 
-Updated 2026-11-15. Worktree: `feat/editor` at `F:\programfiles\ToolAutoMakeCartoonVideo2DFromComics\.codex-worktrees\editor`.
+Updated 2026-11-15. Branch: `feat/editor`.
 
 ## Deployment
 
@@ -18,11 +18,23 @@ Updated 2026-11-15. Worktree: `feat/editor` at `F:\programfiles\ToolAutoMakeCart
 - A Qwen 1.5B pull timed out without installing the model. The 0.5B model answered a sample but its translation quality was weak; treat it as experimental.
 - FFmpeg is provided by the `imageio-ffmpeg` wheel, so export uses CPU. NVIDIA NVENC is not available on this GPU/server setup.
 
-## Latest issue: iPhone Cinematic import
+## Phone uploads and media formats (fixed, deployed 2026-11-15)
 
-The user selected a Cinematic-mode iPhone video and received **HTTP 408**. Record this for a later fix; no speculative picker change was kept or deployed. Investigate upload size and duration through Cloudflare Tunnel/Caddy, browser upload timeout behavior, and whether resumable/chunked upload is needed. Keep the phone video server-side only after a complete upload.
+- Uploads go in 8 MB chunks, 3 in parallel (`orchestrator/editor/tai_len.py`, `webui/editor/tai_len.js`). Chunk state is saved in `.part.json`, so picking the same file again resumes after Safari is suspended or the server restarts. Max 8 GB per file. A screen Wake Lock is held during upload.
+- Any file type can be picked on phones. `chuan_hoa_file.py` probes the content with ffmpeg: HEIC/HEIF/AVIF/TIFF become JPG, CAF/AMR/AC3/AIFF become M4A, camera containers (MTS/MXF/3GP/…) always get an H.264 proxy.
+- FFmpeg 9 removed `-filter_complex_script`; `render.tham_so_file_loc` picks the option by ffmpeg version. Fonts for burned-in text: `fonts/tai-font-xuat-video.sh` + `fonts/fonts.conf`.
 
-The upload route accepts `.MOV`/other supported media and stores files under the project cache; the project remains on the server. If upload succeeds but the preview is black, investigate HEVC proxy decoding separately.
+## Pro editing features
+
+- Color (clip `mau`): 18 presets (`webui/editor/preset_mau.json`), `.cube` LUT import (`<project>/luts/`), curves, 8-range HSL, sharpen, denoise. Presets/LUT/curves/HSL merge into one 33³ LUT per clip: `mau_nang_cao.py` (export, ffmpeg `lut3d`) and `mau_nang_cao.js` (WebGL2 preview in `xem_mau_gl.js`) share the same math; `tests/test_editor_mau_nang_cao.py` checks they match.
+- Audio (clip `xu_ly_am`): noise reduction (highpass + `afftdn`) and 3-band EQ (`xu_ly_am.py`; Web Audio preview in `am_xu_ly.js`, FFT denoise is export-only). "Extract audio" creates an `.m4a` media.
+- Touch timeline (`timeline_cam_ung.js`): one-finger scroll with inertia, pinch zoom, long-press to move a clip, wide trim handles on the selected clip.
+- Export option "Keep HDR": HLG 10-bit BT.2020 HEVC (`media.loc_sang_hlg`); default export stays SDR 8-bit H.264.
+
+## Running on a local GPU machine
+
+- `run.bat`: desktop window on that machine (full AI, NVENC export).
+- `run-lan.bat` (`orchestrator/chay_mang_noi_bo.py`): serves on port 8200 for phones on the same Wi-Fi, Basic Auth user `game`, password generated into `configs/mat_khau_mang_noi_bo.txt` (git-ignored). Proxies use NVDEC/NVENC when available (`media.co_gpu`, disable with `EDITOR_NO_GPU=1`) and fall back to CPU.
 
 ## Git status and handoff
 

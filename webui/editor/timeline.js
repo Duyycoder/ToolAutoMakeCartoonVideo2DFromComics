@@ -4,6 +4,7 @@
  * - S / ✂ cắt tại đầu phát; Delete xoá; mọi thao tác là MỘT lệnh hoàn tác được, tự lưu
  * Khi kéo chỉ đổi style DOM; thả tay mới ghi lệnh vào store (một bước hoàn tác). */
 import { $, esc, toast, fmtThoiGian, api, hoi } from './chung.js';
+import { ganCamUng } from './timeline_cam_ung.js';
 import {
     tao, thoiLuong, ketThucClip, choTrong, idClipMoi, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, clipTai,
     hienThiNeo, bangClipChuaMedia, opsDatGio, opsThemTrack, opsKhepKhoang, opsXoaGon, opsChenGon, opsTiaToiDauPhat, idMoiNhieu,
@@ -14,6 +15,7 @@ import {
 const LOP = { video: 'v', phu_de: 's', lop_phu: 'o', audio: 'a' };
 const BUOC_NHAN = [0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200];
 const MEP = 7;                // px vùng nắm mép để tỉa
+const MEP_CHAM = 24;          // px vùng nắm mép khi dùng ngón tay (timeline_cam_ung.js)
 const DINH_PX = 8;            // khoảng bắt dính (px)
 const H_KHUNG = 40;           // chiều cao ô khung hình trong clip
 const CAO_SPRITE = 54;        // media.tao_dai_hinh: scale=-2:54
@@ -128,6 +130,8 @@ export class Timeline {
                 this._keoDauPhat(e);
             }
         });
+
+        ganCamUng(this, MEP_CHAM);
 
         this.noi.addEventListener('dblclick', (e) => {
             const dd = e.target.closest('.danh-dau');
@@ -387,7 +391,9 @@ export class Timeline {
         if (tr && tr.khoa) return;
         if (ctx.store.chiDoc) return;
         const r = el.getBoundingClientRect();
-        const kieu = e.clientX - r.left < MEP ? 'trai' : r.right - e.clientX < MEP ? 'phai' : 'doi';
+        // Ngón tay: vùng nắm mép rộng hơn (chỉ clip đang chọn — xem timeline_cam_ung.js).
+        const mep = e.pointerType === 'touch' ? Math.min(MEP_CHAM, r.width / 3) : MEP;
+        const kieu = e.clientX - r.left < mep ? 'trai' : r.right - e.clientX < mep ? 'phai' : 'doi';
         const m = ctx.media.find((x) => x.id === c.media) || {};
         const toc = Number(c.toc_do) || 1;
         const goc = { bd: Number(c.bat_dau) || 0, kt: ketThucClip(c), vao: Number(c.vao) || 0, ra: Number(c.ra) || 0 };
@@ -1088,7 +1094,9 @@ export class Timeline {
         if (!(this.ui.dang_chon || []).includes(cid) || e.shiftKey || e.ctrlKey) this.chonClip(cid, e.shiftKey || e.ctrlKey);
         if (!c || (tr && tr.khoa) || this.ctx.store.chiDoc) return;
         const r = el.getBoundingClientRect();
-        const kieu = e.clientX - r.left < MEP ? 'trai' : r.right - e.clientX < MEP ? 'phai' : 'doi';
+        // Ngón tay: vùng nắm mép rộng hơn (chỉ clip đang chọn — xem timeline_cam_ung.js).
+        const mep = e.pointerType === 'touch' ? Math.min(MEP_CHAM, r.width / 3) : MEP;
+        const kieu = e.clientX - r.left < mep ? 'trai' : r.right - e.clientX < mep ? 'phai' : 'doi';
         const bd0 = Number(el.dataset.bd), kt0 = Number(el.dataset.kt);
         const vid = el.dataset.vid || '';
         const vclip = vid && this.tl.clips.find((x) => x.id === vid);

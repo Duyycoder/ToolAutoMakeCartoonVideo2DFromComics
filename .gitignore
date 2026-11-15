@@ -85,3 +85,9 @@ storage/kb_index.db
 # Nhanh chi-video: khong dung submodule cao truyen (thu muc van con tren dia)
 /toolCaoTruyen/
 /storage_demo/
+
+# Font xuat video tren server: tai bang fonts/tai-font-xuat-video.sh, khong commit file font
+/fonts/*.ttf
+
+# Mat khau ban chay mang noi bo (run-lan.bat) - sinh tu dong tren tung may
+/configs/mat_khau_mang_noi_bo.txt

@@ -4,13 +4,19 @@
  *  - vùng che: kiểu, độ mạnh, màu, vùng (kéo lại trên xem trước)
  *  - chuyển cảnh (bấm ⧓ trên timeline): kiểu, thời lượng, xoá
  * Mọi thay đổi là lệnh hoàn tác được; kéo thanh trượt gộp thành một bước. */
-import { $, esc, fmtThoiGian, coFile, toast } from './chung.js';
+import { $, esc, fmtThoiGian, coFile, toast, api } from './chung.js';
 import { ketThucClip, tao, hienThiNeo, chongClip, idClipMoi, opsThemChuyenCanh, opsXoaChuyenCanh, giaTriTai } from './store.js';
 import { KIEU_CHE } from './bang_che.js';
 import { CAC_KIEU as KIEU_CC } from './bang_chuyen_canh.js';
 
 const TAB = [['video', 'Video'], ['am_thanh', 'Âm thanh'], ['hieu_ung', 'Hiệu ứng']];
 const TOC = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
+const EQ_MAU = {
+    giong_ro: ['Giọng nói rõ', { thap: -3, trung: 3, cao: 2 }],
+    podcast: ['Podcast', { thap: -2, trung: 2, cao: 3, giam_on: 30 }],
+    tram_am: ['Trầm ấm', { thap: 4, trung: 0, cao: -2 }],
+    phang: ['Phẳng', { thap: 0, trung: 0, cao: 0 }],
+};
 
 export class BangPhai {
     constructor(ctx) {
@@ -30,6 +36,8 @@ export class BangPhai {
             }
             const hd = e.target.closest('[data-hd]');
             if (hd && hd.dataset.hd === 'tach-am') this._tachAm();
+            if (hd && hd.dataset.hd === 'eq') this._datEq(hd.dataset.eq);
+            if (hd && hd.dataset.hd === 'trich-am') this._trichAm();
             
             const l = e.target.closest('[data-l]');
             if (l && l.dataset.l === 've-lai-vung') this._veLaiVung();
@@ -91,6 +99,48 @@ export class BangPhai {
         };
         ops.push(tao.them(this.tl, ['clips'], am_clip));
         ctx.sua('Tách âm thanh', ops);
+    }
+
+    /* Lọc tạp âm + EQ 3 dải (clip.xu_ly_am → xu_ly_am.py khi xuất, am_xu_ly.js khi xem trước). */
+    _xuLyAm(clip, m) {
+        const x = clip.xu_ly_am || {};
+        const thanh = (k, ten, min, max, donVi) => `<label>${ten} <span class="gt">${x[k] || 0}</span>${donVi}
+            <input type="range" data-k="xu_ly_am.${k}" min="${min}" max="${max}" step="1" value="${x[k] || 0}"></label>`;
+        return `<div class="muc-am" style="margin-top:12px;border-top:1px solid var(--vien);padding-top:8px">
+            <b style="font-size:13px">Lọc tạp âm</b>
+            ${thanh('giam_on', 'Giảm tạp âm (ù, xì, gió)', 0, 100, '')}
+            <b style="font-size:13px;display:block;margin-top:8px">EQ</b>
+            ${thanh('thap', 'Trầm (120 Hz)', -12, 12, ' dB')}${thanh('trung', 'Trung (1.5 kHz)', -12, 12, ' dB')}${thanh('cao', 'Cao (6 kHz)', -12, 12, ' dB')}
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">${Object.entries(EQ_MAU).map(([k, [ten]]) =>
+                `<button class="nut nut-nho" data-hd="eq" data-eq="${k}">${ten}</button>`).join('')}</div>
+            <div class="goi-y-nho">Khử nhiễu chỉ nghe đúng ở bản xuất — bấm 🎯 Xem chính xác để nghe thử.</div>
+            ${m && m.loai === 'video' && m.co_am_thanh !== false ? '<button class="nut nut-nho" data-hd="trich-am" style="margin-top:8px">🎵 Trích âm thanh ra file .m4a</button>' : ''}
+        </div>`;
+    }
+
+    _datEq(ten) {
+        const c = this._clip();
+        if (!c || !EQ_MAU[ten]) return;
+        const moi = { ...(c.xu_ly_am || {}), ...EQ_MAU[ten][1] };
+        this.ctx.sua(`EQ ${EQ_MAU[ten][0]}`, [tao.dat(this.tl, ['clips', { id: c.id }, 'xu_ly_am'], moi)]);
+    }
+
+    async _trichAm() {
+        const c = this._clip();
+        if (!c) return;
+        const tb = toast('Đang trích âm thanh…', 'info', 600000);
+        try {
+            const m = await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${encodeURIComponent(c.media)}/trich-am`,
+                { method: 'POST', body: { phien: this.ctx.boLuu.phien } });
+            this.ctx.bus.emit('media_can_tai');
+            toast(`Đã trích "${m.ten}" vào bảng Tệp phương tiện.`, 'success', 4000);
+            const a = Object.assign(document.createElement('a'), {
+                href: `/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${encodeURIComponent(m.id)}/file`, download: `${m.ten}.m4a` });
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch (e) { toast(`Trích âm thanh lỗi: ${e.message}`, 'error'); }
+        finally { tb.remove(); }
     }
 
     _nutKF(clip, duongDan) {
@@ -425,7 +475,7 @@ export class BangPhai {
                         <label>Fade ra (s)<input type="number" data-k="am_ra" min="0" step="0.1" value="${clip.am_ra ?? 0}"></label>
                     </div>
                     ${tr.loai === 'video' && m && m.co_am_thanh !== false ? `<div style="margin-top:8px"><button class="nut nut-nho" data-hd="tach-am">↧ Tách âm thanh</button></div>` : ''}
-                    <div class="sap-co">Giảm ồn, đổi giọng — GĐ 3.</div></div>`;
+                    ${this._xuLyAm(clip, m)}</div>`;
             } else if (tab === 'hieu_ung') {
                 const hu = clip.hieu_ung || [];
                 if (!hu.length) {

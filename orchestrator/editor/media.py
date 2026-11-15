@@ -22,8 +22,14 @@ NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 AUDIO_EXTS = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wma")
 ANH_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
 PHU_DE_EXTS = (".srt", ".ass", ".vtt")
+# Máy quay/điện thoại cũ: AVCHD (.mts/.m2ts), MXF, 3GP, MPEG-2/DV/VOB…
+VIDEO_MAY_QUAY = (".mts", ".m2ts", ".mxf", ".3gp", ".3g2", ".mpg", ".mpeg", ".m2v", ".vob", ".dv",
+                  ".mod", ".tod", ".ogv", ".f4v", ".wmv", ".asf", ".rm", ".rmvb")
 # Container WebView2 chắc chắn không phát → tạo proxy ngay lúc nhập, khỏi thử.
-LUON_PROXY = (".mkv", ".flv", ".avi", ".ts", ".wmv")
+LUON_PROXY = (".mkv", ".flv", ".avi", ".ts") + VIDEO_MAY_QUAY
+# Codec quay chuyên nghiệp/điện thoại đời mới: trình duyệt điện thoại phát giật hoặc sai màu qua mạng.
+CODEC_NANG = {"hevc", "prores", "prores_raw", "dnxhd", "vp9", "av1", "mpeg2video"}
+HDR_TRC = {"arib-std-b67": "hlg", "smpte2084": "pq"}
 DU_TRU_DIA = 500 * 1024 * 1024     # chừa 500 MB cho thumbnail/proxy/bản xuất
 KHUC_CHEP = 8 * 1024 * 1024
 SO_KHUNG_DAI = 12
@@ -41,7 +47,7 @@ def ffmpeg_exe() -> Optional[str]:
 
 def loai_theo_duoi(path: str) -> str:
     duoi = os.path.splitext(path)[1].lower()
-    if duoi in VIDEO_EXTS:
+    if duoi in VIDEO_EXTS or duoi in VIDEO_MAY_QUAY:
         return "video"
     if duoi in AUDIO_EXTS:
         return "audio"
@@ -76,6 +82,13 @@ def phan_tich(stderr: str) -> Dict[str, Any]:
             fps = re.search(r"(\d+(?:\.\d+)?) fps", line) or re.search(r"(\d+(?:\.\d+)?) tbr", line)
             if fps:
                 out["fps"] = round(float(fps.group(1)), 3)
+            # iPhone HDR/Dolby Vision: "yuv420p10le(tv, bt2020nc/bt2020/arib-std-b67)" — cần tonemap về SDR.
+            sau = re.search(r"\b\w+p(10|12)(?:le|be)\b", line)
+            if sau:
+                out["bit"] = int(sau.group(1))
+            for trc, loai in HDR_TRC.items():
+                if trc in line:
+                    out["hdr"] = loai
         elif ": Audio:" in line and not out["co_am_thanh"]:
             out["co_am_thanh"] = True
             codec = re.search(r": Audio:\s*([A-Za-z0-9_]+)", line)
@@ -105,7 +118,39 @@ def do_thong_so(path: str) -> Dict[str, Any]:
 
 
 def can_proxy_ngay(m: Dict[str, Any]) -> bool:
-    return m.get("loai") == "video" and os.path.splitext(m.get("file") or "")[1].lower() in LUON_PROXY
+    """Tạo proxy H.264 720p ngay khi nhập, khỏi chờ trình duyệt thử phát rồi báo lỗi.
+
+    Ngoài container trình duyệt không mở được, video quay chuyên nghiệp (HDR, 10-bit, HEVC/ProRes,
+    lớn hơn 1080p) phát qua tunnel trên điện thoại thì đen hình, giật hoặc sai màu.
+    """
+    if m.get("loai") != "video":
+        return False
+    if os.path.splitext(m.get("file") or "")[1].lower() in LUON_PROXY:
+        return True
+    return bool(m.get("hdr")) or int(m.get("bit") or 8) > 8 or (m.get("codec") or "") in CODEC_NANG \
+        or max(int(m.get("rong") or 0), int(m.get("cao") or 0)) > 1920
+
+
+def loc_hdr_sang_sdr(hdr: str) -> str:
+    """Chuỗi filter HDR (HLG/PQ, BT.2020) → SDR BT.709 8-bit; không có thì màu ra nhạt, xám."""
+    tin = "arib-std-b67" if hdr == "hlg" else "smpte2084"
+    return (f"zscale=tin={tin}:min=bt2020nc:pin=bt2020:t=linear:npl=100,format=gbrpf32le,"
+            "zscale=p=bt709,tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p")
+
+
+def loc_sang_hlg(hdr: str) -> str:
+    """Xuất GIỮ HDR (HLG 10-bit BT.2020): clip HLG để nguyên, clip PQ/SDR (cả ảnh) đổi sang HLG.
+
+    setparams khai báo màu đầu vào trước: file thiếu nhãn màu thì zscale báo "no path between colorspaces".
+    SDR đặt trắng chuẩn 203 nit (khuyến nghị ITU-R BT.2408) để không bị chói/tối cạnh cảnh HDR.
+    """
+    if hdr == "hlg":
+        return ""
+    if hdr == "pq":
+        vao, npl = "color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc", 1000
+    else:
+        vao, npl = "color_primaries=bt709:color_trc=bt709:colorspace=bt709", 203
+    return f"setparams={vao},zscale=t=arib-std-b67:m=bt2020nc:p=bt2020:r=tv:npl={npl},format=yuv420p10le"
 
 
 # --------------------------------------------------------------------- Nhập
@@ -286,7 +331,7 @@ class QuanLyMedia:
                         x["trang_thai"] = "dang_chep"
                     x["nguon"] = src
                     x["kich_thuoc"] = os.path.getsize(src)
-                    for k in ("loi", "tien_do", "thumb", "dai_hinh", "song_am", "proxy", "phat_duoc"):
+                    for k in ("loi", "tien_do", "thumb", "dai_hinh", "song_am", "proxy", "phat_duoc", "hdr", "bit"):
                         x.pop(k, None)
                     return dict(x)
             raise ValueError(f"Không có media '{mid}'.")
@@ -453,7 +498,7 @@ class QuanLyMedia:
             dst = luu_tru._p(folder, luu_tru.CACHE, "proxy", f"{mid}.mp4")
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             try:
-                ok = tao_proxy(src, dst, float(m.get("thoi_luong") or 0), ctx)
+                ok = tao_proxy(src, dst, float(m.get("thoi_luong") or 0), ctx, m.get("hdr") or "")
             except hang_doi.DaHuy:
                 self._cap_nhat(folder, mid, {"proxy": ""})
                 raise
@@ -653,22 +698,48 @@ def tao_song_am(src: str, dst: str) -> bool:
     return _chay(cmd, 300) and os.path.exists(dst)
 
 
-def lenh_proxy(exe: str, src: str, dst: str) -> list:
+def lenh_proxy(exe: str, src: str, dst: str, hdr: str = "", gpu: bool = False) -> list:
+    """`gpu`: máy có NVIDIA (laptop RTX…) → giải mã NVDEC + mã hoá NVENC, nhanh hơn CPU nhiều lần với 4K HEVC 10-bit."""
+    # Thu nhỏ TRƯỚC khi tonemap: tonemap chạy float, trên khung 4K thì CPU 4 nhân rất chậm.
+    mau = loc_hdr_sang_sdr(hdr) if hdr else "format=yuv420p"
+    gan_nhan = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709"] if hdr else []
+    giai_ma = ["-hwaccel", "cuda"] if gpu else []
+    ma_hoa = (["-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", "28", "-b:v", "0"] if gpu
+              else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "26"])
     return [exe, "-hide_banner", "-loglevel", "error", "-nostats", "-progress", "pipe:1", "-y",
-            "-i", src, "-map", "0:v:0", "-map", "0:a:0?",
-            "-vf", "scale=-2:'min(720,ih)':flags=bicubic,format=yuv420p",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-g", "30",
+            *giai_ma, "-i", src, "-map", "0:v:0", "-map", "0:a:0?",
+            "-vf", f"scale=-2:'min(720,ih)':flags=bicubic,{mau}",
+            *ma_hoa, "-g", "30", *gan_nhan,
             "-c:a", "aac", "-b:a", "128k", "-ac", "2", "-movflags", "+faststart", dst]
 
 
-def tao_proxy(src: str, dst: str, dai: float, ctx: Optional[hang_doi.NguCanh] = None) -> bool:
+def tao_proxy(src: str, dst: str, dai: float, ctx: Optional[hang_doi.NguCanh] = None, hdr: str = "") -> bool:
     """Bản H.264 720p cho preview. `-g 30` để tua trên timeline nhanh (keyframe dày)."""
     exe = ffmpeg_exe()
     if not exe:
         return False
+    if co_gpu(exe) and _chay_proxy(lenh_proxy(exe, src, dst + ".tmp.mp4", hdr, gpu=True), dst, dai, ctx):
+        return True
+    return _chay_proxy(lenh_proxy(exe, src, dst + ".tmp.mp4", hdr), dst, dai, ctx)
+
+
+_gpu: Dict[str, bool] = {}
+
+
+def co_gpu(exe: str) -> bool:
+    """Có NVENC dùng được không (đo một lần mỗi phiên). Tắt bằng biến môi trường EDITOR_NO_GPU=1."""
+    if os.environ.get("EDITOR_NO_GPU", "").strip() in {"1", "true"}:
+        return False
+    if exe not in _gpu:
+        from orchestrator.editor.render import co_nvenc
+        _gpu[exe] = co_nvenc(exe)
+    return _gpu[exe]
+
+
+def _chay_proxy(lenh: list, dst: str, dai: float, ctx: Optional[hang_doi.NguCanh]) -> bool:
     tmp = dst + ".tmp.mp4"
     try:
-        proc = subprocess.Popen(lenh_proxy(exe, src, tmp), stdout=subprocess.PIPE,
+        proc = subprocess.Popen(lenh, stdout=subprocess.PIPE,
                                 stderr=subprocess.DEVNULL, text=True, encoding="utf-8",
                                 errors="replace", creationflags=NO_WINDOW)
     except OSError:

@@ -191,7 +191,7 @@ def test_xoa_media_dang_tren_timeline_bi_chan(ws):
 
 def test_phat_khong_duoc_thi_xep_proxy(ws, monkeypatch):
     lam = []
-    monkeypatch.setattr(media, "tao_proxy", lambda s, d, dai, ctx=None: lam.append(s) or open(d, "wb").write(b"p") > 0)
+    monkeypatch.setattr(media, "tao_proxy", lambda s, d, dai, ctx=None, hdr="": lam.append(s) or open(d, "wb").write(b"p") > 0)
     pid = _tao(ws)["id"]
     phien = ws.get(f"/api/du-an/{pid}").json()["khoa"]["phien"]
     src = ws.tmp / "hevc.mov"
@@ -388,3 +388,94 @@ def test_api_nhac_nen(ws, tmp_path, monkeypatch):
     assert res3.content == b"dummy"
 
 
+
+
+def test_tai_len_tung_phan_tu_dien_thoai(ws):
+    """Điện thoại tải video qua tunnel: chia phần nhỏ, gửi lại một phần vẫn đúng, đủ byte mới nhập."""
+    pid = _tao(ws)["id"]
+    phien = ws.get(f"/api/du-an/{pid}").json()["khoa"]["phien"]
+    goc = f"/api/du-an/{pid}/media/tai-len"
+    data = bytes(range(256)) * 40  # 10240 byte
+    assert ws.post(goc, json={"phien": phien, "ten": "x.exe", "kich_thuoc": 10}).status_code == 400
+    uid = ws.post(goc, json={"phien": phien, "ten": "IMG_1234.MOV", "kich_thuoc": len(data)}).json()["uid"]
+
+    def put(vt, phan):
+        return ws.put(f"{goc}/{uid}?vi_tri={vt}&phien={phien}", content=phan)
+
+    assert put(0, data[:4096]).json()["da_nhan"] == 4096
+    assert put(0, data[:4096]).json()["da_nhan"] == 4096, "gửi lại phần cũ (mất phản hồi) vẫn an toàn"
+    assert put(8192, data[8192:]).json()["da_nhan"] == 4096 + 2048, "phần gửi song song đến trước vẫn nhận"
+    assert put(8192, data[8192:] + b"x").status_code == 400, "vượt kích thước khai báo"
+    assert ws.post(f"{goc}/{uid}/xong", json={"phien": phien}).status_code == 409, "chưa đủ byte"
+    # Server khởi động lại giữa chừng: phiên đọc lại từ .part.json, client hỏi phần đã có rồi gửi tiếp.
+    ws.router.ql_tai_len._phien.clear()
+    tt = ws.get(f"{goc}/{uid}").json()
+    assert tt["phan"] == [0, 8192] and tt["kich_thuoc"] == len(data)
+    assert put(4096, data[4096:8192]).json()["da_nhan"] == len(data)
+    r = ws.post(f"{goc}/{uid}/xong", json={"phien": phien})
+    assert r.status_code == 200, r.text
+    _cho_media(ws)
+    m = ws.get(f"/api/du-an/{pid}/media").json()["media"][0]
+    assert m["trang_thai"] == "san_sang"
+    f = ws.get(f"/api/du-an/{pid}/media/{m['id']}/file")
+    assert f.content == data
+    assert ws.post(f"{goc}/{uid}/xong", json={"phien": phien}).status_code == 404, "phiên đã đóng"
+
+
+def test_tai_link_khong_co_aivoice_dung_cli_nhe(ws, monkeypatch):
+    """Server Linux không có AIVoice/.venv: lệnh tải link phải chạy tai_link_cli bằng Python hiện tại."""
+    import sys
+    from orchestrator import pipeline
+    monkeypatch.setattr(pipeline, "PYTHON_EXE", str(ws.tmp / "khong_co" / "python.exe"))
+    bat = {}
+
+    def gia(folder, pid, urls, lenh, cwd):
+        bat["cmd"], bat["cwd"] = lenh("TAM"), cwd
+        raise ValueError("dừng ở đây")
+    monkeypatch.setattr(ws.router.qlm, "tai_url", gia)
+    pid = _tao(ws)["id"]
+    phien = ws.get(f"/api/du-an/{pid}").json()["khoa"]["phien"]
+    ws.post(f"/api/du-an/{pid}/media/url", json={"phien": phien, "urls": ["https://x/v"]})
+    assert bat["cmd"][:3] == [sys.executable, "-m", "orchestrator.editor.tai_link_cli"]
+    assert "--url" in bat["cmd"] and bat["cwd"] == pipeline.REPO_ROOT
+
+
+def _tai_len(ws, pid, phien, ten, data):
+    goc = f"/api/du-an/{pid}/media/tai-len"
+    uid = ws.post(goc, json={"phien": phien, "ten": ten, "kich_thuoc": len(data)}).json()["uid"]
+    assert ws.put(f"{goc}/{uid}?vi_tri=0&phien={phien}", content=data).status_code == 200
+    r = ws.post(f"{goc}/{uid}/xong", json={"phien": phien})
+    assert r.status_code == 200, r.text
+    _cho_media(ws)
+    return r.json()["media"][0]
+
+
+def test_nhap_lut_cube_va_tu_choi_file_hong(ws):
+    pid = _tao(ws)["id"]
+    phien = ws.get(f"/api/du-an/{pid}").json()["khoa"]["phien"]
+    cube = "TITLE x\nLUT_3D_SIZE 2\n" + "0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n"
+    r = ws.post(f"/api/du-an/{pid}/lut?ten=Phim Đẹp.cube&phien={phien}", content=cube)
+    assert r.status_code == 200 and r.json()["ten"] == "Phim___p.cube", r.text
+    assert ws.get(f"/api/du-an/{pid}/lut").json()["lut"] == ["Phim___p.cube"]
+    assert ws.get(f"/api/du-an/{pid}/lut/Phim___p.cube").text == cube
+    assert ws.post(f"/api/du-an/{pid}/lut?ten=hong.cube&phien={phien}", content="LUT_3D_SIZE 4\n0 0 0\n").status_code == 400
+
+
+@pytest.mark.skipif(not media.ffmpeg_exe(), reason="cần ffmpeg")
+def test_trich_am_thanh_tu_video(ws, monkeypatch):
+    import subprocess
+    ff = media.ffmpeg_exe()
+    v = ws.tmp / "clip.mp4"
+    subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc=s=64x48:d=1",
+                    "-f", "lavfi", "-i", "sine=d=1", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+                    "-shortest", str(v)], check=True)
+    monkeypatch.setattr(media, "do_thong_so", lambda p: {"thoi_luong": 1.0, "co_hinh": p.lower().endswith(".mp4"),
+                                                          "co_am_thanh": True, "codec_am": "aac"})
+    pid = _tao(ws)["id"]
+    phien = ws.get(f"/api/du-an/{pid}").json()["khoa"]["phien"]
+    m = _tai_len(ws, pid, phien, "IMG_0001.MP4", v.read_bytes())
+    r = ws.post(f"/api/du-an/{pid}/media/{m['id']}/trich-am", json={"phien": phien})
+    assert r.status_code == 200, r.text
+    am = r.json()
+    assert am["loai"] == "audio" and am["file"].endswith("(âm thanh).m4a") and am["tu_media"] == m["id"]
+    assert ws.get(f"/api/du-an/{pid}/media/{am['id']}/file").content[4:8] == b"ftyp"

@@ -67,7 +67,7 @@ def test_khoang_trong_la_khung_mau_nen_va_concat_dung_thu_tu(tmp_path):
     assert "setpts=PTS/2.000000" in loc and "atempo=2.000000" in loc
     cmd = kq["cmd"]
     assert ("-ss", "3") in zip(cmd, cmd[1:]), "clip 2 tua tới giây 3 của media"
-    assert "-filter_complex_script" in cmd and cmd[-1] == "ra.mp4"
+    assert ("-/filter_complex" in cmd or "-filter_complex_script" in cmd) and cmd[-1] == "ra.mp4"
 
 
 def test_video_khong_tieng_va_anh_dung_am_thanh_im_lang(tmp_path):
@@ -204,7 +204,7 @@ def test_vung_xuat_cat_bot(tmp_path):
     kq = render.dung_lenh_xuat(str(tmp_path), _du_an(), tl, {"vung_vao": 2.5, "vung_ra": 7.5}, "ra.mp4")
     assert kq["thoi_luong"] == 5.0
     cmd = kq["cmd"]
-    i_t = cmd.index("-filter_complex_script")
+    i_t = cmd.index("loc.txt") - 1
     assert "-ss" in cmd[i_t+2:]
     assert cmd[cmd.index("-ss", i_t) + 1] == "2.5"
     assert cmd[cmd.index("-t", i_t) + 1] == "5"
@@ -275,6 +275,8 @@ def _xuat_va_kiem(exe, goc, du_an, tl, tuy_chon=None):
     (lam / "loc.txt").write_text(kq["loc"], encoding="utf-8")
     if kq.get("ass"):
         (lam / "sub.ass").write_text(kq["ass"], encoding="utf-8")
+    for ten, noi in (kq.get("tep") or {}).items():
+        (lam / ten).write_text(noi, encoding="utf-8")
     res = subprocess.run(kq["cmd"], cwd=str(lam), capture_output=True, text=True,
                          encoding="utf-8", errors="replace", timeout=300)
     assert res.returncode == 0, f"ffmpeg thất bại:\n{res.stderr[-2000:]}"
@@ -1037,3 +1039,87 @@ def test_nhac_nen_tu_giam(tmp_path):
     ])
     loc = render.dung_lenh_xuat(str(tmp_path), _du_an(), tl, {}, "ra.mp4")["loc"]
     assert "sidechaincompress" in loc and "[giong]asplit=2" in loc
+
+
+def test_clip_hdr_iphone_tonemap_ve_sdr(tmp_path):
+    """Video HDR (HLG) không tonemap thì bản xuất nhạt màu, xám; clip SDR giữ nguyên chuỗi cũ."""
+    da = _du_an()
+    da["media"].append({"id": "m_hdr", "loai": "video", "file": "media/hdr.mov", "co_am_thanh": True,
+                        "rong": 2160, "cao": 3840, "hdr": "hlg", "bit": 10})
+    kq = render.dung_lenh_xuat(str(tmp_path), da, _tl(_v("c_1", "m_hdr", 0, 0, 5)), {}, "ra.mp4")
+    assert "tonemap=hable" in kq["loc"] and "tin=arib-std-b67" in kq["loc"]
+    assert kq["loc"].index("min(iw,1280)") < kq["loc"].index("tonemap"), "thu nhỏ vừa khung xuất trước tonemap"
+    assert kq["cmd"][kq["cmd"].index("-color_primaries") + 1] == "bt709"
+
+    kq = render.dung_lenh_xuat(str(tmp_path), da, _tl(_v("c_1", "m_v", 0, 0, 5)), {}, "ra.mp4")
+    assert "tonemap" not in kq["loc"] and "-color_primaries" not in kq["cmd"]
+
+
+def test_bo_loc_mau_lut_va_lam_net_khi_xuat_that(media_mau):
+    """Bộ lọc đen trắng (LUT gộp) + làm nét trên clip nền và clip lớp phủ: bản xuất ra xám đúng chỗ."""
+    goc, exe = media_mau
+    (goc / "luts").mkdir(exist_ok=True)
+    (goc / "luts" / "dao.cube").write_text(
+        "LUT_3D_SIZE 2\n1 1 1\n0 1 1\n1 0 1\n0 0 1\n1 1 0\n0 1 0\n1 0 0\n0 0 0\n", encoding="utf-8")
+    tl = {"tracks": [{"id": "V2", "loai": "video"}, {"id": "V1", "loai": "video"}], "clips": [
+        {"id": "c1", "track": "V1", "media": "m_do", "bat_dau": 0, "vao": 0, "ra": 1, "toc_do": 1,
+         "mau": {"preset": "den_trang", "lam_net": 50}},
+        {"id": "c2", "track": "V2", "media": "m_xd", "bat_dau": 0, "vao": 0, "ra": 1, "toc_do": 1,
+         "bien_doi": {"x": 0.5, "y": 0.5, "ti_le": 0.5}, "mau": {"lut": "dao.cube", "khu_nhieu": 20}},
+    ]}
+    ra, kq = _xuat_va_kiem(exe, goc, _da(), tl)
+    assert len(kq["tep"]) == 2 and kq["loc"].count("lut3d=file=lut_") == 2
+    khung = _doc_khung(exe, ra, 0.5, 320, 180)
+    r, g, b = _mau_tai(khung, 10, 10)
+    assert abs(r - g) < 12 and abs(g - b) < 12, f"nền đỏ qua bộ lọc đen trắng phải xám, được {(r, g, b)}"
+    _gan_mau(_mau_tai(khung, 160, 90), (255, 255, 0), 45)   # LUT đảo màu: xanh dương → vàng
+
+
+
+def test_xu_ly_am_loc_tap_am_va_eq(tmp_path):
+    from orchestrator.editor import xu_ly_am
+    assert xu_ly_am.loc_am({}) == [] and xu_ly_am.loc_am({"thap": 0.04}) == []
+    assert xu_ly_am.loc_am({"giam_on": 50, "trung": 3, "cao": 99}) == [
+        "highpass=f=80", "afftdn=nr=23.0:nf=-40:tn=1", "equalizer=f=1500:t=q:w=1:g=3.0", "highshelf=f=6000:g=12.0"]
+    kq = render.dung_lenh_xuat(str(tmp_path), _du_an(), _tl(_v("c_1", "m_v", 0, 0, 5, xu_ly_am={"giam_on": 40, "thap": -3})),
+                               {}, "ra.mp4")
+    assert "highpass=f=80,afftdn=nr=19.6:nf=-40:tn=1,lowshelf=f=120:g=-3.0,volume=" in kq["loc"]
+
+
+def test_xuat_that_co_loc_tap_am(media_mau):
+    goc, exe = media_mau
+    tl = {"tracks": [{"id": "V1", "loai": "video"}], "clips": [
+        {"id": "c1", "track": "V1", "media": "m_do", "bat_dau": 0, "vao": 0, "ra": 1, "toc_do": 1,
+         "xu_ly_am": {"giam_on": 80, "thap": 4, "trung": -2, "cao": 3}}]}
+    ra, _ = _xuat_va_kiem(exe, goc, _da(), tl)
+    assert os.path.getsize(ra) > 0
+
+
+def test_xuat_giu_hdr_hlg_10bit_tron_clip_sdr(media_mau):
+    """Giữ HDR: clip HLG để nguyên, clip SDR + ảnh đổi sang HLG, có chữ và bộ lọc — ra HEVC 10-bit BT.2020/HLG."""
+    goc, exe = media_mau
+    hlg = goc / "media" / "hlg.mp4"
+    subprocess.run([exe, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=320x180:r=30:d=1",
+                    "-vf", "format=yuv420p," + media.loc_sang_hlg(""), "-c:v", "libx265", "-x265-params", "log-level=error",
+                    "-colorspace", "bt2020nc", "-color_primaries", "bt2020", "-color_trc", "arib-std-b67", str(hlg)], check=True)
+    da = _da(them_media=[{"id": "m_hlg", "loai": "video", "file": "media/hlg.mp4", "co_am_thanh": False,
+                          "rong": 320, "cao": 180, "hdr": "hlg", "bit": 10, "codec": "hevc"}])
+    tl = {"tracks": [{"id": "V2", "loai": "video"}, {"id": "V1", "loai": "video"}, {"id": "O1", "loai": "lop_phu"}], "clips": [
+        {"id": "c1", "track": "V1", "media": "m_hlg", "bat_dau": 0, "vao": 0, "ra": 1, "toc_do": 1, "mau": {"preset": "am_ap"}},
+        {"id": "c2", "track": "V1", "media": "m_xd", "bat_dau": 1, "vao": 0, "ra": 1, "toc_do": 1},
+        {"id": "c3", "track": "V2", "media": "m_anh", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1,
+         "bien_doi": {"x": 0.8, "y": 0.8, "ti_le": 0.3}},
+        {"id": "t1", "track": "O1", "loai": "chu", "bat_dau": 0, "ket_thuc": 2, "noi_dung": "Xin chào HDR"},
+    ]}
+    ra, kq = _xuat_va_kiem(exe, goc, da, tl, {"preset": "ultrafast", "giu_hdr": True})
+    assert "libx265" in kq["cmd"] and kq["cmd"][kq["cmd"].index("-pix_fmt") + 1] == "yuv420p10le"
+    assert "zscale=t=arib-std-b67" in kq["loc"] and "tonemap" not in kq["loc"] and kq["ass"], "có chữ đốt lên khung 10-bit"
+    info = subprocess.run([exe, "-hide_banner", "-i", ra], capture_output=True, text=True).stderr
+    dong = next(x for x in info.splitlines() if "Video:" in x)
+    assert "hevc" in dong and "yuv420p10le" in dong and "bt2020nc/bt2020/arib-std-b67" in dong, dong
+
+
+def test_xuat_mac_dinh_van_la_sdr_8bit(tmp_path):
+    kq = render.dung_lenh_xuat(str(tmp_path), _du_an(), _tl(_v("c_1", "m_v", 0, 0, 5)), {}, "ra.mp4")
+    assert kq["cmd"][kq["cmd"].index("-pix_fmt") + 1] == "yuv420p" and "libx264" in kq["cmd"]
+    assert "10le" not in kq["loc"]

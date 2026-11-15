@@ -16,9 +16,15 @@ Bản xuất luôn dùng file GỐC, không dùng proxy.
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from orchestrator.editor import hieu_ung, luu_tru, quy_doi, srt, chu_hinh
+from orchestrator.editor import hieu_ung, luu_tru, mau_nang_cao, media as media_mod, quy_doi, srt, chu_hinh, xu_ly_am
 
 SR = 48000
+
+# Server Linux không có font hệ thống → libass không vẽ được chữ/phụ đề/hình. Có `fonts/fonts.conf`
+# (font tải bằng fonts/tai-font-xuat-video.sh) thì ffmpeg con dùng nó. Windows giữ font hệ thống.
+_FONT_CONF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "fonts", "fonts.conf")
+if os.name != "nt" and os.path.isfile(_FONT_CONF):
+    os.environ.setdefault("FONTCONFIG_FILE", os.path.normpath(_FONT_CONF))
 DO_PHAN_GIAI = {"720p": 720, "1080p": 1080, "1440p": 1440, "4k": 2160}
 
 # Giải thích: Danh sách kiểu chuyển cảnh xfade mà ffmpeg hỗ trợ — liệt kê cố định,
@@ -255,6 +261,11 @@ class DungLenh:
         self.vao: List[List[str]] = []      # các nhóm tham số đầu vào
         self.loc: List[str] = []            # các dòng filter_complex
         self.tracks = {t["id"]: t for t in tl.get("tracks") or []}
+        self.co_hdr = False                 # có clip HDR → gắn nhãn màu BT.709 cho file xuất
+        # Xuất GIỮ HDR: HLG 10-bit BT.2020, HEVC. Mặc định là SDR 8-bit H.264 (xem được ở mọi nơi).
+        self.hdr_ra = bool(self.tc.get("giu_hdr")) and not self.tc.get("chi_am_thanh")
+        self.pf, self.pfa = ("yuv420p10le", "yuva420p10le") if self.hdr_ra else ("yuv420p", "yuva420p")
+        self.tep: Dict[str, str] = {}       # file phụ (LUT .cube) ghi cạnh loc.txt, filter gọi bằng tên tương đối
 
     # ------------------------------------------------------------ tiện ích
     def _input(self, *tham_so: str) -> int:
@@ -298,26 +309,26 @@ class DungLenh:
             ratio = min(self.W / mr, self.H / mc)
             cw, ch = _chan(mr * ratio), _chan(mc * ratio)
             
-            cac_loc = hieu_ung.loc_mau(c.get("mau") or {}) + hieu_ung.loc_hieu_ung(c.get("hieu_ung") or [], cw, ch)
+            cac_loc = self._loc_mau_nang_cao(c) + hieu_ung.loc_mau(c.get("mau") or {})                 + hieu_ung.loc_hieu_ung(c.get("hieu_ung") or [], cw, ch)
             if not cac_loc and abs(mr - self.W) < 1e-3 and abs(mc - self.H) < 1e-3:
-                chuoi_loc = f"setsar=1,format=yuv420p,fps={_so(self.fps)}"
+                chuoi_loc = f"setsar=1,format={self.pf},fps={_so(self.fps)}"
             else:
                 chuoi_loc = f"scale={self.W}:{self.H}:force_original_aspect_ratio=decrease:flags=bicubic"
                 if cac_loc:
                     chuoi_loc += "," + ",".join(cac_loc)
                 # fps= ở cuối: setpts phía trước làm luồng mất tốc độ khung (1/0) — xfade từ chối đầu vào như vậy.
-                chuoi_loc += f",pad={self.W}:{self.H}:(ow-iw)/2:(oh-ih)/2:color={self.nen},setsar=1,format=yuv420p,fps={_so(self.fps)}"
+                chuoi_loc += f",pad={self.W}:{self.H}:(ow-iw)/2:(oh-ih)/2:color={self.nen},setsar=1,format={self.pf},fps={_so(self.fps)}"
             self.loc.append(f"[{nhan}]{chuoi_loc}[{nv}]")
         else:
             lop, x, y = self._lop(c, nhan, str(i), lech_t=0.0)
-            self.loc.append(f"color=c={self.nen}:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format=yuv420p[nn{i}]")
+            self.loc.append(f"color=c={self.nen}:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format={self.pf}[nn{i}]")
             hoa_tron = c.get("hien_thi", {}).get("hoa_tron", "normal")
             if hoa_tron != "normal":
-                self.loc.append(f"color=c=black@0:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format=yuva420p[tr{i}]")
+                self.loc.append(f"color=c=black@0:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format={self.pfa}[tr{i}]")
                 self.loc.append(f"[tr{i}][{lop}]overlay=x='{x}':y='{y}':eof_action=pass:eval=frame[pd{i}]")
-                self.loc.append(f"[nn{i}][pd{i}]blend=all_mode={hoa_tron},format=yuv420p,setsar=1,fps={_so(self.fps)}[{nv}]")
+                self.loc.append(f"[nn{i}][pd{i}]blend=all_mode={hoa_tron},format={self.pf},setsar=1,fps={_so(self.fps)}[{nv}]")
             else:
-                self.loc.append(f"[nn{i}][{lop}]overlay=x='{x}':y='{y}':eof_action=pass:format=auto:eval=frame,format=yuv420p,setsar=1,fps={_so(self.fps)}[{nv}]")
+                self.loc.append(f"[nn{i}][{lop}]overlay=x='{x}':y='{y}':eof_action=pass:format=auto:eval=frame,format={self.pf},setsar=1,fps={_so(self.fps)}[{nv}]")
         
         if chi_video:
             return nv, "", dai
@@ -326,6 +337,18 @@ class DungLenh:
         if not self._tieng_clip(c, k, tr, dai, na):
             self.loc.append(f"anullsrc=r={SR}:cl=stereo,atrim=duration={_so(dai)}[{na}]")
         return nv, na, dai
+
+    def _loc_mau_nang_cao(self, c: Dict[str, Any]) -> List[str]:
+        """Khử nhiễu, làm nét, LUT gộp (preset/.cube/đường cong/HSL) — chạy SAU khi thu về cỡ khung xuất.
+
+        Cùng thứ tự với xem trước: WebGL vẽ phần này trước, CSS filter (chỉnh màu cơ bản) phủ sau.
+        """
+        def doc_lut(ten: str) -> str:
+            with open(os.path.join(self.folder, luu_tru.LUT_DIR, os.path.basename(ten)), encoding="utf-8") as fh:
+                return fh.read()
+        loc, tep = mau_nang_cao.loc_clip(c.get("mau") or {}, doc_lut)
+        self.tep.update(tep)
+        return loc
 
     def _nguon_lop(self, c: Dict[str, Any], i: str) -> Tuple[int, str, float]:
         """Đầu vào + che phụ đề + tốc độ + fps cho MỘT clip → (chỉ số input, nhãn luồng hình, độ dài)."""
@@ -340,13 +363,24 @@ class DungLenh:
         cur = f"s{i}"
         if m.get("loai") == "anh":
             k = self._input("-loop", "1", "-framerate", _so(self.fps), "-t", _so(dai_xuat), "-i", self._file(m))
-            self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS[{cur}]")
+            hlg = "," + media_mod.loc_sang_hlg("") if self.hdr_ra else ""
+            self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS{hlg}[{cur}]")
         else:
             if self.tc.get("bo_ma_hoa") == "nvenc":
                 k = self._input("-hwaccel", "cuda", "-ss", _so(vao), "-t", _so(ra - vao), "-i", self._file(m))
             else:
                 k = self._input("-ss", _so(vao), "-t", _so(ra - vao), "-i", self._file(m))
-            self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS[{cur}]")
+            hdr = ""
+            if self.hdr_ra:
+                doi = media_mod.loc_sang_hlg(m.get("hdr") or "")
+                hdr = "," + doi if doi else ""
+            elif m.get("hdr"):
+                # HDR iPhone → SDR. Thu nhỏ vừa khung xuất trước (tonemap float trên 4K rất chậm).
+                self.co_hdr = True
+                M = max(self.W, self.H)
+                hdr = (f",scale=w='min(iw,{M})':h='min(ih,{M})':force_original_aspect_ratio=decrease"
+                       f":force_divisible_by=2:flags=bicubic,{media_mod.loc_hdr_sang_sdr(m['hdr'])}")
+            self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS{hdr}[{cur}]")
             for j, che in enumerate(self._che_cho(m["id"])):
                 a, b = max(0.0, float(che["t_vao"]) - vao), min(float(che["t_ra"]) - vao, ra - vao)
                 if b <= a:
@@ -409,10 +443,10 @@ class DungLenh:
         else:
             loc.append(f"scale={wc}:{hc}:flags=bicubic,setsar=1")
             
-        cac_loc = hieu_ung.loc_mau(c.get("mau") or {}) + hieu_ung.loc_hieu_ung(c.get("hieu_ung") or [], wc, hc)
+        cac_loc = self._loc_mau_nang_cao(c) + hieu_ung.loc_mau(c.get("mau") or {})             + hieu_ung.loc_hieu_ung(c.get("hieu_ung") or [], wc, hc)
         if cac_loc:
             loc.extend(cac_loc)
-        loc.append("format=yuva420p")
+        loc.append(f"format={self.pfa}")
         
         hien = c.get("hien_thi") or {}
         r = float(hien.get("bo_goc") or 0) * self.H / 1080
@@ -490,7 +524,8 @@ class DungLenh:
         if tre > 0:
             ms = int(round(tre * 1000))
             dem = f",adelay={ms}|{ms}"
-        self.loc.append(f"[{k}:a]asetpts=PTS-STARTPTS{_atempo(float(c.get('toc_do') or 1))},{vol_filter},aresample={SR},"
+        xl = "".join("," + f for f in xu_ly_am.loc_am(c.get("xu_ly_am") or {}))
+        self.loc.append(f"[{k}:a]asetpts=PTS-STARTPTS{_atempo(float(c.get('toc_do') or 1))}{xl},{vol_filter},aresample={SR},"
                         f"aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=duration={_so(dai)}{fade}{dem}[{ten}]")
         return True
 
@@ -514,7 +549,7 @@ class DungLenh:
                 sau = f"vp{n}"
                 hoa_tron = c.get("hien_thi", {}).get("hoa_tron", "normal")
                 if hoa_tron != "normal":
-                    self.loc.append(f"color=c=black@0:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format=yuva420p[tr_{n}]")
+                    self.loc.append(f"color=c=black@0:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format={self.pfa}[tr_{n}]")
                     self.loc.append(f"[tr_{n}][{dich}]overlay=x='{x}':y='{y}':eof_action=pass:eval=frame[pd_{n}]")
                     self.loc.append(f"[{vc}][pd_{n}]blend=all_mode={hoa_tron}:enable='between(t,{_so(bd)},{_so(bd + dai)})'[{sau}]")
                 else:
@@ -532,7 +567,7 @@ class DungLenh:
                 and c.get("track") not in an]
 
     def _khoang(self, dai: float, i: int) -> Tuple[str, str]:
-        self.loc.append(f"color=c={self.nen}:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format=yuv420p,setsar=1[g{i}]")
+        self.loc.append(f"color=c={self.nen}:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format={self.pf},setsar=1[g{i}]")
         self.loc.append(f"anullsrc=r={SR}:cl=stereo,atrim=duration={_so(dai)}[ga{i}]")
         return f"g{i}", f"ga{i}"
 
@@ -615,7 +650,7 @@ class DungLenh:
             else:
                 self.loc.append(f"[{segments_to_concat[0]}]copy[vc]")
         else:
-            self.loc.append(f"color=c={self.nen}:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(T)},format=yuv420p[vc]")
+            self.loc.append(f"color=c={self.nen}:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(T)},format={self.pf}[vc]")
 
         return "vc", "ac"
 
@@ -675,29 +710,38 @@ class DungLenh:
         cmd = [self.ffmpeg, "-hide_banner", "-y", "-nostats", "-progress", "pipe:1"]
         for nhom in self.vao:
             cmd += nhom
-        cmd += ["-filter_complex_script", "loc.txt"]
+        cmd += tham_so_file_loc(self.ffmpeg, "loc.txt")
         if chi_tieng:
             cmd += ["-map", f"[{aout}]", "-c:a", "aac", "-b:a", "192k"]
         else:
             # Giữ -r: mỗi clip đã qua fps= nên -r gần như không tốn; bản lượt 24 bỏ -r theo c["loai"] (clip không có khoá này) → không bao giờ thêm.
             cmd += ["-map", f"[{vc}]", "-map", f"[{aout}]"] + self._ma_hoa() + [
-                "-r", _so(self.fps), "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]
+                "-r", _so(self.fps), "-pix_fmt", self.pf, "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]
+            if self.hdr_ra:
+                cmd += ["-colorspace", "bt2020nc", "-color_primaries", "bt2020", "-color_trc", "arib-std-b67",
+                        "-tag:v", "hvc1"]   # hvc1: iPhone/QuickTime mới nhận HEVC
+            elif self.co_hdr:
+                cmd += ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709"]
         # Vùng xuất [ ]: cắt sau cùng (seek đầu ra) — timeline vẫn dựng đủ để giờ mọi thứ khớp.
         vao_x = self.tc.get("vung_vao")
         ra_x = self.tc.get("vung_ra")
         if vao_x is not None and ra_x is not None and 0 <= float(vao_x) < float(ra_x):
             vao_x, ra_x = float(vao_x), min(float(ra_x), T)
-            i_t = cmd.index("-filter_complex_script")
             cmd += ["-ss", _so(vao_x), "-t", _so(ra_x - vao_x), ten_ra]
             T_ra = ra_x - vao_x
         else:
             cmd += ["-t", _so(T), ten_ra]
             T_ra = T
         return {"cmd": cmd, "loc": ";\n".join(self.loc), "ass": ass, "thoi_luong": T_ra, "so_phu_de": len(dong_pd),
-                "kich_thuoc": [self.W, self.H]}
+                "kich_thuoc": [self.W, self.H], "tep": dict(self.tep)}
 
     def _ma_hoa(self) -> List[str]:
         crf = int(self.tc.get("crf") or 20)
+        if self.hdr_ra:
+            if self.tc.get("bo_ma_hoa") == "nvenc":
+                return ["-c:v", "hevc_nvenc", "-profile:v", "main10", "-preset", "p5", "-rc", "vbr", "-cq", str(crf + 2), "-b:v", "0"]
+            return ["-c:v", "libx265", "-preset", self.tc.get("preset") or "fast", "-crf", str(crf + 2),
+                    "-x265-params", "log-level=error"]
         if self.tc.get("bo_ma_hoa") == "nvenc":
             return ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", str(crf + 2), "-b:v", "0"]
         return ["-c:v", "libx264", "-preset", self.tc.get("preset") or "medium", "-crf", str(crf)]
@@ -706,6 +750,32 @@ class DungLenh:
 def dung_lenh_xuat(folder: str, du_an: Dict[str, Any], tl: Dict[str, Any], tuy_chon: Dict[str, Any],
                    ten_ra: str, ffmpeg: str = "ffmpeg", co_ass: bool = True) -> Dict[str, Any]:
     return DungLenh(folder, du_an, tl, tuy_chon, ffmpeg).dung(ten_ra, co_ass)
+
+
+_loc_kieu_moi: Dict[str, bool] = {}
+
+
+def tham_so_file_loc(ffmpeg: str, path: str) -> List[str]:
+    """Tham số đọc filter_complex từ file, theo phiên bản ffmpeg.
+
+    FFmpeg 7.1 thêm `-/filter_complex <file>`; 8.0 BỎ HẲN `-filter_complex_script` (imageio-ffmpeg
+    bản mới đi kèm ffmpeg 9 → xuất lỗi "Unrecognized option"). Không đọc được phiên bản thì coi là
+    bản mới (bản build git/nightly không ghi số phiên bản).
+    """
+    if ffmpeg not in _loc_kieu_moi:
+        import re
+        import subprocess
+        moi = True
+        try:
+            out = subprocess.run([ffmpeg, "-hide_banner", "-version"], capture_output=True, text=True, timeout=20,
+                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout or ""
+            m = re.search(r"version n?(\d+)\.(\d+)", out)
+            if m:
+                moi = (int(m.group(1)), int(m.group(2))) >= (7, 1)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        _loc_kieu_moi[ffmpeg] = moi
+    return ["-/filter_complex", path] if _loc_kieu_moi[ffmpeg] else ["-filter_complex_script", path]
 
 
 def co_nvenc(ffmpeg: str) -> bool:

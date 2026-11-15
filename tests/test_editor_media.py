@@ -327,3 +327,50 @@ def test_dai_hinh_video_xoay_that_ra_khung_doc(tmp_path):
     thong_tin = subprocess.run([exe, "-i", str(dai)], capture_output=True, text=True).stderr.split("Stream")[1]
     rong, cao = map(int, re.search(r"(\d+)x(\d+)", thong_tin).groups())
     assert cao == 54 and rong < cao, f"dải khung phải dọc, nhận {rong}x{cao}"
+
+
+IPHONE_HDR = """Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'IMG_2001.MOV':
+  Duration: 00:00:12.03, start: 0.000000, bitrate: 52141 kb/s
+  Stream #0:0[0x1](und): Video: hevc (Main 10) (hvc1 / 0x31637668), yuv420p10le(tv, bt2020nc/bt2020/arib-std-b67), 3840x2160, 51000 kb/s, 59.94 fps, 59.94 tbr, 600 tbn (default)
+      Side data:
+        DOVI configuration record: version: 1.0, profile: 8, level: 9, rpu flag: 1
+        displaymatrix: rotation of -90.00 degrees
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 191 kb/s (default)
+"""
+
+
+def test_phan_tich_iphone_hdr_dolby_vision():
+    ts = media.phan_tich(IPHONE_HDR)
+    assert ts["hdr"] == "hlg" and ts["bit"] == 10
+    assert (ts["rong"], ts["cao"]) == (2160, 3840) and ts["fps"] == 59.94
+    assert "hdr" not in media.phan_tich(IPHONE_MOV), "video SDR không bị nhận nhầm là HDR"
+
+
+def test_video_chuyen_nghiep_tao_proxy_ngay():
+    goc = {"loai": "video", "file": "media/a.mp4", "codec": "h264", "rong": 1920, "cao": 1080}
+    assert not media.can_proxy_ngay(goc), "H.264 1080p trình duyệt phát được"
+    assert media.can_proxy_ngay({**goc, "hdr": "hlg"})
+    assert media.can_proxy_ngay({**goc, "bit": 10})
+    assert media.can_proxy_ngay({**goc, "codec": "prores"})
+    assert media.can_proxy_ngay({**goc, "rong": 2160, "cao": 3840})
+    assert not media.can_proxy_ngay({**goc, "loai": "audio", "hdr": "hlg"})
+
+
+def test_proxy_hdr_tonemap_ve_bt709():
+    cmd = media.lenh_proxy("ffmpeg", "a.mov", "b.mp4", "hlg")
+    vf = cmd[cmd.index("-vf") + 1]
+    assert vf.index("scale=-2") < vf.index("tonemap"), "thu nhỏ trước khi tonemap"
+    assert "tin=arib-std-b67" in vf and vf.endswith("format=yuv420p")
+    assert cmd[cmd.index("-color_trc") + 1] == "bt709"
+    assert "tonemap" not in " ".join(media.lenh_proxy("ffmpeg", "a.mov", "b.mp4"))
+
+
+def test_proxy_gpu_nvdec_nvenc_va_tu_ve_cpu(tmp_path, monkeypatch):
+    """Laptop có NVIDIA: proxy giải mã NVDEC + mã hoá NVENC; GPU lỗi thì làm lại bằng CPU (libx264)."""
+    cmd = media.lenh_proxy("ffmpeg", "a.mov", "b.mp4", "hlg", gpu=True)
+    assert cmd[cmd.index("-hwaccel") + 1] == "cuda" and "h264_nvenc" in cmd and "libx264" not in cmd
+    da_chay = []
+    monkeypatch.setattr(media, "co_gpu", lambda exe: True)
+    monkeypatch.setattr(media, "_chay_proxy", lambda lenh, dst, dai, ctx: da_chay.append("h264_nvenc" in lenh) or not lenh.count("h264_nvenc"))
+    assert media.tao_proxy("a.mov", str(tmp_path / "p.mp4"), 1.0)
+    assert da_chay == [True, False], "GPU thất bại thì chạy lại bằng CPU"

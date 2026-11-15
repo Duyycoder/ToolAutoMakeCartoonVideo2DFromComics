@@ -12,15 +12,15 @@ import os
 import subprocess
 import sys
 import threading
-import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from orchestrator.config import load_global_config, save_global_config
-from orchestrator.editor import ai_bridge, hang_doi, luu_tru, media, render, srt, workspace
+from orchestrator.editor import (ai_bridge, chuan_hoa_file, hang_doi, luu_tru, mau_nang_cao, media, render,
+                                 srt, tai_len, workspace)
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 AI_MODE = os.environ.get("EDITOR_AI_MODE", "all" if os.environ.get("EDITOR_ENABLE_AI", "1").strip().lower() not in {"0", "false", "no"} else "off").strip().lower()
@@ -64,6 +64,10 @@ class NhapMediaSchema(PhienSchema):
 
 class UrlSchema(PhienSchema):
     urls: List[str]
+
+class TaiLenSchema(PhienSchema):
+    ten: str
+    kich_thuoc: int
 
 class NhapLaiSchema(PhienSchema):
     nguon: Optional[str] = ""
@@ -482,58 +486,88 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         except OSError as e:
             raise HTTPException(status_code=500, detail=f"Không ghi được vào dự án: {e}")
 
+    # Tải file từ trình duyệt (điện thoại/máy khác) lên server theo từng phần — xem tai_len.py.
+    ql_tai_len = tai_len.QuanLyTaiLen()
+
+    def loi_tai_len(e: tai_len.LoiTaiLen) -> HTTPException:
+        return HTTPException(status_code=e.ma, detail=str(e))
+
+    def thu_muc_tai_len(folder: str) -> str:
+        return os.path.join(folder, luu_tru.CACHE, "tai_len")
+
     @r.post("/api/du-an/{pid}/media/tai-len")
-    async def upload_media(pid: str, phien: str = Form(...), files: List[UploadFile] = File(...)):
-        """Nhập file từ trình duyệt điện thoại/máy khác vào workspace trên server."""
+    def upload_start(pid: str, body: TaiLenSchema):
+        folder = folder_cua(pid)
+        khoa_ghi(folder, body.phien)
+        # Đuôi lạ (máy quay, iPhone không ghi đuôi…) vẫn cho tải; xong mới hỏi ffmpeg nội dung thật.
+        if not chuan_hoa_file.nhan_duoc(body.ten):
+            raise HTTPException(status_code=400, detail=f"Không nhận loại file này: {body.ten}")
+        try:
+            media.kiem_tra_dia(folder, body.kich_thuoc)
+            uid = ql_tai_len.bat_dau(thu_muc_tai_len(folder), body.ten, body.kich_thuoc)
+        except tai_len.LoiTaiLen as e:
+            raise loi_tai_len(e)
+        except ValueError as e:
+            raise HTTPException(status_code=507, detail=str(e))
+        return {"uid": uid}
+
+    @r.get("/api/du-an/{pid}/media/tai-len/{uid}")
+    def upload_status(pid: str, uid: str):
+        try:
+            return ql_tai_len.trang_thai(uid, thu_muc_tai_len(folder_cua(pid)))
+        except tai_len.LoiTaiLen as e:
+            raise loi_tai_len(e)
+
+    @r.put("/api/du-an/{pid}/media/tai-len/{uid}")
+    async def upload_chunk(pid: str, uid: str, request: Request, vi_tri: int, phien: str = ""):
         folder = folder_cua(pid)
         khoa_ghi(folder, phien)
-        if not files:
-            raise HTTPException(status_code=400, detail="Chưa chọn file nào.")
-        thu_muc = os.path.join(folder, luu_tru.CACHE, "tai_len")
-        os.makedirs(thu_muc, exist_ok=True)
-        paths = []
+        du_lieu = await request.body()
         try:
-            for f in files:
-                if f.size is not None and f.size > 2 * 1024 * 1024 * 1024:
-                    raise HTTPException(status_code=413, detail="Mỗi file tải lên tối đa 2 GB.")
-                ten = os.path.basename((f.filename or "media").replace("\\", "/")).replace("\x00", "")
-                if not ten or ten in {".", ".."}:
-                    raise HTTPException(status_code=400, detail="Tên file không hợp lệ.")
-                path = os.path.join(thu_muc, f"{uuid.uuid4().hex[:10]}_{ten}")
-                with open(path, "wb") as out:
-                    while chunk := await f.read(1024 * 1024):
-                        out.write(chunk)
-                paths.append(path)
-            try:
-                return {"media": qlm.nhap(folder, pid, paths)}
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e))
-        except Exception:
-            for path in paths:
-                try: os.remove(path)
-                except OSError: pass
-            raise
-        finally:
-            for f in files:
-                await f.close()
+            return {"da_nhan": ql_tai_len.ghi_phan(uid, vi_tri, du_lieu, thu_muc_tai_len(folder))}
+        except tai_len.LoiTaiLen as e:
+            raise loi_tai_len(e)
+
+    @r.post("/api/du-an/{pid}/media/tai-len/{uid}/xong")
+    def upload_finish(pid: str, uid: str, body: PhienSchema):
+        folder = folder_cua(pid)
+        khoa_ghi(folder, body.phien)
+        try:
+            path = chuan_hoa_file.chuan_hoa(ql_tai_len.hoan_tat(uid, thu_muc_tai_len(folder)))
+        except tai_len.LoiTaiLen as e:
+            raise loi_tai_len(e)
+        try:
+            return {"media": qlm.nhap(folder, pid, [path])}
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @r.delete("/api/du-an/{pid}/media/tai-len/{uid}")
+    def upload_cancel(pid: str, uid: str):
+        ql_tai_len.huy(uid, thu_muc_tai_len(folder_cua(pid)))
+        return {"status": "success"}
 
     @r.post("/api/du-an/{pid}/media/url")
     def import_url(pid: str, body: UrlSchema):
-        from orchestrator.pipeline import AIVOICE_DIR, DOWNLOAD_ADAPTER, PYTHON_EXE
+        from orchestrator.pipeline import AIVOICE_DIR, DOWNLOAD_ADAPTER, PYTHON_EXE, REPO_ROOT
         folder = folder_cua(pid)
         khoa_ghi(folder, body.phien)
         g = load_global_config()
         cookies = ((g.get("download") or {}).get("cookies_file")
                    or (g.get("video") or {}).get("downloader_cookies") or "").strip()
+        # Máy desktop có AIVoice/.venv thì dùng adapter đầy đủ; server (Linux, không AIVoice)
+        # dùng CLI yt-dlp nhẹ chạy bằng chính Python của orchestrator.
+        co_adapter = os.path.isfile(PYTHON_EXE) and os.path.isfile(DOWNLOAD_ADAPTER)
+        dau_lenh = ([PYTHON_EXE, DOWNLOAD_ADAPTER] if co_adapter
+                    else [sys.executable, "-m", "orchestrator.editor.tai_link_cli"])
 
         def lenh(tam: str) -> list:
-            cmd = [PYTHON_EXE, DOWNLOAD_ADAPTER, "--output-dir", tam, "--platform", "generic"]
+            cmd = dau_lenh + ["--output-dir", tam, "--platform", "generic"]
             for u in body.urls:
                 if (u or "").strip():
                     cmd += ["--url", u.strip()]
             return cmd + (["--cookies-file", cookies] if cookies else [])
         try:
-            v = qlm.tai_url(folder, pid, body.urls, lenh, AIVOICE_DIR)
+            v = qlm.tai_url(folder, pid, body.urls, lenh, AIVOICE_DIR if co_adapter else REPO_ROOT)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         return {"viec": v.to_dict()}
@@ -584,6 +618,28 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
             if os.path.isfile(proxy):
                 return gui_file(proxy, "video/mp4")
         return gui_file(path)
+
+    @r.post("/api/du-an/{pid}/media/{mid}/trich-am")
+    def extract_audio(pid: str, mid: str, body: PhienSchema):
+        """Trích tiếng của video ra media/<tên> (âm thanh).m4a — thành media âm thanh mới, tải về được."""
+        folder, m, path = media_path(pid, mid)
+        khoa_ghi(folder, body.phien)
+        if m.get("loai") != "video" or m.get("co_am_thanh") is False:
+            raise HTTPException(status_code=400, detail="Media này không phải video có tiếng.")
+        ff = media.ffmpeg_exe()
+        if not ff or not os.path.isfile(path):
+            raise HTTPException(status_code=500, detail="Thiếu ffmpeg hoặc file video gốc.")
+        ten = media.ten_dich(folder, f"{m.get('ten') or mid} (âm thanh).m4a", set())
+        ra = os.path.join(folder, luu_tru.MEDIA_DIR, ten)
+        ma = ["-c:a", "copy"] if m.get("codec_am") == "aac" else ["-c:a", "aac", "-b:a", "256k"]
+        res = subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-y", "-i", path, "-vn", "-map", "0:a:0", *ma, ra],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                             errors="replace", timeout=1800, creationflags=media.NO_WINDOW)
+        if res.returncode != 0 or not os.path.isfile(ra):
+            if os.path.exists(ra):
+                os.remove(ra)
+            raise HTTPException(status_code=500, detail="ffmpeg lỗi: " + (res.stderr or "").strip()[-300:])
+        return qlm.dang_ky_file(folder, pid, ra, tu_media=mid)
 
     @r.get("/api/du-an/{pid}/media/{mid}/{loai}")
     def media_preview(pid: str, mid: str, loai: str):
@@ -856,8 +912,49 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         luu_tru.sua_duan(folder, lambda d: d.__setitem__("tac_vu", [t for t in d.get("tac_vu") or [] if t.get("id") != tid]))
         return {"status": "success"}
 
+    # --------------------------------------------------------------- LUT màu (.cube)
+    def thu_muc_lut(pid: str) -> str:
+        return os.path.join(folder_cua(pid), luu_tru.LUT_DIR)
+
+    @r.get("/api/du-an/{pid}/lut")
+    def list_lut(pid: str):
+        d = thu_muc_lut(pid)
+        return {"lut": sorted(f for f in os.listdir(d) if f.lower().endswith(".cube")) if os.path.isdir(d) else []}
+
+    @r.get("/api/du-an/{pid}/lut/{ten}")
+    def get_lut(pid: str, ten: str):
+        path = os.path.join(thu_muc_lut(pid), os.path.basename(ten))
+        if not os.path.isfile(path):
+            raise HTTPException(status_code=404, detail=f"Không có LUT {ten}.")
+        return FileResponse(path, media_type="text/plain")
+
+    @r.post("/api/du-an/{pid}/lut")
+    async def upload_lut(pid: str, request: Request, ten: str, phien: str = ""):
+        folder = folder_cua(pid)
+        khoa_ghi(folder, phien)
+        du_lieu = await request.body()
+        if len(du_lieu) > 64 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="File LUT quá lớn (tối đa 64 MB).")
+        noi = du_lieu.decode("utf-8", errors="replace")
+        try:
+            mau_nang_cao.doc_cube(noi)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        goc = os.path.splitext(tai_len.ten_an_toan(ten))[0]
+        ten_an = "".join(ch if ch.isascii() and (ch.isalnum() or ch in "-_") else "_" for ch in goc)[:60] or "lut"
+        os.makedirs(thu_muc_lut(pid), exist_ok=True)
+        with open(os.path.join(thu_muc_lut(pid), ten_an + ".cube"), "w", encoding="utf-8", newline="") as fh:
+            fh.write(noi)
+        return {"ten": ten_an + ".cube"}
+
     # --------------------------------------------------------------- Xuất
     nvenc: Dict[str, bool] = {}
+
+    def ghi_tep_phu(thu_muc: str, kq: Dict[str, Any]) -> None:
+        """File phụ mà filter gọi bằng tên tương đối (LUT gộp của từng clip)."""
+        for ten, noi in (kq.get("tep") or {}).items():
+            with open(os.path.join(thu_muc, ten), "w", encoding="utf-8") as fh:
+                fh.write(noi)
 
     def xep_xuat(folder: str, pid: str, tuy_chon: Dict[str, Any]) -> Tuple[hang_doi.Viec, str]:
         tc = dict(tuy_chon or {})
@@ -886,6 +983,7 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                 fh.write(kq["loc"])
             with open(os.path.join(thu_muc, "sub.ass"), "w", encoding="utf-8") as fh:
                 fh.write(kq["ass"])
+            ghi_tep_phu(thu_muc, kq)
             T = max(0.001, float(kq["thoi_luong"]))
             ctx.bao(0, f"Đang xuất {kq['kich_thuoc'][0]}×{kq['kich_thuoc'][1]} ({tc['bo_ma_hoa']})…")
             cuoi = []
@@ -969,6 +1067,7 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
 
     r.hang_gpu = hang_gpu   # type: ignore[attr-defined] — cho GĐ 1 và test
     r.qlm = qlm             # type: ignore[attr-defined]
+    r.ql_tai_len = ql_tai_len  # type: ignore[attr-defined]
     
     from orchestrator.editor import hang_loat
     @r.get("/api/ai/models")
@@ -1033,6 +1132,7 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                 fh.write(kq["loc"])
             with open(os.path.join(thu_muc, "sub.ass"), "w", encoding="utf-8") as fh:
                 fh.write(kq["ass"])
+            ghi_tep_phu(thu_muc, kq)
                 
             code = ctx.chay_doc_dong(kq["cmd"], thu_muc, lambda line: None, log=os.path.join(thu_muc, "log.txt"))
             

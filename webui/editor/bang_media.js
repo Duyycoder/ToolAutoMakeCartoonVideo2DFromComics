@@ -6,6 +6,7 @@
  */
 import { api, esc, toast, hoi, chonFile, fmtNgan, coFile } from './chung.js';
 import { opsThemTrack, opsNhacNen, thoiLuong } from './store.js';
+import { taiLenFile } from './tai_len.js';
 
 const ICON = { video: '🎬', audio: '🎵', anh: '🖼', phu_de: '💬' };
 const TEN_LOAI = { video: 'Video', audio: 'Âm thanh', anh: 'Ảnh', phu_de: 'Phụ đề' };
@@ -101,6 +102,12 @@ export class BangMedia {
             if (l && l.dataset.l === 'url') return this.nhapUrl();
             if (l && l.dataset.l === 'nhap-lai') return this.nhapLai(l.closest('.the-media').dataset.mid);
             if (l && l.dataset.l === 'tim-lai') return this.timLai(l.closest('.the-media').dataset.mid);
+            if (l && l.dataset.l === 'them-tl') {
+                // Nút ＋ trên thẻ (điện thoại không kéo-thả được): thêm cuối timeline rồi thu bảng lại để thấy kết quả.
+                const m = this.lay(l.closest('.the-media').dataset.mid);
+                if (m) { this.ctx.timeline.themMedia(m, null, null); this.ctx.dongBangTrenDienThoai?.(); }
+                return undefined;
+            }
             if (l && ['an-tai', 'thu-lai-tai', 'huy-tai'].includes(l.dataset.l)) {
                 const v = this.viec.find((x) => x.id === l.dataset.vid);
                 if (!v) return undefined;
@@ -247,19 +254,32 @@ export class BangMedia {
         if (this.ctx.store.chiDoc) { toast('Cửa sổ này chỉ xem.', 'warn'); return; }
         const input = document.createElement('input');
         input.type = 'file'; input.multiple = true;
-        input.accept = 'video/*,audio/*,image/*,.srt,.vtt,.ass,.ssa';
+        // Điện thoại: lọc theo MIME làm iOS/Android làm mờ file máy quay (.mts, .mxf…) và ảnh HEIC
+        // trong app Tệp — để trống cho chọn mọi file, server tự nhận dạng và đổi định dạng.
+        if (!matchMedia('(pointer: coarse)').matches) {
+            input.accept = 'video/*,audio/*,image/*,.srt,.vtt,.ass,.ssa,.mts,.m2ts,.mxf,.heic,.heif,.caf,.amr';
+        }
         input.onchange = async () => {
-            if (!input.files?.length) return;
-            const form = new FormData();
-            form.append('phien', this.ctx.boLuu.phien);
-            for (const f of input.files) form.append('files', f, f.name);
+            const files = [...(input.files || [])];
+            if (!files.length) return;
+            // Toast tiến độ giữ tới khi xong (tải video điện thoại qua mạng di động có thể vài phút).
+            const tb = toast('Đang tải lên…', 'info', 24 * 3600 * 1000);
+            let xong = 0;
             try {
-                const res = await fetch(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/tai-len`, { method: 'POST', body: form });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
-                toast(`Đã tải ${data.media.length} file lên server.`, 'success', 3000);
+                for (const [i, f] of files.entries()) {
+                    await taiLenFile(this.ctx.id, this.ctx.boLuu.phien, f, (pt) => {
+                        tb.textContent = `Đang tải lên ${i + 1}/${files.length}: ${f.name} — ${pt}%`;
+                    });
+                    xong++;
+                    this.tai();
+                }
+                toast(`Đã tải ${xong} file lên server.`, 'success', 3000);
+            } catch (e) {
+                toast(`Tải lên lỗi${xong ? ` (đã xong ${xong}/${files.length} file)` : ''}: ${e.message}`, 'error');
+            } finally {
+                tb.remove();
                 this.tai();
-            } catch (e) { toast(e.message, 'error'); }
+            }
         };
         input.click();
     }
@@ -527,6 +547,8 @@ export class BangMedia {
         return `<div class="the-media ${this.ctx.chon.media === m.id || this._chonNhieu.includes(m.id) ? 'chon' : ''}" data-mid="${esc(m.id)}"
                 draggable="${m.trang_thai === 'san_sang' && !m.mat_file}" title="${esc(tt)}">
             ${anh}${phu}
+            ${m.trang_thai === 'san_sang' && !m.mat_file && ['video', 'anh', 'audio'].includes(m.loai)
+                ? '<button class="nut-them-tl" data-l="them-tl" title="Thêm vào cuối timeline">＋</button>' : ''}
             ${m.thoi_luong ? `<span class="dai so">${fmtNgan(m.thoi_luong)}</span>` : ''}
             ${this.km.kieu === 'ds' ? `<span class="loai">${ICON[m.loai] || ''}</span>` : ''}
             <div class="ten">${esc(m.ten || m.file)}${nhanProxy ? `<span style="color:var(--chu-3)">${nhanProxy}</span>` : ''}</div>

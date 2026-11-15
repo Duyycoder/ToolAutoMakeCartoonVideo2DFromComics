@@ -166,6 +166,15 @@ async function khoiDong() {
         than.classList.toggle('dong-phai', !ui.bang_phai_mo);
         bus.emit('bo_cuc');
     };
+    // Điện thoại dọc (kiểu CapCut): bảng công cụ/thuộc tính là ngăn trượt từ đáy, mỗi lúc một ngăn,
+    // mở editor thì đóng cả hai để thấy trọn preview + timeline.
+    const dienThoai = matchMedia('(max-width: 760px)');
+    if (dienThoai.matches) { ui.bang_trai_mo = false; ui.bang_phai_mo = false; }
+    ctx.dongBangTrenDienThoai = () => {
+        if (!dienThoai.matches) return;
+        ui.bang_trai_mo = false; ui.bang_phai_mo = false;
+        apKichThuoc(); veBangTrai();
+    };
     apKichThuoc();
     than.querySelectorAll('.keo').forEach((thanh) => {
         thanh.addEventListener('pointerdown', (e) => {
@@ -228,6 +237,7 @@ async function khoiDong() {
         if (!b) return;
         if (ui.bang_trai === b.dataset.bang && ui.bang_trai_mo) ui.bang_trai_mo = false;
         else { ui.bang_trai = b.dataset.bang; ui.bang_trai_mo = true; }
+        if (dienThoai.matches && ui.bang_trai_mo) ui.bang_phai_mo = false;
         apKichThuoc();
         veBangTrai();
         ctx.luuUi(true);
@@ -237,6 +247,7 @@ async function khoiDong() {
     ctx.moBang = (ten, moKieu = false) => {
         ui.bang_trai = ten;
         ui.bang_trai_mo = true;
+        if (dienThoai.matches) ui.bang_phai_mo = false;
         apKichThuoc();
         veBangTrai();
         ctx.luuUi(true);
@@ -245,7 +256,11 @@ async function khoiDong() {
             if (d) { d.open = true; d.scrollIntoView({ block: 'nearest' }); }
         }
     };
-    bus.on('bat_bang_phai', () => { ui.bang_phai_mo = !ui.bang_phai_mo; apKichThuoc(); ctx.luuUi(true); });
+    bus.on('bat_bang_phai', () => {
+        ui.bang_phai_mo = !ui.bang_phai_mo;
+        if (dienThoai.matches && ui.bang_phai_mo) { ui.bang_trai_mo = false; veBangTrai(); }
+        apKichThuoc(); ctx.luuUi(true);
+    });
 
     // ------------------------------------------------------------ thanh trên
     const ve = async () => {

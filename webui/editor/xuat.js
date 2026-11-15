@@ -41,6 +41,7 @@ function moHop(ctx) {
     const ts = ctx.du.thong_so || {};
     const coGiong = tl.tracks.some((t) => t.vai === 'long_tieng') && tl.clips.some((c) => c.long_tieng_cho);
     const nho = ctx.ui.xuat || {};
+    const coHdr = ctx.media.some((m) => m.hdr && tl.clips.some((c) => c.media === m.id));
     const nen = document.createElement('div');
     nen.className = 'modal-nen';
     nen.innerHTML = `<form class="modal" style="width:min(480px,100%)">
@@ -63,6 +64,9 @@ function moHop(ctx) {
             </div>
             ${coGiong ? `<label>Giảm nhạc nền khi có giọng lồng <span class="gt">${nho.giam_nhac_nen ?? 90}%</span>
                 <input type="range" name="giam_nhac_nen" min="0" max="100" value="${nho.giam_nhac_nen ?? 90}"></label>` : ''}
+            ${coHdr ? `<label class="check"><input type="checkbox" name="giu_hdr" ${nho.giu_hdr ? 'checked' : ''}> Giữ HDR 10-bit (HLG, HEVC)
+                <span class="goi-y-nho" style="display:block;margin-left:22px">Cho video quay HDR (iPhone…). Xem đúng trên máy hỗ trợ HDR; mã hoá chậm hơn.
+                Bộ lọc/LUT áp trên tín hiệu HLG nên màu có thể khác bản xem trước.</span></label>` : ''}
             <label class="check"><input type="checkbox" name="xuat_srt" ${nho.xuat_srt !== false ? 'checked' : ''}> Kèm file phụ đề .srt</label>
             <label class="check"><input type="checkbox" name="chi_am_thanh" ${nho.chi_am_thanh ? 'checked' : ''}> Chỉ xuất âm thanh (.m4a)</label>
             ${(tl.vung_vao != null || tl.vung_ra != null) ? `<label class="check"><input type="checkbox" name="chi_vung" checked> Chỉ xuất vùng [ ] (${fmtThoiGian(tl.vung_vao || 0)} → ${fmtThoiGian(tl.vung_ra ?? tong)})</label>` : ''}
@@ -82,6 +86,7 @@ function moHop(ctx) {
             ten: f.ten.value.trim() || ctx.du.name, do_phan_giai: f.do_phan_giai.value, fps: f.fps.value ? Number(f.fps.value) : null,
             crf: Number(f.crf.value), bo_ma_hoa: f.bo_ma_hoa.value, xuat_srt: f.xuat_srt.checked, chi_am_thanh: f.chi_am_thanh.checked,
             giam_nhac_nen: r ? Number(r.value) : 90,
+            giu_hdr: !!(f.giu_hdr && f.giu_hdr.checked),
         };
         if (f.chi_vung && f.chi_vung.checked) {
             tc.vung_vao = tl.vung_vao || 0;

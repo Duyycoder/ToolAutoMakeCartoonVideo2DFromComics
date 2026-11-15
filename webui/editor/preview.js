@@ -13,6 +13,9 @@ import {
     BIEN_DOI_MAC_DINH, giaTriTai, hopChuHinh, bienDoiSauKeo
 } from './store.js';
 import { cssFilter } from './hieu_ung.js';
+import { coNangCao, docCube, sanSang as presetSanSang } from './mau_nang_cao.js';
+import { LopGL } from './xem_mau_gl.js';
+import { ganXuLy, boXuLy, moKhoaAm } from './am_xu_ly.js';
 
 const LECH_TOI_DA = 0.35;   // giây lệch giữa một lớp và đồng hồ thì tua lại
 
@@ -70,6 +73,7 @@ export class Preview {
         });
         ctx.bus.on('timeline', () => { if (!this.dangPhat && !this.nguon) this.veTai(ctx.ui.dau_phat); });
         ctx.bus.on('media', () => { if (!this.dangPhat && !this.nguon) this.veTai(ctx.ui.dau_phat); });
+        presetSanSang.then(() => { if (!this.dangPhat && !this.nguon) this.veTai(ctx.ui.dau_phat); });
         this._ganKeoChe();
         this._ganTayNam();
         this._ganSuaChu();
@@ -274,6 +278,7 @@ export class Preview {
         l.clip = c;
         if (!c || !m || m.trang_thai !== 'san_sang' || m.mat_file) {
             l.v.pause();
+            l.gl?.tat();
             l.el.style.display = 'none';
             return;
         }
@@ -284,12 +289,15 @@ export class Preview {
             l.v.style.display = 'none';
             if (l.img.dataset.src !== url) { l.img.dataset.src = url; l.img.src = url; }
             l.img.style.display = '';
+            this._mauGL(l, c, l.img);
             return;
         }
         l.img.style.display = 'none';
         l.v.style.display = '';
+        this._mauGL(l, c, l.v);
         if (l.v.dataset.src !== url) { l.v.dataset.src = url; l.v.src = url; }
         l.v.muted = !!tr.tat_tieng || !!c.tat_am;
+        ganXuLy(l.v, c.xu_ly_am);
         const vol = Number(giaTriTai(c, 'am_luong', t - (c.bat_dau || 0)) ?? 1);
         l.v.volume = Math.min(1, vol * this.master * heSoFade(c, t));
         l.v.playbackRate = (Number(c.toc_do) || 1) * (this.tocDoPhat || 1);
@@ -298,6 +306,26 @@ export class Preview {
         if (l.v.readyState >= 1) tua(); else l.v.addEventListener('loadedmetadata', tua, { once: true });
         if (phat && l.v.paused) l.v.play().catch(() => {});
         if (!phat && !l.v.paused) l.v.pause();
+    }
+
+    /* Chỉnh màu nâng cao (preset/LUT/đường cong/HSL/làm nét/khử nhiễu) → canvas WebGL phủ lên lớp. */
+    _mauGL(l, c, nguon) {
+        const mau = c.mau || {};
+        if (!coNangCao(mau)) { l.gl?.tat(); return; }
+        if (!l.gl) l.gl = new LopGL(l.el);
+        let lut = null;
+        if (mau.lut) {
+            this._lut = this._lut || new Map();
+            lut = this._lut.get(mau.lut);
+            if (lut === undefined) {
+                this._lut.set(mau.lut, null);
+                fetch(`/api/du-an/${encodeURIComponent(this.ctx.id)}/lut/${encodeURIComponent(mau.lut)}`)
+                    .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`))))
+                    .then((t) => { this._lut.set(mau.lut, docCube(t)); if (!this.dangPhat) this.veTai(this.ctx.ui.dau_phat); })
+                    .catch((e) => toast(`Không tải được LUT ${mau.lut}: ${e.message}`, 'warn'));
+            }
+        }
+        if (!l.gl.dat(nguon, mau, lut)) l.gl.tat();
     }
 
     /* Vẽ mọi lớp tại t (không phát). */
@@ -703,6 +731,7 @@ export class Preview {
                 a.preload = 'auto';
                 this.amThanh.set(c.id, a);
             }
+            ganXuLy(a, c.xu_ly_am);
             a.volume = Math.min(1, Number(c.am_luong ?? 1) * this.master * heSoFade(c, t));
             a.playbackRate = (Number(c.toc_do) || 1) * (this.tocDoPhat || 1);
             const tm = thoiDiemMedia(c, t);
@@ -710,12 +739,12 @@ export class Preview {
             if (phat && a.paused) a.play().catch(() => {});
         }
         for (const [id, a] of this.amThanh) {
-            if (!conSong.has(id)) { a.pause(); this.amThanh.delete(id); a.removeAttribute('src'); }
+            if (!conSong.has(id)) { a.pause(); boXuLy(a); this.amThanh.delete(id); a.removeAttribute('src'); }
         }
     }
 
     _anAmThanh() {
-        for (const a of this.amThanh.values()) { a.pause(); a.removeAttribute('src'); }
+        for (const a of this.amThanh.values()) { a.pause(); boXuLy(a); a.removeAttribute('src'); }
         this.amThanh.clear();
     }
 
@@ -825,6 +854,7 @@ export class Preview {
     }
 
     batTat() {
+        moKhoaAm();
         if (this.nguon) {
             if (this.vNguon.paused) this.vNguon.play().catch(() => {}); else this.vNguon.pause();
             return;
