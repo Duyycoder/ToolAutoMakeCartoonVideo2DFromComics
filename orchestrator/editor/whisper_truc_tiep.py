@@ -55,6 +55,17 @@ def tach_tieng_16k(video: str, ra: str) -> None:
         raise RuntimeError("Không tách được tiếng: " + (r.stderr or "").strip()[-300:])
 
 
+def doc_wav_16k(path: str):
+    """WAV PCM16 mono 16 kHz (do tach_tieng_16k tạo) → numpy float32. Đưa mảng cho faster-whisper thay vì đường dẫn:
+    đường dẫn làm nó giải mã bằng PyAV, mà PyAV mới trên server bỏ tham số `metadata_errors` faster-whisper 1.2 còn dùng."""
+    import wave
+    import numpy as np
+    with wave.open(path, "rb") as w:
+        if w.getsampwidth() != 2 or w.getnchannels() != 1:
+            raise RuntimeError("File tiếng không phải PCM16 mono.")
+        return np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768.0
+
+
 def chay(ctx: hang_doi.NguCanh, folder: str, m: Dict[str, Any], tham_so: Dict[str, Any]) -> Dict[str, Any]:
     """Thân việc 'phu-de' trong hàng đợi GPU."""
     video = luu_tru.duong_dan_media(folder, m["file"])
@@ -76,7 +87,7 @@ def chay(ctx: hang_doi.NguCanh, folder: str, m: Dict[str, Any], tham_so: Dict[st
         ctx.bao(2, f"Đang nạp model Whisper {ten} (lần đầu sẽ tải về)…")
         model = _nap_model(ten)
         ctx.kiem_tra_huy()
-        doan, info = model.transcribe(wav, language=ngon_ngu, vad_filter=True, beam_size=5)
+        doan, info = model.transcribe(doc_wav_16k(wav), language=ngon_ngu, vad_filter=True, beam_size=5)
         tong = float(getattr(info, "duration", 0) or m.get("thoi_luong") or 0)
         cau: List[Dict[str, Any]] = []
         for d in doan:   # generator: nhận giọng chạy dần theo vòng lặp này
