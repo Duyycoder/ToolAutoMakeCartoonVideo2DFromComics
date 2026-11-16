@@ -1183,6 +1183,28 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         mt = mimetypes.guess_type(p)[0] or "application/octet-stream"
         return FileResponse(p, media_type=mt, filename=os.path.basename(p))   # Content-Disposition: attachment (UTF-8)
 
+    @r.post("/api/du-an/{pid}/xuat/luu-ra")
+    def save_export_to(pid: str, body: Dict[str, Any]):
+        """App desktop (WebView2 không tải file như trình duyệt): chép bản xuất vào thư mục người dùng chọn
+        (hộp thoại /api/system/pick-files). Trùng tên thì thêm (2), (3)… — không ghi đè."""
+        ten, thu_muc = str(body.get("ten") or ""), str(body.get("thu_muc") or "")
+        d = os.path.abspath(os.path.join(folder_cua(pid), luu_tru.XUAT_DIR))
+        p = os.path.abspath(os.path.join(d, ten))
+        if os.path.dirname(p) != d or not os.path.isfile(p):
+            raise HTTPException(status_code=404, detail="Không có bản xuất này.")
+        if not thu_muc or not os.path.isdir(thu_muc):
+            raise HTTPException(status_code=400, detail="Thư mục đích không tồn tại.")
+        goc, duoi = os.path.splitext(os.path.basename(p))
+        dich, n = os.path.join(thu_muc, goc + duoi), 2
+        while os.path.exists(dich):
+            dich, n = os.path.join(thu_muc, f"{goc} ({n}){duoi}"), n + 1
+        try:
+            import shutil
+            shutil.copyfile(p, dich)
+        except OSError as e:
+            raise HTTPException(status_code=500, detail=f"Không chép được: {e}")
+        return {"duong_dan": dich}
+
     r.hang_gpu = hang_gpu   # type: ignore[attr-defined] — cho GĐ 1 và test
     r.qlm = qlm             # type: ignore[attr-defined]
     r.ql_tai_len = ql_tai_len  # type: ignore[attr-defined]

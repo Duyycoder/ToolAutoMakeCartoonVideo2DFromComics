@@ -493,6 +493,14 @@ def test_tai_ve_ban_xuat(ws):
     assert r.status_code == 200 and len(r.content) == 1234
     assert "attachment" in r.headers["content-disposition"], "Phải là tải về (attachment), không phát trong tab"
     assert ws.get(f"/api/du-an/{pid}/xuat/tai", params={"ten": "../.duan.json"}).status_code == 404
+    # App desktop: chép ra thư mục người dùng chọn, trùng tên không ghi đè.
+    dich = ws.tmp / "Luu ra"
+    dich.mkdir()
+    for lan in (1, 2):
+        r = ws.post(f"/api/du-an/{pid}/xuat/luu-ra", json={"ten": "Video thử.mp4", "thu_muc": str(dich)})
+        assert r.status_code == 200, r.text
+    assert sorted(os.listdir(dich)) == ["Video thử (2).mp4", "Video thử.mp4"]
+    assert ws.post(f"/api/du-an/{pid}/xuat/luu-ra", json={"ten": "../.duan.json", "thu_muc": str(dich)}).status_code == 404
 
 
 def test_may_xuat_cau_hinh_va_laptop_tat_thi_xuat_o_may_nay(ws):

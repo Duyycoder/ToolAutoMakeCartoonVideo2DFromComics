@@ -1,6 +1,6 @@
 /* Hộp Xuất video: độ phân giải, fps, chất lượng, bộ mã hoá (NVENC nếu có), chỉ âm thanh, kèm .srt.
  * Xuất chạy ở hàng đợi GPU của server; tiến độ hiện ngay trên nút "Xuất video". */
-import { $, api, esc, toast, fmtThoiGian, coFile } from './chung.js';
+import { $, api, esc, toast, fmtThoiGian, coFile, chonFile } from './chung.js';
 import { thoiLuong } from './store.js';
 import { KHUNG, khungHienTai, datKhung } from './khung_hinh.js';
 import { htmlMayXuat, ganMayXuat, luuMayXuat, mayXuatCanLuu } from './may_xuat_ui.js';
@@ -56,6 +56,16 @@ function taiBanXuat(ctx, ten) {
     toast(`Đang tải ${ten} — điện thoại: xem trong app Tệp (Files) › Tải về, hoặc thanh tải của trình duyệt.`, 'info', 8000);
 }
 
+/* App desktop: chọn thư mục (hộp thoại Windows) rồi chép bản xuất vào đó. */
+async function luuRaThuMuc(ctx, ten) {
+    try {
+        const thuMuc = await chonFile('folder');
+        if (!thuMuc) return;
+        const r = await api(`/api/du-an/${encodeURIComponent(ctx.id)}/xuat/luu-ra`, { method: 'POST', body: { ten, thu_muc: thuMuc } });
+        toast(`✔ Đã lưu: ${r.duong_dan}`, 'success', 8000);
+    } catch (e) { toast(e.message, 'error'); }
+}
+
 /* Danh sách bản đã xuất của dự án (mới nhất trước) — tải lại bản cũ bất kỳ lúc nào. */
 async function veBanXuat(ctx, khung) {
     try {
@@ -64,10 +74,13 @@ async function veBanXuat(ctx, khung) {
         khung.innerHTML = `<div class="ban-xuat-dau">Bản đã xuất${MAY_NAY ? ' <button type="button" class="nut nut-nho" data-mo>📂 Mở thư mục</button>' : ''}</div>`
             + ds.slice(0, 8).map((x) => `<div class="ban-xuat-dong"><span title="${esc(x.ten)}">${esc(x.ten)}</span>
                 <small>${coFile(x.kich_thuoc)} · ${new Date(x.luc * 1000).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</small>
-                <button type="button" class="nut nut-nho" data-tai="${esc(x.ten)}">⬇ Tải về</button></div>`).join('');
+                ${MAY_NAY ? `<button type="button" class="nut nut-nho" data-luu="${esc(x.ten)}">💾 Lưu ra…</button>`
+                    : `<button type="button" class="nut nut-nho" data-tai="${esc(x.ten)}">⬇ Tải về</button>`}</div>`).join('');
         khung.addEventListener('click', (e) => {
             const b = e.target.closest('[data-tai]');
             if (b) taiBanXuat(ctx, b.dataset.tai);
+            const l = e.target.closest('[data-luu]');
+            if (l) luuRaThuMuc(ctx, l.dataset.luu);
             if (e.target.closest('[data-mo]')) moThuMucXuat(ctx);
         });
     } catch (e) { khung.innerHTML = ''; }
