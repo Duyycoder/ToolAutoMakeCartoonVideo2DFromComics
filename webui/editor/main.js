@@ -90,6 +90,7 @@ async function khoiDong() {
     const cfg = mo.cau_hinh || {};
     const bus = taoBus();
     const ctx = { id, du, store, ui, bus, media: du.media || [], chon: { media: null } };
+    ctx.coWhisper = !aiFeatures || aiFeatures.includes('phu-de');   // server tắt AI / chỉ dịch → ẩn tạo phụ đề hàng loạt
 
     document.title = `${du.name} — Editor`;
     $('tenDuAn').textContent = du.name;

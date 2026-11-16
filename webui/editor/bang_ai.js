@@ -135,7 +135,7 @@ export class BangAi {
         if (!ds.length) {
             this.noi.innerHTML = `<div class="vung-tha"><b>Chưa có video trên timeline</b>
                 Kéo một video từ bảng 🎞 Tệp phương tiện xuống timeline rồi quay lại đây để tạo phụ đề, dịch, lồng tiếng.</div>
-                ${mediaTaoPhuDeDuoc(this.ctx).length ? '<div class="hang-nut"><button class="nut nut-chinh" data-l="phu-de-nhieu">🎙 Tạo phụ đề cho nhiều video…</button></div>' : ''}
+                ${this.ctx.coWhisper && mediaTaoPhuDeDuoc(this.ctx).length ? '<div class="hang-nut"><button class="nut nut-chinh" data-l="phu-de-nhieu">🎙 Tạo phụ đề cho nhiều video…</button></div>' : ''}
                 <div class="ai-tv-hop">${this._veTacVu()}</div>`;
             return;
         }

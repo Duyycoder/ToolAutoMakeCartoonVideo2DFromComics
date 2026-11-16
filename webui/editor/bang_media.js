@@ -401,7 +401,7 @@ export class BangMedia {
         const san = m.trang_thai === 'san_sang' && !m.mat_file;
         const nhom = this._dsThaoTac(mid).map((id) => this.lay(id))
             .filter((x) => x && x.trang_thai === 'san_sang' && !x.mat_file && ['video', 'anh', 'audio'].includes(x.loai));
-        const nhomPd = nhom.filter((x) => x.loai !== 'anh');
+        const nhomPd = this.ctx.coWhisper ? nhom.filter((x) => x.loai !== 'anh') : [];
         menu.innerHTML = `
             ${nhom.length > 1 ? `<button data-l="them-nhieu">⤵ Thêm ${nhom.length} mục đã chọn vào cuối timeline</button>` : ''}
             ${nhomPd.length > 1 ? `<button data-l="pd-nhieu">🎙 Tạo phụ đề cho ${nhomPd.length} mục đã chọn…</button>` : ''}
