@@ -6,6 +6,26 @@ import { coHieuUng, taoChuoi } from './am_hieu_ung.js';
 
 let ac = null;
 const doThi = new WeakMap();
+// Chuỗi CHUNG của cả dự án (timeline.am_tong): mọi tiếng đi qua đây rồi mới ra loa — giống _tieng_tong của render.py.
+let tong = null, tongCaiDat = {}, tongBat = false;
+
+function layTong() {
+    if (!tong) {
+        tong = taoChuoi(ac);
+        tong.gainTong = ac.createGain();
+        tong.ra.connect(tong.gainTong).connect(ac.destination);
+    }
+    tong.dat(tongCaiDat);
+    tong.gainTong.gain.value = Number(tongCaiDat.am_luong ?? 1);
+    return tong;
+}
+
+/* Đặt hiệu ứng chung (gọi khi timeline đổi). Có hiệu ứng/âm lượng ≠ 100% thì mọi thẻ tiếng được nối qua Web Audio. */
+export function datTong(x) {
+    tongCaiDat = x || {};
+    tongBat = coHieuUng(tongCaiDat) || Math.abs(Number(tongCaiDat.am_luong ?? 1) - 1) > 1e-3;
+    if (ac && tong) layTong();
+}
 
 export const coXuLy = (x) => !!x && ['giam_on', 'thap', 'trung', 'cao'].some((k) => Math.abs(Number(x[k] || 0)) >= 0.1);
 
@@ -14,7 +34,7 @@ export function moKhoaAm() { if (ac && ac.state === 'suspended') ac.resume().cat
 
 export function ganXuLy(el, x, hu) {
     let g = doThi.get(el);
-    if (!g && !coXuLy(x) && !coHieuUng(hu)) return;
+    if (!g && !coXuLy(x) && !coHieuUng(hu) && !tongBat) return;
     if (!g) {
         try {
             ac = ac || new (window.AudioContext || window.webkitAudioContext)();
@@ -29,7 +49,7 @@ export function ganXuLy(el, x, hu) {
             g = { nguon, hp: tao('highpass', 10), thap: tao('lowshelf', 120), trung: tao('peaking', 1500, 1), cao: tao('highshelf', 6000),
                 hu: taoChuoi(ac) };
             nguon.connect(g.hp).connect(g.thap).connect(g.trung).connect(g.cao).connect(g.hu.vao);
-            g.hu.ra.connect(ac.destination);
+            g.hu.ra.connect(layTong().vao);
             doThi.set(el, g);
         } catch (e) {
             console.warn('Không xem trước được xử lý âm thanh:', e.message);

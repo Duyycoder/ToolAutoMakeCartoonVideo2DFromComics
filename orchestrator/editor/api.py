@@ -65,6 +65,11 @@ class NhapMediaSchema(PhienSchema):
 class ThuVienAmSchema(PhienSchema):
     id: str
 
+class VaoThuVienSchema(BaseModel):
+    ten: str = ""
+    nhom: str = "Của tôi"
+    loai: str = "sfx"
+
 class UrlSchema(PhienSchema):
     urls: List[str]
 
@@ -490,13 +495,37 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
             raise HTTPException(status_code=500, detail=f"Không ghi được vào dự án: {e}")
 
     # ------------------------------------------------------------ Thư viện âm thanh có sẵn (SFX + nhạc CC0)
+    def ws_tv() -> str:
+        return get_workspace()["duong_dan"]
+
     @r.get("/api/thu-vien-am")
     def sound_library():
-        return {"muc": thu_vien_am.danh_muc()}
+        return {"muc": thu_vien_am.danh_muc_rieng(ws_tv()) + thu_vien_am.danh_muc()}
+
+    @r.delete("/api/thu-vien-am/rieng/{tid}")
+    def sound_library_delete(tid: str):
+        if not thu_vien_am.xoa_rieng(ws_tv(), tid):
+            raise HTTPException(status_code=404, detail="Không có âm thanh này trong thư viện của bạn.")
+        return {"ok": True}
+
+    @r.post("/api/du-an/{pid}/media/{mid}/vao-thu-vien")
+    def sound_library_add(pid: str, mid: str, body: VaoThuVienSchema):
+        """Lưu tiếng của một media (âm thanh hoặc video có tiếng) vào thư viện của tôi — dùng lại ở mọi dự án."""
+        folder, m, path = media_path(pid, mid)
+        if m.get("loai") not in ("audio", "video") or (m.get("loai") == "video" and m.get("co_am_thanh") is False):
+            raise HTTPException(status_code=400, detail="Media này không có tiếng.")
+        ff = media.ffmpeg_exe()
+        if not ff or not os.path.isfile(path):
+            raise HTTPException(status_code=500, detail="Thiếu ffmpeg hoặc file gốc.")
+        try:
+            return thu_vien_am.them_rieng(ws_tv(), path, body.ten or m.get("ten") or mid, body.nhom, body.loai, ff,
+                                          m.get("thoi_luong") or 0)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     @r.get("/api/thu-vien-am/tep/{rel:path}")
     def sound_library_file(rel: str):
-        p = thu_vien_am.duong_dan(rel)
+        p = thu_vien_am.duong_dan(rel, ws_tv())
         if not p:
             raise HTTPException(status_code=404, detail="Không có file này trong thư viện.")
         return FileResponse(p, media_type="audio/mp4", headers={"Cache-Control": "public, max-age=604800"})
@@ -506,7 +535,7 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         folder = folder_cua(pid)
         khoa_ghi(folder, body.phien)
         try:
-            return {"media": qlm.nhap(folder, pid, [thu_vien_am.ban_sao_de_nhap(body.id)])}
+            return {"media": qlm.nhap(folder, pid, [thu_vien_am.ban_sao_de_nhap(body.id, ws_tv())])}
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 

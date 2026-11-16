@@ -14,6 +14,7 @@ export function ganCamUng(tl, MEP_CHAM) {
     const ngon = new Map();      // pointerId → {x, y}
     let viec = null;             // {loai: 'cho' | 'cuon' | 'pinch', ...}
     let quanTinh = 0;
+    let lanCham = null;          // chạm lần trước {id clip, lúc} — chạm 2 lần nhanh = mở thuộc tính
 
     const huyGiu = () => { if (viec && viec.hGiu) { clearTimeout(viec.hGiu); viec.hGiu = 0; } };
     const zTuPx = (px) => Math.max(0, Math.min(1, Math.log2(px / 5) / ZOOM_MU));
@@ -92,7 +93,12 @@ export function ganCamUng(tl, MEP_CHAM) {
         if (e.type === 'pointercancel') return;
         if (v.loai === 'cho') {
             // Chạm: chọn clip / đặt đầu phát ở chỗ trống.
-            if (v.clip) tl.chonClip(v.clip.dataset.id);
+            if (v.clip) {
+                const id = v.clip.dataset.id, bay = performance.now();
+                if (lanCham && lanCham.id === id && bay - lanCham.luc < 350) { lanCham = null; tl.ctx.bus.emit('mo_thuoc_tinh'); return; }
+                lanCham = { id, luc: bay };
+                tl.chonClip(id);
+            }
             else if (v.e.target.closest('.tl-track, .tl-noi')) { tl.chonClip(null); tl.datDauPhat(tl._t(v.x0)); }
             return;
         }

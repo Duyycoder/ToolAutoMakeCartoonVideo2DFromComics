@@ -105,7 +105,7 @@ export class BangMedia {
             if (l && l.dataset.l === 'them-tl') {
                 // Nút ＋ trên thẻ (điện thoại không kéo-thả được): thêm cuối timeline rồi thu bảng lại để thấy kết quả.
                 const m = this.lay(l.closest('.the-media').dataset.mid);
-                if (m) { this.ctx.timeline.themMedia(m, null, null); this.ctx.dongBangTrenDienThoai?.(); }
+                if (m) this._menuThem(m, l);
                 return undefined;
             }
             if (l && ['an-tai', 'thu-lai-tai', 'huy-tai'].includes(l.dataset.l)) {
@@ -386,7 +386,8 @@ export class BangMedia {
         menu.innerHTML = `
             ${nhom.length > 1 ? `<button data-l="them-nhieu">⤵ Thêm ${nhom.length} mục đã chọn vào cuối timeline</button><hr>` : ''}
             ${san ? '<button data-l="xem">▶ Xem trước</button>' : ''}
-            ${san && ['video', 'anh', 'audio'].includes(m.loai) ? '<button data-l="them">⤵ Thêm vào cuối timeline</button>' : ''}
+            ${san && ['video', 'anh', 'audio'].includes(m.loai) ? '<button data-l="them">⤵ Thêm vào cuối timeline</button>'
+                + '<button data-l="them-lop">⧉ Thêm thành lớp mới ở đầu phát</button>' : ''}
             ${san && m.loai === 'video' && m.proxy !== 'xong' ? '<button data-l="proxy">⚡ Tạo bản xem trước nhẹ (proxy)</button>' : ''}
             ${['bi_ngat', 'loi'].includes(m.trang_thai) ? '<button data-l="nhap-lai">↻ Nhập lại</button>' : ''}
             ${m.mat_file || ['bi_ngat', 'loi'].includes(m.trang_thai) ? '<button data-l="tim-lai">🔍 Tìm lại bằng file khác…</button>' : ''}
@@ -403,6 +404,7 @@ export class BangMedia {
             ({
                 xem: () => this.ctx.preview.batTat(),
                 them: () => this.ctx.timeline.themMedia(m, null, null),
+                'them-lop': () => this.ctx.timeline.themLopTaiDauPhat(m),
                 'them-nhieu': () => this.ctx.timeline.themNhieuMedia(nhom, null, null),
                 proxy: () => api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${mid}/phat-duoc`,
                     { method: 'POST', body: { ok: false } }).then(() => this.tai()),
@@ -411,6 +413,26 @@ export class BangMedia {
                 xoa: () => this.xoa(mid, false),
                 'xoa-file': () => this.xoa(mid, true),
             }[l.dataset.l] || (() => {}))();
+        });
+        setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+    }
+
+    _menuThem(m, nut) {
+        document.querySelectorAll('.menu').forEach((x) => x.remove());
+        const menu = document.createElement('div');
+        menu.className = 'menu';
+        menu.innerHTML = '<button data-c="cuoi">⤵ Thêm vào cuối timeline</button><button data-c="lop">⧉ Thành lớp mới ở đầu phát</button>';
+        document.body.appendChild(menu);
+        const r = nut.getBoundingClientRect(), mr = menu.getBoundingClientRect();
+        menu.style.left = `${Math.max(8, Math.min(r.right - mr.width, innerWidth - mr.width - 8))}px`;
+        menu.style.top = `${Math.max(8, Math.min(r.bottom + 4, innerHeight - mr.height - 8))}px`;
+        menu.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-c]');
+            if (!b) return;
+            menu.remove();
+            if (b.dataset.c === 'cuoi') this.ctx.timeline.themMedia(m, null, null);
+            else this.ctx.timeline.themLopTaiDauPhat(m);
+            this.ctx.dongBangTrenDienThoai?.();
         });
         setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
     }

@@ -524,12 +524,19 @@ class DungLenh:
         if tre > 0:
             ms = int(round(tre * 1000))
             dem = f",adelay={ms}|{ms}"
-        hu = c.get("hieu_ung_am") or {}
-        xl = "".join("," + f for f in xu_ly_am.loc_am(c.get("xu_ly_am") or {}) + hieu_ung_am.loc_truoc_vang(hu, SR))
-        dau = f"[{k}:a]asetpts=PTS-STARTPTS{_atempo(float(c.get('toc_do') or 1))}{xl}"
+        dau = f"[{k}:a]asetpts=PTS-STARTPTS{_atempo(float(c.get('toc_do') or 1))}"
+        dau += "".join("," + f for f in xu_ly_am.loc_am(c.get("xu_ly_am") or {}))
+        dau = self._hieu_ung_am(dau, c.get("hieu_ung_am") or {}, ten)
+        self.loc.append(f"{dau},{vol_filter},aresample={SR},"
+                        f"aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=duration={_so(dai)}{fade}{dem}[{ten}]")
+        return True
+
+    def _hieu_ung_am(self, dau: str, hu: Dict[str, Any], ten: str) -> str:
+        """Nối hiệu ứng âm thanh `hu` (hieu_ung_am.py) vào chuỗi lọc đang mở `dau` (chưa đóng nhãn) → chuỗi mới.
+        Vang = tích chập với IR của phòng (input riêng), trộn khô/ướt như am_hieu_ung.js. Dùng cho từng clip và tiếng tổng."""
+        dau += "".join("," + f for f in hieu_ung_am.loc_truoc_vang(hu, SR))
         vang = hieu_ung_am.tron_vang(hu)
         if vang > 0:
-            # Vang = tích chập với IR của phòng (input riêng), trộn khô/ướt như am_hieu_ung.js.
             ir, dinh = hieu_ung_am.file_ir(luu_tru._p(self.folder, luu_tru.CACHE, "ir"), hu.get("phong") or "")
             ki = self._input("-i", ir)
             self.loc.append(f"{dau},aresample={SR},aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[{ten}k][{ten}u]")
@@ -537,10 +544,18 @@ class DungLenh:
             self.loc.append(f"[{ten}k]volume={_so(1 - 0.5 * vang)}[{ten}d]")
             self.loc.append(f"[{ten}d][{ten}w]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[{ten}v]")
             dau = f"[{ten}v]anull"
-        sau = "".join("," + f for f in hieu_ung_am.loc_sau_vang(hu))
-        self.loc.append(f"{dau}{sau},{vol_filter},aresample={SR},"
-                        f"aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=duration={_so(dai)}{fade}{dem}[{ten}]")
-        return True
+        return dau + "".join("," + f for f in hieu_ung_am.loc_sau_vang(hu))
+
+    def _tieng_tong(self, aout: str, T: float) -> str:
+        """Hiệu ứng CHUNG của cả dự án (timeline.am_tong: hiệu ứng như clip + am_luong tổng) áp lên tiếng đã trộn."""
+        tong = self.tl.get("am_tong") or {}
+        vol = float(tong.get("am_luong") if tong.get("am_luong") is not None else 1)
+        if not hieu_ung_am.co_hieu_ung(tong) and abs(vol - 1) < 1e-6:
+            return aout
+        dau = self._hieu_ung_am(f"[{aout}]anull", tong, "tong")
+        self.loc.append(f"{dau},volume={_so(vol)},aresample={SR},aformat=sample_fmts=fltp:channel_layouts=stereo,"
+                        f"apad,atrim=duration={_so(T)}[atong]")
+        return "atong"
 
     def _phu(self, vc: str, T: float) -> Tuple[str, List[str]]:
         """Các track video PHỦ (trên nền) → overlay lần lượt từ dưới lên. Trả (nhãn hình, [nhãn tiếng])."""
@@ -712,7 +727,7 @@ class DungLenh:
         chi_tieng = bool(self.tc.get("chi_am_thanh"))
         vc, ac = self._hinh(T)
         vc, tieng_phu = self._phu(vc, T)
-        aout = self._tieng(ac, T, tieng_phu)
+        aout = self._tieng_tong(self._tieng(ac, T, tieng_phu), T)
         dong_pd = quy_doi.phu_de_tren_timeline(self.tl)
         co_chu_hinh = any(c.get("loai") in ("chu", "hinh") for c in self.tl.get("clips") or [])
         ass = ""

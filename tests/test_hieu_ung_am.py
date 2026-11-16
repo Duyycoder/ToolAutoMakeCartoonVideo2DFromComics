@@ -76,3 +76,22 @@ def test_ir_phong_nang_luong_bang_1():
     for k in (0, 1):
         e = sum((x[k] * dinh) ** 2 for x in du)
         assert abs(e - 1) < 1e-6, f"Năng lượng IR kênh {k} phải = 1 (đang {e})"
+
+
+def test_hieu_ung_chung_ca_du_an(goc):
+    """timeline.am_tong: hiệu ứng + âm lượng tổng áp lên tiếng đã trộn của cả dự án."""
+    def xuat_tong(tong, ten):
+        tl = {"tracks": [{"id": "V1", "loai": "video"}, {"id": "A1", "loai": "audio"}], "am_tong": tong,
+              "clips": [{"id": "c", "track": "A1", "media": "m", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1}]}
+        ra = str(goc / f"{ten}.mp4")
+        kq = render.dung_lenh_xuat(str(goc), DU_AN, tl, {"preset": "ultrafast"}, ra, FF)
+        (goc / "loc.txt").write_text(kq["loc"], encoding="utf-8")
+        r = subprocess.run(kq["cmd"], cwd=str(goc), capture_output=True, text=True, errors="replace", timeout=120)
+        assert r.returncode == 0, r.stderr[-800:]
+        return ra
+    goc_ = xuat_tong({}, "tong0")
+    nho = xuat_tong({"am_luong": 0.25}, "tong1")
+    vang = xuat_tong({"vang": 80, "phong": "nha_tho", "nen": 30}, "tong2")
+    assert _do(nho, 0.1, 0.8) < _do(goc_, 0.1, 0.8) - 10, "Âm lượng tổng 25% phải nhỏ hơn ~12 dB"
+    assert _do(vang, 1.1, 0.4) > _do(goc_, 1.1, 0.4) + 20, "Vang tổng phải để lại đuôi sau khi hết tiếng"
+    assert abs(media.do_thong_so(vang)["thoi_luong"] - 2.0) < 0.15

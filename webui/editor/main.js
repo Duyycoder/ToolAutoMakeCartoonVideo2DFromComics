@@ -281,6 +281,18 @@ async function khoiDong() {
             if (d) { d.open = true; d.scrollIntoView({ block: 'nearest' }); }
         }
     };
+    // Nhấp đúp / chạm 2 lần clip, nút "Thuộc tính", "Âm lượng": mở bảng thuộc tính (tab tuỳ chọn) để chỉnh sâu.
+    bus.on('mo_thuoc_tinh', (tab) => {
+        // Clip trên track âm thanh: mở thẳng tab Âm thanh (tab Video không có gì để sửa).
+        const c = !tab && ctx.chon.clip && store.timeline.clips.find((x) => x.id === ctx.chon.clip);
+        const tr = c && store.timeline.tracks.find((x) => x.id === c.track);
+        if (tr && tr.loai === 'audio') tab = 'am_thanh';
+        if (tab) ui.tab_thuoc_tinh = tab;
+        ui.bang_phai_mo = true;
+        if (dienThoai.matches) { ui.bang_trai_mo = false; veBangTrai(); }
+        apKichThuoc(); ctx.luuUi(true);
+        bus.emit('chon');
+    });
     bus.on('bat_bang_phai', () => {
         ui.bang_phai_mo = !ui.bang_phai_mo;
         if (dienThoai.matches && ui.bang_phai_mo) { ui.bang_trai_mo = false; veBangTrai(); }

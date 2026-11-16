@@ -52,12 +52,28 @@ export class BangPhai {
         });
         this.el.addEventListener('input', (e) => this._sua(e));
         this.el.addEventListener('change', (e) => { if (e.target.matches('select, [data-k=text]')) this._sua(e); });
-        ['chon', 'timeline', 'media'].forEach((ev) => ctx.bus.on(ev, () => { 
+        ['chon', 'timeline', 'media'].forEach((ev) => ctx.bus.on(ev, () => {
             if (!this._dangSua && this.el.isConnected) {
-                if (document.activeElement && this.el.contains(document.activeElement) && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-                this.ve(); 
+                if (document.activeElement && this.el.contains(document.activeElement) && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                    this._hoanVe = true;   // đang gõ: vẽ lại khi rời ô (focusout)
+                    return;
+                }
+                this.ve();
             }
         }));
+        this.el.addEventListener('focusout', () => setTimeout(() => {
+            if (this._hoanVe && !this.el.contains(document.activeElement)) { this._hoanVe = false; this.ve(); }
+        }, 0));
+        // Dời đầu phát (không phải lúc đang phát): giá trị theo keyframe + nút ◇/◆ phải đúng thời điểm mới.
+        ctx.bus.on('dau_phat', () => {
+            if (!this.el.isConnected || ctx.preview?.dangPhat || this._hDauPhat) return;
+            this._hDauPhat = requestAnimationFrame(() => {
+                this._hDauPhat = 0;
+                const a = document.activeElement;
+                if (a && this.el.contains(a) && ['INPUT', 'SELECT', 'TEXTAREA'].includes(a.tagName)) return;
+                if (this._clip()?.keyframes && Object.keys(this._clip().keyframes).length) this.ve();
+            });
+        });
     }
 
     _xuLyHieuUng(hanhDong, idHu) {
@@ -143,29 +159,23 @@ export class BangPhai {
         finally { tb.remove(); }
     }
 
+    /* Cụm nút keyframe cạnh một thuộc tính: ◀ keyframe trước · ◇ thêm / ◆ xoá keyframe ở đầu phát · ▶ keyframe sau.
+       Thuộc tính đã có keyframe thì sửa giá trị ở chỗ khác là tự thêm keyframe mới (xem _sua). */
     _nutKF(clip, duongDan) {
         if (!clip) return '';
         const t = this.ctx.ui.dau_phat - (clip.bat_dau || 0);
         const kf = (clip.keyframes || {})[duongDan] || [];
-        const coKFNay = kf.some(k => Math.abs(k.t - t) < 1e-4);
-        const coBatKy = kf.length > 0;
-        
-        let html = `<div class="kf-nhom" data-dd="${duongDan}" style="display:inline-flex;align-items:center;gap:2px;margin-left:4px;vertical-align:middle;">`;
-        
-        const kfTruoc = [...kf].reverse().find(k => k.t < t - 1e-4);
-        html += `<button class="nut-icon nut-nho" data-kf="truoc" ${kfTruoc ? '' : 'disabled'} title="Keyframe trước" style="font-size:10px;padding:2px;width:16px;height:16px;opacity:0.7;">◀</button>`;
-        
-        if (coKFNay) {
-            html += `<button class="nut-icon nut-nho" data-kf="xoa" title="Xóa keyframe này" style="font-size:10px;padding:2px;width:16px;height:16px;opacity:1;color:var(--xanh);">◆</button>`;
-        } else {
-            html += `<button class="nut-icon nut-nho" data-kf="them" title="${coBatKy ? 'Thêm keyframe' : 'Bật keyframe'}" style="font-size:10px;padding:2px;width:16px;height:16px;opacity:0.7;${coBatKy ? 'color:var(--xanh);' : ''}">◇</button>`;
-        }
-        
-        const kfSau = kf.find(k => k.t > t + 1e-4);
-        html += `<button class="nut-icon nut-nho" data-kf="sau" ${kfSau ? '' : 'disabled'} title="Keyframe tiếp" style="font-size:10px;padding:2px;width:16px;height:16px;opacity:0.7;">▶</button>`;
-        
-        html += `</div>`;
-        return html;
+        const coKFNay = kf.some((k) => Math.abs(k.t - t) < 1e-4);
+        const kfTruoc = [...kf].reverse().find((k) => k.t < t - 1e-4);
+        const kfSau = kf.find((k) => k.t > t + 1e-4);
+        return `<span class="kf-nhom ${kf.length ? 'co-kf' : ''}" data-dd="${duongDan}">`
+            + `<button class="kf-nut" data-kf="truoc" ${kfTruoc ? '' : 'disabled'} title="Tới keyframe trước">◀</button>`
+            + (coKFNay
+                ? '<button class="kf-nut kf-chinh dang" data-kf="xoa" title="Xoá keyframe ở đầu phát">◆</button>'
+                : `<button class="kf-nut kf-chinh" data-kf="them" title="${kf.length ? 'Thêm keyframe ở đầu phát' : 'Bật keyframe: ghim giá trị ở đầu phát'}">◇</button>`)
+            + `<button class="kf-nut" data-kf="sau" ${kfSau ? '' : 'disabled'} title="Tới keyframe sau">▶</button>`
+            + (kf.length ? `<small class="kf-so">${kf.length}</small>` : '')
+            + '</span>';
     }
 
     _xuLyKF(btn) {
@@ -297,6 +307,7 @@ export class BangPhai {
         this._dangSua = true;
         this.ctx.sua(TEN_SUA[k] || 'Sửa thuộc tính', ops, { gop: `tt:${c.id}:${k}` });
         this._dangSua = false;
+        this._hoanVe = true;    // vẽ lại (số keyframe, ◆) khi rời ô — không vẽ giữa lúc đang kéo/gõ
         const gt = o.closest('label') && o.closest('label').querySelector('.gt');
         if (gt) gt.textContent = k === 'am_luong' ? `${Math.round(v * 100)}%` : o.value;
     }
@@ -438,6 +449,8 @@ export class BangPhai {
                     ['Đoạn trong media', `${fmtThoiGian(clip.vao, true, fps)} → ${fmtThoiGian(clip.ra, true, fps)}`],
                 ]) + `<div class="o-form" style="margin-top:8px"><label>Tốc độ<select data-k="toc_do" data-so="1">${TOC.map((x) => `<option value="${x}" ${Number(clip.toc_do || 1) === x ? 'selected' : ''}>${x}×</option>`).join('')}</select></label></div>`)
                     + this._muc('bien_doi', 'Biến đổi', `<div class="o-form">
+                        <div class="goi-y-kf">◇ = keyframe (chuyển động/đổi dần): đặt đầu phát → bấm ◇ để ghim giá trị → sang
+                            thời điểm khác đổi giá trị là tự thêm keyframe. ◆ = có keyframe ở đây (bấm để xoá).</div>
                         <div class="hang"><label>X % ${this._nutKF(clip, 'bien_doi.x')}<input type="number" data-k="bien_doi.x" step="1" value="${pc(val('bien_doi.x', bd.x ?? 0.5))}"></label>
                             <label>Y % ${this._nutKF(clip, 'bien_doi.y')}<input type="number" data-k="bien_doi.y" step="1" value="${pc(val('bien_doi.y', bd.y ?? 0.5))}"></label></div>
                         <div class="hang"><label>Tỉ lệ % ${this._nutKF(clip, 'bien_doi.ti_le')}<input type="number" data-k="bien_doi.ti_le" step="1" value="${pc(val('bien_doi.ti_le', bd.ti_le ?? 1))}"></label>

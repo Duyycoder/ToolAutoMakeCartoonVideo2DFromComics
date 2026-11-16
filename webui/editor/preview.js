@@ -15,14 +15,16 @@ import {
 import { cssFilter } from './hieu_ung.js';
 import { coNangCao, docCube, sanSang as presetSanSang } from './mau_nang_cao.js';
 import { LopGL } from './xem_mau_gl.js';
-import { ganXuLy, boXuLy, moKhoaAm } from './am_xu_ly.js';
+import { ganXuLy, boXuLy, moKhoaAm, datTong } from './am_xu_ly.js';
 
 const LECH_TOI_DA = 0.35;   // giây lệch giữa một lớp và đồng hồ thì tua lại
 
 export class Preview {
     constructor(ctx) {
         this.ctx = ctx;
-        this.tocDoPhat = 1;
+        // Tốc độ xem trước chọn ở ô "1×" (chậm lại để căn tiếng cho khớp hình); J/L nhân thêm từ mức này.
+        this.tocDoCoBan = Number(ctx.ui.toc_do_xem) || 1;
+        this.tocDoPhat = this.tocDoCoBan;
         this.chieuPhat = 1;
         this._hLui = null;
         this.khung = $('previewKhung');
@@ -85,6 +87,8 @@ export class Preview {
         $('btnLuiKhung').addEventListener('click', () => ctx.timeline.datDauPhat(ctx.ui.dau_phat - 1 / fps()));
         $('btnToiKhung').addEventListener('click', () => ctx.timeline.datDauPhat(ctx.ui.dau_phat + 1 / fps()));
         $('btnXemChinhXac').addEventListener('click', () => this.xemChinhXac());
+        $('tocDoXem').value = String(this.tocDoCoBan);
+        $('tocDoXem').addEventListener('change', (e) => this.datTocDoXem(e.target.value));
         const al = $('amLuong');
         al.value = ctx.ui.xem_truoc.am_luong;
         al.addEventListener('input', () => {
@@ -386,6 +390,7 @@ export class Preview {
 
     /* Vẽ mọi lớp tại t (không phát). */
     veTai(t) {
+        datTong(this.tl.am_tong);
         if (this.nguon) return;
         this.ten.textContent = '';
         this.goiY.textContent = '';
@@ -828,7 +833,8 @@ export class Preview {
         if (!this.dangPhat) return;
         const tong = thoiLuong(this.tl);
         const bayGio = performance.now();
-        let t = this._neo.t + (bayGio - this._neo.luc) / 1000;
+        let t = this._neo.t + (bayGio - this._neo.luc) / 1000 * (this.tocDoPhat || 1);
+        datTong(this.tl.am_tong);
         // Đồng hồ chính: video của lớp NỀN khi nó đang chạy ổn định.
         const ds = this._dongBoLop();
         const nen = ds.length ? this.lop.get(ds[0].id) : null;
@@ -923,7 +929,7 @@ export class Preview {
             this.dung();
         }
         if (!this.dangPhat) {
-            this.tocDoPhat = 1;
+            this.tocDoPhat = this.tocDoCoBan;
             this.phat();
         } else {
             this.tocDoPhat = this.tocDoPhat >= 4 ? 1 : this.tocDoPhat * 2;
@@ -936,7 +942,7 @@ export class Preview {
         }
         if (this.chieuPhat !== -1) {
             this.chieuPhat = -1;
-            this.tocDoPhat = 1;
+            this.tocDoPhat = this.tocDoCoBan;
             this._batPhatLui();
         } else {
             this.tocDoPhat = this.tocDoPhat >= 4 ? 1 : this.tocDoPhat * 2;
@@ -965,7 +971,7 @@ export class Preview {
         const dang = this.dangPhat || this.chieuPhat === -1;
         this.dangPhat = false;
         this.chieuPhat = 1;
-        this.tocDoPhat = 1;
+        this.tocDoPhat = this.tocDoCoBan;
         cancelAnimationFrame(this._raf);
         clearInterval(this._hDuPhong);
         clearInterval(this._hLui);
@@ -974,6 +980,15 @@ export class Preview {
         this._anAmThanh();
         if (dang) { this.ctx.luuUi(); this._veTayNam(); }
         this._veNut();
+    }
+
+    /* Đổi tốc độ xem trước (lưu theo dự án). Đang phát thì áp ngay, giữ nguyên vị trí. */
+    datTocDoXem(v) {
+        this.tocDoCoBan = Math.max(0.1, Math.min(4, Number(v) || 1));
+        this.ctx.ui.toc_do_xem = this.tocDoCoBan;
+        this.ctx.luuUi();
+        if (this.dangPhat) this._neo = { t: this.ctx.ui.dau_phat, luc: performance.now() };
+        this.tocDoPhat = this.tocDoCoBan;   // vòng phát (_nhip) tự đặt playbackRate cho video/tiếng ở khung kế
     }
 
     _veNut() {

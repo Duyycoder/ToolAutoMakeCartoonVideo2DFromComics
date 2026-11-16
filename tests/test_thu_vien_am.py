@@ -43,3 +43,41 @@ def test_api_liet_ke_phat_va_them_vao_du_an(ws):  # noqa: F811
     b = ws.post(f"/api/du-an/{pid}/thu-vien-am", json={"phien": phien, "id": m["id"]}).json()["media"][0]
     assert b["id"] == media["id"], "Thêm lại cùng SFX thì dùng lại media cũ, không chép thêm"
     assert ws.post(f"/api/du-an/{pid}/thu-vien-am", json={"phien": phien, "id": "khong-co"}).status_code == 400
+
+
+def test_thu_vien_cua_toi_luu_dung_lai_va_xoa(ws):  # noqa: F811
+    import subprocess
+    from orchestrator.editor import media as media_mod
+    ff = media_mod.ffmpeg_exe()
+    if not ff:
+        import pytest
+        pytest.skip("cần ffmpeg")
+    src = ws.tmp / "tieng cuoi.m4a"
+    subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "sine=f=660:d=1",
+                    "-c:a", "aac", str(src)], check=True)
+    pid = _tao(ws)["id"]
+    phien = ws.get(f"/api/du-an/{pid}").json()["khoa"]["phien"]
+    m = ws.post(f"/api/du-an/{pid}/media/nhap", json={"phien": phien, "files": [str(src)]}).json()["media"][0]
+    _cho_media(ws)
+
+    r = ws.post(f"/api/du-an/{pid}/media/{m['id']}/vao-thu-vien", json={"ten": "Tiếng cười của tôi", "loai": "sfx"})
+    assert r.status_code == 200, r.text
+    muc = r.json()
+    assert muc["id"].startswith("toi-") and muc["rieng"] and muc["nhom"] == "Của tôi"
+    assert (ws.tmp / "ws" / "_thu_vien_am" / muc["file"].split("/", 1)[1]).is_file(), "File lưu ở workspace/_thu_vien_am"
+    ds = ws.get("/api/thu-vien-am").json()["muc"]
+    assert ds[0]["id"] == muc["id"], "Mục của tôi đứng đầu danh sách"
+    tep = ws.get("/api/thu-vien-am/tep/" + muc["file"])
+    assert tep.status_code == 200 and len(tep.content) > 500
+    lai = ws.post(f"/api/du-an/{pid}/media/{m['id']}/vao-thu-vien", json={"ten": "Đổi tên", "loai": "nhac"}).json()
+    assert lai["id"] == muc["id"] and lai["loai"] == "nhac", "Lưu lại cùng file thì cập nhật, không nhân đôi"
+
+    pid2 = _tao(ws, ten="Dự án 2")["id"]
+    phien2 = ws.get(f"/api/du-an/{pid2}").json()["khoa"]["phien"]
+    a = ws.post(f"/api/du-an/{pid2}/thu-vien-am", json={"phien": phien2, "id": muc["id"]})
+    assert a.status_code == 200 and a.json()["media"][0]["ten"] == "Đổi tên", "Dùng lại ở dự án khác"
+
+    assert ws.delete(f"/api/thu-vien-am/rieng/{muc['id']}").status_code == 200
+    assert all(x["id"] != muc["id"] for x in ws.get("/api/thu-vien-am").json()["muc"])
+    assert ws.delete(f"/api/thu-vien-am/rieng/{muc['id']}").status_code == 404
+    assert ws.get("/api/thu-vien-am/tep/rieng/..%2F..%2Fx").status_code == 404
