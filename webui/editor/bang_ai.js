@@ -8,8 +8,9 @@ import { veDieuKhien, bindDieuKhien } from './chon_giong.js';
 import {
     tao, cauCuaMedia, opsThemCau, opsXoaNhieu, clipTai, idClipMoi, idMoiNhieu, clipChuaMedia, idTrackMoi, choTrong, opsThemTrack
 } from './store.js';
+import { taoPhuDeNhieu, mediaTaoPhuDeDuoc } from './phu_de_hang_loat.js';
 
-const NGON_NGU = [['English', 'Tiếng Anh'], ['Chinese', 'Tiếng Trung'], ['Japanese', 'Tiếng Nhật'], ['Korean', 'Tiếng Hàn'],
+export const NGON_NGU = [['English', 'Tiếng Anh'], ['Chinese', 'Tiếng Trung'], ['Japanese', 'Tiếng Nhật'], ['Korean', 'Tiếng Hàn'],
     ['Vietnamese', 'Tiếng Việt'], ['Thai', 'Tiếng Thái'], ['Indonesian', 'Tiếng Indonesia'], ['Spanish', 'Tiếng Tây Ban Nha']];
 const TTS = [['edge', 'Edge TTS (online, nhanh)'], ['piper', 'Piper (offline)'], ['kokoro', 'Kokoro (offline)'],
     ['vieneu', 'VieNeu (tiếng Việt)'], ['clone', 'Clone giọng gốc']];
@@ -133,7 +134,9 @@ export class BangAi {
         const chonNN = (k, md) => NGON_NGU.map(([v, t]) => `<option value="${v}" ${(c[k] || md) === v ? 'selected' : ''}>${t}</option>`).join('');
         if (!ds.length) {
             this.noi.innerHTML = `<div class="vung-tha"><b>Chưa có video trên timeline</b>
-                Kéo một video từ bảng 🎞 Tệp phương tiện xuống timeline rồi quay lại đây để tạo phụ đề, dịch, lồng tiếng.</div><div class="ai-tv-hop">${this._veTacVu()}</div>`;
+                Kéo một video từ bảng 🎞 Tệp phương tiện xuống timeline rồi quay lại đây để tạo phụ đề, dịch, lồng tiếng.</div>
+                ${mediaTaoPhuDeDuoc(this.ctx).length ? '<div class="hang-nut"><button class="nut nut-chinh" data-l="phu-de-nhieu">🎙 Tạo phụ đề cho nhiều video…</button></div>' : ''}
+                <div class="ai-tv-hop">${this._veTacVu()}</div>`;
             return;
         }
         const v = c.vung;
@@ -151,7 +154,8 @@ export class BangAi {
                     <option value="large-v3" ${(c.whisper_model || (c.ngon_ngu_noi === 'Vietnamese' ? 'qbsmlabs/PhoWhisper-small' : 'medium')) === 'large-v3' ? 'selected' : ''}>large-v3 (tải ~3 GB lần đầu)</option>
                 </select></label>
                 <label class="check"><input type="checkbox" data-o="demucs" ${c.demucs ? 'checked' : ''}> Tách giọng trước (Demucs) — nhạc nền to thì bật</label>
-                <button class="nut nut-chinh" data-l="phu-de">Tạo phụ đề</button></section>
+                <div class="hang-nut"><button class="nut nut-chinh" data-l="phu-de">Tạo phụ đề</button>
+                    <button class="nut" data-l="phu-de-nhieu" title="Chọn nhiều video trong dự án (kể cả chưa kéo xuống timeline)">🎙 Nhiều video…</button></div></section>
 
             <section class="the-ai"><h4>🔤 Nhận diện sub cứng <small>OCR</small></h4>
                 <label>Ngôn ngữ chữ trên hình<select data-o="ngon_ngu_chu">${chonNN('ngon_ngu_chu', 'Chinese')}</select></label>
@@ -435,6 +439,7 @@ export class BangAi {
         const v = the && this.tacVu.find((x) => x.id === the.dataset.id);
         try {
             if (l === 've-vung') await this.veVung();
+            else if (l === 'phu-de-nhieu') await taoPhuDeNhieu(this.ctx, this);
             else if (['phu-de', 'ocr', 'dich', 'long-tieng', 'tach-giong', 'lam-net', 'can-gio', 'tao-anh', 'doc-van-ban'].includes(l)) await this.chay(l);
             else if (l === 'lay-chu-clip') {
                 const cIds = this.ctx.ui.chon || [];
@@ -571,7 +576,7 @@ export class BangAi {
     }
 
     /* Gửi tác vụ lên hàng đợi GPU. `thamSoCu` = chạy lại tác vụ cũ với đúng tham số đó. */
-    async chay(loai, midCu = '', thamSoCu = null) {
+    async chay(loai, midCu = '', thamSoCu = null, imLang = false) {
         const c = this.cai;
         const mid = midCu || this.mediaNguon().mid;
         const m = this.ctx.media.find((x) => x.id === mid);
@@ -651,6 +656,7 @@ export class BangAi {
         await this.ctx.boLuu.flush();
         await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/ai/${loai}`,
             { method: 'POST', body: { phien: this.ctx.boLuu.phien, media: mid, tham_so: ts } });
+        if (imLang) return;   // chạy hàng loạt: nơi gọi báo một lần cho cả lô
         toast(`Đã xếp "${TEN_VIEC[loai] || loai}" vào hàng đợi — ${(c.tu_ap_dung ?? true) && TU_AP_DUNG.has(loai)
             ? 'xong sẽ tự đưa vào timeline' : 'tiến độ ở cuối bảng AI'}.`, 'info', 3000);
     }

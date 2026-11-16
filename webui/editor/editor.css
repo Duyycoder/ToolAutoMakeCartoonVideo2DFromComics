@@ -705,3 +705,9 @@ body.ai-translate-only .the-ai:not(:has([data-l="dich"])) { display: none !impor
 .tb-ds { margin: 4px 0 0 18px; padding: 0; font-size: 12px; }
 .tb-loi { color: #f87171; font-size: 12px; }
 .tb-canh-bao { color: #fbbf24; }
+
+/* Hộp "Tạo phụ đề cho nhiều video" (phu_de_hang_loat.js) */
+.pd-nhieu { display: flex; flex-direction: column; gap: 8px; }
+.pd-nhieu-ds { max-height: min(50vh, 360px); overflow-y: auto; border: 1px solid var(--vien); border-radius: 6px; padding: 4px 8px; }
+.pd-nhieu-ds .check { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; min-height: 36px; }
+.pd-nhieu-ds .check span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }

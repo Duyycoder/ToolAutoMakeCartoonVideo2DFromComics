@@ -232,6 +232,7 @@ async function khoiDong() {
         dieu_chinh: new BangDieuChinh(ctx), mau_pro: new BangMauPro(ctx), hieu_ung: new BangHieuUng(ctx),
         chuyen_canh: new BangChuyenCanh(ctx), am_thanh: new BangAmThanh(ctx),
     };
+    ctx.bangAi = cacBang.ai;   // bảng media gọi tạo phụ đề hàng loạt cho các mục đang chọn
     bus.on('media_can_tai', () => bangMedia.tai());
     bus.on('tac_vu_moi', () => cacBang.ai.tai());
     ganXuat(ctx);

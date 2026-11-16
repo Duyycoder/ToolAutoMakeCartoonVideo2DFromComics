@@ -7,6 +7,7 @@
 import { api, esc, toast, hoi, chonFile, fmtNgan, coFile, moChonFile } from './chung.js';
 import { opsThemTrack, opsNhacNen, opsXoaNhieu, thoiLuong } from './store.js';
 import { taiLenFile } from './tai_len.js';
+import { taoPhuDeNhieu } from './phu_de_hang_loat.js';
 
 const ICON = { video: '🎬', audio: '🎵', anh: '🖼', phu_de: '💬' };
 const TEN_LOAI = { video: 'Video', audio: 'Âm thanh', anh: 'Ảnh', phu_de: 'Phụ đề' };
@@ -400,9 +401,11 @@ export class BangMedia {
         const san = m.trang_thai === 'san_sang' && !m.mat_file;
         const nhom = this._dsThaoTac(mid).map((id) => this.lay(id))
             .filter((x) => x && x.trang_thai === 'san_sang' && !x.mat_file && ['video', 'anh', 'audio'].includes(x.loai));
+        const nhomPd = nhom.filter((x) => x.loai !== 'anh');
         menu.innerHTML = `
             ${nhom.length > 1 ? `<button data-l="them-nhieu">⤵ Thêm ${nhom.length} mục đã chọn vào cuối timeline</button>` : ''}
-            ${nhom.length > 1 ? '<hr>' : ''}
+            ${nhomPd.length > 1 ? `<button data-l="pd-nhieu">🎙 Tạo phụ đề cho ${nhomPd.length} mục đã chọn…</button>` : ''}
+            ${nhom.length > 1 || nhomPd.length > 1 ? '<hr>' : ''}
             ${san ? '<button data-l="xem">▶ Xem trước</button>' : ''}
             ${san && ['video', 'anh', 'audio'].includes(m.loai) ? '<button data-l="them">⤵ Thêm vào cuối timeline</button>'
                 + '<button data-l="them-lop">⧉ Thêm thành lớp mới ở đầu phát</button>' : ''}
@@ -424,6 +427,7 @@ export class BangMedia {
                 them: () => this.ctx.timeline.themMedia(m, null, null),
                 'them-lop': () => this.ctx.timeline.themLopTaiDauPhat(m),
                 'them-nhieu': () => this.ctx.timeline.themNhieuMedia(nhom, null, null),
+                'pd-nhieu': () => taoPhuDeNhieu(this.ctx, this.ctx.bangAi, nhomPd.map((x) => x.id)).catch((e) => toast(e.message, 'error')),
                 proxy: () => api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${mid}/phat-duoc`,
                     { method: 'POST', body: { ok: false } }).then(() => this.tai()),
                 'nhap-lai': () => this.nhapLai(mid),
