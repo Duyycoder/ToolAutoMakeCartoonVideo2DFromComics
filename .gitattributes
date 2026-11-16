@@ -20,3 +20,6 @@
 
 # Script shell chay tren server Linux: luon LF (CRLF lam bash tren Linux bao loi).
 *.sh text eol=lf
+
+# Am thanh thu vien co san (assets/thu_vien_am): file nhi phan, khong doi dau dong.
+*.m4a binary
