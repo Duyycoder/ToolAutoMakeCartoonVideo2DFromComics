@@ -603,7 +603,7 @@ def tao_thu_muc_con_nhe(folder: str) -> None:
 
 
 def _chon_thong_so(ts: Dict[str, Any]) -> Dict[str, Any]:
-    keys = ("thoi_luong", "rong", "cao", "fps", "co_am_thanh", "co_hinh", "codec", "codec_am", "hdr", "bit")
+    keys = ("thoi_luong", "rong", "cao", "fps", "co_am_thanh", "co_hinh", "codec", "codec_am", "hdr", "bit", "xoay")
     return {k: ts[k] for k in keys if k in ts and ts[k] is not None}
 
 

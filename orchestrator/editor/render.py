@@ -366,7 +366,9 @@ class DungLenh:
             hlg = "," + media_mod.loc_sang_hlg("") if self.hdr_ra else ""
             self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS{hlg}[{cur}]")
         else:
-            if self.tc.get("bo_ma_hoa") == "nvenc":
+            # Giải mã CUDA chỉ khi CHẮC video không có thẻ xoay: với khung trên GPU ffmpeg không tự xoay theo
+            # "Display Matrix" (video quay dọc của điện thoại) → hình nằm ngang. Media cũ chưa đo `xoay` → giải mã CPU.
+            if self.tc.get("bo_ma_hoa") == "nvenc" and m.get("xoay") == 0:
                 k = self._input("-hwaccel", "cuda", "-ss", _so(vao), "-t", _so(ra - vao), "-i", self._file(m))
             else:
                 k = self._input("-ss", _so(vao), "-t", _so(ra - vao), "-i", self._file(m))
@@ -735,6 +737,11 @@ class DungLenh:
             ass = chu_hinh.tao_ass(self.tl, self.W, self.H)
             self.loc.append(f"[{vc}]subtitles=sub.ass:fontsdir=fonts[vout]")
             vc = "vout"
+        if not chi_tieng:
+            # Khung đã xoay đúng + ghép theo khung dự án → bỏ thẻ "Display Matrix" ffmpeg mới chép từ video điện thoại,
+            # không thì trình phát xoay THÊM một lần nữa (video dọc bị nằm ngang).
+            self.loc.append(f"[{vc}]sidedata=mode=delete:type=DISPLAYMATRIX[vra]")
+            vc = "vra"
         cmd = [self.ffmpeg, "-hide_banner", "-y", "-nostats", "-progress", "pipe:1"]
         for nhom in self.vao:
             cmd += nhom

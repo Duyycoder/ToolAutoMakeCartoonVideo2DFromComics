@@ -31,7 +31,7 @@ def _v(cid, mid, bd, vao, ra, toc=1, **kw):
 def test_xuat_bo_scale_hwaccel_va_r_chi_khi_can(tmp_path):
     """Lượt 24: clip đúng khung → không scale; NVENC → giải mã -hwaccel cuda; luôn có -r (fps dự án)."""
     da = _du_an()
-    da["media"].append({"id": "m_hd", "loai": "video", "file": "media/hd.mp4", "co_am_thanh": True, "rong": 1280, "cao": 720, "fps": 30})
+    da["media"].append({"id": "m_hd", "loai": "video", "file": "media/hd.mp4", "co_am_thanh": True, "rong": 1280, "cao": 720, "fps": 30, "xoay": 0})
     kq = render.dung_lenh_xuat(str(tmp_path), da, _tl(_v("c_1", "m_hd", 0, 0, 5)), {"bo_ma_hoa": "nvenc"}, "ra.mp4")
     i = kq["cmd"].index("-hwaccel")
     assert kq["cmd"][i + 1] == "cuda" and kq["cmd"].index("-i") > i

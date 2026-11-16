@@ -97,6 +97,8 @@ def phan_tich(stderr: str) -> Dict[str, Any]:
 
     # Video iPhone quay dọc: luồng ghi 1920x1080 kèm "rotation of -90" — khung hiển thị là 1080x1920.
     rot = re.search(r"rotation of (-?\d+(?:\.\d+)?) degrees", stderr) or re.search(r"rotate\s*:\s*(-?\d+)", stderr)
+    if out.get("co_hinh"):
+        out["xoay"] = 0       # có khoá (0) = đã biết KHÔNG xoay — render mới dám giải mã bằng GPU (xem render.py)
     if rot:
         out["xoay"] = round(float(rot.group(1)))
         if "rong" in out and abs(out["xoay"]) % 180 == 90:
