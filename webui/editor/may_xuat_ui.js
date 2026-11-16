@@ -1,4 +1,4 @@
-/* Ô chọn "Máy xuất" (máy này / laptop GPU chạy run-worker.bat qua Tailscale) + địa chỉ, mã bí mật.
+/* Ô chọn "Máy xuất" (server / laptop GPU chạy run-worker.bat qua Tailscale) + địa chỉ, mã bí mật.
  * Dùng chung cho hộp Xuất video của editor và bước Xuất của Chạy lô (trang chủ).
  * Địa chỉ + mã lưu ở server máy này (/api/may-xuat); mã không gửi ngược về trình duyệt. */
 import { api, toast } from './chung.js';
@@ -6,7 +6,7 @@ import { api, toast } from './chung.js';
 export function htmlMayXuat(chon) {
     const laptop = chon === 'laptop';
     return `<label>Máy xuất<select name="may_xuat">
-                <option value="" ${laptop ? '' : 'selected'}>Máy này</option>
+                <option value="" ${laptop ? '' : 'selected'}>Server</option>
                 <option value="laptop" ${laptop ? 'selected' : ''}>Laptop GPU qua Tailscale</option></select></label>
             <div class="o-may-xuat" ${laptop ? '' : 'hidden'}>
                 <div class="hang">

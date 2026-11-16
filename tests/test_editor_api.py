@@ -499,5 +499,5 @@ def test_may_xuat_cau_hinh_va_laptop_tat_thi_xuat_o_may_nay(ws):
     tl["clips"].append({"id": "c_1", "track": "V1", "media": m["id"], "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1})
     assert ws.put(f"/api/du-an/{pid}/timeline", json={"phien": phien, "timeline": tl, "phien_ban": tl["phien_ban"]}).status_code == 200
     viec, _ = ws.router.xep_xuat(mo["du_an"]["folder"], pid, {"may_xuat": "laptop", "bo_ma_hoa": "x264"})
-    assert "xuất ở máy này" in viec.nhan and viec.tham_so["bo_ma_hoa"] in ("x264", "nvenc")
+    assert "xuất bằng server" in viec.nhan and viec.tham_so["bo_ma_hoa"] in ("x264", "nvenc")
     viec.huy_event.set()

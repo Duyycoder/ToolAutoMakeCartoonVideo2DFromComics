@@ -136,7 +136,7 @@ class MayXuat:
                     raise RuntimeError("Laptop xuất lỗi: " + (v.get("loi") or v["trang_thai"]))
                 bao(30 + min(65.0, v["tien_do_us"] / 1e6 * 65 / T), "Laptop đang xuất (GPU)…")
                 time.sleep(1)
-            bao(96, "Tải video về máy này…")
+            bao(96, "Tải video từ laptop về server…")
             req = urllib.request.Request(f"{self.url}/viec/{vid}/file", headers={"Authorization": f"Bearer {self.token}"})
             with urllib.request.urlopen(req, timeout=600) as r, open(ra + ".tai", "wb") as f:
                 while True:

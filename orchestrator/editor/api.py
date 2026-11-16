@@ -1011,7 +1011,7 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                 may = xuat_tu_xa.MayXuat(cau_hinh.get("url", ""), cau_hinh.get("token", ""))
                 tc["bo_ma_hoa"] = "nvenc" if may.ping().get("nvenc") else "x264"
             except (xuat_tu_xa.LoiMayXuat, RuntimeError) as e:
-                may, canh_bao = None, f"{e} — xuất ở máy này"
+                may, canh_bao = None, f"{e} — xuất bằng server"
                 tc["bo_ma_hoa"] = "auto"
         if tc.get("bo_ma_hoa", "auto") == "auto":
             if "co" not in nvenc:
@@ -1041,7 +1041,7 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                 except xuat_tu_xa.LoiMayXuat as e:
                     tc_may = {**tc, "bo_ma_hoa": "nvenc" if nvenc.get("co") else "x264"}
                     kq_dung, bo = render.dung_lenh_xuat(folder, du_an, tl, tc_may, ra, ff), tc_may["bo_ma_hoa"]
-                    ctx.bao(0, f"{e} — xuất ở máy này…")
+                    ctx.bao(0, f"{e} — xuất bằng server…")
             thu_muc = luu_tru._p(folder, luu_tru.CACHE, "xuat", viec.id)
             os.makedirs(thu_muc, exist_ok=True)
             with open(os.path.join(thu_muc, "loc.txt"), "w", encoding="utf-8") as fh:
