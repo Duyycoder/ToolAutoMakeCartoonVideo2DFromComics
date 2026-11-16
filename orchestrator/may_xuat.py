@@ -208,6 +208,8 @@ def tao_app(thu_muc: str = THU_MUC, ma: str = "") -> FastAPI:
             shutil.rmtree(v.thu_muc, ignore_errors=True)
         return {"ok": True}
 
+    from orchestrator import may_ai   # tác vụ AI (Whisper…) chạy hộ server, dùng chung cache file
+    may_ai.gan_routes(app, cache, thu_muc, lambda k: bool(KHOA_TEP.match(k)))
     return app
 
 

@@ -67,6 +67,12 @@ renders the audio track (exact same filters) which is copied into the MP4 withou
 - Media could only be removed via right-click (`contextmenu`), which phones never fire → every media card has a ⋮ button (always visible on touch). Removing media still used on the timeline now offers to delete those clips too (one undo step) instead of failing with "Media đang có trên timeline".
 - Batch Whisper subtitles: `webui/editor/phu_de_hang_loat.js` — AI panel button "🎙 Nhiều video…" (also shown when the timeline is empty) and the media multi-select menu. Lists every ready video/audio in the project (need not be on the timeline: captions are anchored to media time), queues one `phu-de` job per video on the GPU queue (they run one after another); each result auto-applies to its own video.
 
+## Whisper on the GPU laptop (run-worker.bat)
+
+- The remote export worker also runs AI jobs: `orchestrator/may_ai.py` adds `GET/POST /ai`, `GET/DELETE /ai/{id}` to `may_xuat.py` (same bearer token, same `@tep` content-keyed cache). Only `phu-de` is accepted (result = caption list, no file output). The laptop runs the full AIVoice pipeline (PhoWhisper, Demucs, CUDA) through `ai_bridge` + its own `hang_doi` queue in a throwaway project folder.
+- Server side: AI panel "Chạy trên: Máy chủ / Laptop GPU" (shown once a laptop address + token is saved in Export > Máy xuất) sends `tham_so.may = "laptop"`; `api.xep_ai` calls `xuat_tu_xa.MayXuat.chay_ai` and falls back to the server's own Whisper when the laptop is unreachable. Batch subtitles use the same choice.
+- The laptop must run the updated code (old worker → 404 on `/ai`, reported as "cập nhật code trên laptop").
+
 ## Git status and handoff
 
 - `feat/editor` is pushed and deployed (last `2b6f948`). `AIVoice` is a third-party submodule and was not modified.

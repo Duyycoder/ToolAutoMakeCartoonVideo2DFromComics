@@ -852,7 +852,26 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                 return ai_bridge.chay(ctx, folder, loai, m, ke_hoach, AIVOICE_DIR, tham_so,
                                       lambda f, wav, tu: qlm.dang_ky_file(f, pid, wav, tu))
             viec.ham = lam
-            
+
+        if tham_so.get("may") == "laptop" and loai in ("phu-de",):
+            # Laptop GPU (run-worker.bat): pipeline AIVoice đầy đủ (PhoWhisper, Demucs, GPU). Không tới được → chạy ở đây.
+            cau_hinh = _cfg_editor().get("may_xuat") or {}
+            tai_cho = viec.ham
+
+            def lam_laptop(ctx):
+                try:
+                    may = xuat_tu_xa.MayXuat(cau_hinh.get("url", ""), cau_hinh.get("token", ""))
+                    kq = may.chay_ai(luu_tru.duong_dan_media(folder, m["file"]), loai, tham_so,
+                                     lambda p, t: ctx.bao(p, t), lambda: ctx.da_huy)
+                    return {**kq, "loai": loai, "media": m["id"], "may": "laptop"}
+                except InterruptedError:
+                    raise hang_doi.DaHuy()
+                except xuat_tu_xa.LoiMayXuat as e:
+                    ctx.bao(0, f"{e} — chạy bằng server…")
+                    return tai_cho(ctx)
+            viec.ham = lam_laptop
+            viec.nhan += " (laptop)"
+
         hang_gpu.them(viec)
         return viec
 

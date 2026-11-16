@@ -100,6 +100,38 @@ class MayXuat:
         if code >= 400:
             raise RuntimeError(f"Gửi {os.path.basename(path)} lỗi {code}: {body[:200]!r}")
 
+    def chay_ai(self, path: str, loai: str, tham_so: Dict[str, Any], bao: Callable[[float, str], None],
+                da_huy: Callable[[], bool]) -> Dict[str, Any]:
+        """Tác vụ AI trên laptop (orchestrator/may_ai.py): gửi media (0–10 %), chờ laptop chạy, trả `ket_qua`."""
+        khoa = khoa_tep(path)
+        n = os.path.getsize(path) or 1
+        self._gui_tep(path, khoa, lambda d: bao(10 * d / n, "Gửi file lên laptop…"))
+        code, body = self._goi("POST", "/ai", {"loai": loai, "tep": khoa, "tham_so": tham_so})
+        if code == 404:
+            raise LoiMayXuat("Laptop đang chạy bản run-worker cũ chưa có AI — cập nhật code trên laptop.")
+        try:
+            vid = json.loads(body)["id"] if code < 400 else None
+        except (ValueError, KeyError):
+            vid = None
+        if not vid:
+            raise RuntimeError(f"Laptop từ chối tác vụ AI ({code}): {body[:200]!r}")
+        try:
+            while True:
+                if da_huy():
+                    raise InterruptedError()
+                v = self._json("GET", f"/ai/{vid}")
+                if v["trang_thai"] == "xong":
+                    return v.get("ket_qua") or {}
+                if v["trang_thai"] in ("loi", "da_huy", "bi_ngat"):
+                    raise RuntimeError("Laptop: " + (v.get("loi") or v["trang_thai"]))
+                bao(10 + 0.89 * float(v.get("tien_do") or 0), "Laptop (GPU): " + (v.get("thong_diep") or "đang chạy…"))
+                time.sleep(1)
+        finally:
+            try:
+                self._goi("DELETE", f"/ai/{vid}", het_gio=10)
+            except LoiMayXuat:
+                pass
+
     def xuat(self, kq: Dict[str, Any], ra: str, bao: Callable[[float, str], None],
              da_huy: Callable[[], bool]) -> None:
         """Gửi file còn thiếu (0–30 %), chạy ffmpeg trên máy xuất (30–95 %), tải kết quả về `ra`."""

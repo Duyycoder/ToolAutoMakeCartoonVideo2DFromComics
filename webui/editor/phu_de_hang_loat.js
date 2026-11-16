@@ -29,7 +29,7 @@ export async function taoPhuDeNhieu(ctx, bangAi, midsGoiY = null) {
         <div class="pd-nhieu-ds">${ds.map((m) => `<label class="check"><input type="checkbox" value="${esc(m.id)}" ${tick(m) ? 'checked' : ''}>
             <span>${m.loai === 'video' ? '🎬' : '🎵'} ${esc(m.ten || m.file)}
             <small class="goi-y-nho">${m.thoi_luong ? fmtNgan(m.thoi_luong) : ''}${soCau.get(m.id) ? ` · đã có ${soCau.get(m.id)} câu (sẽ bị thay)` : ''}</small></span></label>`).join('')}</div>
-        <p class="goi-y-nho">Dùng model + Demucs đang chọn ở bảng AI. Các video chạy lần lượt; xong video nào phụ đề tự vào timeline video đó.</p></div>`;
+        <p class="goi-y-nho">Dùng model, Demucs và máy chạy (máy chủ/laptop) đang chọn ở bảng AI. Các video chạy lần lượt; xong video nào phụ đề tự vào timeline video đó.</p></div>`;
     const cho = hoi({ tieuDe: 'Tạo phụ đề cho nhiều video', html, nut: 'Tạo phụ đề' });
     // hoi() gắn hộp vào DOM ngay (đồng bộ) → giữ tham chiếu ô tick trước khi hộp bị gỡ lúc bấm nút.
     const hop = [...document.querySelectorAll('.pd-nhieu')].pop();

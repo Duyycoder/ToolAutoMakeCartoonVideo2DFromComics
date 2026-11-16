@@ -104,6 +104,8 @@ export class BangAi {
         this.noi.addEventListener('change', (e) => this._doi(e));
         ctx.bus.on('media', () => { if (this.el.isConnected) this.ve(); });
         this.tai();
+        // Đã lưu địa chỉ + mã laptop (hộp Xuất > Máy xuất) → cho chọn chạy Whisper trên laptop.
+        api('/api/may-xuat').then((r) => { this._coLaptop = !!(r.url && r.co_token); if (this._coLaptop && this.el.isConnected) this.ve(); }).catch(() => {});
     }
 
     get tl() { return this.ctx.store.timeline; }
@@ -154,6 +156,9 @@ export class BangAi {
                     <option value="large-v3" ${(c.whisper_model || (c.ngon_ngu_noi === 'Vietnamese' ? 'qbsmlabs/PhoWhisper-small' : 'medium')) === 'large-v3' ? 'selected' : ''}>large-v3 (tải ~3 GB lần đầu)</option>
                 </select></label>
                 <label class="check"><input type="checkbox" data-o="demucs" ${c.demucs ? 'checked' : ''}> Tách giọng trước (Demucs) — nhạc nền to thì bật</label>
+                ${this._coLaptop ? `<label title="Laptop chạy run-worker.bat (cùng địa chỉ/mã với Máy xuất): PhoWhisper, Demucs, GPU — nhanh và chuẩn hơn. Laptop tắt thì tự chạy bằng máy chủ.">Chạy trên<select data-o="may_ai">
+                    <option value="" ${c.may_ai !== 'laptop' ? 'selected' : ''}>Máy chủ</option>
+                    <option value="laptop" ${c.may_ai === 'laptop' ? 'selected' : ''}>Laptop GPU</option></select></label>` : ''}
                 <div class="hang-nut"><button class="nut nut-chinh" data-l="phu-de">Tạo phụ đề</button>
                     <button class="nut" data-l="phu-de-nhieu" title="Chọn nhiều video trong dự án (kể cả chưa kéo xuống timeline)">🎙 Nhiều video…</button></div></section>
 
@@ -588,7 +593,8 @@ export class BangAi {
         if (loai !== 'tao-anh' && !m) throw new Error('Chọn video nguồn trước.');
         let ts = thamSoCu ? { ...thamSoCu } : {};
         if (!thamSoCu) {
-            if (loai === 'phu-de') ts = { source_lang: c.ngon_ngu_noi || 'Chinese', clean_audio: !!c.demucs, whisper_model: c.whisper_model || (c.ngon_ngu_noi === 'Vietnamese' ? 'qbsmlabs/PhoWhisper-small' : 'medium') };
+            if (loai === 'phu-de') ts = { source_lang: c.ngon_ngu_noi || 'Chinese', clean_audio: !!c.demucs, whisper_model: c.whisper_model || (c.ngon_ngu_noi === 'Vietnamese' ? 'qbsmlabs/PhoWhisper-small' : 'medium'),
+                may: this._coLaptop && c.may_ai === 'laptop' ? 'laptop' : '' };
             if (loai === 'ocr') {
                 if (!c.vung || !m.rong) throw new Error('Kéo khung vùng phụ đề trước.');
                 ts = { source_lang: c.ngon_ngu_chu || 'Chinese', vung: c.vung, tao_che: c.tao_che !== false,
