@@ -14,7 +14,7 @@ Updated 2026-11-17. Branches: `feat/editor` (deployed), `feat/device-export` (on
 ## Server capabilities
 
 - 4 CPU cores, 7.2 GiB RAM, GTX 750 Ti with 2 GiB VRAM.
-- Ollama serves `qwen2.5:0.5b-instruct`. The editor enables only translation (`EDITOR_AI_MODE=translate`); Whisper, OCR, voiceover and heavy AI actions return 503 and are hidden from the AI panel.
+- Ollama serves `qwen2.5:0.5b-instruct`. The editor enables translation + Whisper subtitles (`EDITOR_AI_MODE=translate,phu-de`, a comma list; `all`/`off` also work). OCR, voiceover and other heavy AI actions return 503 and their cards are hidden from the AI panel. With no AIVoice (Linux), `phu-de` runs `orchestrator/editor/whisper_truc_tiep.py`: faster-whisper on CPU int8 (GTX 750 Ti is unusable for CTranslate2), model kept loaded between jobs, PhoWhisper → Whisper small, Demucs skipped with a warning.
 - A Qwen 1.5B pull timed out without installing the model. The 0.5B model answered a sample but its translation quality was weak; treat it as experimental.
 - FFmpeg is provided by the `imageio-ffmpeg` wheel, so export uses CPU. NVIDIA NVENC is not available on this GPU/server setup.
 

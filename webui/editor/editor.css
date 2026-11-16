@@ -214,7 +214,6 @@ select { cursor: pointer; }
 .thanh-icon button.bat::before { content: ''; position: absolute; left: -6px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--nhan); }
 .thanh-icon .gian { flex: 1; }
 #thanhIcon button[hidden] { display: none !important; }
-body.ai-translate-only .the-ai:not(:has([data-l="dich"])) { display: none !important; }
 
 .bang-trai { grid-row: 1 / 4; grid-column: 2; background: var(--nen-2); border-right: 1px solid var(--vien); min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
 .keo { background: transparent; position: relative; z-index: 5; }

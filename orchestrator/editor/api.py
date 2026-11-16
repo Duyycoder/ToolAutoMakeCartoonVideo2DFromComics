@@ -26,6 +26,21 @@ NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 TIENG_THIET_BI = "tieng-thiet-bi"   # tên file tiếng tạm server dựng cho xuất trên thiết bị (ẩn khỏi "Bản đã xuất")
 AI_MODE = os.environ.get("EDITOR_AI_MODE", "all" if os.environ.get("EDITOR_ENABLE_AI", "1").strip().lower() not in {"0", "false", "no"} else "off").strip().lower()
 AI_ENABLED = AI_MODE != "off"
+TAT_CA_AI = ["phu-de", "ocr", "dich", "long-tieng", "tach-giong", "lam-net", "can-gio", "tao-anh", "doc-van-ban"]
+
+
+def tinh_nang_ai(che_do: str) -> List[str]:
+    """EDITOR_AI_MODE → các tác vụ AI được bật. 'all' = hết, 'off' = không, còn lại là danh sách cách nhau
+    bằng dấu phẩy (vd `translate,phu-de`; `translate` là tên cũ của `dich`)."""
+    if che_do == "all":
+        return list(TAT_CA_AI)
+    if che_do == "off":
+        return []
+    ds = [{"translate": "dich"}.get(x.strip(), x.strip()) for x in che_do.split(",")]
+    return [x for x in TAT_CA_AI if x in ds]
+
+
+AI_TINH_NANG = tinh_nang_ai(AI_MODE)
 
 class WorkspaceSchema(BaseModel):
     duong_dan: str
@@ -806,7 +821,7 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         return VideoPipeline.build_translate_cmd(None, job, args, g)
 
     def xep_ai(folder: str, pid: str, loai: str, media_id: str, tham_so: Dict[str, Any]) -> hang_doi.Viec:
-        from orchestrator.pipeline import AIVOICE_DIR
+        from orchestrator.pipeline import AIVOICE_DIR, PYTHON_EXE
         m = qlm.lay(folder, media_id) if loai not in ai_bridge.KHONG_CAN_MEDIA else None
         g = load_global_config()
         m_id = m["id"] if m else ""
@@ -825,6 +840,12 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                     bat_ollama()
                 return dich.dich(ctx, folder, loai, m, tham_so, dam_bao_ollama=bat_ollama)
             viec.ham = lam
+        elif loai == "phu-de" and not os.path.isfile(PYTHON_EXE):
+            # Không có AIVoice (server Linux) → faster-whisper ngay trong tiến trình này.
+            from orchestrator.editor import whisper_truc_tiep
+            if not whisper_truc_tiep.co_san():
+                raise ValueError("Máy chủ chưa cài faster-whisper (pip install faster-whisper).")
+            viec.ham = lambda ctx: whisper_truc_tiep.chay(ctx, folder, m, tham_so)
         else:
             ke_hoach = ai_bridge.dung_lenh(folder, loai, m, tham_so, g, xay_lenh, viec.id)
             def lam(ctx):
@@ -899,8 +920,9 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
     def start_ai(pid: str, loai: str, body: AiSchema):
         if not AI_ENABLED:
             raise HTTPException(status_code=503, detail="Các tính năng AI đang tắt trên máy chủ này; chỉnh sửa và xuất video vẫn dùng được.")
-        if AI_MODE == "translate" and loai != "dich":
-            raise HTTPException(status_code=503, detail="Máy chủ này chỉ bật AI dịch bằng Ollama; Whisper, OCR, lồng tiếng và các tác vụ nặng đang tắt.")
+        if loai not in AI_TINH_NANG and loai in TAT_CA_AI:
+            raise HTTPException(status_code=503, detail="Máy chủ này không bật tác vụ AI này (chỉ bật: "
+                                + ", ".join(ai_bridge.TEN.get(x, x) for x in AI_TINH_NANG) + ").")
         tham_so = body.tham_so or {}
         if loai == 'dich':
             if not tham_so.get('cau'): raise HTTPException(400, detail='Chưa có câu để dịch')
@@ -1227,10 +1249,10 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
     def ai_models():
         if not AI_ENABLED:
             return {"enabled": False}
-        if AI_MODE == "translate":
-            return {"enabled": True, "features": ["dich"]}
+        if AI_MODE != "all":
+            return {"enabled": True, "features": AI_TINH_NANG}
         from orchestrator.pipeline import AIVOICE_DIR
-        res = {"enabled": True, "features": ["phu-de", "ocr", "dich", "long-tieng", "tach-giong", "lam-net", "can-gio", "tao-anh", "doc-van-ban"]}
+        res = {"enabled": True, "features": list(TAT_CA_AI)}
         esrgan_dir = os.path.join(AIVOICE_DIR, "apps", "MediaComposer", "models", "realesrgan")
         if os.path.exists(os.path.join(esrgan_dir, "realesr-animevideov3.pth")):
             res["realesr_animevideov3"] = True

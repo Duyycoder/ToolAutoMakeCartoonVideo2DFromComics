@@ -84,13 +84,12 @@ async function khoiDong() {
         const nutAi = document.querySelector('#thanhIcon [data-bang="ai"]');
         if (nutAi) nutAi.hidden = true;
         if (ui.bang_trai === 'ai') { ui.bang_trai = 'media'; ui.bang_trai_mo = true; }
-    } else if (aiFeatures && aiFeatures.length === 1 && aiFeatures[0] === 'dich') {
-        document.body.classList.add('ai-translate-only');
     }
     const cfg = mo.cau_hinh || {};
     const bus = taoBus();
     const ctx = { id, du, store, ui, bus, media: du.media || [], chon: { media: null } };
-    ctx.coWhisper = !aiFeatures || aiFeatures.includes('phu-de');   // server tắt AI / chỉ dịch → ẩn tạo phụ đề hàng loạt
+    ctx.aiFeatures = aiFeatures;   // null = không rõ (bật hết); mảng = chỉ các tác vụ server bật
+    ctx.coWhisper = !aiFeatures || aiFeatures.includes('phu-de');   // server tắt AI / không bật Whisper → ẩn tạo phụ đề hàng loạt
 
     document.title = `${du.name} — Editor`;
     $('tenDuAn').textContent = du.name;

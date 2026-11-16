@@ -285,7 +285,12 @@ export class BangAi {
             <label class="check" style="margin:8px 0" title="Phụ đề, OCR, dịch, lồng tiếng, tách giọng, đọc văn bản, minh hoạ: xong là vào timeline ngay (Ctrl+Z để bỏ). Làm nét luôn hỏi trước.">
                 <input type="checkbox" data-o="tu_ap_dung" ${(c.tu_ap_dung ?? true) ? 'checked' : ''}> Tự đưa kết quả AI vào timeline khi xong</label>
             <div class="ai-tv-hop">${this._veTacVu()}</div>`;
-            
+        // Server chỉ bật một phần AI (EDITOR_AI_MODE=translate,phu-de…) → ẩn thẻ không có nút nào được bật.
+        const bat = this.ctx.aiFeatures;
+        if (bat) this.noi.querySelectorAll('.the-ai').forEach((s) => {
+            s.hidden = ![...s.querySelectorAll('[data-l]')].some((b) => bat.includes(b.dataset.l));
+        });
+
         this._taiDeXuatDich(soCau);
         api('/api/config').then(cfg => {
             const keys = cfg.api_keys || {};
