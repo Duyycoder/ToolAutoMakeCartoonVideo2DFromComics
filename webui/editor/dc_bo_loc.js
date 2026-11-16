@@ -1,5 +1,5 @@
 /* Bảng chỉnh màu — phần BỘ LỌC MÀU có sẵn (ảnh thu nhỏ áp đúng bộ lọc lên khung hình của clip) và LUT .cube. */
-import { api, esc, toast } from './chung.js';
+import { api, esc, toast, moChonFile } from './chung.js';
 import { PRESET, hamMau, docCube } from './mau_nang_cao.js';
 
 const CO_ANH = [72, 44];
@@ -83,11 +83,7 @@ export class BoLoc {
 
     _nhapLut() {
         if (this.ctx.store.chiDoc) { toast('Cửa sổ này chỉ xem.', 'warn'); return; }
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.cube';
-        input.onchange = async () => {
-            const f = input.files && input.files[0];
+        moChonFile({ accept: '.cube' }).then(async ([f]) => {
             if (!f) return;
             try {
                 const text = await f.text();
@@ -100,7 +96,6 @@ export class BoLoc {
                 this.datMau({ lut: d.ten, lut_manh: 100 }, `LUT ${d.ten}`);
                 toast(`Đã nhập LUT ${d.ten}.`, 'success', 2500);
             } catch (e) { toast(`Nhập LUT lỗi: ${e.message}`, 'error'); }
-        };
-        input.click();
+        });
     }
 }

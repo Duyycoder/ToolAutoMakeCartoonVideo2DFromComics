@@ -126,3 +126,21 @@ export function tiLe(rong, cao) {
     const k = g(rong, cao) || 1;
     return `${rong / k}:${cao / k}`;
 }
+
+/* Mở hộp chọn file của trình duyệt → Promise<File[]> ([] nếu huỷ).
+   Ô <input> PHẢI nằm trong trang tới khi chọn xong: Safari iOS dọn ô tạo bằng JS mà không gắn vào DOM,
+   nên chọn nhiều video (iPhone mất vài chục giây "chuẩn bị" file) thì sự kiện change không bao giờ tới. */
+export function moChonFile({ accept = '', multiple = false } = {}) {
+    return new Promise((xong) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.multiple = multiple;
+        if (accept) input.accept = accept;
+        input.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0';
+        document.body.appendChild(input);
+        const ket = (ds) => { input.remove(); xong(ds); };
+        input.addEventListener('change', () => ket([...(input.files || [])]), { once: true });
+        input.addEventListener('cancel', () => ket([]), { once: true });
+        input.click();
+    });
+}

@@ -2,8 +2,10 @@
    - 1 ngón vuốt: cuộn timeline (có quán tính). Chạm clip: chọn. Chạm chỗ trống: đặt đầu phát.
    - Giữ ~0,35 s trên clip: nhấc clip lên để dời (rung nhẹ báo hiệu).
    - Kéo mép clip ĐANG CHỌN: tỉa (vùng nắm mép rộng hơn — xem MEP_CHAM ở timeline.js).
-   - 2 ngón: pinch-zoom quanh điểm giữa hai ngón.
+   - 2 ngón: pinch-zoom — thời điểm nằm dưới điểm giữa hai ngón lúc bắt đầu luôn bám theo điểm giữa hiện tại
+     (vừa zoom vừa kéo được), chặn Safari tự phóng to cả trang.
    Chuột/bút vẫn đi đường cũ của timeline.js. */
+import { ZOOM_MU } from './timeline.js';
 const GIU_LAU = 350;    // ms
 const NGUONG_DI = 8;    // px — quá mức này là vuốt, không còn là chạm/giữ
 
@@ -14,7 +16,7 @@ export function ganCamUng(tl, MEP_CHAM) {
     let quanTinh = 0;
 
     const huyGiu = () => { if (viec && viec.hGiu) { clearTimeout(viec.hGiu); viec.hGiu = 0; } };
-    const zTuPx = (px) => Math.max(0, Math.min(1, Math.log2(px / 5) / 7));
+    const zTuPx = (px) => Math.max(0, Math.min(1, Math.log2(px / 5) / ZOOM_MU));
 
     cuon.addEventListener('pointerdown', (e) => {
         if (e.pointerType !== 'touch') return;
@@ -55,9 +57,15 @@ export function ganCamUng(tl, MEP_CHAM) {
         if (!viec) return;
         if (viec.loai === 'pinch' && ngon.size >= 2) {
             const [a, b] = [...ngon.values()];
-            const z = zTuPx(viec.px0 * Math.hypot(a.x - b.x, a.y - b.y) / viec.d0);
-            if (Math.abs(z - tl.ui.zoom_timeline) > 0.004 && !viec.raf) {
-                viec.raf = requestAnimationFrame(() => { if (viec) viec.raf = 0; tl.datZoom(z, { t: viec ? viec.t : 0, x: viec ? viec.x : 0 }); });
+            viec.z = zTuPx(viec.px0 * Math.hypot(a.x - b.x, a.y - b.y) / viec.d0);
+            viec.xHien = (a.x + b.x) / 2 - cuon.getBoundingClientRect().left;
+            if (!viec.raf) {
+                viec.raf = requestAnimationFrame(() => {
+                    const v = viec;
+                    if (!v || v.loai !== 'pinch') return;
+                    v.raf = 0;
+                    tl.datZoom(v.z, { t: v.t, x: v.xHien });
+                });
             }
             return;
         }
@@ -100,4 +108,7 @@ export function ganCamUng(tl, MEP_CHAM) {
     };
     cuon.addEventListener('pointerup', tha, true);
     cuon.addEventListener('pointercancel', tha, true);
+    // Safari iOS: pinch trên timeline không được phóng to cả trang (bỏ qua touch-action).
+    for (const ten of ['gesturestart', 'gesturechange', 'gestureend']) cuon.addEventListener(ten, (e) => e.preventDefault(), { passive: false });
+    cuon.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 }

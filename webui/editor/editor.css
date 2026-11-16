@@ -91,10 +91,10 @@ select { cursor: pointer; }
 .modal-lon .modal-dau { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--vien); }
 .modal-lon iframe { flex: 1; border: 0; width: 100%; background: var(--nen); border-radius: 0 0 12px 12px; }
 
-.o-form { display: grid; gap: 12px; }
+.o-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .o-form label { display: flex; flex-direction: column; gap: 5px; color: var(--chu-2); font-size: 12.5px; }
 .o-form .hang { display: flex; gap: 10px; }
-.o-form .hang > * { flex: 1; }
+.o-form .hang > * { flex: 1; min-width: 0; }
 .chon-mau { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .chon-mau button {
     background: var(--nen); border: 1px solid var(--vien-sang); border-radius: 8px; padding: 10px 4px;
@@ -194,12 +194,12 @@ select { cursor: pointer; }
 
 .ed-than {
     flex: 1; min-height: 0; display: grid;
-    grid-template-columns: 52px var(--w-trai, 340px) 4px minmax(320px, 1fr) 4px var(--w-phai, 380px);
+    grid-template-columns: 64px var(--w-trai, 340px) 4px minmax(320px, 1fr) 4px var(--w-phai, 380px);
     grid-template-rows: minmax(160px, 1fr) 4px var(--h-tl, 280px);
 }
-.ed-than.dong-trai { grid-template-columns: 52px 0 0 minmax(320px, 1fr) 4px var(--w-phai, 380px); }
-.ed-than.dong-phai { grid-template-columns: 52px var(--w-trai, 340px) 4px minmax(320px, 1fr) 0 0; }
-.ed-than.dong-trai.dong-phai { grid-template-columns: 52px 0 0 minmax(320px, 1fr) 0 0; }
+.ed-than.dong-trai { grid-template-columns: 64px 0 0 minmax(320px, 1fr) 4px var(--w-phai, 380px); }
+.ed-than.dong-phai { grid-template-columns: 64px var(--w-trai, 340px) 4px minmax(320px, 1fr) 0 0; }
+.ed-than.dong-trai.dong-phai { grid-template-columns: 64px 0 0 minmax(320px, 1fr) 0 0; }
 
 .thanh-icon {
     grid-row: 1 / 4; grid-column: 1; background: var(--nen-2); border-right: 1px solid var(--vien);
@@ -651,3 +651,17 @@ body.ai-translate-only .the-ai:not(:has([data-l="dich"])) { display: none !impor
     .bang-trai .check, .bang-phai .check { min-height: 36px; display: flex; align-items: center; gap: 6px; }
 }
 .menu { max-height: calc(100dvh - 16px); overflow-y: auto; overscroll-behavior: contain; }
+
+/* ---- Máy tính: thanh icon có nhãn, ô trong bảng thuộc tính co theo bề rộng ---- */
+@media (min-width: 761px) {
+    .thanh-icon { overflow-y: auto; overflow-x: hidden; scrollbar-width: none; gap: 2px; }
+    .thanh-icon::-webkit-scrollbar { display: none; }
+    .thanh-icon button { width: 58px; height: 50px; flex: none; flex-direction: column; gap: 2px; font-size: 16px; }
+    .thanh-icon button[data-nhan]::after { content: attr(data-nhan); font-size: 10px; line-height: 1.1; color: var(--chu-3); white-space: nowrap; }
+    .thanh-icon button.bat[data-nhan]::after, .thanh-icon button:hover::after { color: var(--chu); }
+}
+.o-form input, .o-form select, .o-form textarea { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.o-form .kf-nhom { min-width: 0; flex-wrap: wrap; }
+.tl-dau-cot .thuoc-cho .nut { margin-left: auto; padding: 1px 7px; font-size: 11px; }
+.tl-dau-cot .thuoc-cho .nut + .nut { margin-left: 0; }
+@media (max-width: 760px) { .tl-dau-cot .chu-tracks { display: none; } .tl-dau-cot .thuoc-cho .nut { margin-left: 0; flex: 1; } }

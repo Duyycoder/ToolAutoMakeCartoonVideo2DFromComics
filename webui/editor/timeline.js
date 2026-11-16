@@ -16,11 +16,14 @@ const LOP = { video: 'v', phu_de: 's', lop_phu: 'o', audio: 'a' };
 const BUOC_NHAN = [0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1200];
 const MEP = 7;                // px vùng nắm mép để tỉa
 const MEP_CHAM = 24;          // px vùng nắm mép khi dùng ngón tay (timeline_cam_ung.js)
-const DINH_PX = 8;            // khoảng bắt dính (px)
+const DINH_PX = 12;           // khoảng bắt dính mặc định (px) — đổi bằng menu 🧲 (ui.do_dinh)
+const MUC_DINH = [[0, 'Tắt bắt dính'], [8, 'Dính nhẹ'], [16, 'Dính vừa'], [32, 'Dính mạnh']];
 const H_KHUNG = 40;           // chiều cao ô khung hình trong clip
 const CAO_SPRITE = 54;        // media.tao_dai_hinh: scale=-2:54
 
-export const pxGiay = (zoom) => 5 * 2 ** (Math.max(0, Math.min(1, zoom)) * 7);
+/* zoom 0..1 → 5 … 5120 px/giây (10 nấc nhân đôi): phóng tối đa một khung hình ~170 px để cắt chính xác. */
+export const ZOOM_MU = 10;
+export const pxGiay = (zoom) => 5 * 2 ** (Math.max(0, Math.min(1, zoom)) * ZOOM_MU);
 
 export class Timeline {
     constructor(ctx) {
@@ -56,7 +59,9 @@ export class Timeline {
                 <button data-n="bo-chon">✕<span>Bỏ chọn</span></button>
             </div>
             <div class="tl-than">
-                <div class="tl-dau-cot"><div class="thuoc-cho">TRACKS</div><div data-khu="dau" style="overflow:hidden;flex:1"></div></div>
+                <div class="tl-dau-cot"><div class="thuoc-cho"><span class="chu-tracks">TRACKS</span>
+                    <button class="nut" data-hd="them-v" title="Thêm track Video">+ V</button>
+                    <button class="nut" data-hd="them-a" title="Thêm track Audio">+ A</button></div><div data-khu="dau" style="overflow:hidden;flex:1"></div></div>
                 <div class="tl-cuon" data-khu="cuon"><div class="tl-noi" data-khu="noi"></div></div>
             </div>`;
         this.dau = this.el.querySelector('[data-khu=dau]');
@@ -90,12 +95,13 @@ export class Timeline {
             if (l === 'khep-khoang') this.khepKhoangDangChon();
             if (l === 'sap-xep') { e.stopPropagation(); this.menuSapXep(e.target.closest('[data-l]')); }
             if (l === 'cat') this.catTaiDauPhat();
-            if (l === 'thu') this.datZoom(this.ui.zoom_timeline - 0.08);
-            if (l === 'phong') this.datZoom(this.ui.zoom_timeline + 0.08);
+            if (l === 'thu') this.datZoom(this.ui.zoom_timeline - 0.06, this._neoDauPhat());
+            if (l === 'phong') this.datZoom(this.ui.zoom_timeline + 0.06, this._neoDauPhat());
             if (l === 'vua') this.vuaKhung();
             if (l === 'bang-phai') ctx.bus.emit('bat_bang_phai');
-            if (l === 'bat-dinh' || l === 'lien-ket') {
-                const k = l === 'bat-dinh' ? 'bat_dinh' : 'lien_ket_am_thanh';
+            if (l === 'bat-dinh') { e.stopPropagation(); this.menuDinh(e.target.closest('[data-l]')); return; }
+            if (l === 'lien-ket') {
+                const k = 'lien_ket_am_thanh';
                 this.ui[k] = !this.ui[k];
                 ctx.luuUi();
                 this._veCongCu();
@@ -259,6 +265,13 @@ export class Timeline {
             if (m) this.themMedia(m, tr.dataset.track, this._t(e.clientX));
         });
 
+        // Nút thêm track nằm ở dòng tiêu đề TRACKS (luôn thấy, không bị khuất dưới đáy cột).
+        this.el.querySelector('.tl-dau-cot .thuoc-cho').addEventListener('click', (e) => {
+            const hd = e.target.closest('[data-hd]');
+            if (!hd) return;
+            const lenh = opsThemTrack(this.tl, hd.dataset.hd === 'them-v' ? 'video' : 'audio');
+            this.ctx.sua(`Thêm track ${lenh.id}`, lenh.ops);
+        });
         this.dau.addEventListener('click', (e) => {
             const hd = e.target.closest('[data-hd]');
             if (hd) {
@@ -304,6 +317,19 @@ export class Timeline {
     }
 
     // --------------------------------------------------------------- đầu phát
+    /* Vị trí trống gần bd nhất nằm SÁT mép một clip đang bị đè (ưu tiên ngay sau nó); không có thì giữ bd. */
+    _chenSat(track, bd, dai, cid) {
+        const cac = this.tl.clips.filter((c) => c.track === track && c.id !== cid);
+        const ung = [];
+        for (const c of cac) {
+            const a = Number(c.bat_dau) || 0, b = ketThucClip(c);
+            if (bd < b && bd + dai > a) ung.push(b, a - dai);
+        }
+        const tot = ung.filter((x) => x >= 0 && !chongClip(this.tl, track, x, x + dai, [cid]))
+            .sort((x, y) => Math.abs(x - bd) - Math.abs(y - bd))[0];
+        return tot ?? bd;
+    }
+
     _keoDauPhat(e) {
         const ctx = this.ctx;
         if (ctx.preview) ctx.preview.dung();
@@ -316,10 +342,24 @@ export class Timeline {
         let dangKeoKhung = false;
         let vungKhung = null;
 
+        let cuonTu = 0, evCuoi = null;
         const dat = (ev) => {
-            const t = this._t(ev.clientX);
-            this.datDauPhat(ev.shiftKey || !this.ui.bat_dinh ? t : hutDinh(t, dinh, DINH_PX / this.px), true);
+            evCuoi = ev;
+            const rc = this.cuon.getBoundingClientRect();
+            const t = ev.clientX <= rc.left + 2 && this.cuon.scrollLeft <= 0 ? 0 : this._t(ev.clientX);
+            this.datDauPhat(ev.shiftKey || !this.ui.bat_dinh ? t : hutDinh(t, dinh, this._nguongDinh()), true);
+            const sat = ev.clientX < rc.left + 24 ? -1 : ev.clientX > rc.right - 24 ? 1 : 0;
+            if (laThuoc && sat && !cuonTu) {
+                cuonTu = setInterval(() => {
+                    const r2 = this.cuon.getBoundingClientRect();
+                    const huong = evCuoi.clientX < r2.left + 24 ? -1 : evCuoi.clientX > r2.right - 24 ? 1 : 0;
+                    if (!huong) { clearInterval(cuonTu); cuonTu = 0; return; }
+                    this.cuon.scrollLeft = Math.max(0, this.cuon.scrollLeft + huong * 24);
+                    dat(evCuoi);
+                }, 40);
+            }
         };
+        const dungCuonTu = () => { if (cuonTu) { clearInterval(cuonTu); cuonTu = 0; } };
         const el = this.noi;
         el.setPointerCapture(e.pointerId);
 
@@ -366,8 +406,9 @@ export class Timeline {
             el.removeEventListener('pointermove', di);
             el.removeEventListener('pointerup', xong);
             if (vungKhung) vungKhung.remove();
-            if (!dangKeoKhung && !laThuoc) dat(e); // click thả không kéo -> đặt đầu phát
-            if (laThuoc && !dangKeoKhung) dat(e); // click trên thước
+            dungCuonTu();
+            // Chỉ CHẠM (không kéo) mới đặt đầu phát ở điểm bấm; kéo trên thước thì giữ vị trí lúc thả.
+            if (!dangKeoKhung && !evCuoi) dat(e);
             ctx.luuUi();
         };
         el.addEventListener('pointermove', di);
@@ -409,7 +450,7 @@ export class Timeline {
         const gh = gioiHanTia(this.tl, c, Number(m.thoi_luong) || 0, m.loai === 'anh');
         const dinh = diemDinh(this.tl, this.ui.dau_phat, [cid]);
         const t0 = this._t(e.clientX);
-        const ngDinh = DINH_PX / this.px;
+        const ngDinh = this._nguongDinh();
         const minDai = 1 / (Number((ctx.du.thong_so || {}).fps) || 30);
         this._keo = { cid, kieu, daDi: false, moi: null };
         el.setPointerCapture(e.pointerId);
@@ -432,6 +473,7 @@ export class Timeline {
                 const trMoi = duoi && this.tl.tracks.find((t) => t.id === duoi.dataset.track);
                 const track = trMoi && trMoi.loai === tr.loai && !trMoi.khoa ? trMoi.id : c.track;
                 const dai = goc.kt - goc.bd;
+                if (chongClip(this.tl, track, bd, bd + dai, [cid])) bd = this._chenSat(track, bd, dai, cid);
                 const hong = chongClip(this.tl, track, bd, bd + dai, [cid]);
                 moi = { bat_dau: bd, track, hong };
                 el.style.left = `${bd * this.px}px`;
@@ -515,10 +557,46 @@ export class Timeline {
         this.ctx.luuUi();
     }
 
+    /* Neo zoom ở đầu phát khi nó đang hiện trên màn (không thì giữa khung nhìn). */
+    _neoDauPhat() {
+        const x = (this.ui.dau_phat || 0) * this.px - this.cuon.scrollLeft;
+        return x >= 0 && x <= this.cuon.clientWidth ? { t: this.ui.dau_phat || 0, x } : null;
+    }
+
+    /* Ngưỡng bắt dính theo giây; ngón tay to hơn chuột nên nới 1,6 lần. */
+    _nguongDinh(he = 1) {
+        const px = this.ui.do_dinh ?? DINH_PX;
+        return (px * he * (matchMedia('(pointer: coarse)').matches ? 1.6 : 1)) / this.px;
+    }
+
+    menuDinh(nut) {
+        document.querySelectorAll('.menu').forEach((m) => m.remove());
+        const hien = this.ui.bat_dinh ? (this.ui.do_dinh ?? DINH_PX) : 0;
+        const menu = document.createElement('div');
+        menu.className = 'menu';
+        menu.innerHTML = `<div class="menu-dau">Bắt dính vào mép clip, đầu phát, mốc 0s</div>` + MUC_DINH.map(([v, t]) =>
+            `<button data-v="${v}">${(hien === v || (!hien && !v)) ? '✔ ' : ''}${t}</button>`).join('');
+        document.body.appendChild(menu);
+        const r = nut.getBoundingClientRect(), mr = menu.getBoundingClientRect();
+        menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - mr.width - 8))}px`;
+        menu.style.top = `${Math.max(8, r.top - mr.height - 4)}px`;
+        menu.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-v]');
+            if (!b) return;
+            const v = Number(b.dataset.v);
+            this.ui.bat_dinh = v > 0;
+            if (v) this.ui.do_dinh = v;
+            this.ctx.luuUi();
+            this._veCongCu();
+            menu.remove();
+        });
+        setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+    }
+
     vuaKhung() {
         const dai = Math.max(10, thoiLuong(this.tl) * 1.05);
         const rong = this.cuon.clientWidth - 20;
-        this.datZoom(Math.log2(Math.max(1e-6, rong / dai / 5)) / 7);
+        this.datZoom(Math.log2(Math.max(1e-6, rong / dai / 5)) / ZOOM_MU);
         this.cuon.scrollLeft = 0;
     }
 
@@ -546,7 +624,7 @@ export class Timeline {
         if (!dai) { toast('Media chưa có thời lượng (đang đọc thông số?).', 'warn'); return; }
         const cuoi = this.tl.clips.filter((c) => c.track === tr.id).reduce((a, c) => Math.max(a, ketThucClip(c)), 0);
         let tt = t == null ? cuoi : t;
-        if (t != null && this.ui.bat_dinh) tt = hutDinh(tt, diemDinh(this.tl, this.ui.dau_phat), (DINH_PX * 2) / this.px);
+        if (t != null && this.ui.bat_dinh) tt = hutDinh(tt, diemDinh(this.tl, this.ui.dau_phat), this._nguongDinh(2));
         const bd = choTrong(this.tl, tr.id, tt, dai);
         const cid = idClipMoi(this.tl);
         const clip = clipMediaMoi(cid, tr.id, m.id, bd, dai);
@@ -596,7 +674,7 @@ export class Timeline {
         const conLai = ds.filter((m) => m.loai !== 'phu_de');
         if (!conLai.length) return;
         let tt = t;
-        if (t != null && this.ui.bat_dinh) tt = hutDinh(t, diemDinh(this.tl, this.ui.dau_phat), (DINH_PX * 2) / this.px);
+        if (t != null && this.ui.bat_dinh) tt = hutDinh(t, diemDinh(this.tl, this.ui.dau_phat), this._nguongDinh(2));
         const { ops, ids, boQua } = opsThemNhieuMedia(this.tl, conLai, trackId, tt);
         if (boQua.length) toast(`Bỏ qua ${boQua.length} mục (chưa có thời lượng, hoặc không có track phù hợp/đang khoá).`, 'warn');
         if (!ops.length) return;
@@ -1100,10 +1178,7 @@ export class Timeline {
             ${tr.loai !== 'audio' ? `<button class="nut-icon ${tr.an ? 'bat' : ''}" data-bat="an" title="${tr.an ? 'Hiện' : 'Ẩn'}">${tr.an ? '🙈' : '👁'}</button>` : ''}
             <button class="nut-icon ${tr.khoa ? 'bat' : ''}" data-bat="khoa" title="${tr.khoa ? 'Mở khoá' : 'Khoá'}">${tr.khoa ? '🔒' : '🔓'}</button>
             <button class="nut-icon" data-hd="xoa-track" title="Xoá track">✕</button>
-        </div>`).join('') + `<div class="tl-dau-track" style="justify-content:center;gap:4px">
-            <button class="nut" data-hd="them-v" title="Thêm track Video">+ V</button>
-            <button class="nut" data-hd="them-a" title="Thêm track Audio">+ A</button>
-        </div>`;
+        </div>`).join('');
 
         this._veDauPhat();
         this._veCongCu();
@@ -1152,7 +1227,7 @@ export class Timeline {
         const tran = vclip ? ketThucClip(vclip) : Infinity;
         const t0 = this._t(e.clientX);
         const dinh = diemDinh(this.tl, this.ui.dau_phat, [cid]);
-        const ng = DINH_PX / this.px;
+        const ng = this._nguongDinh();
         this._keo = { cid, daDi: false, moi: null };
         el.setPointerCapture(e.pointerId);
         el.classList.add('dang-keo');

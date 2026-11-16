@@ -4,7 +4,7 @@
  * ffmpeg chỉ cho biết codec, không cho biết máy này có phát được không (có HEVC Video
  * Extensions thì .mov iPhone phát được). Không phát được → báo server tạo proxy H.264.
  */
-import { api, esc, toast, hoi, chonFile, fmtNgan, coFile } from './chung.js';
+import { api, esc, toast, hoi, chonFile, fmtNgan, coFile, moChonFile } from './chung.js';
 import { opsThemTrack, opsNhacNen, thoiLuong } from './store.js';
 import { taiLenFile } from './tai_len.js';
 
@@ -253,36 +253,34 @@ export class BangMedia {
 
     async nhap() {
         if (this.ctx.store.chiDoc) { toast('Cửa sổ này chỉ xem.', 'warn'); return; }
-        const input = document.createElement('input');
-        input.type = 'file'; input.multiple = true;
         // Điện thoại: lọc theo MIME làm iOS/Android làm mờ file máy quay (.mts, .mxf…) và ảnh HEIC
         // trong app Tệp — để trống cho chọn mọi file, server tự nhận dạng và đổi định dạng.
-        if (!matchMedia('(pointer: coarse)').matches) {
-            input.accept = 'video/*,audio/*,image/*,.srt,.vtt,.ass,.ssa,.mts,.m2ts,.mxf,.heic,.heif,.caf,.amr';
-        }
-        input.onchange = async () => {
-            const files = [...(input.files || [])];
-            if (!files.length) return;
-            // Toast tiến độ giữ tới khi xong (tải video điện thoại qua mạng di động có thể vài phút).
-            const tb = toast('Đang tải lên…', 'info', 24 * 3600 * 1000);
-            let xong = 0;
+        const dienThoai = matchMedia('(pointer: coarse)').matches;
+        const accept = dienThoai ? '' : 'video/*,audio/*,image/*,.srt,.vtt,.ass,.ssa,.mts,.m2ts,.mxf,.heic,.heif,.caf,.amr';
+        if (dienThoai) toast('Chọn nhiều video thì iPhone cần vài chục giây "chuẩn bị" — đợi tới khi hiện thanh tải lên.', 'info', 8000);
+        const files = await moChonFile({ accept, multiple: true });
+        if (!files.length) return;
+        // Toast tiến độ giữ tới khi xong (tải video điện thoại qua mạng di động có thể vài phút).
+        // Một file lỗi không dừng cả lượt: tải tiếp các file còn lại rồi báo file nào hỏng.
+        const tb = toast(`Đã nhận ${files.length} file — bắt đầu tải lên…`, 'info', 24 * 3600 * 1000);
+        const loi = [];
+        let xong = 0;
+        for (const [i, f] of files.entries()) {
             try {
-                for (const [i, f] of files.entries()) {
-                    await taiLenFile(this.ctx.id, this.ctx.boLuu.phien, f, (pt) => {
-                        tb.textContent = `Đang tải lên ${i + 1}/${files.length}: ${f.name} — ${pt}%`;
-                    });
-                    xong++;
-                    this.tai();
-                }
-                toast(`Đã tải ${xong} file lên server.`, 'success', 3000);
-            } catch (e) {
-                toast(`Tải lên lỗi${xong ? ` (đã xong ${xong}/${files.length} file)` : ''}: ${e.message}`, 'error');
-            } finally {
-                tb.remove();
+                await taiLenFile(this.ctx.id, this.ctx.boLuu.phien, f, (pt) => {
+                    tb.textContent = `Đang tải lên ${i + 1}/${files.length}: ${f.name} — ${pt}%`
+                        + (loi.length ? ` (${loi.length} file lỗi)` : '');
+                });
+                xong++;
                 this.tai();
+            } catch (e) {
+                loi.push(`${f.name}: ${e.message}`);
             }
-        };
-        input.click();
+        }
+        tb.remove();
+        this.tai();
+        if (xong) toast(`Đã tải ${xong}/${files.length} file lên server.`, 'success', 4000);
+        if (loi.length) toast(`${loi.length} file tải lỗi — ${loi.slice(0, 3).join(' · ')}${loi.length > 3 ? ' …' : ''}`, 'error', 20000);
     }
 
     async nhapUrl() {
