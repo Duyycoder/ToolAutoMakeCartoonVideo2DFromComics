@@ -16,7 +16,7 @@ Bản xuất luôn dùng file GỐC, không dùng proxy.
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from orchestrator.editor import hieu_ung, luu_tru, mau_nang_cao, media as media_mod, quy_doi, srt, chu_hinh, xu_ly_am
+from orchestrator.editor import hieu_ung, hieu_ung_am, luu_tru, mau_nang_cao, media as media_mod, quy_doi, srt, chu_hinh, xu_ly_am
 
 SR = 48000
 
@@ -524,8 +524,21 @@ class DungLenh:
         if tre > 0:
             ms = int(round(tre * 1000))
             dem = f",adelay={ms}|{ms}"
-        xl = "".join("," + f for f in xu_ly_am.loc_am(c.get("xu_ly_am") or {}))
-        self.loc.append(f"[{k}:a]asetpts=PTS-STARTPTS{_atempo(float(c.get('toc_do') or 1))}{xl},{vol_filter},aresample={SR},"
+        hu = c.get("hieu_ung_am") or {}
+        xl = "".join("," + f for f in xu_ly_am.loc_am(c.get("xu_ly_am") or {}) + hieu_ung_am.loc_truoc_vang(hu, SR))
+        dau = f"[{k}:a]asetpts=PTS-STARTPTS{_atempo(float(c.get('toc_do') or 1))}{xl}"
+        vang = hieu_ung_am.tron_vang(hu)
+        if vang > 0:
+            # Vang = tích chập với IR của phòng (input riêng), trộn khô/ướt như am_hieu_ung.js.
+            ir, dinh = hieu_ung_am.file_ir(luu_tru._p(self.folder, luu_tru.CACHE, "ir"), hu.get("phong") or "")
+            ki = self._input("-i", ir)
+            self.loc.append(f"{dau},aresample={SR},aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[{ten}k][{ten}u]")
+            self.loc.append(f"[{ten}u][{ki}:a]afir=gtype=none:irnorm=-1,volume={_so(dinh * vang)}[{ten}w]")
+            self.loc.append(f"[{ten}k]volume={_so(1 - 0.5 * vang)}[{ten}d]")
+            self.loc.append(f"[{ten}d][{ten}w]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[{ten}v]")
+            dau = f"[{ten}v]anull"
+        sau = "".join("," + f for f in hieu_ung_am.loc_sau_vang(hu))
+        self.loc.append(f"{dau}{sau},{vol_filter},aresample={SR},"
                         f"aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=duration={_so(dai)}{fade}{dem}[{ten}]")
         return True
 

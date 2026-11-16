@@ -261,12 +261,13 @@ export class Preview {
         const k = ht.cat_khung || {}, h = ht.hien_thi || {};
         const pc = (x) => `${Math.max(0, Math.min(100, Number(x || 0) * 100))}%`;
         const r = Number(h.bo_goc || 0) * H / 1080;
+        l.cssLoc = cssFilter(c.mau, c.hieu_ung, tiLe);
         Object.assign(l.el.style, {
             left: `${hop.cx - hop.w / 2}px`, top: `${hop.cy - hop.h / 2}px`, width: `${hop.w}px`, height: `${hop.h}px`,
             transform: hop.xoay ? `rotate(${hop.xoay}deg)` : '', opacity: String(h.do_mo ?? 1),
             clipPath: (k.trai || k.phai || k.tren || k.duoi || r) ? `inset(${pc(k.tren)} ${pc(k.phai)} ${pc(k.duoi)} ${pc(k.trai)} round ${r}px)` : '',
             display: '',
-            filter: cssFilter(c.mau, c.hieu_ung, tiLe),
+            filter: l.cssLoc,
             mixBlendMode: h.hoa_tron && h.hoa_tron !== 'normal' ? h.hoa_tron : '',
         });
         l.hop = hop;
@@ -297,7 +298,7 @@ export class Preview {
         this._mauGL(l, c, l.v);
         if (l.v.dataset.src !== url) { l.v.dataset.src = url; l.v.src = url; }
         l.v.muted = !!tr.tat_tieng || !!c.tat_am;
-        ganXuLy(l.v, c.xu_ly_am);
+        ganXuLy(l.v, c.xu_ly_am, c.hieu_ung_am);
         const vol = Number(giaTriTai(c, 'am_luong', t - (c.bat_dau || 0)) ?? 1);
         l.v.volume = Math.min(1, vol * this.master * heSoFade(c, t));
         l.v.playbackRate = (Number(c.toc_do) || 1) * (this.tocDoPhat || 1);
@@ -311,7 +312,8 @@ export class Preview {
     /* Chỉnh màu nâng cao (preset/LUT/đường cong/HSL/làm nét/khử nhiễu) → canvas WebGL phủ lên lớp. */
     _mauGL(l, c, nguon) {
         const mau = c.mau || {};
-        if (!coNangCao(mau)) { l.gl?.tat(); return; }
+        const ss = this.soSanh && this.soSanh.cid === c.id;
+        if (!coNangCao(mau) && !ss) { l.gl?.tat(); l.el.querySelector('.ss-vach')?.remove(); return; }
         if (!l.gl) l.gl = new LopGL(l.el);
         let lut = null;
         if (mau.lut) {
@@ -325,7 +327,61 @@ export class Preview {
                     .catch((e) => toast(`Không tải được LUT ${mau.lut}: ${e.message}`, 'warn'));
             }
         }
-        if (!l.gl.dat(nguon, mau, lut)) l.gl.tat();
+        l.lutFile = lut;
+        if (!l.gl.dat(nguon, mau, lut)) { l.gl.tat(); return; }
+        // So sánh trước/sau: bên trái là khung gốc (thẻ nguồn hiện lại, bỏ filter lớp), bên phải là bản đã chỉnh.
+        const cv = l.gl.cv;
+        if (ss) {
+            l.el.style.filter = 'none';
+            cv.style.filter = l.cssLoc;
+            cv.style.clipPath = `inset(0 0 0 ${this.soSanh.x * 100}%)`;
+            nguon.style.opacity = '1';
+            let vach = l.el.querySelector('.ss-vach');
+            if (!vach) { vach = document.createElement('div'); vach.className = 'ss-vach'; l.el.appendChild(vach); }
+            vach.style.left = `${this.soSanh.x * 100}%`;
+        } else {
+            cv.style.filter = '';
+            cv.style.clipPath = '';
+            l.el.querySelector('.ss-vach')?.remove();
+        }
+    }
+
+    /* ---- cho tab Màu chuyên sâu ---- */
+    _lopClip(cid) {
+        for (const l of this.lop.values()) if (l.clip && (!cid || l.clip.id === cid) && l.el.style.display !== 'none') return l;
+        return null;
+    }
+
+    /* Khung đang hiện của clip (hoặc lớp trên cùng): nguồn + chỉnh màu để scopes tự tính. */
+    khungChoScope(cid) {
+        const l = this._lopClip(cid);
+        if (!l) return null;
+        const nguon = l.v.style.display !== 'none' ? l.v : l.img;
+        return { nguon, mau: l.clip.mau || {}, lut: l.lutFile || null, css: l.cssLoc || 'none' };
+    }
+
+    /* Màu GỐC (trước chỉnh) trung bình 5×5 px tại điểm màn hình (x, y) trên clip cid; null nếu không trúng. */
+    layMauGoc(cid, x, y) {
+        const l = this._lopClip(cid);
+        if (!l) return null;
+        const b = l.el.getBoundingClientRect();
+        if (x < b.left || x > b.right || y < b.top || y > b.bottom) return null;
+        const n = l.v.style.display !== 'none' ? l.v : l.img, w = n.videoWidth || n.naturalWidth, h = n.videoHeight || n.naturalHeight;
+        if (!w || !h) return null;
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = 5;
+        const c = cv.getContext('2d', { willReadFrequently: true });
+        const sx = (x - b.left) / b.width * w, sy = (y - b.top) / b.height * h;
+        try { c.drawImage(n, sx - 2.5, sy - 2.5, 5, 5, 0, 0, 5, 5); } catch (e) { return null; }
+        const d = c.getImageData(0, 0, 5, 5).data, tong = [0, 0, 0];
+        for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) tong[k] += d[i + k];
+        return tong.map((v) => v / 25 / 255);
+    }
+
+    /* Bật/tắt so sánh chia đôi cho clip cid (null = tắt); x = vị trí vạch 0..1. */
+    datSoSanh(cid, x = 0.5) {
+        this.soSanh = cid ? { cid, x } : null;
+        if (!this.dangPhat) this.veTai(this.ctx.ui.dau_phat);
     }
 
     /* Vẽ mọi lớp tại t (không phát). */
@@ -731,7 +787,7 @@ export class Preview {
                 a.preload = 'auto';
                 this.amThanh.set(c.id, a);
             }
-            ganXuLy(a, c.xu_ly_am);
+            ganXuLy(a, c.xu_ly_am, c.hieu_ung_am);
             a.volume = Math.min(1, Number(c.am_luong ?? 1) * this.master * heSoFade(c, t));
             a.playbackRate = (Number(c.toc_do) || 1) * (this.tocDoPhat || 1);
             const tm = thoiDiemMedia(c, t);

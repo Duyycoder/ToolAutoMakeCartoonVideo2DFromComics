@@ -91,6 +91,45 @@ function apHsl(c, ds) {
     return [kep(r1 + m), kep(g1 + m), kep(b1 + m)];
 }
 
+/* ---- chỉnh sơ cấp (tab Màu chuyên sâu): cân bằng trắng → tông sáng/tối → bánh xe Lift/Gamma/Gain/Offset ---- */
+export const TONG = ['den', 'toi', 'sang', 'trang'];
+export const BANH_XE = ['lift', 'gamma', 'gain', 'offset'];
+const muot = (a, b, x) => { const t = kep((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const trongSoTong = (y) => [1 - muot(0, 0.3, y), Math.exp(-(((y - 0.25) / 0.18) ** 2)), Math.exp(-(((y - 0.75) / 0.18) ** 2)), muot(0.7, 1, y)];
+
+/* Điểm (x, y) trên bánh xe → độ lệch RGB tổng 0, độ lớn = bán kính (giống _vec_mau bên Python). */
+export function vecMau(x, y) {
+    const r = Math.min(1, Math.hypot(x, y));
+    if (r < 1e-6) return [0, 0, 0];
+    const h = Math.atan2(y, x);
+    return [0, 1, 2].map((k) => r * Math.cos(h - k * 2 * Math.PI / 3) * 2 / 3);
+}
+
+function soCapHopLe(mau) {
+    let ct = Array.isArray(mau.can_trang) && mau.can_trang.length >= 3 ? mau.can_trang.slice(0, 3).map((v) => Math.max(0.5, Math.min(2, Number(v)))) : null;
+    if (ct && ct.every((v) => Math.abs(v - 1) < 1e-4)) ct = null;
+    const tg0 = mau.tong || {}, tg = TONG.map((k) => Math.max(-100, Math.min(100, Number(tg0[k] || 0))));
+    const bx0 = mau.banh_xe || {}, bx = {};
+    for (const k of BANH_XE) { const v = (bx0[k] || [0, 0, 0]).slice(0, 3).map(Number); if (v.some(Boolean)) bx[k] = v; }
+    if (!(ct || tg.some(Boolean) || Object.keys(bx).length)) return null;
+    return { ct, tg: tg.some(Boolean) ? tg : null, bx };
+}
+
+function apSoCap(c, sc) {
+    if (sc.ct) c = c.map((v, k) => kep(v * sc.ct[k]));
+    if (sc.tg) {
+        const y = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], w = trongSoTong(y);
+        const d = 0.25 * sc.tg.reduce((a, k, i) => a + k / 100 * w[i], 0);
+        c = c.map((v) => kep(v + d));
+    }
+    const bx = sc.bx;
+    if (bx.lift) { const v = vecMau(bx.lift[0], bx.lift[1]), l = bx.lift[2] / 100; c = c.map((x, k) => kep(x + (0.25 * v[k] + 0.25 * l) * (1 - x))); }
+    if (bx.gamma) { const v = vecMau(bx.gamma[0], bx.gamma[1]), l = bx.gamma[2] / 100; c = c.map((x, k) => kep(x) ** (1 / Math.max(0.1, 1 + 0.5 * v[k] + 0.5 * l))); }
+    if (bx.gain) { const v = vecMau(bx.gain[0], bx.gain[1]), l = bx.gain[2] / 100; c = c.map((x, k) => kep(x * (1 + 0.5 * v[k] + 0.5 * l))); }
+    if (bx.offset) { const v = vecMau(bx.offset[0], bx.offset[1]), l = bx.offset[2] / 100; c = c.map((x, k) => kep(x + 0.15 * v[k] + 0.15 * l)); }
+    return c;
+}
+
 /* LUT 3D .cube → {n, du: Float32Array(n³·3)}; ném Error nếu hỏng. */
 export function docCube(text) {
     let n = 0;
@@ -131,9 +170,10 @@ export function hamMau(mau, lut = null) {
     const pm = pr ? Number(mau.preset_manh ?? 100) / 100 : 0;
     const prCong = pr ? cacBang(pr.cong) : null, prHsl = pr ? hslHopLe(pr.hsl) : null;
     const lm = lut ? Number(mau.lut_manh ?? 100) / 100 : 0;
-    const cong = cacBang(mau.cong), hsl = hslHopLe(mau.hsl);
-    if (!(pm || lm || cong || hsl)) return null;
+    const cong = cacBang(mau.cong), hsl = hslHopLe(mau.hsl), sc = soCapHopLe(mau);
+    if (!(pm || lm || cong || hsl || sc)) return null;
     return (c) => {
+        if (sc) c = apSoCap(c, sc);
         if (lm) c = tron(c, mauLut(lut, c), lm);
         if (pm) {
             let v = prCong ? apCong(c, prCong) : c;
@@ -146,6 +186,9 @@ export function hamMau(mau, lut = null) {
         return c;
     };
 }
+
+/* Các khoá của clip.mau gộp vào LUT (đổi khoá nào thì dựng lại LUT) — giống KHOA_LUT bên Python. */
+export const KHOA_LUT = ['preset', 'preset_manh', 'lut', 'lut_manh', 'cong', 'hsl', 'can_trang', 'tong', 'banh_xe'];
 
 /* LUT 33³ RGBA8 (r chạy nhanh nhất) cho texImage3D; null nếu clip không cần. */
 export function taoLut(mau, lut = null) {
@@ -163,5 +206,5 @@ export function taoLut(mau, lut = null) {
 /* Clip có dùng chỉnh màu nâng cao (cần vẽ WebGL) không. */
 export function coNangCao(mau) {
     mau = mau || {};
-    return !!(mau.preset || mau.lut || mau.lam_net || mau.khu_nhieu || cacBang(mau.cong) || hslHopLe(mau.hsl));
+    return !!(mau.preset || mau.lut || mau.lam_net || mau.khu_nhieu || cacBang(mau.cong) || hslHopLe(mau.hsl) || soCapHopLe(mau));
 }

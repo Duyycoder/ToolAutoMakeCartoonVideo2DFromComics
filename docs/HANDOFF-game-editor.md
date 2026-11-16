@@ -30,6 +30,9 @@ Updated 2026-11-15. Branch: `feat/editor`.
 - Audio (clip `xu_ly_am`): noise reduction (highpass + `afftdn`) and 3-band EQ (`xu_ly_am.py`; Web Audio preview in `am_xu_ly.js`, FFT denoise is export-only). "Extract audio" creates an `.m4a` media.
 - Touch timeline (`timeline_cam_ung.js`): one-finger scroll with inertia, pinch zoom, long-press to move a clip, wide trim handles on the selected clip.
 - Export option "Keep HDR": HLG 10-bit BT.2020 HEVC (`media.loc_sang_hlg`); default export stays SDR 8-bit H.264.
+- "Màu Pro" tab (`bang_mau_pro.js`): scopes (histogram/waveform/RGB parade/vectorscope, `scopes_mau.js`), Lift/Gamma/Gain/Offset wheels (`banh_xe_mau.js`), Blacks/Shadows/Highlights/Whites, white-balance eyedropper, split before/after compare (`preview.datSoSanh`), copy/paste grade across clips. New keys `mau.can_trang`, `mau.tong`, `mau.banh_xe` are applied first inside the same merged LUT (py + js, parity test covers them).
+- "Âm thanh" tab (`bang_am_thanh.js`): per-clip effects `hieu_ung_am` (pitch, robot, phone/radio/megaphone band, distortion, bitcrush, tremolo, compressor, echo, convolution reverb with generated room IRs, reverse, loudnorm) in `hieu_ung_am.py` → `render._tieng_clip`; Web Audio preview in `am_hieu_ung.js` (pitch/robot/reverse/loudnorm are export-only). Tests: `tests/test_hieu_ung_am.py` (real ffmpeg).
+- Built-in sound library `assets/thu_vien_am/` (all CC0: wyzowl/sfx-kit, Freesound CC0, HoliznaCC0, Komiku) — rebuild with `scripts/xay_thu_vien_am.py`; API `/api/thu-vien-am` (`thu_vien_am.py`); add at playhead or drag to timeline (`timeline.themTuThuVien`).
 
 ## Running on a local GPU machine
 

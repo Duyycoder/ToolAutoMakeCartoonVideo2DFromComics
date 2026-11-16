@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from orchestrator.config import load_global_config, save_global_config
 from orchestrator.editor import (ai_bridge, chuan_hoa_file, hang_doi, luu_tru, mau_nang_cao, media, render,
-                                 srt, tai_len, workspace, xuat_tu_xa)
+                                 srt, tai_len, thu_vien_am, workspace, xuat_tu_xa)
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 AI_MODE = os.environ.get("EDITOR_AI_MODE", "all" if os.environ.get("EDITOR_ENABLE_AI", "1").strip().lower() not in {"0", "false", "no"} else "off").strip().lower()
@@ -61,6 +61,9 @@ class KhoiPhucSchema(PhienSchema):
 
 class NhapMediaSchema(PhienSchema):
     files: List[str]
+
+class ThuVienAmSchema(PhienSchema):
+    id: str
 
 class UrlSchema(PhienSchema):
     urls: List[str]
@@ -485,6 +488,27 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
             raise HTTPException(status_code=400, detail=str(e))
         except OSError as e:
             raise HTTPException(status_code=500, detail=f"Không ghi được vào dự án: {e}")
+
+    # ------------------------------------------------------------ Thư viện âm thanh có sẵn (SFX + nhạc CC0)
+    @r.get("/api/thu-vien-am")
+    def sound_library():
+        return {"muc": thu_vien_am.danh_muc()}
+
+    @r.get("/api/thu-vien-am/tep/{rel:path}")
+    def sound_library_file(rel: str):
+        p = thu_vien_am.duong_dan(rel)
+        if not p:
+            raise HTTPException(status_code=404, detail="Không có file này trong thư viện.")
+        return FileResponse(p, media_type="audio/mp4", headers={"Cache-Control": "public, max-age=604800"})
+
+    @r.post("/api/du-an/{pid}/thu-vien-am")
+    def sound_library_import(pid: str, body: ThuVienAmSchema):
+        folder = folder_cua(pid)
+        khoa_ghi(folder, body.phien)
+        try:
+            return {"media": qlm.nhap(folder, pid, [thu_vien_am.ban_sao_de_nhap(body.id)])}
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     # Tải file từ trình duyệt (điện thoại/máy khác) lên server theo từng phần — xem tai_len.py.
     ql_tai_len = tai_len.QuanLyTaiLen()

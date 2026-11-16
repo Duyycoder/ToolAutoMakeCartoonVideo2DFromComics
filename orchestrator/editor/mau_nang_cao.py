@@ -5,7 +5,13 @@ Bộ lọc, LUT, đường cong và HSL được GỘP thành MỘT LUT 3D 33³ 
 `webui/editor/mau_nang_cao.js` tính đúng cùng công thức để xem trước bằng WebGL — đổi công thức ở đây
 thì đổi cả bên đó (tests/test_editor_mau_nang_cao.py so khớp hai bên).
 
-Thứ tự áp: LUT file → preset → đường cong → HSL. Đường cong lưu điểm [x, y] thang 0..255.
+Thứ tự áp: [chỉnh sơ cấp: cân bằng trắng → tông vùng sáng/tối → bánh xe màu] → LUT file → preset → đường cong → HSL.
+Đường cong lưu điểm [x, y] thang 0..255.
+
+Chỉnh sơ cấp (tab Màu chuyên sâu):
+  can_trang [r, g, b]   hệ số nhân từng kênh (ống hút cân bằng trắng), 0.5..2
+  tong {den, toi, sang, trang}   Blacks / Shadows / Highlights / Whites, -100..100
+  banh_xe {lift|gamma|gain|offset: [x, y, l]}   x, y ∈ [-1, 1] = hướng màu trên bánh xe, l = độ sáng -100..100
 """
 import hashlib
 import json
@@ -140,6 +146,68 @@ def _ap_hsl(c: RGB, ds: List[List[float]]) -> RGB:
     return (_kep(r1 + m), _kep(g1 + m), _kep(b1 + m))
 
 
+# ------------------------------------------------------- chỉnh sơ cấp
+TONG = ("den", "toi", "sang", "trang")
+BANH_XE = ("lift", "gamma", "gain", "offset")
+
+
+def _muot(a: float, b: float, x: float) -> float:
+    t = _kep((x - a) / (b - a))
+    return t * t * (3 - 2 * t)
+
+
+def _trong_so_tong(y: float) -> Tuple[float, float, float, float]:
+    """Trọng số theo độ sáng Y cho Blacks / Shadows / Highlights / Whites."""
+    return (1 - _muot(0.0, 0.3, y), math.exp(-((y - 0.25) / 0.18) ** 2),
+            math.exp(-((y - 0.75) / 0.18) ** 2), _muot(0.7, 1.0, y))
+
+
+def _vec_mau(x: float, y: float) -> RGB:
+    """Điểm (x, y) trên bánh xe → độ lệch RGB tổng 0 (giữ độ sáng), độ lớn = bán kính."""
+    r = min(1.0, math.hypot(x, y))
+    if r < 1e-6:
+        return (0.0, 0.0, 0.0)
+    h = math.atan2(y, x)
+    return tuple(r * math.cos(h - k * 2 * math.pi / 3) * 2 / 3 for k in range(3))  # type: ignore[return-value]
+
+
+def _so_cap_hop_le(mau: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    ct = mau.get("can_trang")
+    ct = [max(0.5, min(2.0, float(v))) for v in ct[:3]] if isinstance(ct, (list, tuple)) and len(ct) >= 3 else None
+    if ct and all(abs(v - 1) < 1e-4 for v in ct):
+        ct = None
+    tg = mau.get("tong") or {}
+    tg = [max(-100.0, min(100.0, float(tg.get(k) or 0))) for k in TONG]
+    bx = mau.get("banh_xe") or {}
+    bx = {k: [float(v) for v in (bx.get(k) or [0, 0, 0])[:3]] for k in BANH_XE}
+    if not (ct or any(tg) or any(any(v) for v in bx.values())):
+        return None
+    return {"ct": ct, "tg": tg if any(tg) else None, "bx": {k: v for k, v in bx.items() if any(v)}}
+
+
+def _ap_so_cap(c: RGB, sc: Dict[str, Any]) -> RGB:
+    if sc["ct"]:
+        c = (_kep(c[0] * sc["ct"][0]), _kep(c[1] * sc["ct"][1]), _kep(c[2] * sc["ct"][2]))
+    if sc["tg"]:
+        y = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+        d = 0.25 * sum(k / 100 * w for k, w in zip(sc["tg"], _trong_so_tong(y)))
+        c = (_kep(c[0] + d), _kep(c[1] + d), _kep(c[2] + d))
+    bx = sc["bx"]
+    if "lift" in bx:
+        v, l = _vec_mau(*bx["lift"][:2]), bx["lift"][2] / 100
+        c = tuple(_kep(c[k] + (0.25 * v[k] + 0.25 * l) * (1 - c[k])) for k in range(3))  # type: ignore[assignment]
+    if "gamma" in bx:
+        v, l = _vec_mau(*bx["gamma"][:2]), bx["gamma"][2] / 100
+        c = tuple(_kep(c[k]) ** (1 / max(0.1, 1 + 0.5 * v[k] + 0.5 * l)) for k in range(3))  # type: ignore[assignment]
+    if "gain" in bx:
+        v, l = _vec_mau(*bx["gain"][:2]), bx["gain"][2] / 100
+        c = tuple(_kep(c[k] * (1 + 0.5 * v[k] + 0.5 * l)) for k in range(3))  # type: ignore[assignment]
+    if "offset" in bx:
+        v, l = _vec_mau(*bx["offset"][:2]), bx["offset"][2] / 100
+        c = tuple(_kep(c[k] + 0.15 * v[k] + 0.15 * l) for k in range(3))  # type: ignore[assignment]
+    return c
+
+
 # ------------------------------------------------------------------ LUT file
 def doc_cube(noi_dung: str) -> Tuple[int, List[RGB]]:
     """Đọc LUT 3D .cube (Resolve/Premiere/CapCut). Ném ValueError nếu hỏng."""
@@ -193,10 +261,13 @@ def ham_mau(mau: Dict[str, Any], lut: Optional[Tuple[int, List[RGB]]] = None) ->
     lm = float(mau.get("lut_manh", 100)) / 100 if lut else 0
     cong = _cac_bang(mau.get("cong"))
     hsl = _hsl_hop_le(mau.get("hsl"))
-    if not (pm or lm or cong or hsl):
+    sc = _so_cap_hop_le(mau)
+    if not (pm or lm or cong or hsl or sc):
         return None
 
     def f(c: RGB) -> RGB:
+        if sc:
+            c = _ap_so_cap(c, sc)
         if lm:
             c = _tron(c, _mau_lut(lut, c), lm)
         if pm:
@@ -210,6 +281,9 @@ def ham_mau(mau: Dict[str, Any], lut: Optional[Tuple[int, List[RGB]]] = None) ->
             c = _ap_hsl(c, hsl)
         return c
     return f
+
+
+KHOA_LUT = ("preset", "preset_manh", "lut", "lut_manh", "cong", "hsl", "can_trang", "tong", "banh_xe")
 
 
 def viet_cube(f: Callable[[RGB], RGB], n: int = N_LUT) -> str:
@@ -245,7 +319,7 @@ def loc_clip(mau: Dict[str, Any], doc_lut: Callable[[str], str]) -> Tuple[List[s
             lut = None       # LUT đã xoá/hỏng: bỏ qua, vẫn xuất được
     f = ham_mau(mau, lut)
     if f:
-        khoa = json.dumps({k: mau.get(k) for k in ("preset", "preset_manh", "lut", "lut_manh", "cong", "hsl")},
+        khoa = json.dumps({k: mau.get(k) for k in KHOA_LUT},
                           sort_keys=True) + (str(len(lut[1])) if lut else "")
         ten = f"lut_{hashlib.md5(khoa.encode()).hexdigest()[:10]}.cube"
         tep[ten] = viet_cube(f)

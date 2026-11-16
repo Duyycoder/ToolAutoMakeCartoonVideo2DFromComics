@@ -14,6 +14,8 @@ import { BangChu } from './bang_chu.js';
 import { BangDieuChinh } from './bang_dieu_chinh.js';
 import { moHopKhung } from './khung_hinh.js';
 import { BangHieuUng } from './bang_hieu_ung.js';
+import { BangMauPro } from './bang_mau_pro.js';
+import { BangAmThanh } from './bang_am_thanh.js';
 import { BangChuyenCanh } from './bang_chuyen_canh.js';
 import { ganXuat } from './xuat.js';
 
@@ -209,7 +211,8 @@ async function khoiDong() {
     const bangMedia = new BangMedia(ctx);
     const cacBang = { 
         media: bangMedia, phu_de: new BangPhuDe(ctx), ai: new BangAi(ctx), che: new BangChe(ctx), chu: new BangChu(ctx),
-        dieu_chinh: new BangDieuChinh(ctx), hieu_ung: new BangHieuUng(ctx), chuyen_canh: new BangChuyenCanh(ctx),
+        dieu_chinh: new BangDieuChinh(ctx), mau_pro: new BangMauPro(ctx), hieu_ung: new BangHieuUng(ctx),
+        chuyen_canh: new BangChuyenCanh(ctx), am_thanh: new BangAmThanh(ctx),
     };
     bus.on('media_can_tai', () => bangMedia.tai());
     bus.on('tac_vu_moi', () => cacBang.ai.tai());

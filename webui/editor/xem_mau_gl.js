@@ -2,7 +2,7 @@
    <video>/<img> của lớp vẫn chạy (để lấy khung hình) nhưng ẩn đi (opacity 0); canvas phủ lên vẽ:
    khử nhiễu → làm nét → LUT 3D gộp (mau_nang_cao.js). CSS filter của lớp (chỉnh màu cơ bản) vẫn áp lên
    canvas — đúng thứ tự với render.py. Máy không có WebGL2 thì lớp hiện như cũ (không có phần nâng cao). */
-import { N_LUT, taoLut } from './mau_nang_cao.js';
+import { KHOA_LUT, N_LUT, taoLut } from './mau_nang_cao.js';
 
 const VS = `#version 300 es
 in vec2 p; out vec2 uv;
@@ -83,7 +83,7 @@ export class LopGL {
         if (!this.gl) return false;
         const gl = this.gl;
         if (this.nguon !== nguon) { this._dungHen(); if (this.nguon) this.nguon.style.opacity = ''; this.nguon = nguon; }
-        const khoa = JSON.stringify([mau.preset, mau.preset_manh, mau.lut, mau.lut_manh, mau.cong, mau.hsl, !!lutFile]);
+        const khoa = JSON.stringify([...KHOA_LUT.map((k) => mau[k]), !!lutFile]);
         if (khoa !== this._khoaLut) {
             this._khoaLut = khoa;
             const du = taoLut(mau, lutFile);

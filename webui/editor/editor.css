@@ -587,3 +587,26 @@ body.ai-translate-only .the-ai:not(:has([data-l="dich"])) { display: none !impor
 .khung-o i { display: block; height: 40px; max-width: 72px; border: 2px solid var(--chu-2); border-radius: 3px; }
 .khung-o.bat { border-color: var(--nhan); background: var(--nhan-mo); }
 .khung-o.bat i { border-color: var(--nhan-sang); }
+
+/* ---- Tab Âm thanh: thư viện SFX/nhạc + hiệu ứng ---- */
+.am-giong { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 8px; }
+.tv-am-tab { display: flex; gap: 4px; margin: 6px 0; }
+.tv-am-tab button { flex: 1; background: var(--nen-2); border: 1px solid var(--vien); color: var(--chu-2); border-radius: 4px; padding: 5px; cursor: pointer; font: 500 12px var(--font); }
+.tv-am-tab button.bat { color: var(--chu); border-color: var(--chu); }
+.tv-am-loc { display: flex; gap: 4px; margin-bottom: 6px; }
+.tv-am-loc input { flex: 1; min-width: 0; }
+.tv-am-loc select { max-width: 45%; }
+.tv-am-ds { max-height: 46vh; overflow-y: auto; border: 1px solid var(--vien); border-radius: 4px; }
+.tv-am-muc { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 6px; padding: 3px 6px; border-bottom: 1px solid var(--vien); cursor: grab; font-size: 12px; }
+.tv-am-muc:hover { background: var(--nen-2); }
+.tv-am-ten { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-am-ten small { display: block; color: var(--chu-2); font-size: 10px; }
+.tv-am-dai { font: 11px var(--font-so); color: var(--chu-2); }
+
+/* ---- Tab Màu chuyên sâu ---- */
+.banh-xe-luoi { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.banh-xe { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; }
+.banh-xe-ten { font-weight: 600; }
+.banh-xe input[type=range] { width: 100%; }
+.banh-xe-so { font: 10px var(--font-so); color: var(--chu-2); }
+.ss-vach { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 4px #000; pointer-events: none; z-index: 2; }

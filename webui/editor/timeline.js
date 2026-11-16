@@ -189,7 +189,8 @@ export class Timeline {
 
         // Thả media từ bảng Tệp phương tiện.
         this.noi.addEventListener('dragover', (e) => {
-            if (!e.dataTransfer.types.includes('application/x-media-id')) return;
+            const ty = e.dataTransfer.types;
+            if (!ty.includes('application/x-media-id') && !ty.includes('application/x-thu-vien-am')) return;
             const tr = e.target.closest('.tl-track');
             if (!tr) return;
             e.preventDefault();
@@ -206,36 +207,20 @@ export class Timeline {
             this.noi.querySelectorAll('.tha-vao').forEach((x) => x.classList.remove('tha-vao'));
             const mid = e.dataTransfer.getData('application/x-media-id');
             const dc = e.dataTransfer.getData('application/x-dung-chung');
-            if (!tr || (!mid && !dc)) return;
+            const tv = e.dataTransfer.getData('application/x-thu-vien-am');
+            if (!tr || (!mid && !dc && !tv)) return;
             e.preventDefault();
-            
+            if (tv) { this.themTuThuVien(tv, tr.dataset.track, this._t(e.clientX)); return; }
+
             if (dc && (!mid || !this.ctx.media.find(x => x.id === mid))) {
                 toast('Đang nạp file dùng chung...', 'info');
-                api('/api/workspace').then(r => {
+                const trackId = tr.dataset.track, tDat = this._t(e.clientX);
+                this._nhapRoiDat(api('/api/workspace').then(r => {
                     const absPath = r.duong_dan + '/_dung_chung/' + dc.replace('../', '');
                     return api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/nhap`, {
                         method: 'POST', body: { phien: this.ctx.boLuu.phien, files: [absPath] }
                     });
-                }).then(r => {
-                    this.ctx.bus.emit('media_can_tai');
-                    if (r.media && r.media.length > 0) {
-                        const m = r.media[0];
-                        const trackId = tr.dataset.track;
-                        const tDat = this._t(e.clientX);
-                        const checkAndPlace = () => {
-                            const foundMoi = this.ctx.media.find(x => x.id === m.id);
-                            if (foundMoi && foundMoi.trang_thai === 'san_sang') {
-                                this.ctx.bus.off('media', checkAndPlace);
-                                this.themMedia(foundMoi, trackId, tDat);
-                            } else if (foundMoi && foundMoi.trang_thai === 'loi') {
-                                this.ctx.bus.off('media', checkAndPlace);
-                                toast('Lỗi nhập file.', 'error');
-                            }
-                        };
-                        this.ctx.bus.on('media', checkAndPlace);
-                        checkAndPlace();
-                    }
-                }).catch(err => toast(err.message, 'error'));
+                }), (m) => this.themMedia(m, trackId, tDat));
                 return;
             }
             
@@ -542,6 +527,42 @@ export class Timeline {
         const cid = idClipMoi(this.tl);
         const clip = clipMediaMoi(cid, tr.id, m.id, bd, dai);
         if (this.ctx.sua(`Thêm ${m.ten} vào ${tr.id}`, [tao.them(this.tl, ['clips'], clip)])) this.chonClip(cid);
+    }
+
+    /* Nhập file (promise trả {media:[m]}) rồi chờ media sẵn sàng (đọc xong thông số) mới gọi dat(m). */
+    _nhapRoiDat(hua, dat) {
+        hua.then((r) => {
+            this.ctx.bus.emit('media_can_tai');
+            const m = r.media && r.media[0];
+            if (!m) return;
+            const cho = () => {
+                const x = this.ctx.media.find((y) => y.id === m.id);
+                if (x && x.trang_thai === 'san_sang') { this.ctx.bus.off('media', cho); dat(x); }
+                else if (x && x.trang_thai === 'loi') { this.ctx.bus.off('media', cho); toast('Lỗi nhập file.', 'error'); }
+            };
+            this.ctx.bus.on('media', cho);
+            cho();
+        }).catch((err) => toast(err.message, 'error'));
+    }
+
+    /* Âm thanh từ thư viện có sẵn (SFX/nhạc): trackId/t do người dùng thả; không có thì đặt ở đầu phát,
+       vào track âm thanh đầu tiên còn trống đúng chỗ đó (không phải track lồng tiếng), hết chỗ thì thêm track mới. */
+    themTuThuVien(tvId, trackId = null, t = null) {
+        const hua = api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/thu-vien-am`,
+            { method: 'POST', body: { phien: this.ctx.boLuu.phien, id: tvId } });
+        this._nhapRoiDat(hua, (m) => {
+            if (trackId) { this.themMedia(m, trackId, t); return; }
+            const tt = this.ui.dau_phat || 0, dai = Number(m.thoi_luong) || 0;
+            if (!dai) { toast('Âm thanh chưa có thời lượng.', 'warn'); return; }
+            const tr = this.tl.tracks.find((x) => x.loai === 'audio' && !x.khoa && x.vai !== 'long_tieng'
+                && choTrong(this.tl, x.id, tt, dai) === Math.round(tt * 1000) / 1000);
+            const ops = [];
+            let tid = tr && tr.id;
+            if (!tid) { const lenh = opsThemTrack(this.tl, 'audio'); tid = lenh.id; ops.push(...lenh.ops); }
+            const cid = idClipMoi(this.tl);
+            ops.push(tao.them(this.tl, ['clips'], clipMediaMoi(cid, tid, m.id, Math.round(tt * 1000) / 1000, dai)));
+            if (this.ctx.sua(`Thêm ${m.ten} vào ${tid}`, ops)) this.chonClip(cid);
+        });
     }
 
     /* Thả/thêm nhiều media một lượt: nối đuôi nhau theo đúng thứ tự đang chọn ở bảng nguồn, MỘT lệnh hoàn tác. */
