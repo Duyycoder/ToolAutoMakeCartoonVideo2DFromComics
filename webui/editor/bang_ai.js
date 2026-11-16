@@ -9,6 +9,7 @@ import {
     tao, cauCuaMedia, opsThemCau, opsXoaNhieu, clipTai, idClipMoi, idMoiNhieu, clipChuaMedia, idTrackMoi, choTrong, opsThemTrack
 } from './store.js';
 import { taoPhuDeNhieu, mediaTaoPhuDeDuoc } from './phu_de_hang_loat.js';
+import { taoPhuDeTrenMay } from './whisper_trinh_duyet.js';
 
 export const NGON_NGU = [['English', 'Tiếng Anh'], ['Chinese', 'Tiếng Trung'], ['Japanese', 'Tiếng Nhật'], ['Korean', 'Tiếng Hàn'],
     ['Vietnamese', 'Tiếng Việt'], ['Thai', 'Tiếng Thái'], ['Indonesian', 'Tiếng Indonesia'], ['Spanish', 'Tiếng Tây Ban Nha']];
@@ -156,9 +157,10 @@ export class BangAi {
                     <option value="large-v3" ${(c.whisper_model || (c.ngon_ngu_noi === 'Vietnamese' ? 'qbsmlabs/PhoWhisper-small' : 'medium')) === 'large-v3' ? 'selected' : ''}>large-v3 (tải ~3 GB lần đầu)</option>
                 </select></label>
                 <label class="check"><input type="checkbox" data-o="demucs" ${c.demucs ? 'checked' : ''}> Tách giọng trước (Demucs) — nhạc nền to thì bật</label>
-                ${this._coLaptop ? `<label title="Laptop chạy run-worker.bat (cùng địa chỉ/mã với Máy xuất): PhoWhisper, Demucs, GPU — nhanh và chuẩn hơn. Laptop tắt thì tự chạy bằng máy chủ.">Chạy trên<select data-o="may_ai">
-                    <option value="" ${c.may_ai !== 'laptop' ? 'selected' : ''}>Máy chủ</option>
-                    <option value="laptop" ${c.may_ai === 'laptop' ? 'selected' : ''}>Laptop GPU</option></select></label>` : ''}
+                <label title="Laptop GPU: run-worker.bat (cùng địa chỉ/mã với Máy xuất) — PhoWhisper, Demucs, nhanh và chuẩn nhất; laptop tắt thì tự chạy bằng máy chủ. Máy này: Whisper chạy ngay trong trình duyệt (lần đầu tải model 150–500 MB, tối đa cỡ small, không Demucs).">Chạy trên<select data-o="may_ai">
+                    <option value="" ${!c.may_ai || (c.may_ai === 'laptop' && !this._coLaptop) ? 'selected' : ''}>Máy chủ</option>
+                    ${this._coLaptop ? `<option value="laptop" ${c.may_ai === 'laptop' ? 'selected' : ''}>Laptop GPU</option>` : ''}
+                    <option value="trinh_duyet" ${c.may_ai === 'trinh_duyet' ? 'selected' : ''}>Máy này (trình duyệt)</option></select></label>
                 <div class="hang-nut"><button class="nut nut-chinh" data-l="phu-de">Tạo phụ đề</button>
                     <button class="nut" data-l="phu-de-nhieu" title="Chọn nhiều video trong dự án (kể cả chưa kéo xuống timeline)">🎙 Nhiều video…</button></div></section>
 
@@ -664,6 +666,10 @@ export class BangAi {
                 ts.whisper_model = c.whisper_model || (c.ngon_ngu_noi === 'Vietnamese' ? 'qbsmlabs/PhoWhisper-small' : 'medium');
             }
         }
+        if (loai === 'phu-de' && c.may_ai === 'trinh_duyet' && !thamSoCu) {
+            await taoPhuDeTrenMay(this, mid, ts);   // chạy xong mới trả (hàng loạt = lần lượt, model giữ trong worker)
+            return;
+        }
         await this.ctx.boLuu.flush();
         await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/ai/${loai}`,
             { method: 'POST', body: { phien: this.ctx.boLuu.phien, media: mid, tham_so: ts } });
@@ -829,7 +835,8 @@ export class BangAi {
         }
         if (!ops.length && v.loai !== 'minh-hoa') { toast('Không có gì để áp dụng.', 'info'); return; }
         if (!this.ctx.sua(ten, ops)) return;
-        await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/tac-vu/${v.id}/ap-dung`, { method: 'POST', body: { phien: this.ctx.boLuu.phien } });
+        // Kết quả Whisper chạy trong trình duyệt không có việc trên server để đánh dấu.
+        if (!v.tren_may) await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/tac-vu/${v.id}/ap-dung`, { method: 'POST', body: { phien: this.ctx.boLuu.phien } });
         v.da_ap_dung = true;
         toast(tuDong ? `✔ ${v.nhan} xong — đã đưa vào timeline: ${ten}. Ctrl+Z để bỏ.` : `Đã áp dụng: ${ten}.`, 'success', tuDong ? 8000 : 3000);
         if (['phu-de', 'ocr', 'dich'].includes(v.loai)) this.ctx.moBang('phu_de');

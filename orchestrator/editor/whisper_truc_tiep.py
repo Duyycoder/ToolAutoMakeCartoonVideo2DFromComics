@@ -45,7 +45,7 @@ def _nap_model(ten: str):
     return m
 
 
-def _tach_tieng(video: str, ra: str) -> None:
+def tach_tieng_16k(video: str, ra: str) -> None:
     ff = media_mod.ffmpeg_exe()
     if not ff:
         raise RuntimeError("Không tìm thấy ffmpeg trên máy chủ.")
@@ -71,7 +71,7 @@ def chay(ctx: hang_doi.NguCanh, folder: str, m: Dict[str, Any], tham_so: Dict[st
     ctx.bao(0, "Đang tách tiếng…")
     with tempfile.TemporaryDirectory(prefix="whisper_") as tmp:
         wav = os.path.join(tmp, "a.wav")
-        _tach_tieng(video, wav)
+        tach_tieng_16k(video, wav)
         ctx.kiem_tra_huy()
         ctx.bao(2, f"Đang nạp model Whisper {ten} (lần đầu sẽ tải về)…")
         model = _nap_model(ten)

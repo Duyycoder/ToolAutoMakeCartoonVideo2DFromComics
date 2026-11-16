@@ -55,6 +55,7 @@ export async function taoPhuDeNhieu(ctx, bangAi, midsGoiY = null) {
             toast(`${m ? m.ten : mid}: ${e.message}`, 'error', 6000);
         }
     }
-    if (ok) toast(`Đã xếp ${ok} video vào hàng đợi tạo phụ đề — tiến độ ở cuối bảng AI.`, 'success', 4000);
+    if (ok && c.may_ai === 'trinh_duyet') toast(`Xong phụ đề ${ok}/${mids.length} video trên máy này.`, 'success', 6000);
+    else if (ok) toast(`Đã xếp ${ok} video vào hàng đợi tạo phụ đề — tiến độ ở cuối bảng AI.`, 'success', 4000);
     bangAi.tai();
 }

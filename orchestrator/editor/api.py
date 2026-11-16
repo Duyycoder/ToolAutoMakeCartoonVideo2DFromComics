@@ -710,6 +710,23 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
             raise HTTPException(status_code=500, detail="ffmpeg lỗi: " + (res.stderr or "").strip()[-300:])
         return qlm.dang_ky_file(folder, pid, ra, tu_media=mid)
 
+    @r.get("/api/du-an/{pid}/media/{mid}/tieng-16k")
+    def media_audio_16k(pid: str, mid: str):
+        """Tiếng mono 16 kHz (WAV) cho Whisper chạy trong trình duyệt — khỏi tải cả video gốc về điện thoại."""
+        folder, m, path = media_path(pid, mid)
+        if m.get("loai") not in ("video", "audio") or not os.path.isfile(path):
+            raise HTTPException(status_code=404, detail="Media này không có tiếng.")
+        ra = luu_tru._p(folder, luu_tru.CACHE, "tieng16k", f"{mid}.wav")
+        if not os.path.isfile(ra) or os.path.getmtime(ra) < os.path.getmtime(path):
+            from orchestrator.editor import whisper_truc_tiep
+            os.makedirs(os.path.dirname(ra), exist_ok=True)
+            try:
+                whisper_truc_tiep.tach_tieng_16k(path, ra + ".tam.wav")
+                os.replace(ra + ".tam.wav", ra)
+            except RuntimeError as e:
+                raise HTTPException(status_code=500, detail=str(e))
+        return gui_file(ra, "audio/wav")
+
     @r.get("/api/du-an/{pid}/media/{mid}/{loai}")
     def media_preview(pid: str, mid: str, loai: str):
         ten = {"thumb": f"{mid}.jpg", "dai-hinh": f"{mid}_dai.jpg", "song-am": f"{mid}_song.png"}.get(loai)

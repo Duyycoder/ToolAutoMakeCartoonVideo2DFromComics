@@ -73,6 +73,11 @@ renders the audio track (exact same filters) which is copied into the MP4 withou
 - Server side: AI panel "Chạy trên: Máy chủ / Laptop GPU" (shown once a laptop address + token is saved in Export > Máy xuất) sends `tham_so.may = "laptop"`; `api.xep_ai` calls `xuat_tu_xa.MayXuat.chay_ai` and falls back to the server's own Whisper when the laptop is unreachable. Batch subtitles use the same choice.
 - The laptop must run the updated code (old worker → 404 on `/ai`, reported as "cập nhật code trên laptop").
 
+## Whisper in the browser ("Máy này")
+
+- AI panel "Chạy trên: Máy này (trình duyệt)": `webui/editor/whisper_trinh_duyet.js` fetches `GET /api/du-an/{pid}/media/{mid}/tieng-16k` (mono 16 kHz WAV cut by the server, cached in `.duan/cache/tieng16k/`, so phones never download the original video) and runs `whisper_worker.js` (transformers.js 4.3.1 from jsDelivr `dist/transformers.min.js` — NOT `transformers.web.min.js`, which has a bare `onnxruntime-web/webgpu` import browsers cannot resolve). WebGPU when available, else WASM q8. Models `onnx-community/whisper-{tiny,base,small}` (medium/large/PhoWhisper → small), downloaded from Hugging Face once and cached by the browser; the model stays loaded in the worker for batch runs. Results go through `BangAi.apDung` (`tren_may: true` skips the server task ack).
+- Needs internet on the device (CDN + Hugging Face). Verified in headless Chrome: 7 s English clip → 15 s first run including model download, 1 s second run.
+
 ## Git status and handoff
 
 - `feat/editor` is pushed and deployed (last `2b6f948`). `AIVoice` is a third-party submodule and was not modified.
