@@ -481,6 +481,9 @@ body.ai-translate-only .the-ai:not(:has([data-l="dich"])) { display: none !impor
         grid-template-columns: minmax(0, 1fr);
         grid-template-rows: minmax(180px, 1fr) 6px minmax(150px, min(var(--h-tl, 280px), 46dvh)) var(--h-cc);
     }
+    /* Phải đè cả các rule desktop .ed-than.dong-trai/.dong-phai (độ ưu tiên cao hơn) — không thì điện thoại
+       (mở editor là đóng cả hai ngăn) bị dồn preview/timeline vào cột icon 52px. */
+    .ed-than.dong-trai, .ed-than.dong-phai, .ed-than.dong-trai.dong-phai { grid-template-columns: minmax(0, 1fr); }
     .thanh-icon {
         grid-row: 4; grid-column: 1; z-index: 13; flex-direction: row; justify-content: flex-start;
         overflow-x: auto; overflow-y: hidden; padding: 4px 4px env(safe-area-inset-bottom); gap: 2px; scrollbar-width: none;
@@ -610,3 +613,41 @@ body.ai-translate-only .the-ai:not(:has([data-l="dich"])) { display: none !impor
 .banh-xe input[type=range] { width: 100%; }
 .banh-xe-so { font: 10px var(--font-so); color: var(--chu-2); }
 .ss-vach { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 4px #000; pointer-events: none; z-index: 2; }
+
+/* ---- Điện thoại: thanh thao tác nhanh cho clip đang chọn + thanh công cụ cuộn ngang ---- */
+.tl-chon-nhanh { flex: none; display: flex; gap: 4px; padding: 4px 8px; border-bottom: 1px solid var(--vien); overflow-x: auto; background: var(--nen-2); }
+.tl-chon-nhanh[hidden] { display: none; }
+.tl-chon-nhanh button { flex: 1 0 auto; min-width: 56px; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px; background: none; border: 1px solid var(--vien); border-radius: 6px; color: var(--chu); font-size: 16px; cursor: pointer; }
+.tl-chon-nhanh button span { font-size: 10.5px; color: var(--chu-2); }
+.tl-chon-nhanh button.nguy { color: #f87171; }
+@media (pointer: coarse) {
+    .tl-cong-cu { overflow-x: auto; scrollbar-width: none; }
+    .tl-cong-cu::-webkit-scrollbar { display: none; }
+    .tl-cong-cu .nut-icon { flex: none; min-width: 36px; min-height: 36px; }
+    .tl-goi-y { display: none; }
+    .menu button { min-height: 40px; }
+}
+
+/* ---- Điện thoại: nút đóng ngăn trượt + vùng chạm to hơn ---- */
+.nut-dong-ngan { display: none; }
+@media (max-width: 760px) {
+    .nut-dong-ngan {
+        position: fixed; z-index: 14; right: 10px; width: 36px; height: 36px; border-radius: 50%;
+        bottom: calc(var(--h-cc) + min(62dvh, calc(100dvh - 48px - var(--h-cc) - 60px)) - 44px);
+        border: 1px solid var(--vien-sang); background: var(--nen-3); color: var(--chu); font-size: 16px;
+        align-items: center; justify-content: center; cursor: pointer;
+    }
+    .ed-than:not(.dong-trai) .nut-dong-ngan, .ed-than:not(.dong-phai) .nut-dong-ngan { display: flex; }
+    .bang-dau { padding-right: 52px; touch-action: none; }
+}
+@media (pointer: coarse) {
+    .bang-trai input[type=range], .bang-phai input[type=range] { min-height: 34px; }
+    .bang-trai .nut-nho, .bang-phai .nut-nho { min-height: 36px; }
+    .bang-trai .nut-icon.nut-nho, .bang-phai .nut-icon.nut-nho { min-width: 36px; }
+    .bang-trai select, .bang-phai select, .bang-trai input[type=search], .bang-trai input[type=text] { min-height: 36px; font-size: 16px; }
+    .tv-am-muc { padding: 6px; }
+    .dc-thanh { margin: 8px 0; }
+    .bang-trai .check, .bang-phai .check { min-height: 36px; display: flex; align-items: center; gap: 6px; }
+}
+.menu { max-height: calc(100dvh - 16px); overflow-y: auto; overscroll-behavior: contain; }

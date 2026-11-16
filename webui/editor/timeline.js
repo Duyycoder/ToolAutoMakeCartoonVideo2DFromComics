@@ -47,6 +47,14 @@ export class Timeline {
                 <button class="nut-icon" data-l="vua" title="Vừa khung (hiện cả timeline)">⛶</button>
                 <button class="nut-icon" data-l="bang-phai" title="Ẩn/hiện bảng thuộc tính">◧</button>
             </div>
+            <div class="tl-chon-nhanh" hidden>
+                <button data-n="cat">✂<span>Cắt</span></button>
+                <button data-n="nhan-doi">⧉<span>Nhân đôi</span></button>
+                <button data-n="xoa" class="nguy">🗑<span>Xoá</span></button>
+                <button data-n="thuoc-tinh">⚙<span>Thuộc tính</span></button>
+                <button data-n="menu">⋯<span>Thêm</span></button>
+                <button data-n="bo-chon">✕<span>Bỏ chọn</span></button>
+            </div>
             <div class="tl-than">
                 <div class="tl-dau-cot"><div class="thuoc-cho">TRACKS</div><div data-khu="dau" style="overflow:hidden;flex:1"></div></div>
                 <div class="tl-cuon" data-khu="cuon"><div class="tl-noi" data-khu="noi"></div></div>
@@ -91,6 +99,22 @@ export class Timeline {
                 this.ui[k] = !this.ui[k];
                 ctx.luuUi();
                 this._veCongCu();
+            }
+        });
+        // Điện thoại: không có chuột phải/phím Delete → thanh thao tác nhanh cho clip đang chọn.
+        this.el.querySelector('.tl-chon-nhanh').addEventListener('click', (e) => {
+            const b = e.target.closest('[data-n]');
+            if (!b) return;
+            const n = b.dataset.n, ds = this.ui.dang_chon || [];
+            if (n === 'cat') this.catTaiDauPhat();
+            if (n === 'nhan-doi') this.nhanDoi();
+            if (n === 'xoa') this.xoaDangChon();
+            if (n === 'thuoc-tinh' && !ctx.ui.bang_phai_mo) ctx.bus.emit('bat_bang_phai');
+            if (n === 'bo-chon') { this.ui.dang_chon = []; ctx.bus.emit('chon'); this.ve(); }
+            if (n === 'menu' && ds.length) {
+                e.stopPropagation();
+                const r = b.getBoundingClientRect();
+                this.menuClip(ds[ds.length - 1], r.left, r.bottom + 4);
             }
         });
         this.zoom.addEventListener('input', () => this.datZoom(Number(this.zoom.value)));
@@ -958,6 +982,9 @@ export class Timeline {
         cc.querySelector('[data-l=hoan-tac]').disabled = !this.ctx.store.hoanTac.length || this.ctx.store.chiDoc;
         cc.querySelector('[data-l=lam-lai]').disabled = !this.ctx.store.lamLai.length || this.ctx.store.chiDoc;
         cc.querySelector('[data-l=xoa]').disabled = !(this.ui.dang_chon || []).length;
+        const cn = this.el.querySelector('.tl-chon-nhanh');
+        const coClip = (this.ui.dang_chon || []).some((id) => this.tl.clips.some((c) => c.id === id));
+        cn.hidden = !coClip || this.ctx.store.chiDoc || !matchMedia('(pointer: coarse)').matches;
         cc.querySelector('[data-l=bat-dinh]').classList.toggle('bat', !!this.ui.bat_dinh);
         cc.querySelector('[data-l=lien-ket]').classList.toggle('bat', !!this.ui.lien_ket_am_thanh);
         if (document.activeElement !== this.zoom) this.zoom.value = this.ui.zoom_timeline;

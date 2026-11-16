@@ -181,6 +181,24 @@ async function khoiDong() {
         ui.bang_trai_mo = false; ui.bang_phai_mo = false;
         apKichThuoc(); veBangTrai();
     };
+    // Điện thoại: ngăn trượt có nút ✕ ở góc và vuốt xuống từ đầu ngăn để đóng.
+    const nutDong = document.createElement('button');
+    nutDong.className = 'nut-dong-ngan';
+    nutDong.title = 'Đóng';
+    nutDong.textContent = '✕';
+    nutDong.addEventListener('click', () => ctx.dongBangTrenDienThoai());
+    $('bangTrai').parentElement.appendChild(nutDong);
+    for (const ngan of [$('bangTrai'), $('bangPhai')]) {
+        let y0 = null;
+        ngan.addEventListener('pointerdown', (e) => {
+            y0 = dienThoai.matches && e.pointerType === 'touch' && e.target.closest('.bang-dau') ? e.clientY : null;
+        });
+        ngan.addEventListener('pointerup', (e) => {
+            if (y0 != null && e.clientY - y0 > 50) ctx.dongBangTrenDienThoai();
+            y0 = null;
+        });
+        ngan.addEventListener('pointercancel', () => { y0 = null; });
+    }
     apKichThuoc();
     than.querySelectorAll('.keo').forEach((thanh) => {
         thanh.addEventListener('pointerdown', (e) => {
