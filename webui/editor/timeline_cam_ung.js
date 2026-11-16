@@ -22,6 +22,7 @@ export function ganCamUng(tl, MEP_CHAM) {
         if (e.pointerType !== 'touch') return;
         cancelAnimationFrame(quanTinh);
         ngon.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        tl._camUng = true;
         if (ngon.size === 2) {
             huyGiu();
             const [a, b] = [...ngon.values()];
@@ -82,6 +83,7 @@ export function ganCamUng(tl, MEP_CHAM) {
     const tha = (e) => {
         if (e.pointerType !== 'touch' || !ngon.has(e.pointerId)) return;
         ngon.delete(e.pointerId);
+        if (!ngon.size) { tl._camUng = false; setTimeout(() => tl.veNeuHoan(), 0); }
         if (!viec) return;
         huyGiu();
         const v = viec;

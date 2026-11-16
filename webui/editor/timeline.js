@@ -71,8 +71,8 @@ export class Timeline {
         this._daKhoiPhucCuon = false;
         this._keo = null;
         this._gan();
-        ctx.bus.on('timeline', () => { if (!this._keo) this.ve(); });
-        ctx.bus.on('media', () => { if (!this._keo) this.ve(); });
+        ctx.bus.on('timeline', () => this.veKhiRanh());
+        ctx.bus.on('media', () => this.veKhiRanh());
         ctx.bus.on('chon', () => this._veChon());
         ctx.bus.on('bo_cuc', () => this.ve());
     }
@@ -555,6 +555,17 @@ export class Timeline {
         this._cuonDuKien = null;
         this.cuon.scrollLeft = Math.max(0, t * this.px - x);
         this.ctx.luuUi();
+    }
+
+    /* Vẽ lại — trừ lúc đang kéo clip hoặc ngón tay đang chạm (vẽ lại thay phần tử dưới tay → mất thao tác);
+       khi đó hoãn tới lúc thả (timeline_cam_ung.js gọi veNeuHoan). */
+    veKhiRanh() {
+        if (this._keo || this._camUng) { this._hoanVe = true; return; }
+        this.ve();
+    }
+
+    veNeuHoan() {
+        if (this._hoanVe && !this._keo && !this._camUng) { this._hoanVe = false; this.ve(); }
     }
 
     /* Neo zoom ở đầu phát khi nó đang hiện trên màn (không thì giữa khung nhìn). */
@@ -1068,19 +1079,21 @@ export class Timeline {
         if (document.activeElement !== this.zoom) this.zoom.value = this.ui.zoom_timeline;
     }
 
-    /* Dải khung hình: ô đúng tỉ lệ khung video, mỗi ô lấy khung gần thời điểm của nó nhất. */
-    _dai(m, c, rongPx) {
+    /* Dải khung hình: ô đúng tỉ lệ khung video, mỗi ô lấy khung gần thời điểm của nó nhất.
+       Chỉ vẽ các ô nằm trong [a, b] (px tính từ mép trái clip) — phần đang nhìn thấy ± 1 màn hình. */
+    _dai(m, c, rongPx, a = 0, b = rongPx) {
         const pid = encodeURIComponent(this.ctx.id);
         const n = Number(m.dai_hinh) || 0, dai = Number(m.thoi_luong) || 0;
         if (!n || !dai || !m.rong || !m.cao) return '';
         const fw = 2 * Math.round((CAO_SPRITE * m.rong / m.cao) / 2);   // scale=-2:54 → rộng chẵn
         const k = H_KHUNG / CAO_SPRITE;
         const oW = fw * k;
-        const so = Math.min(300, Math.ceil(rongPx / oW));
+        const so = Math.ceil(rongPx / oW);
+        const dau = Math.max(0, Math.floor(a / oW)), cuoi = Math.min(so, Math.ceil(b / oW), dau + 400);
         const toc = Number(c.toc_do) || 1;
         const url = `/api/du-an/${pid}/media/${m.id}/dai-hinh?v=${esc(m.nhap_luc)}`;
         let html = '';
-        for (let i = 0; i < so; i += 1) {
+        for (let i = dau; i < cuoi; i += 1) {
             const tm = (Number(c.vao) || 0) + ((i + 0.5) * oW / this.px) * toc;
             const khung = Math.max(0, Math.min(n - 1, Math.floor((tm / dai) * n)));
             html += `<i style="left:${i * oW}px;width:${oW}px;background-image:url('${url}');`
@@ -1143,12 +1156,15 @@ export class Timeline {
                 const rongClip = Math.max(2, (kt - bd) * px);
                 let nen = '', trong = '';
                 const dai = Number(m.thoi_luong) || 0;
-                if (tr.loai === 'video' && m.loai === 'video') trong = this._dai(m, c, rongClip);
+                // Phần clip đang nhìn thấy (px từ mép trái clip): dải khung/sóng âm chỉ vẽ trong đoạn này.
+                const vA = Math.max(0, x0 - bd * px), vB = Math.min(rongClip, x1 - bd * px);
+                if (tr.loai === 'video' && m.loai === 'video') trong = this._dai(m, c, rongClip, vA, vB);
                 if (tr.loai === 'video' && m.loai === 'anh' && m.thumb) {
                     nen = `background-image:url('/api/du-an/${pid}/media/${m.id}/thumb?v=${esc(m.nhap_luc)}');background-size:auto ${H_KHUNG}px;background-repeat:repeat-x;background-position:0 bottom;`;
-                } else if (tr.loai === 'audio' && m.song_am && dai) {
-                    nen = `background-image:url('/api/du-an/${pid}/media/${m.id}/song-am?v=${esc(m.nhap_luc)}');`
-                        + `background-size:${dai * px / toc}px 80%;background-position:${-(Number(c.vao) || 0) * px / toc}px center;background-repeat:no-repeat;`;
+                } else if (tr.loai === 'audio' && m.song_am && dai && vB > vA) {
+                    trong = `<i class="song-am" style="left:${vA}px;width:${vB - vA}px;`
+                        + `background-image:url('/api/du-an/${pid}/media/${m.id}/song-am?v=${esc(m.nhap_luc)}');`
+                        + `background-size:${dai * px / toc}px 80%;background-position:${-(Number(c.vao) || 0) * px / toc - vA}px center"></i>`;
                 }
                 const nhan = nhanClip(c, m);
                 const iconLk = c.lien_ket ? '<span style="font-size:10px;margin-right:4px">🔗</span>' : '';

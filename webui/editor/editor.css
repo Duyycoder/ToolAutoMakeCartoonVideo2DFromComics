@@ -665,3 +665,5 @@ body.ai-translate-only .the-ai:not(:has([data-l="dich"])) { display: none !impor
 .tl-dau-cot .thuoc-cho .nut { margin-left: auto; padding: 1px 7px; font-size: 11px; }
 .tl-dau-cot .thuoc-cho .nut + .nut { margin-left: 0; }
 @media (max-width: 760px) { .tl-dau-cot .chu-tracks { display: none; } .tl-dau-cot .thuoc-cho .nut { margin-left: 0; flex: 1; } }
+/* Sóng âm trong clip audio: chỉ phủ phần đang nhìn thấy (timeline.js ve) — zoom sâu không tạo ảnh nền rộng hàng trăm nghìn px. */
+.clip .song-am { position: absolute; top: 0; bottom: 0; background-repeat: no-repeat; pointer-events: none; }

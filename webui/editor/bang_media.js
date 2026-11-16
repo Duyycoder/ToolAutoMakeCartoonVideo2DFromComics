@@ -242,7 +242,11 @@ export class BangMedia {
                 toast(`Khung dự án lấy theo video đầu: ${r.thong_so.rong}×${r.thong_so.cao} — bấm vào kích thước ở thanh trên để đổi dọc/ngang.`, 'info', 8000);
             }
             this._baoKetQuaTai();
-            this.ctx.bus.emit('media');
+            // Lúc server đang xử lý (tạo proxy…) bảng này hỏi mỗi giây: CHỈ báo 'media' khi media thật sự đổi —
+            // báo mỗi giây làm timeline/preview/bảng thuộc tính vẽ lại liên tục (điện thoại giật, hỏng thao tác kéo).
+            const dauVet = JSON.stringify(r.media.map((m) => [m.id, m.trang_thai, m.thoi_luong, m.rong, m.cao, m.dai_hinh,
+                m.song_am, m.thumb, m.proxy, m.phat_duoc, m.mat_file, m.ten, m.nhap_luc, m.file]));
+            if (dauVet !== this._dauVet) { this._dauVet = dauVet; this.ctx.bus.emit('media'); }
             if (this.el.isConnected) this.ve();
             this._thuPhat();
         } catch (e) { /* server bận — thử lại ở vòng sau */ }
