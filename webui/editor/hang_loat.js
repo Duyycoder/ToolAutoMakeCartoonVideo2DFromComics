@@ -1,5 +1,6 @@
 import { $, api, esc, toast, chonFile } from './chung.js';
 import { veDieuKhien, bindDieuKhien } from './chon_giong.js';
+import { htmlMayXuat, ganMayXuat, luuMayXuat, mayXuatCanLuu } from './may_xuat_ui.js';
 
 let hlFiles = [];
 let hlTimers = null;
@@ -133,14 +134,20 @@ export async function initHangLoat() {
         $('hlDichVung').style.display = $('hlDich').checked ? 'block' : 'none';
         $('hlLongTiengVung').style.display = $('hlLongTieng').checked ? 'block' : 'none';
         $('hlXuatVung').style.display = $('hlXuat').checked ? 'flex' : 'none';
+        $('hlMayXuat').style.display = $('hlXuat').checked ? 'block' : 'none';
         
         const ca = JSON.parse(localStorage.getItem('hlCaiDat') || '{}');
         ['hlCheDo', 'hlKhungHinh', 'hlPhuDeLoai', 'hlVungOcr', 'hlDichSang', 'hlGiongTTS', 'hlXuatChatLuong', 'hlXuatBoMaHoa'].forEach(id => ca[id] = $(id).value);
         ca['hlGiongTen'] = window.hlTtsVoiceVal || '';
+        ca['hlMayXuat'] = $('hlMayXuat').querySelector('[name=may_xuat]').value;
         ['hlTaoPhuDe', 'hlChePhuDe', 'hlDich', 'hlLongTieng', 'hlXuat'].forEach(id => ca[id] = $(id).checked);
         localStorage.setItem('hlCaiDat', JSON.stringify(ca));
     };
     
+    let mayDaChon = '';
+    try { mayDaChon = JSON.parse(localStorage.getItem('hlCaiDat') || '{}').hlMayXuat || ''; } catch (e) {}
+    $('hlMayXuat').innerHTML = htmlMayXuat(mayDaChon);
+    ganMayXuat($('hlMayXuat'), uiUpdate);
     ['hlTaoPhuDe', 'hlPhuDeLoai', 'hlDich', 'hlLongTieng', 'hlXuat'].forEach(id => $(id).addEventListener('change', uiUpdate));
     uiUpdate();
     
@@ -238,7 +245,8 @@ export async function initHangLoat() {
                 do_phan_giai: "",
                 bo_ma_hoa: $('hlXuatBoMaHoa').value || "auto",
                 crf: parseInt($('hlXuatChatLuong').value) || 19,
-                xuat_srt: true
+                xuat_srt: true,
+                may_xuat: $('hlMayXuat').querySelector('[name=may_xuat]').value
             };
         }
         
@@ -260,6 +268,7 @@ export async function initHangLoat() {
         
         $('hlChay').disabled = true;
         try {
+            if (buoc.xuat && mayXuatCanLuu($('hlMayXuat'))) await luuMayXuat($('hlMayXuat'));
             await api('/api/hang-loat', { method: 'POST', body: data });
             toast('Đã thêm vào hàng đợi.', 'success');
             hlFiles = [];

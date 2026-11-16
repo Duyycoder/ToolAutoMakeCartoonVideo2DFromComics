@@ -3,6 +3,7 @@
 import { $, api, esc, toast, fmtThoiGian, coFile } from './chung.js';
 import { thoiLuong } from './store.js';
 import { KHUNG, khungHienTai, datKhung } from './khung_hinh.js';
+import { htmlMayXuat, ganMayXuat, luuMayXuat, mayXuatCanLuu } from './may_xuat_ui.js';
 
 export function ganXuat(ctx) {
     const nut = $('btnXuat');
@@ -66,16 +67,7 @@ function moHop(ctx) {
                 <label>Bộ mã hoá<select name="bo_ma_hoa">${[['auto', 'Tự chọn (NVENC nếu có GPU)'], ['nvenc', 'NVENC (GPU NVIDIA)'], ['x264', 'x264 (CPU)']]
                         .map(([v, t]) => `<option value="${v}" ${(nho.bo_ma_hoa || 'auto') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
             </div>
-            <label>Máy xuất<select name="may_xuat">
-                <option value="" ${nho.may_xuat !== 'laptop' ? 'selected' : ''}>Máy này</option>
-                <option value="laptop" ${nho.may_xuat === 'laptop' ? 'selected' : ''}>Laptop GPU qua Tailscale</option></select></label>
-            <div class="o-may-xuat" ${nho.may_xuat === 'laptop' ? '' : 'hidden'}>
-                <div class="hang">
-                    <label>Địa chỉ laptop<input type="text" name="mx_url" placeholder="http://100.x.x.x:8300"></label>
-                    <label>Mã bí mật<input type="password" name="mx_token" placeholder="dán mã từ run-worker.bat" autocomplete="off"></label>
-                </div>
-                <div class="hang-nut"><button type="button" class="nut nut-nho" data-mx-thu>Kiểm tra kết nối</button><span class="goi-y-nho" data-mx-tt></span></div>
-            </div>
+            ${htmlMayXuat(nho.may_xuat)}
             ${coGiong ? `<label>Giảm nhạc nền khi có giọng lồng <span class="gt">${nho.giam_nhac_nen ?? 90}%</span>
                 <input type="range" name="giam_nhac_nen" min="0" max="100" value="${nho.giam_nhac_nen ?? 90}"></label>` : ''}
             ${coHdr ? `<label class="check"><input type="checkbox" name="giu_hdr" ${nho.giu_hdr ? 'checked' : ''}> Giữ HDR 10-bit (HLG, HEVC)
@@ -112,7 +104,7 @@ function moHop(ctx) {
         const nut = f.querySelector('[type=submit]');
         nut.disabled = true;
         try {
-            if (tc.may_xuat === 'laptop' && (f.mx_token.value || f.mx_url.value !== f.mx_url.defaultValue)) await luuMayXuat(f);
+            if (mayXuatCanLuu(f)) await luuMayXuat(f);
             if (f.khung.value && f.khung.value !== khungHienTai(ts).khung) await datKhung(ctx, { khung: f.khung.value });
             await ctx.boLuu.flush();        // xuất đọc timeline TRÊN ĐĨA — phải lưu hết trước
             const kq = await api(`/api/du-an/${encodeURIComponent(ctx.id)}/xuat`, { method: 'POST', body: { phien: ctx.boLuu.phien, tuy_chon: tc } });
@@ -126,26 +118,4 @@ function moHop(ctx) {
     });
     f.ten.focus();
     f.ten.select();
-}
-
-/* Máy xuất từ xa (laptop GPU chạy run-worker.bat): địa chỉ + mã lưu ở server máy này, mã không gửi ngược về trình duyệt. */
-async function luuMayXuat(f) {
-    const tt = f.querySelector('[data-mx-tt]');
-    tt.textContent = 'Đang kết nối…';
-    const r = await api('/api/may-xuat', { method: 'POST', body: { url: f.mx_url.value, token: f.mx_token.value } });
-    f.mx_token.value = '';
-    f.mx_token.placeholder = 'đã lưu — nhập để đổi';
-    f.mx_url.defaultValue = f.mx_url.value;
-    tt.textContent = r.ok ? `✔ ${r.may || 'Laptop'} sẵn sàng${r.nvenc ? ' · NVENC' : ' · không có NVENC'}` : `✘ ${r.loi}`;
-    return r;
-}
-
-function ganMayXuat(f) {
-    const khoi = f.querySelector('.o-may-xuat');
-    f.may_xuat.addEventListener('change', () => { khoi.hidden = f.may_xuat.value !== 'laptop'; });
-    f.querySelector('[data-mx-thu]').addEventListener('click', () => luuMayXuat(f).catch((e) => toast(e.message, 'error')));
-    api('/api/may-xuat').then((c) => {
-        f.mx_url.value = f.mx_url.defaultValue = c.url || '';
-        if (c.co_token) f.mx_token.placeholder = 'đã lưu — nhập để đổi';
-    }).catch(() => {});
 }
