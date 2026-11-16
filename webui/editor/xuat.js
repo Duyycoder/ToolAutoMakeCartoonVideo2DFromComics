@@ -4,6 +4,7 @@ import { $, api, esc, toast, fmtThoiGian, coFile, chonFile } from './chung.js';
 import { thoiLuong } from './store.js';
 import { KHUNG, khungHienTai, datKhung } from './khung_hinh.js';
 import { htmlMayXuat, ganMayXuat, luuMayXuat, mayXuatCanLuu } from './may_xuat_ui.js';
+import { chayXuatThietBi, moTaThietBi } from './xuat_thiet_bi/ui_xuat_tb.js';
 
 export function ganXuat(ctx) {
     const nut = $('btnXuat');
@@ -117,7 +118,7 @@ function moHop(ctx) {
                 <label>Bộ mã hoá<select name="bo_ma_hoa">${[['auto', 'Tự chọn (NVENC nếu có GPU)'], ['nvenc', 'NVENC (GPU NVIDIA)'], ['x264', 'x264 (CPU)']]
                         .map(([v, t]) => `<option value="${v}" ${(nho.bo_ma_hoa || 'auto') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
             </div>
-            ${htmlMayXuat(nho.may_xuat)}
+            ${htmlMayXuat(nho.may_xuat, !MAY_NAY)}
             ${coGiong ? `<label>Giảm nhạc nền khi có giọng lồng <span class="gt">${nho.giam_nhac_nen ?? 90}%</span>
                 <input type="range" name="giam_nhac_nen" min="0" max="100" value="${nho.giam_nhac_nen ?? 90}"></label>` : ''}
             ${coHdr ? `<label class="check"><input type="checkbox" name="giu_hdr" ${nho.giu_hdr ? 'checked' : ''}> Giữ HDR 10-bit (HLG, HEVC)
@@ -135,7 +136,17 @@ function moHop(ctx) {
     const r = f.querySelector('[name=giam_nhac_nen]');
     if (r) r.addEventListener('input', () => { r.closest('label').querySelector('.gt').textContent = `${r.value}%`; });
     const dong = () => nen.remove();
-    ganMayXuat(f);
+    // Thiết bị này: mô tả + làm được/chưa được với dự án; chưa được thì khoá nút Xuất.
+    const veThietBi = () => {
+        const o = f.querySelector('[data-tb]');
+        const nutXuat = f.querySelector('[type=submit]');
+        if (!o || f.may_xuat.value !== 'thiet_bi') { nutXuat.disabled = false; return; }
+        const mt = moTaThietBi(ctx);
+        o.innerHTML = mt.html;
+        nutXuat.disabled = mt.chan;
+    };
+    ganMayXuat(f, veThietBi);
+    veThietBi();
     veBanXuat(ctx, f.querySelector('[data-ban-xuat]'));
     nen.querySelector('[data-huy]').addEventListener('click', dong);
     nen.addEventListener('keydown', (e) => { if (e.key === 'Escape') dong(); });
@@ -158,6 +169,12 @@ function moHop(ctx) {
         try {
             if (mayXuatCanLuu(f)) await luuMayXuat(f);
             if (f.khung.value && f.khung.value !== khungHienTai(ts).khung) await datKhung(ctx, { khung: f.khung.value });
+            if (tc.may_xuat === 'thiet_bi') {
+                if (tc.chi_am_thanh) throw new Error('Chỉ xuất âm thanh: hãy chọn Máy xuất "Server".');
+                dong();
+                chayXuatThietBi(ctx, tc);
+                return;
+            }
             await ctx.boLuu.flush();        // xuất đọc timeline TRÊN ĐĨA — phải lưu hết trước
             const kq = await api(`/api/du-an/${encodeURIComponent(ctx.id)}/xuat`, { method: 'POST', body: { phien: ctx.boLuu.phien, tuy_chon: tc } });
             dong();

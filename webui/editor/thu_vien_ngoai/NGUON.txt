@@ -1,0 +1,7 @@
+Thu vien ben thu ba dua nguyen ban vao repo (khong sua) - app desktop chay offline, khong dung CDN.
+
+mediabunny-1.65.1.min.js
+  Nguon: npm mediabunny@1.65.1 (dist/bundles/mediabunny.min.mjs, doi duoi .js de server nao cung tra dung MIME), https://github.com/Vanilagy/mediabunny
+  Giay phep: MPL-2.0 (mediabunny-LICENSE.txt)
+  SHA-256: 3cc850d9ceae2fa553de4106f4b067d6469b8b4de2255806312999fbe70d8699
+  Dung cho: xuat video tren thiet bi (webui/editor/xuat_thiet_bi/) - doc MP4/MOV, giai ma theo khung, ma hoa WebCodecs, ghi MP4.

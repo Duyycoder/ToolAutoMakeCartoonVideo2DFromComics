@@ -8,8 +8,9 @@ def test_js_tinh():
     
     # 1. Gather all exports for each module
     exports_by_module = {}
-    for path in js_files:
-        module_name = path.name
+    # Export của cả module trong thư mục con (vd xuat_thiet_bi/ui_xuat_tb.js) — khoá là đường dẫn tương đối như trong import.
+    for path in [p for p in editor_dir.rglob("*.js") if "thu_vien_ngoai" not in p.parts]:
+        module_name = path.relative_to(editor_dir).as_posix()
         exports = set()
         content = path.read_text(encoding="utf-8")
         # match `export function X`, `export const X`, `export let X`, `export class X`

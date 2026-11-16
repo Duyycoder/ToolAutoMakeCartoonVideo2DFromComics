@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thử xuất trên thiết bị</title>
+<style>
+    :root { color-scheme: dark; }
+    body { margin: 0; padding: 16px; background: #111216; color: #e7e7ea; font: 14px/1.5 system-ui, sans-serif; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    section { border: 1px solid #2a2c33; border-radius: 10px; padding: 12px; margin: 12px 0; }
+    button, select, input { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid #3a3d46; background: #1d1f25; color: inherit; }
+    button { cursor: pointer; } button:disabled { opacity: .5; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; } td, th { border-bottom: 1px solid #2a2c33; padding: 4px 6px; text-align: left; }
+    .ok { color: #4ade80; } .khong { color: #f87171; } .mo { color: #9a9ca5; }
+    pre { white-space: pre-wrap; font-size: 12px; color: #c4c6cc; }
+    canvas { max-width: 100%; border-radius: 6px; background: #000; }
+</style>
+</head>
+<body>
+<h1>Thử xuất video trên thiết bị</h1>
+<div class="mo">Trang cho nhà phát triển: đo giới hạn máy, thử giải mã file gốc, thử mã hoá + ghi MP4. Kết quả chép vào docs.</div>
+
+<section>
+    <b>1. Hồ sơ máy</b> <button id="nutDo">Đo (≈ 20–60 s)</button> <button id="nutLoc">Chỉ kiểm nhanh</button>
+    <div id="ttDo" class="mo"></div><div id="bangHoSo"></div>
+</section>
+
+<section>
+    <b>2. Thử giải mã file gốc</b><br>
+    <input id="urlNguon" placeholder="/api/du-an/&lt;pid&gt;/media/&lt;mid&gt;/file" style="width:min(520px,100%)">
+    <button id="nutGiaiMa">Giải mã 90 khung</button>
+    <div id="ttGiaiMa" class="mo"></div><canvas id="cvGiaiMa" width="320" height="180"></canvas>
+</section>
+
+<section>
+    <b>3. Thử mã hoá + ghi MP4</b><br>
+    <select id="chonCodec"><option value="avc">H.264</option><option value="hevc">HEVC</option><option value="av1">AV1</option></select>
+    <select id="chonDpg"><option value="1280x720">720p</option><option value="1920x1080" selected>1080p</option><option value="3840x2160">4K</option></select>
+    <select id="chonFps"><option>30</option><option>60</option><option>120</option></select>
+    <button id="nutXuat">Xuất 3 giây</button>
+    <div id="ttXuat" class="mo"></div>
+</section>
+<pre id="nhatKy"></pre>
+<script type="module" src="./thu.js"></script>
+</body>
+</html>

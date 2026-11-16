@@ -3,11 +3,14 @@
  * Địa chỉ + mã lưu ở server máy này (/api/may-xuat); mã không gửi ngược về trình duyệt. */
 import { api, toast } from './chung.js';
 
-export function htmlMayXuat(chon) {
-    const laptop = chon === 'laptop';
+/* coThietBi: thêm lựa chọn "Thiết bị này" (xuất trên trình duyệt — chỉ hộp Xuất của editor bản web). */
+export function htmlMayXuat(chon, coThietBi = false) {
+    const laptop = chon === 'laptop', thietBi = coThietBi && chon === 'thiet_bi';
     return `<label>Máy xuất<select name="may_xuat">
-                <option value="" ${laptop ? '' : 'selected'}>Server</option>
-                <option value="laptop" ${laptop ? 'selected' : ''}>Laptop GPU qua Tailscale</option></select></label>
+                <option value="" ${laptop || thietBi ? '' : 'selected'}>Server</option>
+                <option value="laptop" ${laptop ? 'selected' : ''}>Laptop GPU qua Tailscale</option>
+                ${coThietBi ? `<option value="thiet_bi" ${thietBi ? 'selected' : ''}>Thiết bị này (phần cứng máy đang dùng)</option>` : ''}</select></label>
+            <div class="o-thiet-bi" data-tb ${thietBi ? '' : 'hidden'}></div>
             <div class="o-may-xuat" ${laptop ? '' : 'hidden'}>
                 <div class="hang">
                     <label>Địa chỉ laptop<input type="text" name="mx_url" placeholder="http://100.x.x.x:8300"></label>
@@ -38,7 +41,12 @@ export async function luuMayXuat(goc) {
 
 export function ganMayXuat(goc, khiDoi = () => {}) {
     const chon = o(goc, 'may_xuat'), khoi = goc.querySelector('.o-may-xuat');
-    chon.addEventListener('change', () => { khoi.hidden = chon.value !== 'laptop'; khiDoi(chon.value); });
+    chon.addEventListener('change', () => {
+        khoi.hidden = chon.value !== 'laptop';
+        const tb = goc.querySelector('[data-tb]');
+        if (tb) tb.hidden = chon.value !== 'thiet_bi';
+        khiDoi(chon.value);
+    });
     goc.querySelector('[data-mx-thu]').addEventListener('click', () => luuMayXuat(goc).catch((e) => toast(e.message, 'error')));
     api('/api/may-xuat').then((c) => {
         o(goc, 'mx_url').value = o(goc, 'mx_url').defaultValue = c.url || '';

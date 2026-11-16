@@ -23,6 +23,7 @@ from orchestrator.editor import (ai_bridge, chuan_hoa_file, hang_doi, luu_tru, m
                                  srt, tai_len, thu_vien_am, workspace, xuat_tu_xa)
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+TIENG_THIET_BI = "tieng-thiet-bi"   # tên file tiếng tạm server dựng cho xuất trên thiết bị (ẩn khỏi "Bản đã xuất")
 AI_MODE = os.environ.get("EDITOR_AI_MODE", "all" if os.environ.get("EDITOR_ENABLE_AI", "1").strip().lower() not in {"0", "false", "no"} else "off").strip().lower()
 AI_ENABLED = AI_MODE != "off"
 
@@ -1170,7 +1171,8 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         if os.path.isdir(d):
             for ten in os.listdir(d):
                 p = os.path.join(d, ten)
-                if os.path.isfile(p) and not ten.startswith(".") and os.path.splitext(ten)[1].lower() in (".mp4", ".m4a", ".mov", ".srt"):
+                if (os.path.isfile(p) and not ten.startswith(".") and TIENG_THIET_BI not in ten
+                        and os.path.splitext(ten)[1].lower() in (".mp4", ".m4a", ".mov", ".srt")):
                     ds.append({"ten": ten, "kich_thuoc": os.path.getsize(p), "luc": int(os.path.getmtime(p))})
         return {"ds": sorted(ds, key=lambda x: -x["luc"])}
 
@@ -1182,6 +1184,17 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
             raise HTTPException(status_code=404, detail="Không có bản xuất này.")
         mt = mimetypes.guess_type(p)[0] or "application/octet-stream"
         return FileResponse(p, media_type=mt, filename=os.path.basename(p))   # Content-Disposition: attachment (UTF-8)
+
+    @r.delete("/api/du-an/{pid}/xuat/tai")
+    def delete_device_audio(pid: str, ten: str):
+        """Xuất trên thiết bị: server dựng TIẾNG (chi_am_thanh, tên chứa TIENG_THIET_BI) → máy tải về ghép xong thì xoá.
+        Chỉ xoá được file tiếng tạm này, không xoá bản xuất thật."""
+        d = os.path.abspath(os.path.join(folder_cua(pid), luu_tru.XUAT_DIR))
+        p = os.path.abspath(os.path.join(d, ten))
+        if os.path.dirname(p) != d or TIENG_THIET_BI not in os.path.basename(p) or not os.path.isfile(p):
+            raise HTTPException(status_code=404, detail="Không có file tiếng tạm này.")
+        os.remove(p)
+        return {"ok": True}
 
     @r.post("/api/du-an/{pid}/xuat/luu-ra")
     def save_export_to(pid: str, body: Dict[str, Any]):
