@@ -481,6 +481,20 @@ def test_trich_am_thanh_tu_video(ws, monkeypatch):
     assert ws.get(f"/api/du-an/{pid}/media/{am['id']}/file").content[4:8] == b"ftyp"
 
 
+def test_tai_ve_ban_xuat(ws):
+    pid = _tao(ws)["id"]
+    folder = ws.get(f"/api/du-an/{pid}").json()["du_an"]["folder"]
+    os.makedirs(os.path.join(folder, "xuat"), exist_ok=True)
+    with open(os.path.join(folder, "xuat", "Video thử.mp4"), "wb") as f:
+        f.write(b"0" * 1234)
+    ds = ws.get(f"/api/du-an/{pid}/xuat").json()["ds"]
+    assert [x["ten"] for x in ds] == ["Video thử.mp4"] and ds[0]["kich_thuoc"] == 1234
+    r = ws.get(f"/api/du-an/{pid}/xuat/tai", params={"ten": "Video thử.mp4"})
+    assert r.status_code == 200 and len(r.content) == 1234
+    assert "attachment" in r.headers["content-disposition"], "Phải là tải về (attachment), không phát trong tab"
+    assert ws.get(f"/api/du-an/{pid}/xuat/tai", params={"ten": "../.duan.json"}).status_code == 404
+
+
 def test_may_xuat_cau_hinh_va_laptop_tat_thi_xuat_o_may_nay(ws):
     r = ws.post("/api/may-xuat", json={"url": "127.0.0.1:1", "token": "bi-mat"})
     assert r.status_code == 200 and r.json()["ok"] is False and "Không kết nối" in r.json()["loi"]

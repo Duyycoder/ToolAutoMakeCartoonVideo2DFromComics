@@ -1162,6 +1162,27 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         _mo_explorer(path)
         return {"path": path}
 
+    # Bản xuất nằm trong <dự án>/xuat/ trên SERVER — bản web/điện thoại cần tải về (mở thư mục chỉ có ở desktop).
+    @r.get("/api/du-an/{pid}/xuat")
+    def list_exports(pid: str):
+        d = os.path.join(folder_cua(pid), luu_tru.XUAT_DIR)
+        ds = []
+        if os.path.isdir(d):
+            for ten in os.listdir(d):
+                p = os.path.join(d, ten)
+                if os.path.isfile(p) and not ten.startswith(".") and os.path.splitext(ten)[1].lower() in (".mp4", ".m4a", ".mov", ".srt"):
+                    ds.append({"ten": ten, "kich_thuoc": os.path.getsize(p), "luc": int(os.path.getmtime(p))})
+        return {"ds": sorted(ds, key=lambda x: -x["luc"])}
+
+    @r.get("/api/du-an/{pid}/xuat/tai")
+    def download_export(pid: str, ten: str):
+        d = os.path.abspath(os.path.join(folder_cua(pid), luu_tru.XUAT_DIR))
+        p = os.path.abspath(os.path.join(d, ten))
+        if os.path.dirname(p) != d or not os.path.isfile(p):
+            raise HTTPException(status_code=404, detail="Không có bản xuất này.")
+        mt = mimetypes.guess_type(p)[0] or "application/octet-stream"
+        return FileResponse(p, media_type=mt, filename=os.path.basename(p))   # Content-Disposition: attachment (UTF-8)
+
     r.hang_gpu = hang_gpu   # type: ignore[attr-defined] — cho GĐ 1 và test
     r.qlm = qlm             # type: ignore[attr-defined]
     r.ql_tai_len = ql_tai_len  # type: ignore[attr-defined]

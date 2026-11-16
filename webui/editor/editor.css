@@ -683,3 +683,12 @@ body.ai-translate-only .the-ai:not(:has([data-l="dich"])) { display: none !impor
 .kf-so { font: 10px var(--font-so); color: #22d3ee; margin-left: 2px; }
 .goi-y-kf { font-size: 11.5px; color: var(--chu-3); line-height: 1.45; margin: 2px 0 8px; padding: 6px 8px; border: 1px dashed var(--vien); border-radius: 6px; }
 @media (pointer: coarse) { .kf-nut { width: 32px; height: 32px; font-size: 13px; } .kf-nut.kf-chinh { width: 36px; font-size: 17px; } }
+
+/* ---- Hộp Xuất: danh sách bản đã xuất (tải về) ---- */
+.ban-xuat:empty { display: none; }
+.ban-xuat { margin-top: 12px; border-top: 1px solid var(--vien); padding-top: 8px; }
+.ban-xuat-dau { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 12.5px; margin-bottom: 6px; }
+.ban-xuat-dong { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; padding: 4px 0; border-bottom: 1px solid var(--vien); font-size: 12px; }
+.ban-xuat-dong span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ban-xuat-dong small { grid-column: 1; color: var(--chu-3); }
+.ban-xuat-dong button { grid-column: 2; grid-row: 1 / 3; }

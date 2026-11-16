@@ -28,12 +28,49 @@ export function ganXuat(ctx) {
             nut.textContent = 'Xuất video ▾';
             if (xong && xong.trang_thai === 'xong') {
                 const kq = xong.ket_qua || {};
-                const t = toast(`✔ Đã xuất ${kq.file} (${coFile(kq.dung_luong)}, ${kq.bo_ma_hoa}) — bấm để mở thư mục.`, 'success', 12000);
+                const ten = (kq.file || '').split('/').pop();
+                // Desktop (server chạy trên chính máy này): mở thư mục. Web/điện thoại: file nằm trên server → tải về.
+                const t = toast(`✔ Đã xuất ${ten} (${coFile(kq.dung_luong)}, ${kq.bo_ma_hoa}) — bấm để `
+                    + (MAY_NAY ? 'mở thư mục.' : '⬇ tải về máy.'), 'success', 30000);
                 t.style.cursor = 'pointer';
-                t.addEventListener('click', () => api(`/api/du-an/${encodeURIComponent(ctx.id)}/mo-thu-muc-con?ten=xuat`, { method: 'POST' }));
+                t.addEventListener('click', () => (MAY_NAY ? moThuMucXuat(ctx) : taiBanXuat(ctx, ten)));
             }
         }
     });
+}
+
+/* Server chạy trên chính máy đang mở trang (app desktop) thì mở được thư mục; còn lại phải tải file về. */
+const MAY_NAY = ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
+
+function moThuMucXuat(ctx) {
+    api(`/api/du-an/${encodeURIComponent(ctx.id)}/mo-thu-muc-con?ten=xuat`, { method: 'POST' }).catch((e) => toast(e.message, 'error'));
+}
+
+function taiBanXuat(ctx, ten) {
+    const a = document.createElement('a');
+    a.href = `/api/du-an/${encodeURIComponent(ctx.id)}/xuat/tai?ten=${encodeURIComponent(ten)}`;
+    a.download = ten;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast(`Đang tải ${ten} — điện thoại: xem trong app Tệp (Files) › Tải về, hoặc thanh tải của trình duyệt.`, 'info', 8000);
+}
+
+/* Danh sách bản đã xuất của dự án (mới nhất trước) — tải lại bản cũ bất kỳ lúc nào. */
+async function veBanXuat(ctx, khung) {
+    try {
+        const { ds } = await api(`/api/du-an/${encodeURIComponent(ctx.id)}/xuat`);
+        if (!ds.length) { khung.innerHTML = ''; return; }
+        khung.innerHTML = `<div class="ban-xuat-dau">Bản đã xuất${MAY_NAY ? ' <button type="button" class="nut nut-nho" data-mo>📂 Mở thư mục</button>' : ''}</div>`
+            + ds.slice(0, 8).map((x) => `<div class="ban-xuat-dong"><span title="${esc(x.ten)}">${esc(x.ten)}</span>
+                <small>${coFile(x.kich_thuoc)} · ${new Date(x.luc * 1000).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</small>
+                <button type="button" class="nut nut-nho" data-tai="${esc(x.ten)}">⬇ Tải về</button></div>`).join('');
+        khung.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-tai]');
+            if (b) taiBanXuat(ctx, b.dataset.tai);
+            if (e.target.closest('[data-mo]')) moThuMucXuat(ctx);
+        });
+    } catch (e) { khung.innerHTML = ''; }
 }
 
 function moHop(ctx) {
@@ -77,6 +114,7 @@ function moHop(ctx) {
             <label class="check"><input type="checkbox" name="chi_am_thanh" ${nho.chi_am_thanh ? 'checked' : ''}> Chỉ xuất âm thanh (.m4a)</label>
             ${(tl.vung_vao != null || tl.vung_ra != null) ? `<label class="check"><input type="checkbox" name="chi_vung" checked> Chỉ xuất vùng [ ] (${fmtThoiGian(tl.vung_vao || 0)} → ${fmtThoiGian(tl.vung_ra ?? tong)})</label>` : ''}
         </div>
+        <div class="ban-xuat" data-ban-xuat></div>
         <div class="modal-nut"><button type="button" class="nut" data-huy>Huỷ</button><button type="submit" class="nut nut-chinh">Xuất</button></div>
     </form>`;
     document.body.appendChild(nen);
@@ -85,6 +123,7 @@ function moHop(ctx) {
     if (r) r.addEventListener('input', () => { r.closest('label').querySelector('.gt').textContent = `${r.value}%`; });
     const dong = () => nen.remove();
     ganMayXuat(f);
+    veBanXuat(ctx, f.querySelector('[data-ban-xuat]'));
     nen.querySelector('[data-huy]').addEventListener('click', dong);
     nen.addEventListener('keydown', (e) => { if (e.key === 'Escape') dong(); });
     f.addEventListener('submit', async (e) => {
