@@ -53,6 +53,20 @@ def test_moi_hieu_ung_xuat_duoc(goc, hu):
     assert abs(ts["thoi_luong"] - 2.0) < 0.15, f"{hu}: thời lượng phải giữ 2 s, ra {ts['thoi_luong']}"
 
 
+def test_chi_xuat_am_thanh_chay_duoc(goc):
+    """Chỉ xuất âm thanh (.m4a — cũng là đường server dựng tiếng cho xuất trên thiết bị) không được lỗi 'vc unconnected'."""
+    tl = {"tracks": [{"id": "V1", "loai": "video"}, {"id": "A1", "loai": "audio"}],
+          "clips": [{"id": "c", "track": "A1", "media": "m", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1,
+                     "hieu_ung_am": {"vang": 30}}]}
+    ra = str(goc / "chi_tieng.m4a")
+    kq = render.dung_lenh_xuat(str(goc), DU_AN, tl, {"chi_am_thanh": True}, ra, FF)
+    (goc / "loc.txt").write_text(kq["loc"], encoding="utf-8")
+    r = subprocess.run(kq["cmd"], cwd=str(goc), capture_output=True, text=True, errors="replace", timeout=120)
+    assert r.returncode == 0, r.stderr[-800:]
+    ts = media.do_thong_so(ra)
+    assert ts["co_am_thanh"] and not ts.get("co_hinh") and abs(ts["thoi_luong"] - 2.0) < 0.15
+
+
 def test_vang_va_doi_de_lai_duoi_tieng(goc):
     kho = _do(_xuat(goc, {}, "kho"), 1.1, 0.4)
     vang = _do(_xuat(goc, {"vang": 80, "phong": "nha_tho"}, "vang"), 1.1, 0.4)

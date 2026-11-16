@@ -737,7 +737,11 @@ class DungLenh:
             ass = chu_hinh.tao_ass(self.tl, self.W, self.H)
             self.loc.append(f"[{vc}]subtitles=sub.ass:fontsdir=fonts[vout]")
             vc = "vout"
-        if not chi_tieng:
+        if chi_tieng:
+            # Chỉ xuất tiếng: nhánh hình (cần cho tiếng đi cùng concat) không ra file → đổ vào nullsink,
+            # không thì ffmpeg báo "output (vc) unconnected" và dừng.
+            self.loc.append(f"[{vc}]nullsink")
+        else:
             # Khung đã xoay đúng + ghép theo khung dự án → bỏ thẻ "Display Matrix" ffmpeg mới chép từ video điện thoại,
             # không thì trình phát xoay THÊM một lần nữa (video dọc bị nằm ngang).
             self.loc.append(f"[{vc}]sidedata=mode=delete:type=DISPLAYMATRIX[vra]")
