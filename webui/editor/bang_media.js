@@ -5,7 +5,7 @@
  * Extensions thì .mov iPhone phát được). Không phát được → báo server tạo proxy H.264.
  */
 import { api, esc, toast, hoi, chonFile, fmtNgan, coFile, moChonFile } from './chung.js';
-import { opsThemTrack, opsNhacNen, thoiLuong } from './store.js';
+import { opsThemTrack, opsNhacNen, opsXoaNhieu, thoiLuong } from './store.js';
 import { taiLenFile } from './tai_len.js';
 
 const ICON = { video: '🎬', audio: '🎵', anh: '🖼', phu_de: '💬' };
@@ -102,6 +102,14 @@ export class BangMedia {
             if (l && l.dataset.l === 'url') return this.nhapUrl();
             if (l && l.dataset.l === 'nhap-lai') return this.nhapLai(l.closest('.the-media').dataset.mid);
             if (l && l.dataset.l === 'tim-lai') return this.timLai(l.closest('.the-media').dataset.mid);
+            if (l && l.dataset.l === 'menu-media') {
+                // Nút ⋮: điện thoại không có chuột phải (contextmenu) — đường duy nhất tới Xoá/Nhập lại trên cảm ứng.
+                e.stopPropagation();
+                const mid = l.closest('.the-media').dataset.mid, r = l.getBoundingClientRect();
+                if (!this._chonNhieu.includes(mid)) { this._datNhieu([]); this.chon(mid); }
+                this.menu(mid, r.left, r.bottom + 4);
+                return undefined;
+            }
             if (l && l.dataset.l === 'them-tl') {
                 // Nút ＋ trên thẻ (điện thoại không kéo-thả được): thêm cuối timeline rồi thu bảng lại để thấy kết quả.
                 const m = this.lay(l.closest('.the-media').dataset.mid);
@@ -363,11 +371,20 @@ export class BangMedia {
 
     async xoa(mid, xoaFile) {
         const m = this.lay(mid);
-        const ok = await hoi({ tieuDe: `Bỏ "${m.ten}" khỏi dự án?`, nguyHiem: xoaFile,
+        // Server chặn xoá media còn clip trỏ tới (cả câu phụ đề neo `tu_media`) → gỡ các clip đó trước, trong MỘT lệnh hoàn tác.
+        const dung = (this.ctx.store.timeline.clips || []).filter((c) => c.media === mid || c.tu_media === mid);
+        const ok = await hoi({ tieuDe: `Bỏ "${m.ten}" khỏi dự án?`, nguyHiem: xoaFile || dung.length > 0,
             nut: xoaFile ? 'Bỏ và chuyển file vào Thùng rác' : 'Bỏ khỏi dự án',
-            noiDung: xoaFile ? 'File trong media/ sẽ được chuyển vào Thùng rác.' : 'File vẫn còn trong thư mục media/ của dự án.' });
+            noiDung: (xoaFile ? 'File trong media/ sẽ được chuyển vào Thùng rác.' : 'File vẫn còn trong thư mục media/ của dự án.')
+                + (dung.length ? `\n\n${dung.length} clip đang dùng media này trên timeline cũng sẽ bị xoá.` : '') });
         if (!ok) return;
         try {
+            if (dung.length) {
+                const ids = dung.map((c) => c.id);
+                const ops = [...opsXoaNhieu(this.ctx.store.timeline, ids), ...this.ctx.timeline._donLienKet(ids)];
+                if (!this.ctx.sua(`Xoá ${dung.length} clip của ${m.ten}`, ops)) return;
+                if (!(await this.ctx.boLuu.flush())) throw new Error('Chưa lưu được timeline — thử lại sau giây lát.');
+            }
             await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${mid}?phien=${encodeURIComponent(this.ctx.boLuu.phien)}&xoa_file=${xoaFile}`,
                 { method: 'DELETE' });
             if (this.ctx.chon.media === mid) { this.ctx.chon.media = null; this.ctx.ui.xem_truoc.media = null; this.ctx.bus.emit('chon'); }
@@ -384,7 +401,8 @@ export class BangMedia {
         const nhom = this._dsThaoTac(mid).map((id) => this.lay(id))
             .filter((x) => x && x.trang_thai === 'san_sang' && !x.mat_file && ['video', 'anh', 'audio'].includes(x.loai));
         menu.innerHTML = `
-            ${nhom.length > 1 ? `<button data-l="them-nhieu">⤵ Thêm ${nhom.length} mục đã chọn vào cuối timeline</button><hr>` : ''}
+            ${nhom.length > 1 ? `<button data-l="them-nhieu">⤵ Thêm ${nhom.length} mục đã chọn vào cuối timeline</button>` : ''}
+            ${nhom.length > 1 ? '<hr>' : ''}
             ${san ? '<button data-l="xem">▶ Xem trước</button>' : ''}
             ${san && ['video', 'anh', 'audio'].includes(m.loai) ? '<button data-l="them">⤵ Thêm vào cuối timeline</button>'
                 + '<button data-l="them-lop">⧉ Thêm thành lớp mới ở đầu phát</button>' : ''}
@@ -574,6 +592,7 @@ export class BangMedia {
             ${anh}${phu}
             ${m.trang_thai === 'san_sang' && !m.mat_file && ['video', 'anh', 'audio'].includes(m.loai)
                 ? '<button class="nut-them-tl" data-l="them-tl" title="Thêm vào cuối timeline">＋</button>' : ''}
+            <button class="nut-menu-media" data-l="menu-media" title="Tuỳ chọn (xoá…)">⋮</button>
             ${m.thoi_luong ? `<span class="dai so">${fmtNgan(m.thoi_luong)}</span>` : ''}
             ${this.km.kieu === 'ds' ? `<span class="loai">${ICON[m.loai] || ''}</span>` : ''}
             <div class="ten">${esc(m.ten || m.file)}${nhanProxy ? `<span style="color:var(--chu-3)">${nhanProxy}</span>` : ''}</div>

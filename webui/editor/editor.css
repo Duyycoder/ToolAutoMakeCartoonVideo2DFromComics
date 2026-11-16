@@ -263,6 +263,13 @@ body.ai-translate-only .the-ai:not(:has([data-l="dich"])) { display: none !impor
 .the-media .dai { position: absolute; right: 4px; top: 4px; font-size: 10.5px; background: rgba(0, 0, 0, .75); padding: 0 5px; border-radius: 3px; }
 .the-media .loai { position: absolute; left: 4px; top: 4px; font-size: 10.5px; background: rgba(0, 0, 0, .75); padding: 0 5px; border-radius: 3px; }
 .nut-them-tl { display: none; }
+.nut-menu-media {
+    position: absolute; left: 4px; bottom: 26px; z-index: 2; width: 26px; height: 26px; border-radius: 50%; border: 0;
+    background: rgba(0, 0, 0, .7); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; opacity: 0;
+}
+.the-media:hover .nut-menu-media, .the-media.chon .nut-menu-media { opacity: 1; }
+.luoi-media.ds .nut-menu-media { position: static; flex: none; margin-left: auto; order: 9; }
+@media (hover: none) { .nut-menu-media { opacity: 1; width: 34px; height: 34px; } }
 @media (max-width: 760px) { .nut-them-tl { display: block; } }
 .the-media .phu-tt {
     position: absolute; inset: 0 0 auto 0; aspect-ratio: 16 / 10; background: rgba(10, 10, 15, .78);

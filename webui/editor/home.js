@@ -115,7 +115,7 @@ function menuThe(id, x, y) {
             if (l === 'xoa') {
                 const ok = await hoi({
                     tieuDe: `Xoá dự án "${d.name}"?`, nguyHiem: true, nut: 'Chuyển vào Thùng rác',
-                    noiDung: `Cả thư mục (kể cả media đã chép vào) sẽ được chuyển vào Thùng rác của Windows — khôi phục lại được từ đó.\n\n${d.folder}`,
+                    noiDung: `Cả thư mục (kể cả media đã chép vào) sẽ được chuyển vào Thùng rác của máy đang chạy app — khôi phục lại được từ đó.\n\n${d.folder}`,
                 });
                 if (ok) {
                     await api(`/api/du-an/${id}/xoa`, { method: 'POST' });
