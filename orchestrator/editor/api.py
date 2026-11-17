@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from orchestrator.config import load_global_config, save_global_config
-from orchestrator.editor import (ai_bridge, chuan_hoa_file, hang_doi, luu_tru, mau_nang_cao, media, render,
+from orchestrator.editor import (ai_bridge, chuan_hoa_file, hang_doi, luu_tru, mau_nang_cao, media, nuong, render,
                                  srt, tai_len, thu_vien_am, workspace, xuat_tu_xa)
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -109,6 +109,13 @@ class LuuPhuDeSchema(PhienSchema):
 
 class XuatSchema(PhienSchema):
     tuy_chon: Dict[str, Any] = {}
+
+class NuongSchema(PhienSchema):
+    tuy_chon: Dict[str, Any] = {}
+    n0: int = 0
+    n1: int = 0
+    lop_chu: bool = False
+    doan: List[List[int]] = []
 
 class AiSchema(PhienSchema):
     media: str = ""
@@ -609,6 +616,24 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
             return {"media": qlm.nhap(folder, pid, [path])}
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
+
+    @r.post("/api/du-an/{pid}/media/tai-len/{uid}/vao-xuat")
+    def upload_finish_export(pid: str, uid: str, body: PhienSchema):
+        """Bản xuất trên thiết bị đưa lên dự án: file tải xong vào xuat/<tên> (trùng tên thêm (2)…), KHÔNG nhập thành media."""
+        folder = folder_cua(pid)
+        khoa_ghi(folder, body.phien)
+        try:
+            path = ql_tai_len.hoan_tat(uid, thu_muc_tai_len(folder))
+        except tai_len.LoiTaiLen as e:
+            raise loi_tai_len(e)
+        goc, duoi = os.path.splitext(os.path.basename(path))
+        goc = goc[len(uid) + 1:] if goc.startswith(uid + "_") else goc   # tai_len đặt tên "<uid>_<tên>"
+        if duoi.lower() not in (".mp4", ".mov", ".m4v"):
+            os.remove(path)
+            raise HTTPException(status_code=400, detail="Chỉ nhận bản xuất video .mp4/.mov.")
+        dich = render.ten_file_ra(folder, goc, duoi.lower())
+        os.replace(path, dich)
+        return {"ten": os.path.basename(dich), "kich_thuoc": os.path.getsize(dich)}
 
     @r.delete("/api/du-an/{pid}/media/tai-len/{uid}")
     def upload_cancel(pid: str, uid: str):
@@ -1252,6 +1277,53 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         if os.path.dirname(p) != d or TIENG_THIET_BI not in os.path.basename(p) or not os.path.isfile(p):
             raise HTTPException(status_code=404, detail="Không có file tiếng tạm này.")
         os.remove(p)
+        return {"ok": True}
+
+    # ---- Xuất trên thiết bị: server nướng lớp chữ + đoạn máy không ghép được (nuong.py)
+    @r.post("/api/du-an/{pid}/nuong")
+    def bake_start(pid: str, body: NuongSchema):
+        folder = folder_cua(pid)
+        khoa_ghi(folder, body.phien)
+        ff = media.ffmpeg_exe()
+        if not ff:
+            raise HTTPException(status_code=400, detail="Không tìm thấy ffmpeg.")
+        if not (0 <= body.n0 < body.n1) or any(len(d) != 2 or not (0 <= d[0] < d[1]) for d in body.doan):
+            raise HTTPException(status_code=400, detail="Đoạn nướng không hợp lệ.")
+        if not body.lop_chu and not body.doan:
+            raise HTTPException(status_code=400, detail="Không có gì để nướng.")
+        nuong.don_cu(folder)
+        du_an = luu_tru.doc_duan(folder) or {}
+        tl, _ = luu_tru.doc_timeline(folder)
+        tc = {k: body.tuy_chon.get(k) for k in ("do_phan_giai", "fps")}
+        try:
+            if tc["fps"] is not None and not (1 <= float(tc["fps"]) <= 240):
+                raise ValueError
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="fps không hợp lệ.")
+        if "co" not in nvenc:
+            nvenc["co"] = render.co_nvenc(ff)
+        tc["bo_ma_hoa"] = "nvenc" if nvenc["co"] else "x264"
+        viec = hang_doi.Viec("nuong", lambda ctx: None, du_an=folder, du_an_id=pid, nhan="Nướng cho xuất trên thiết bị")
+        tm = nuong.thu_muc(folder, viec.id)
+        viec.ham = lambda ctx: {**nuong.chay(ctx, folder, du_an, tl, tc, body.n0, body.n1, body.lop_chu,
+                                             body.doan, ff, tm), "id": viec.id}
+        hang_gpu.them(viec)
+        return {"viec": viec.to_dict()}
+
+    @r.get("/api/du-an/{pid}/nuong/{vid}/{ten}")
+    def bake_file(pid: str, vid: str, ten: str):
+        if not nuong.TEN_FILE.match(vid) or not nuong.TEN_FILE.match(ten):
+            raise HTTPException(status_code=404, detail="Không có file này.")
+        p = os.path.join(nuong.thu_muc(folder_cua(pid), vid), ten)
+        if not os.path.isfile(p):
+            raise HTTPException(status_code=404, detail="Không có file này.")
+        return FileResponse(p, media_type=mimetypes.guess_type(p)[0] or "application/octet-stream")
+
+    @r.delete("/api/du-an/{pid}/nuong/{vid}")
+    def bake_delete(pid: str, vid: str):
+        if nuong.TEN_FILE.match(vid):
+            import shutil
+            shutil.rmtree(nuong.thu_muc(folder_cua(pid), vid), ignore_errors=True)
         return {"ok": True}
 
     @r.post("/api/du-an/{pid}/xuat/luu-ra")

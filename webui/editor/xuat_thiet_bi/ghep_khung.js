@@ -4,18 +4,26 @@
    Chuyển cảnh (track nền): như render.tinh_xfade — nằm GIỮA điểm cắt, clip trước kéo dài thêm dai/2, clip sau bắt đầu sớm dai/2
    (lấy tiếp media gốc, hết media thì giữ khung cuối/đầu); trộn bằng chuyen_canh_tb.js.
    Nguồn đọc file GỐC (?goc=1) — video điện thoại quay dọc được Mediabunny tự xoay theo thẻ khi vẽ.
-   Mỗi clip giải mã TUẦN TỰ đúng các thời điểm khung cần (samplesAtTimestamps), mỗi khung kéo đúng một lần. */
+   Mỗi clip giải mã TUẦN TỰ đúng các thời điểm khung cần (samplesAtTimestamps), mỗi khung kéo đúng một lần.
+   Khung đánh số trên lưới fps xuất (n = t × fps, [n0, n1)). Khung server đã nướng (goi_nuong.js) → chép nguyên khung đó;
+   vùng che phụ đề vẽ trên khung nguồn (che_tb.js); cuối cùng chồng lớp chữ/phụ đề libass server vẽ. */
 import { giaTriTai, hopLop, ketThucClip, thoiDiemMedia, trackVideoTuDuoiLen } from '../store.js';
 import { cssFilter } from '../hieu_ung.js';
 import { NguonVideo } from './nguon_video.js';
 import { veChuyenCanh } from './chuyen_canh_tb.js';
+import { BoChe, cheCuaMedia } from './che_tb.js';
 
 const trongCuaSo = (w, t) => t >= w.lo - 1e-6 && t < w.hi - 1e-6;
 
 export class BoGhepKhung {
-    /* du: {thong_so}, tl: timeline, media: [..], pid, W, H, fps, t0..t1: đoạn xuất (giây) */
-    constructor({ du, tl, media, pid, W, H, fps, t0, t1 }) {
-        Object.assign(this, { du, tl, pid, W, H, fps, t0, t1 });
+    /* du: {thong_so}, tl: timeline, media: [..], pid, W, H, fps, [n0, n1): khung xuất trên lưới fps */
+    constructor({ du, tl, media, pid, W, H, fps, n0, n1 }) {
+        Object.assign(this, { du, tl, pid, W, H, fps, n0, n1, t0: n0 / fps, t1: n1 / fps });
+        this.nuong = null;           // KetQuaNuong — gắn sau khi server nướng xong
+        this.nBatDau = n0;           // xuất tiếp: khung đầu tiên sẽ vẽ (các khúc trước đã có trong OPFS)
+        this.khongGiaiMa = new Set();
+        this.boChe = new BoChe();
+        this.che = new Map();        // media id → vùng che
         this.media = Object.fromEntries(media.map((m) => [m.id, m]));
         const taoCv = () => { const cv = new OffscreenCanvas(W, H); return { cv, c: cv.getContext('2d', { alpha: false }) }; };
         ({ cv: this.cv, c: this.c } = taoCv());
@@ -64,7 +72,7 @@ export class BoGhepKhung {
                 this.nguon.set(mid, await createImageBitmap(await (await fetch(this._url(mid))).blob()));
             } else {
                 const n = await NguonVideo.mo(this._url(mid));
-                if (!n.giaiMaDuoc) throw new Error(`Máy này không giải mã được video "${m.ten}" (${n.codec}) — hãy xuất bằng Server.`);
+                if (!n.giaiMaDuoc) { this.khongGiaiMa.add(mid); n.dong(); continue; }   // server nướng các khung dùng nó
                 this.nguon.set(mid, n);
             }
         }
@@ -75,11 +83,12 @@ export class BoGhepKhung {
         if (l) return l;
         // Đúng các khung xuất mà veKhung sẽ hỏi clip này (cùng điều kiện trongCuaSo) → mỗi khung kéo đúng một lần.
         const ds = [];
-        const tong = Math.round((this.t1 - this.t0) * this.fps);
-        for (let k = Math.max(0, Math.floor((w.lo - this.t0) * this.fps) - 1); k < tong; k++) {
-            const t = this.t0 + k / this.fps;
+        for (let k = Math.max(this.nBatDau, Math.floor(w.lo * this.fps) - 1); k < this.n1; k++) {
+            const t = k / this.fps;
             if (t >= w.hi) break;
-            if (trongCuaSo(w, t)) ds.push(Math.max(0, Math.min(n.thoiLuong - 1e-3, thoiDiemMedia(w.c, t))));
+            if (trongCuaSo(w, t) && !(this.nuong && this.nuong.laNuong(k))) {
+                ds.push(Math.max(0, Math.min(n.thoiLuong - 1e-3, thoiDiemMedia(w.c, t))));
+            }
         }
         l = { it: n.khungTai(ds)[Symbol.asyncIterator](), mau: null, con: ds.length };
         this.luong.set(w.c.id, l);
@@ -125,6 +134,11 @@ export class BoGhepKhung {
             ctx.roundRect(x0 + tr, y0 + tp, hop.w - tr - ph, hop.h - tp - du, r);
             ctx.clip();
         }
+        if (m && m.loai === 'video') {
+            if (!this.che.has(c.media)) this.che.set(c.media, cheCuaMedia(this.tl, c.media));
+            const da = this.boChe.ap(nguon, hop.w, hop.h, this.che.get(c.media), thoiDiemMedia(c, t), m.rong || nguon.displayWidth);
+            if (da) nguon = da;
+        }
         ctx.filter = cssFilter(c.mau, c.hieu_ung, 1);
         if (nguon.draw) nguon.draw(ctx, x0, y0, hop.w, hop.h);
         else ctx.drawImage(nguon, x0, y0, hop.w, hop.h);
@@ -132,16 +146,36 @@ export class BoGhepKhung {
     }
 
     _nen(ctx) {
-        ctx.globalAlpha = 1;
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.filter = 'none';
+        this._chuan(ctx);
         ctx.fillStyle = this.mauNen;
         ctx.fillRect(0, 0, this.W, this.H);
     }
 
-    /* Khung tại t (giây timeline) — trả OffscreenCanvas (vẽ lại tại chỗ: dùng xong mới gọi lần sau). */
-    async veKhung(t) {
+    /* Khung n (lưới fps, gọi tăng dần) — trả OffscreenCanvas (vẽ lại tại chỗ: dùng xong mới gọi lần sau). */
+    async veKhung(n) {
+        await this._veHinh(n);
+        const anh = this.nuong && await this.nuong.anhChu(n);
+        if (anh) {
+            this._chuan(this.c);
+            this.c.drawImage(anh, 0, 0, this.W, this.H);
+        }
+        return this.cv;
+    }
+
+    _chuan(ctx) {
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.filter = 'none';
+    }
+
+    async _veHinh(n) {
+        const t = n / this.fps;
         this._nen(this.c);
+        if (this.nuong && this.nuong.laNuong(n)) {
+            const kh = await this.nuong.khungNuong();
+            if (kh) kh.draw(this.c, 0, 0, this.W, this.H);
+            return;
+        }
         for (const tr of this.tracks) {
             const ds = [...this.cuaSo.values()].filter((w) => w.tr === tr.id && trongCuaSo(w, t))
                 .sort((a, b) => a.c.bat_dau - b.c.bat_dau);
@@ -159,7 +193,6 @@ export class BoGhepKhung {
                 if (kh) this._ve(this.c, w.c, kh, t);
             }
         }
-        return this.cv;
     }
 
     dong() {
@@ -167,5 +200,6 @@ export class BoGhepKhung {
         for (const n of this.nguon.values()) { if (n.dong) n.dong(); else if (n.close) n.close(); }
         this.luong.clear();
         this.nguon.clear();
+        if (this.nuong) this.nuong.dong();
     }
 }

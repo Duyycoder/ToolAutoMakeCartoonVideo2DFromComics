@@ -6,22 +6,29 @@ import { api } from '../chung.js';
 
 const cho = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/* Chờ một việc trong hàng đợi server xong → việc (có ket_qua). Dùng chung cho tiếng và nướng (goi_nuong.js). */
+export async function choTacVu(g, vid, ten, baoTienDo, daHuy) {
+    for (;;) {
+        if (daHuy()) {
+            api(`/api/hang-doi/${encodeURIComponent(vid)}/huy`, { method: 'POST' }).catch(() => {});
+            throw new Error('Đã huỷ');
+        }
+        const ds = await api(`${g}/tac-vu`);
+        const v = (Array.isArray(ds) ? ds : ds.ds || ds.tac_vu || []).find((x) => x.id === vid);
+        if (v && v.trang_thai === 'xong') return v;
+        if (v && ['loi', 'da_huy', 'bi_ngat'].includes(v.trang_thai)) throw new Error(`Server ${ten} lỗi: ${v.loi || v.trang_thai}`);
+        baoTienDo(Math.round((v && v.tien_do) || 0), v && v.trang_thai === 'cho' ? `Chờ server ${ten}…` : (v && v.thong_diep) || `Server đang ${ten}…`);
+        await cho(800);
+    }
+}
+
 /* Trả {cauHinh: AudioDecoderConfig, goi: AsyncIterator<EncodedPacket>, dong()} hoặc null nếu dự án không có tiếng. */
 export async function layTiengServer(pid, phien, tuyChon, baoTienDo = () => {}, daHuy = () => false) {
     const ten = `${tuyChon.ten || 'video'} tieng-thiet-bi`;
     const g = `/api/du-an/${encodeURIComponent(pid)}`;
     const r = await api(`${g}/xuat`, { method: 'POST', body: { phien, tuy_chon: { ...tuyChon, ten, chi_am_thanh: true, xuat_srt: false, may_xuat: '' } } });
-    const vid = r.viec.id;
-    let tenFile = (r.file || '').split('/').pop();
-    for (;;) {
-        if (daHuy()) throw new Error('Đã huỷ');
-        const ds = await api(`${g}/tac-vu`);
-        const v = (Array.isArray(ds) ? ds : ds.ds || ds.tac_vu || []).find((x) => x.id === vid);
-        if (v && v.trang_thai === 'xong') { tenFile = ((v.ket_qua || {}).file || tenFile).split('/').pop(); break; }
-        if (v && ['loi', 'da_huy', 'bi_ngat'].includes(v.trang_thai)) throw new Error(`Server dựng tiếng lỗi: ${v.loi || v.trang_thai}`);
-        baoTienDo(Math.round((v && v.tien_do) || 0), v && v.trang_thai === 'cho' ? 'Chờ server dựng tiếng…' : 'Server đang dựng tiếng…');
-        await cho(800);
-    }
+    const v = await choTacVu(g, r.viec.id, 'dựng tiếng', baoTienDo, daHuy);
+    const tenFile = ((v.ket_qua || {}).file || r.file || '').split('/').pop();
     const res = await fetch(`${g}/xuat/tai?ten=${encodeURIComponent(tenFile)}`);
     if (!res.ok) throw new Error(`Không tải được tiếng (HTTP ${res.status})`);
     const blob = await res.blob();

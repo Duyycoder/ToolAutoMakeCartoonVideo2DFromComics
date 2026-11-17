@@ -53,8 +53,9 @@ async function phienCu(goc, k) {
     } catch (e) { nho(k, ''); return null; }
 }
 
-/* Tải một File lên dự án `pid`; `baoTienDo(phanTram)` được gọi sau mỗi phần. Trả về danh sách media mới. */
-export async function taiLenFile(pid, phien, file, baoTienDo = () => {}) {
+/* Tải một File lên dự án `pid`; `baoTienDo(phanTram)` được gọi sau mỗi phần. Trả về danh sách media mới.
+   vaoXuat: file là bản xuất (xuất trên thiết bị) → vào thư mục xuat/ của dự án, không nhập thành media; trả {ten}. */
+export async function taiLenFile(pid, phien, file, baoTienDo = () => {}, vaoXuat = false) {
     const goc = `/api/du-an/${encodeURIComponent(pid)}/media/tai-len`;
     const k = khoaNho(pid, file);
     const cu = await phienCu(goc, k);
@@ -81,7 +82,8 @@ export async function taiLenFile(pid, phien, file, baoTienDo = () => {}) {
         await Promise.all(Array.from({ length: SONG_SONG }, tho));
         nho(k, '');   // đủ byte rồi — lỗi đổi định dạng ở bước sau không tải tiếp được
         try {
-            return (await api(`${goc}/${uid}/xong`, { method: 'POST', body: { phien } })).media;
+            const r = await api(`${goc}/${uid}/${vaoXuat ? 'vao-xuat' : 'xong'}`, { method: 'POST', body: { phien } });
+            return vaoXuat ? r : r.media;
         } catch (e) { throw Object.assign(e, { khongThuLai: true }); }
     } catch (e) {
         // Lỗi mạng: giữ phiên để chọn lại file là tải tiếp. Lỗi dữ liệu/phiên: bỏ hẳn.

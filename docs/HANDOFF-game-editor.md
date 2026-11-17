@@ -1,6 +1,6 @@
 # Handoff: video editor on `game`
 
-Updated 2026-11-17. Branches: `feat/editor` (deployed), `feat/device-export` (on-device export, in progress).
+Updated 2026-11-17. Branch `feat/editor` (deployed; `feat/device-export` kept equal to it).
 
 ## Deployment
 
@@ -49,17 +49,26 @@ Updated 2026-11-17. Branches: `feat/editor` (deployed), `feat/device-export` (on
 - Portrait phone videos carry a "Display Matrix" rotation. ffmpeg 9 copies it into outputs and CUDA-decoded frames are not auto-rotated, so exports came out sideways via the laptop (NVENC). Fix (deployed, `2b6f948`): `-hwaccel cuda` only when `media.xoay == 0` (probed and stored at import since this fix; older media → CPU decode), and every export ends with `sidedata=mode=delete:type=DISPLAYMATRIX`. Test: `tests/test_xuat_video_xoay.py`.
 - Known: server x264 exports are ~3/255 darker than the source (on-device export matches the source better); not investigated yet.
 
-## On-device export (experimental, merged into `feat/editor` 2026-11-17)
+## On-device export ("Thiết bị này", merged into `feat/editor`)
 
 Exporter "Thiết bị này" in the export dialog (web only — hidden when the page runs on 127.0.0.1): the browser decodes the
-ORIGINAL media, composites every frame and encodes with the device hardware (WebCodecs via Mediabunny), the server only
-renders the audio track (exact same filters) which is copied into the MP4 without re-encoding. Plan: `plans/261116-2137-xuat-tren-thiet-bi/`.
+ORIGINAL media, composites every frame and encodes with the device hardware (WebCodecs); the server does what the device
+cannot (it is always reachable anyway). Plan: `plans/261116-2137-xuat-tren-thiet-bi/` (local, not in git).
 
-- Library: `webui/editor/thu_vien_ngoai/mediabunny-1.65.1.min.js` (MPL-2.0, unmodified, renamed .mjs→.js so any server serves a JS MIME; provenance + SHA-256 in `NGUON.txt`). mp4-muxer is deprecated in favour of it.
-- `xuat_thiet_bi/ho_so_may.js` device profile (isConfigSupported + real 45-frame encode benchmark per codec × resolution), `thu.html`/`thu.js` dev test page.
-- `nguon_video.js` (Range-read original, sequential decode by timestamps; Mediabunny `draw()` applies phone rotation), `ghep_khung.js` (same math as preview: hopLop/giaTriTai/thoiDiemMedia/cssFilter, crop + rounded corners, opacity, blend; base-track transitions centred on the cut like `render.tinh_xfade`), `chuyen_canh_tb.js` (xfade directions measured from ffmpeg: wipeleft = B from the RIGHT edge, wipeup = from the BOTTOM…; exact: fade/dissolve/wipe*/slide*, others approximated + warned), `phan_loai.js` (blocks: subtitles, text/shapes, subtitle covers, advanced colour; warns: HDR→SDR, CSS-filter effects, approximated transitions), `tieng_server.js` (POST export `chi_am_thanh`, name contains `tieng-thiet-bi` → hidden from the export list and deleted after download via `DELETE …/xuat/tai`), `ghep_mp4.js` (OPFS streaming target, fastStart false, AAC packet copy), `vong_xuat.js` (orchestration, `kichThuocXuat` = `render.kich_thuoc_xuat`), `ui_xuat_tb.js` (dialog text, progress toast with Cancel, wake lock, save via share sheet on phones / download).
-- Server fix included: audio-only export (`chi_am_thanh`) failed with "vc unconnected" → video branch now ends in `nullsink`.
-- Verified in headless Chrome on this PC (no discrete GPU, software H.264): 720×1280 4 s with server audio OK; 2 clips + wipeleft + rotated/cropped/rounded overlay with keyframes matches the server render visually (mean diff 3–8/255, mostly the server darkening). Not yet tried on a real iPhone or the RTX laptop, and the export-dialog UI path was never clicked through in a browser (option is hidden on 127.0.0.1).
+- Split of work (`xuat_thiet_bi/phan_loai.js`, frames numbered on the export fps grid, n = t × fps):
+  - **Audio**: always server (`tieng_server.js`, POST export `chi_am_thanh`, file name contains `tieng-thiet-bi`, deleted after download); AAC packets copied, never re-encoded.
+  - **Text / shapes / subtitles** (one `.ass`, `chu_hinh.tao_ass`): the server renders the libass layer to transparent PNGs (`orchestrator/editor/nuong.py`; libass in ffmpeg writes no alpha, so it renders on black and on white and derives alpha, then `unpremultiply`). One PNG per run of frames with the same active events, one per frame under `\fad`/`\move`. The device draws them on top → pixel-identical text.
+  - **Baked segments**: advanced colour (LUT/curves/HSL…), transitions without an exact device version (anything but fade/dissolve/wipe*/slide*), sources the device cannot decode → the server renders those frame ranges of the full timeline (`render` option `doan_nuong`: `select` the frames, concatenated, H.264 crf 12 / NVENC cq 14, no audio, no ASS) and the device copies them in.
+  - **Device**: everything else — transforms/keyframes, crop, rounded corners, opacity, blend, basic colour + effects (CSS filters, may differ slightly), subtitle covers (`che_tb.js`: colour exact, blur/mosaic/delogo approximated).
+  - Endpoints: `POST /api/du-an/{pid}/nuong` {n0, n1, lop_chu, doan, tuy_chon} → GPU-queue job `nuong`; files `GET …/nuong/{id}/{file}` from `.duan/cache/nuong/<id>/`, `DELETE …/nuong/{id}`; leftovers older than 1 day are removed on the next bake.
+  - Baked share > 50 % → the dialog suggests exporting on the server (button); it never switches by itself.
+- Device profile (`ho_so_may.js`, "Đo máy" button in the dialog): measured encode speed per codec × resolution. `ui_ho_so.js` disables codecs the device cannot encode, writes an estimate next to each resolution ("~3 phút", "quá chậm" when > 10× the duration, "máy không mã hoá được") and blocks the Export button for those. Codecs H.264 / HEVC / AV1 (`ma_hoa_khuc.chuoiCodec` picks the level from W×H×fps). FPS choices now include 120 (server too).
+- Encoding and resume (`ma_hoa_khuc.js`, `khuc_opfs.js`): one `VideoEncoder` per run, 10 s chunks starting with a keyframe (plus one every 2 s), each chunk written to OPFS `xuat_do/<pid>/khuc_NNN.bin/.json` as soon as it finishes; `phien.json` holds a SHA-256 of timeline + media + options and the decoder config. Exporting again after the tab was killed/locked continues from the last finished chunk (the dialog shows the pending session and a "Làm lại từ đầu" box); it restarts automatically when the hash differs, < 10 % was done, or the new encoder produces a different decoderConfig. Cancel deletes the session; sessions expire after 3 days. Browsers without `createWritable` keep chunks in RAM (no resume).
+- Final file (`ghep_mp4.js`): Mediabunny `EncodedVideoPacketSource` + AAC packets → MP4 in OPFS (fastStart false); saved via the share sheet on phones, `showSaveFilePicker` (streamed) on desktop Chrome, else a download link. Option "Đưa bản xuất lên dự án": chunked upload (`tai_len.js`, `vaoXuat`) finished by `POST …/media/tai-len/{uid}/vao-xuat` → `xuat/<name>.mp4` (unique name, not imported as media).
+- Library: `webui/editor/thu_vien_ngoai/mediabunny-1.65.1.min.js` (MPL-2.0, unmodified; provenance + SHA-256 in `NGUON.txt`).
+- Server fixes found while matching frames: audio-only export ended with "vc unconnected" (now `nullsink`); every transition whose second clip starts at media time 0 made the rest of the server video one frame early (start-only `tpad` + `trim` + `fps` dropped the last frame) — now padded with one extra frame (`tests/test_editor_render.py::test_chuyen_canh_khong_lam_hinh_sau_som_mot_khung`).
+- Verified in headless Chrome on this PC (no GPU): 10 s 1080p project with subtitle, animated text, colour cover, advanced colour, circleopen → 30 % baked, 300 frames + AAC, per-frame PSNR vs the server export 42 dB mean / 35.8 dB min (baked parts ~46 dB). Resume: 24 s project killed in chunk 2 → exported again, continued from 0:10, 720 frames, join frames ~38.7 dB like the rest. AV1 works (software); HEVC is not available on this PC. The headless test scripts were throwaway; pytest covers `nuong.py`, `phanLoai`, estimates and bitrate.
+- Not yet tried on a real iPhone or the RTX laptop. Untagged test sources decode with different colour matrices in Chrome vs ffmpeg (~25 dB); BT.709-tagged sources (phones) match.
 
 ## Deleting projects/media, batch subtitles (2026-11-17)
 
@@ -80,5 +89,5 @@ renders the audio track (exact same filters) which is copied into the MP4 withou
 
 ## Git status and handoff
 
-- `feat/editor` is pushed and deployed (last `2b6f948`). `AIVoice` is a third-party submodule and was not modified.
+- `feat/editor` is pushed and deployed (see `git log`). `AIVoice` is a third-party submodule and was not modified.
 - `plans/` stays out of Git (local notes). Keep deployment credentials, `configs/global_config.json`, `configs/may_xuat_token.txt` out of Git.

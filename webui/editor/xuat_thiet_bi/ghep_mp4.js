@@ -1,10 +1,11 @@
-/* Ghi MP4 theo luồng cho xuất trên thiết bị: mã hoá khung (WebCodecs qua Mediabunny) + chép nguyên gói tiếng AAC
-   (server dựng — tieng_server.js) → file MP4.
+/* Ghép MP4 cuối cho xuất trên thiết bị: CHÉP gói hình đã mã hoá (các khúc trong khuc_opfs.js) + gói tiếng AAC server dựng
+   (tieng_server.js) — không mã hoá lại, vài giây là xong.
    Đích: OPFS (bộ nhớ riêng của trang, không chiếm RAM — file 4K dài vài GB vẫn được) khi trình duyệt cho ghi luồng
    (`createWritable`), không thì giữ trong RAM (BufferTarget) — đủ cho video ngắn.
    fastStart: false → moov ghi ở cuối, không phải giữ cả file để dời moov lên đầu. */
-import { BufferTarget, EncodedAudioPacketSource, Mp4OutputFormat, Output, StreamTarget, VideoSample, VideoSampleSource }
+import { BufferTarget, EncodedAudioPacketSource, EncodedPacket, EncodedVideoPacketSource, Mp4OutputFormat, Output, StreamTarget }
     from '../thu_vien_ngoai/mediabunny-1.65.1.min.js';
+import { cauHinhGiaiMa } from './ma_hoa_khuc.js';
 
 const THU_MUC = 'xuat_thiet_bi';
 
@@ -17,47 +18,49 @@ async function dichOpfs(ten) {
     } catch (e) { return null; }
 }
 
-/* Mở một bản xuất. tc = {codec: 'avc'|'hevc'|'av1', rong, cao, fps, bitrate, ten, phanCung?, tieng?: {cauHinh}}.
-   Trả {them(khung, t), themGoiTieng(goi), xong() → {file, opfs}, huy()}. `khung` = OffscreenCanvas/VideoFrame/canvas. */
-export async function moBanXuat(tc) {
-    const opfs = await dichOpfs(tc.ten || `xuat_${Date.now()}.mp4`);
+/* {ten, codec: 'avc'|'hevc'|'av1', fps, cauHinh (decoderConfig đã lưu), goiHinh: AsyncIterable<{data, ts, dur, key}> (µs),
+    tieng: {cauHinh, goi: AsyncIterator<EncodedPacket>} | null, baoTienDo(0..1)} → {file, opfs} */
+export async function ghepFile({ ten, codec, fps, cauHinh, goiHinh, tieng, tongGoi, baoTienDo = () => {} }) {
+    const opfs = await dichOpfs(ten);
     const target = opfs ? new StreamTarget(opfs.ghi, { chunked: true }) : new BufferTarget();
     const output = new Output({ format: new Mp4OutputFormat({ fastStart: false }), target });
-    const nguon = new VideoSampleSource({ codec: tc.codec || 'avc', bitrate: tc.bitrate, keyFrameInterval: 2,
-        latencyMode: 'quality', hardwareAcceleration: tc.phanCung || 'no-preference' });   // no-preference: trình duyệt tự chọn phần cứng khi có
-    output.addVideoTrack(nguon, { frameRate: tc.fps });
-    let nguonTieng = null, metaTieng = null;
-    if (tc.tieng && tc.tieng.cauHinh) {
-        nguonTieng = new EncodedAudioPacketSource('aac');
-        output.addAudioTrack(nguonTieng);
-        metaTieng = { decoderConfig: tc.tieng.cauHinh };
+    const hinh = new EncodedVideoPacketSource(codec);
+    output.addVideoTrack(hinh, { frameRate: fps });
+    let am = null;
+    if (tieng && tieng.cauHinh) {
+        am = new EncodedAudioPacketSource('aac');
+        output.addAudioTrack(am);
     }
-    await output.start();
-    const dai = 1 / tc.fps;
-    let daHuy = false;
-    return {
-        async them(khung, t) {
-            if (daHuy) return;
-            const s = khung instanceof VideoSample ? khung : new VideoSample(khung, { timestamp: t, duration: dai });
-            await nguon.add(s);        // chờ khi hàng đợi bộ mã hoá đầy — tự giữ áp lực, không tràn RAM
-            if (s !== khung) s.close();
-        },
-        async themGoiTieng(goi) {
-            if (daHuy || !nguonTieng) return;
-            await nguonTieng.add(goi, metaTieng || undefined);
-            metaTieng = null;          // decoderConfig chỉ cần ở gói đầu
-        },
-        async xong() {
-            await output.finalize();
-            if (opfs) return { file: await opfs.fh.getFile(), opfs: true };
-            return { file: new Blob([target.buffer], { type: 'video/mp4' }), opfs: false };
-        },
-        async huy() {
-            daHuy = true;
-            try { await output.cancel(); } catch (e) { /* đã dừng */ }
-            if (opfs) { try { await opfs.tm.removeEntry(opfs.fh.name); } catch (e) { /* bỏ qua */ } }
-        },
-    };
+    try {
+        await output.start();
+        let metaHinh = { decoderConfig: cauHinhGiaiMa(cauHinh) }, metaAm = am ? { decoderConfig: tieng.cauHinh } : null;
+        let goiAm = am ? await tieng.goi.next() : { done: true };
+        let n = 0;
+        for await (const g of goiHinh) {
+            const t = g.ts / 1e6;
+            // Gói tiếng đi trước hình ~0,5 s (xen kẽ cho muxer, không dồn RAM).
+            while (!goiAm.done && goiAm.value.timestamp <= t + 0.5) {
+                await am.add(goiAm.value, metaAm || undefined);
+                metaAm = null;
+                goiAm = await tieng.goi.next();
+            }
+            await hinh.add(new EncodedPacket(g.data, g.key ? 'key' : 'delta', t, g.dur / 1e6), metaHinh || undefined);
+            metaHinh = null;
+            if (++n % 30 === 0) baoTienDo(tongGoi ? n / tongGoi : 0);
+        }
+        while (!goiAm.done) {
+            await am.add(goiAm.value, metaAm || undefined);
+            metaAm = null;
+            goiAm = await tieng.goi.next();
+        }
+        await output.finalize();
+    } catch (e) {
+        try { await output.cancel(); } catch (x) { /* đã dừng */ }
+        if (opfs) await opfs.tm.removeEntry(opfs.fh.name).catch(() => {});
+        throw e;
+    }
+    if (opfs) return { file: await opfs.fh.getFile(), opfs: true };
+    return { file: new Blob([target.buffer], { type: 'video/mp4' }), opfs: false };
 }
 
 /* Dọn bản xuất cũ trong OPFS (giữ `giu` tên đang dùng). */

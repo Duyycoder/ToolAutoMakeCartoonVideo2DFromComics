@@ -4,7 +4,7 @@ import { $, api, esc, toast, fmtThoiGian, coFile, chonFile } from './chung.js';
 import { thoiLuong } from './store.js';
 import { KHUNG, khungHienTai, datKhung } from './khung_hinh.js';
 import { htmlMayXuat, ganMayXuat, luuMayXuat, mayXuatCanLuu } from './may_xuat_ui.js';
-import { chayXuatThietBi, moTaThietBi } from './xuat_thiet_bi/ui_xuat_tb.js';
+import { chayXuatThietBi, ganThietBi } from './xuat_thiet_bi/ui_xuat_tb.js';
 
 export function ganXuat(ctx) {
     const nut = $('btnXuat');
@@ -109,7 +109,7 @@ function moHop(ctx) {
                 <label>Độ phân giải<select name="do_phan_giai">
                     ${[['', `Theo dự án (${ts.rong}×${ts.cao})`], ['720p', '720p'], ['1080p', '1080p'], ['1440p', '1440p (2K)'], ['4k', '4K']]
                         .map(([v, t]) => `<option value="${v}" ${(nho.do_phan_giai || '') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
-                <label>FPS<select name="fps">${[['', `Theo dự án (${ts.fps})`], ['24', '24'], ['25', '25'], ['30', '30'], ['60', '60']]
+                <label>FPS<select name="fps">${[['', `Theo dự án (${ts.fps})`], ['24', '24'], ['25', '25'], ['30', '30'], ['60', '60'], ['120', '120']]
                         .map(([v, t]) => `<option value="${v}" ${String(nho.fps || '') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
             </div>
             <div class="hang">
@@ -136,17 +136,10 @@ function moHop(ctx) {
     const r = f.querySelector('[name=giam_nhac_nen]');
     if (r) r.addEventListener('input', () => { r.closest('label').querySelector('.gt').textContent = `${r.value}%`; });
     const dong = () => nen.remove();
-    // Thiết bị này: mô tả + làm được/chưa được với dự án; chưa được thì khoá nút Xuất.
-    const veThietBi = () => {
-        const o = f.querySelector('[data-tb]');
-        const nutXuat = f.querySelector('[type=submit]');
-        if (!o || f.may_xuat.value !== 'thiet_bi') { nutXuat.disabled = false; return; }
-        const mt = moTaThietBi(ctx);
-        o.innerHTML = mt.html;
-        nutXuat.disabled = mt.chan;
-    };
-    ganMayXuat(f, veThietBi);
-    veThietBi();
+    // Thiết bị này: hồ sơ máy + phần server làm hộ; máy không làm được thì khoá nút Xuất.
+    const tb = ganThietBi(ctx, f, nho);
+    ganMayXuat(f, tb.ve);
+    tb.ve();
     veBanXuat(ctx, f.querySelector('[data-ban-xuat]'));
     nen.querySelector('[data-huy]').addEventListener('click', dong);
     nen.addEventListener('keydown', (e) => { if (e.key === 'Escape') dong(); });
@@ -156,7 +149,7 @@ function moHop(ctx) {
             ten: f.ten.value.trim() || ctx.du.name, do_phan_giai: f.do_phan_giai.value, fps: f.fps.value ? Number(f.fps.value) : null,
             crf: Number(f.crf.value), bo_ma_hoa: f.bo_ma_hoa.value, xuat_srt: f.xuat_srt.checked, chi_am_thanh: f.chi_am_thanh.checked,
             giam_nhac_nen: r ? Number(r.value) : 90,
-            giu_hdr: !!(f.giu_hdr && f.giu_hdr.checked), may_xuat: f.may_xuat.value,
+            giu_hdr: !!(f.giu_hdr && f.giu_hdr.checked), may_xuat: f.may_xuat.value, ...tb.luaChon(),
         };
         if (f.chi_vung && f.chi_vung.checked) {
             tc.vung_vao = tl.vung_vao || 0;

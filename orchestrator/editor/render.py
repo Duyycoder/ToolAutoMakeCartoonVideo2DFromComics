@@ -739,6 +739,23 @@ class DungLenh:
             ass = chu_hinh.tao_ass(self.tl, self.W, self.H)
             self.loc.append(f"[{vc}]subtitles=sub.ass:fontsdir=fonts[vout]")
             vc = "vout"
+        doan = self.tc.get("doan_nuong")
+        if doan and not chi_tieng:
+            # Nướng cho xuất trên thiết bị (nuong.py): chỉ giữ các khung [a, b) của lưới fps, nối liền nhau, không tiếng.
+            cuoi = max(int(b) for _, b in doan)
+            chon = "+".join(f"between(n,{int(a)},{int(b) - 1})" for a, b in doan)
+            self.loc.append(f"[{vc}]trim=end_frame={cuoi},select='{chon}',setpts=N/FRAME_RATE/TB,format=yuv420p[vdn]")
+            self.loc.append(f"[{aout}]anullsink")   # nhánh tiếng không ra file — bỏ lửng thì ffmpeg báo unconnected
+            cmd = [self.ffmpeg, "-hide_banner", "-y", "-nostats", "-progress", "pipe:1"]
+            for nhom in self.vao:
+                cmd += nhom
+            cmd += tham_so_file_loc(self.ffmpeg, "loc.txt") + ["-map", "[vdn]", "-an"]
+            cmd += (["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "14", "-b:v", "0"]
+                    if self.tc.get("bo_ma_hoa") == "nvenc" else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "12"])
+            cmd += ["-g", str(max(1, round(self.fps))), "-r", _so(self.fps), ten_ra]
+            so = sum(int(b) - int(a) for a, b in doan)
+            return {"cmd": cmd, "loc": ";\n".join(self.loc), "ass": "", "thoi_luong": so / self.fps, "so_khung": so,
+                    "so_phu_de": 0, "kich_thuoc": [self.W, self.H], "tep": dict(self.tep)}
         if chi_tieng:
             # Chỉ xuất tiếng: nhánh hình (cần cho tiếng đi cùng concat) không ra file → đổ vào nullsink,
             # không thì ffmpeg báo "output (vc) unconnected" và dừng.

@@ -2,7 +2,8 @@
    Kết quả cũng gán vào window.__thu để kiểm tự động (Chrome headless + CDP). */
 import { doHoSo, hoSoDaLuu } from './ho_so_may.js';
 import { NguonVideo } from './nguon_video.js';
-import { moBanXuat } from './ghep_mp4.js';
+import { ghepFile } from './ghep_mp4.js';
+import { BoMaHoa } from './ma_hoa_khuc.js';
 
 const $ = (id) => document.getElementById(id);
 const ghi = (s) => { $('nhatKy').textContent += `${new Date().toLocaleTimeString()} ${s}\n`; };
@@ -72,15 +73,19 @@ async function thuXuat() {
     const [w, h] = $('chonDpg').value.split('x').map(Number), fps = Number($('chonFps').value), codec = $('chonCodec').value;
     $('nutXuat').disabled = true;
     try {
-        const ban = await moBanXuat({ codec, rong: w, cao: h, fps, bitrate: Math.round(w * h * fps * 0.1), ten: `thu_${codec}_${h}p${fps}.mp4` });
+        const mh = await BoMaHoa.tao({ codec, W: w, H: h, fps, bitrate: Math.round(w * h * fps * 0.1) });
+        const goi = [];
+        mh.ghi = { them: (data, ts, dur, key) => goi.push({ data, ts, dur, key }) };
         const cv = new OffscreenCanvas(w, h), c = cv.getContext('2d');
         const so = 3 * fps, t0 = performance.now();
         for (let i = 0; i < so; i++) {
             veKhungThu(c, w, h, i, fps);
-            await ban.them(cv, i / fps);
+            await mh.them(cv, i, i % (2 * fps) === 0);
             if (i % fps === 0) $('ttXuat').textContent = `Mã hoá ${i}/${so}…`;
         }
-        const { file, opfs } = await ban.xong();
+        await mh.flush();
+        mh.dong();
+        const { file, opfs } = await ghepFile({ ten: `thu_${codec}_${h}p${fps}.mp4`, codec, fps, cauHinh: mh.cauHinh, goiHinh: goi, tieng: null });
         const giay = (performance.now() - t0) / 1000;
         const url = URL.createObjectURL(file);
         window.__thu.xuat = { codec, w, h, fps, khung: so, giay: Math.round(giay * 100) / 100, khung_giay: Math.round(so / giay), byte: file.size, opfs };
