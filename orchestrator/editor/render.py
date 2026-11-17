@@ -406,8 +406,10 @@ class DungLenh:
             parts = []
             if pad_truoc > 0:
                 parts.append(f"start_mode=clone:start_duration={_so(pad_truoc)}")
-            if pad_sau > 0:
-                parts.append(f"stop_mode=clone:stop_duration={_so(pad_sau)}")
+            # Chỉ đệm đầu thì trim báo hết luồng sớm 1 khung → fps= phía sau bỏ mất khung cuối (xfade ra thiếu 1 khung,
+            # hình sau chuyển cảnh sớm hơn tiếng). Đệm thêm 1 khung cuối cho trim cắt đi là đủ khung.
+            if pad_sau > 0 or pad_truoc > 0:
+                parts.append(f"stop_mode=clone:stop_duration={_so(pad_sau if pad_sau > 0 else 1 / self.fps)}")
             tpad_str = f"tpad={':'.join(parts)},"
             
         sau = f"f{i}"

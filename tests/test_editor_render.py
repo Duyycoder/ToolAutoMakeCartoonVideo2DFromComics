@@ -845,6 +845,22 @@ def test_xuat_that_chuyen_canh_qua_anh_va_clip_het_media(media_mau):
         _gan_mau(_mau_tai(khung, 160, 90), mau, 60)
 
 
+def test_chuyen_canh_khong_lam_hinh_sau_som_mot_khung(media_mau):
+    """Clip sau chuyển cảnh dùng media từ giây 0 (phải tpad đệm đầu): trước đây trim báo hết luồng sớm 1 khung, fps= bỏ
+    khung cuối → mọi clip sau đó hiện sớm 1 khung (lệch tiếng; bản xuất trên thiết bị đặt đúng mốc thì lệch bản server)."""
+    goc, exe = media_mau
+    ms = [{"id": "m_do4", "loai": "video", "file": "media/do.mp4", "co_am_thanh": True, "rong": 320, "cao": 180, "thoi_luong": 3},
+          {"id": "m_xd4", "loai": "video", "file": "media/xanh_da.mp4", "co_am_thanh": True, "rong": 320, "cao": 180, "thoi_luong": 3}]
+    tl = {"tracks": [{"id": "V1", "loai": "video"}], "clips": [
+        {"id": "c1", "track": "V1", "media": "m_do4", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1},
+        {"id": "c2", "track": "V1", "media": "m_xd4", "bat_dau": 2, "vao": 0, "ra": 2, "toc_do": 1},
+        {"id": "c3", "track": "V1", "media": "m_do4", "bat_dau": 4, "vao": 0, "ra": 1, "toc_do": 1},
+    ], "chuyen_canh": [{"id": "cc_1", "truoc": "c1", "sau": "c2", "loai": "fade", "dai": 1}], "kieu_phu_de": {}}
+    ra, _ = _xuat_va_kiem(exe, goc, _da(them_media=ms), tl)
+    _gan_mau(_mau_tai(_doc_khung(exe, ra, 4 - 1.5 / 30, 320, 180), 160, 90), (0, 0, 255), 60)   # khung cuối của c2
+    _gan_mau(_mau_tai(_doc_khung(exe, ra, 4 + 0.5 / 30, 320, 180), 160, 90), (255, 0, 0), 60)   # khung đầu của c3
+
+
 def test_phu_de_neo_khong_doi_khi_co_chuyen_canh(media_mau):
     """Phụ đề neo media + chuyển cảnh: giờ phụ đề trong .ass không đổi so với không có chuyển cảnh."""
     goc, exe = media_mau
