@@ -43,8 +43,8 @@ export function htmlTocDo(ctx, c) {
             </div>`
             + (cong ? `<svg class="toc-svg" height="${H}"></svg>
             <div class="toc-hang toc-diem"></div>
-            <div class="goi-y-kf">Kéo điểm lên/xuống để đổi tốc độ, sang ngang để dời. Bấm đúp vào đường để thêm điểm,
-                bấm đúp vào điểm để xoá. Đồ thị co giãn theo clip khi tỉa.</div>` : '<div class="goi-y-kf">Chọn một mẫu hoặc “Tự vẽ”.</div>');
+            <div class="goi-y-kf">Bấm vào chỗ trống trên đồ thị để <b>thêm điểm</b> (giữ chuột kéo luôn). Kéo điểm lên/xuống
+                để đổi tốc độ, sang ngang để dời. Bấm đúp vào điểm để xoá. Đồ thị co giãn theo clip khi tỉa.</div>` : '<div class="goi-y-kf">Chọn một mẫu hoặc “Tự vẽ”.</div>');
     }
     return `<div class="toc-do" data-clip="${esc(c.id)}">
         <div class="toc-dau"><span>Tốc độ</span><span class="toc-tab">${tab('thuong', 'Thường')}${tab('do_thi', 'Đồ thị')}</span></div>
@@ -159,21 +159,31 @@ export function ganTocDo(bang) {
     const vePanel = () => {
         const d = cong();
         const diem = d[chonDiem.i];
-        goc.querySelector('.toc-diem').innerHTML = diem
-            ? `<label>Điểm ${chonDiem.i + 1}: tốc độ <input type="number" data-toc="diem" min="${TOC_MIN}" max="${TOC_MAX}" step="0.05" value="${tron2(diem.v)}"></label>
-               <button type="button" class="nut nut-nho" data-toc-hd="xoa" ${chonDiem.i === 0 || chonDiem.i === d.length - 1 ? 'disabled' : ''}>Xoá điểm</button>`
-            : '<button type="button" class="nut nut-nho" data-toc-hd="them">＋ Thêm điểm ở đầu phát</button>';
+        goc.querySelector('.toc-diem').innerHTML = '<button type="button" class="nut nut-nho" data-toc-hd="them">＋ Thêm điểm</button>'
+            + (diem ? `<label>Điểm ${chonDiem.i + 1}: tốc độ <input type="number" data-toc="diem" min="${TOC_MIN}" max="${TOC_MAX}" step="0.05" value="${tron2(diem.v)}">×</label>
+               <button type="button" class="nut nut-nho" data-toc-hd="xoa" ${chonDiem.i === 0 || chonDiem.i === d.length - 1 ? 'disabled' : ''}>Xoá điểm</button>` : '');
         veDai();
     };
+    /* Thêm điểm tại q (mặc định: đầu phát nếu nằm trong clip, không thì giữa khoảng trống rộng nhất). → chỉ số điểm mới, -1 nếu không thêm. */
     const themDiem = (q = null, v = null) => {
         const d = cong(), c = clip();
         const D = dai(c, Number(c.toc_do) || 1);
-        q = q ?? (ctx.ui.dau_phat - Number(c.bat_dau || 0)) / D;
-        if (!(q > 0.01 && q < 0.99)) { toast('Đặt đầu phát vào giữa clip để thêm điểm.', 'warn'); return; }
-        if (d.some((x) => Math.abs(x.q - q) < 0.02)) { toast('Đã có điểm sát chỗ này.', 'warn'); return; }
+        if (q == null) {
+            q = (ctx.ui.dau_phat - Number(c.bat_dau || 0)) / D;
+            if (!(q > 0.02 && q < 0.98) || d.some((x) => Math.abs(x.q - q) < 0.02)) {
+                let tot = 0;
+                for (let i = 1; i < d.length; i += 1) if (d[i].q - d[i - 1].q > d[tot + 1].q - d[tot].q) tot = i - 1;
+                q = (d[tot].q + d[tot + 1].q) / 2;
+            }
+        }
+        q = kep(q, 0.01, 0.99);
+        if (d.some((x) => Math.abs(x.q - q) < 0.02)) { toast('Đã có điểm sát chỗ này — kéo điểm đó.', 'warn'); return -1; }
         const moi = chuan([...d, { q, v: v ?? tocTai(d, q) }]);
-        chonDiem.i = moi.findIndex((x) => Math.abs(x.q - Math.round(q * 1e4) / 1e4) < 1e-9);
-        if (datCong(moi)) ve();
+        const i = moi.findIndex((x) => Math.abs(x.q - Math.round(q * 1e4) / 1e4) < 1e-9);
+        if (!datCong(moi)) return -1;
+        chonDiem.i = i;
+        ve();
+        return i;
     };
     const xoaDiem = (i) => {
         const d = cong();
@@ -189,14 +199,22 @@ export function ganTocDo(bang) {
         const r = svg.getBoundingClientRect();
         return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
-    let keo = null;
+    let keo = null, vuaThem = { x: -99, y: -99, luc: 0 };
+    const diemGan = (x, y, r) => cong().findIndex((d) => Math.hypot(xCua(d.q) - x, yCua(d.v) - y) <= r);
     svg.addEventListener('pointerdown', (e) => {
-        const o = e.target.closest('circle[data-i]');
-        if (!o) return;
+        if (e.button) return;
         e.preventDefault();
         lan += 1;
-        chonDiem.i = Number(o.dataset.i);
-        keo = { i: chonDiem.i, da_keo: false };
+        const { x, y } = viTri(e);
+        let i = diemGan(x, y, e.pointerType === 'touch' ? 16 : 10);
+        if (i < 0) {
+            // Bấm vào chỗ trống: thêm điểm ngay đó rồi kéo luôn.
+            i = themDiem(qCua(x), kep(tron2(vCua(y)), TOC_MIN, TOC_MAX));
+            if (i < 0) return;
+            vuaThem = { x, y, luc: Date.now() };
+        }
+        chonDiem.i = i;
+        keo = { i, da_keo: false };
         svg.setPointerCapture(e.pointerId);
         // Chỉ đổi thuộc tính, KHÔNG vẽ lại: thay node giữa hai lần bấm thì dblclick (xoá điểm) không tới.
         svg.querySelectorAll('circle[data-i]').forEach((x) => {
@@ -229,10 +247,11 @@ export function ganTocDo(bang) {
     svg.addEventListener('dblclick', (e) => {
         lan += 1;
         // Theo toạ độ, không theo e.target: lúc kéo đã setPointerCapture nên dblclick có thể rơi vào svg.
+        // Bấm đúp vào chỗ trống = lần bấm đầu đã thêm điểm → không xoá luôn điểm vừa thêm.
         const { x, y } = viTri(e);
-        const gan = cong().findIndex((d) => Math.hypot(xCua(d.q) - x, yCua(d.v) - y) <= 9);
-        if (gan >= 0) { xoaDiem(gan); return; }
-        themDiem(qCua(x), kep(tron2(vCua(y)), TOC_MIN, TOC_MAX));
+        if (Date.now() - vuaThem.luc < 700 && Math.hypot(x - vuaThem.x, y - vuaThem.y) < 12) return;
+        const gan = diemGan(x, y, 10);
+        if (gan >= 0) xoaDiem(gan);
     });
     goc.addEventListener('change', (e) => {
         if (e.target.dataset.toc !== 'diem') return;
