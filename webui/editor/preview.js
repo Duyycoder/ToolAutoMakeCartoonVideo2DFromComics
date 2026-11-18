@@ -9,7 +9,7 @@
  * Xem trước là gần đúng (CSS); bản xuất ffmpeg (render.py) mới là bản chính xác. */
 import { $, esc, toast, api } from './chung.js';
 import {
-    ketThucClip, thoiLuong, clipTai, thoiDiemMedia, neoTai, tao, trackVideoTuDuoiLen, hopLop, heSoFade,
+    ketThucClip, thoiLuong, clipTai, thoiDiemMedia, veTimeline, tocDoTai, neoTai, tao, trackVideoTuDuoiLen, hopLop, heSoFade,
     BIEN_DOI_MAC_DINH, giaTriTai, hopChuHinh, bienDoiSauKeo
 } from './store.js';
 import { cssFilter } from './hieu_ung.js';
@@ -305,11 +305,12 @@ export class Preview {
         ganXuLy(l.v, c.xu_ly_am, c.hieu_ung_am);
         const vol = Number(giaTriTai(c, 'am_luong', t - (c.bat_dau || 0)) ?? 1);
         l.v.volume = Math.min(1, vol * this.master * heSoFade(c, t));
-        l.v.playbackRate = (Number(c.toc_do) || 1) * (this.tocDoPhat || 1);
+        l.v.playbackRate = this._tocPhat(c, t);
         const tm = thoiDiemMedia(c, t);
         const tua = () => { if (Math.abs(l.v.currentTime - tm) > (phat ? LECH_TOI_DA : 0.02)) l.v.currentTime = tm; };
         if (l.v.readyState >= 1) tua(); else l.v.addEventListener('loadedmetadata', tua, { once: true });
-        if (phat && l.v.paused) l.v.play().catch(() => {});
+        // Video đã chạy hết (nguồn dài vừa khít clip) mà đầu phát chưa qua mép clip: play() sẽ phát lại từ 0 → đứng chờ.
+        if (phat && l.v.paused && !(l.v.ended && Math.abs(l.v.currentTime - tm) <= LECH_TOI_DA)) l.v.play().catch(() => {});
         if (!phat && !l.v.paused) l.v.pause();
     }
 
@@ -794,7 +795,7 @@ export class Preview {
             }
             ganXuLy(a, c.xu_ly_am, c.hieu_ung_am);
             a.volume = Math.min(1, Number(c.am_luong ?? 1) * this.master * heSoFade(c, t));
-            a.playbackRate = (Number(c.toc_do) || 1) * (this.tocDoPhat || 1);
+            a.playbackRate = this._tocPhat(c, t);
             const tm = thoiDiemMedia(c, t);
             if (a.readyState >= 1 && Math.abs(a.currentTime - tm) > LECH_TOI_DA) a.currentTime = tm;
             if (phat && a.paused) a.play().catch(() => {});
@@ -802,6 +803,11 @@ export class Preview {
         for (const [id, a] of this.amThanh) {
             if (!conSong.has(id)) { a.pause(); boXuLy(a); this.amThanh.delete(id); a.removeAttribute('src'); }
         }
+    }
+
+    /* playbackRate = tốc độ clip tại t (đồ thị tốc độ) × tốc độ xem; trình duyệt chỉ nhận 0.0625–16. */
+    _tocPhat(c, t) {
+        return Math.min(16, Math.max(0.0625, tocDoTai(c, t) * (this.tocDoPhat || 1)));
     }
 
     _anAmThanh() {
@@ -840,7 +846,7 @@ export class Preview {
         const nen = ds.length ? this.lop.get(ds[0].id) : null;
         const c = nen && nen.clip;
         if (c && !nen.v.paused && nen.v.readyState >= 3 && nen.v.style.display !== 'none') {
-            const tv = Number(c.bat_dau) + (nen.v.currentTime - Number(c.vao || 0)) / (Number(c.toc_do) || 1);
+            const tv = Number(c.bat_dau) + veTimeline(c, nen.v.currentTime);
             if (tv >= Number(c.bat_dau) - 0.05 && tv <= ketThucClip(c) + 0.05) {
                 t = tv;
                 this._neo = { t, luc: bayGio };
@@ -855,11 +861,12 @@ export class Preview {
         for (const tr of ds) {
             const l = this.lop.get(tr.id);
             const moi = tr.an ? null : clipTai(this.tl, tr.id, t);
-            if (moi !== l.clip || (moi && l.v.paused && l.v.style.display !== 'none')) {
+            if (moi !== l.clip || (moi && l.v.paused && !l.v.ended && l.v.style.display !== 'none')) {
                 this._hienLop(l, tr, moi, t, true);
                 if (l === nen) this._neo = { t, luc: bayGio };
             } else if (moi) {
                 l.v.volume = Math.min(1, Number(moi.am_luong ?? 1) * this.master * heSoFade(moi, t));
+                if (moi.toc_do_cong) l.v.playbackRate = this._tocPhat(moi, t);   // đồ thị tốc độ: đổi theo từng nhịp
                 if (l !== nen && l.v.readyState >= 1 && Math.abs(l.v.currentTime - thoiDiemMedia(moi, t)) > LECH_TOI_DA) {
                     l.v.currentTime = thoiDiemMedia(moi, t);
                 }

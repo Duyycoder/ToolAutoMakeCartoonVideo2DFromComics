@@ -16,7 +16,8 @@ Bản xuất luôn dùng file GỐC, không dùng proxy.
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from orchestrator.editor import hieu_ung, hieu_ung_am, luu_tru, mau_nang_cao, media as media_mod, quy_doi, srt, chu_hinh, xu_ly_am
+from orchestrator.editor import (hieu_ung, hieu_ung_am, luu_tru, mau_nang_cao, media as media_mod, quy_doi, srt, chu_hinh,
+                                 toc_do_cong, xu_ly_am)
 
 SR = 48000
 
@@ -83,8 +84,11 @@ def tinh_xfade(clips, chuyen_canh, media_info=None):
         dai_truoc = float(truoc_cc["dai"]) / 2 if truoc_cc else 0
         dai_sau = float(sau_cc["dai"]) / 2 if sau_cc else 0
 
-        vao_moi = vao - dai_truoc * toc
-        ra_moi = ra + dai_sau * toc
+        # Đồ thị tốc độ: phần kéo dài cho chuyển cảnh chạy bằng tốc độ ở mép clip.
+        cong = toc_do_cong.cua_clip(c)
+        toc_dau, toc_cuoi = (cong[0]["v"], cong[-1]["v"]) if cong else (toc, toc)
+        vao_moi = vao - dai_truoc * toc_dau
+        ra_moi = ra + dai_sau * toc_cuoi
 
         pad_truoc = 0.0
         pad_sau = 0.0
@@ -95,10 +99,10 @@ def tinh_xfade(clips, chuyen_canh, media_info=None):
         # Không có media_info (gọi thuần để tính offset) thì giữ nguyên vao/ra mở rộng, không quy ra tpad.
         if co_media and not is_anh:
             if vao_moi < 0:
-                pad_truoc = -vao_moi / toc
+                pad_truoc = -vao_moi / toc_dau
                 vao_moi = 0
             if ra_moi > dai_media:
-                pad_sau = (ra_moi - dai_media) / toc
+                pad_sau = (ra_moi - dai_media) / toc_cuoi
                 ra_moi = dai_media
 
         ket_qua.append({
@@ -356,6 +360,14 @@ class DungLenh:
         vao, ra = float(c.get("vao") or 0), float(c.get("ra") or 0)
         toc = float(c.get("toc_do") or 1)
         dai = (ra - vao) / toc
+        cong = toc_do_cong.cua_clip(c) if m.get("loai") != "anh" else None
+        if cong:
+            # vao/ra có thể đã kéo dài cho chuyển cảnh (_hinh) — đồ thị tính theo đoạn gốc vao_goc/ra_goc.
+            vg = float(c.get("vao_goc", vao))
+            L = float(c.get("ra_goc", ra)) - vg
+            D = L / toc
+            ra_tai = lambda u: D * toc_do_cong.vi_tri_tai(cong, u / L)
+            dai = ra_tai(ra - vg) - ra_tai(vao - vg)
         pad_truoc = float(c.get("pad_truoc") or 0)
         pad_sau = float(c.get("pad_sau") or 0)
         dai_xuat = dai + pad_truoc + pad_sau
@@ -400,7 +412,10 @@ class DungLenh:
                     self.loc.append(f"{cac[2]}[{sau}]")
                 cur = sau
         
-        toc_s = f"setpts=PTS/{toc:.6f}," if abs(toc - 1) > 1e-6 else ""
+        if cong:
+            toc_s = f"setpts='{toc_do_cong.bieu_thuc_pts(cong, L, D, vao - vg)}',"
+        else:
+            toc_s = f"setpts=PTS/{toc:.6f}," if abs(toc - 1) > 1e-6 else ""
         tpad_str = ""
         if pad_truoc > 0 or pad_sau > 0:
             parts = []
@@ -528,12 +543,35 @@ class DungLenh:
         if tre > 0:
             ms = int(round(tre * 1000))
             dem = f",adelay={ms}|{ms}"
-        dau = f"[{k}:a]asetpts=PTS-STARTPTS{_atempo(float(c.get('toc_do') or 1))}"
+        dau = self._tieng_doi_toc(c, k, ten)
         dau += "".join("," + f for f in xu_ly_am.loc_am(c.get("xu_ly_am") or {}))
         dau = self._hieu_ung_am(dau, c.get("hieu_ung_am") or {}, ten)
         self.loc.append(f"{dau},{vol_filter},aresample={SR},"
                         f"aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=duration={_so(dai)}{fade}{dem}[{ten}]")
         return True
+
+    def _tieng_doi_toc(self, c: Dict[str, Any], k: int, ten: str) -> str:
+        """Tiếng input k đã đổi tốc → chuỗi lọc đang mở.
+
+        Đồ thị tốc độ: cắt khúc, mỗi khúc một atempo, nối lại. Mỗi khúc lấy THỪA nguồn hai bên (LE_AM) rồi chỉ giữ đúng
+        phần của khúc sau atempo: atempo làm hụt/méo ở hai mép luồng (khúc nguồn ngắn như đoạn chậm 0.15× bị nuốt gần hết
+        → tiếng trôi trước hình hàng chục giây). Mỗi khúc ra đúng độ dài → không trôi dồn.
+        (Không dùng asendcmd đổi tempo: mỗi lệnh làm atempo bỏ ~21 ms mỗi tầng.)"""
+        toc = float(c.get("toc_do") or 1)
+        cong = toc_do_cong.cua_clip(c)
+        L = float(c.get("ra") or 0) - float(c.get("vao") or 0)
+        khuc = toc_do_cong.khuc_am(cong, L, L / toc) if cong and L > 0 else []
+        if not khuc:
+            return f"[{k}:a]asetpts=PTS-STARTPTS{_atempo(toc)}"
+        n = len(khuc)
+        tach = "".join(f"[{ten}t{j}]" for j in range(n))
+        self.loc.append(f"[{k}:a]asetpts=PTS-STARTPTS,aresample={SR}," + (f"asplit={n}{tach}" if n > 1 else f"anull{tach}"))
+        for j, (s0, s1, tp) in enumerate(khuc):
+            a, b = max(0.0, s0 - toc_do_cong.LE_AM), min(L, s1 + toc_do_cong.LE_AM)
+            self.loc.append(f"[{ten}t{j}]atrim=start={_so(a)}:end={_so(b)},asetpts=PTS-STARTPTS{_atempo(tp)},"
+                            f"apad,atrim=start={_so((s0 - a) / tp)}:duration={_so((s1 - s0) / tp)},asetpts=PTS-STARTPTS[{ten}k{j}]")
+        self.loc.append("".join(f"[{ten}k{j}]" for j in range(n)) + f"concat=n={n}:v=0:a=1[{ten}g]")
+        return f"[{ten}g]anull"
 
     def _hieu_ung_am(self, dau: str, hu: Dict[str, Any], ten: str) -> str:
         """Nối hiệu ứng âm thanh `hu` (hieu_ung_am.py) vào chuỗi lọc đang mở `dau` (chưa đóng nhãn) → chuỗi mới.
@@ -626,7 +664,7 @@ class DungLenh:
                 v_items.append((v_k, bd - t, None))
                 a_segments.append(a_k)
 
-            c_mod = {**c, "vao": info["vao_moi"], "ra": info["ra_moi"], 
+            c_mod = {**c, "vao": info["vao_moi"], "ra": info["ra_moi"], "vao_goc": info["orig_vao"], "ra_goc": info["orig_ra"],
                      "pad_truoc": info["pad_truoc"], "pad_sau": info["pad_sau"]}
             nv, _, _ = self._doan_video(c_mod, info["tr"], i, chi_video=True)
             v_items.append((nv, info["original_dai"], info["sau_cc"]))

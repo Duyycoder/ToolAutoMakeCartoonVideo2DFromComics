@@ -6,7 +6,7 @@
 import { $, esc, toast, fmtThoiGian, api, hoi } from './chung.js';
 import { ganCamUng } from './timeline_cam_ung.js';
 import {
-    tao, thoiLuong, ketThucClip, choTrong, idClipMoi, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, clipTai,
+    tao, thoiLuong, ketThucClip, thoiDiemMedia, opsDatTocDo, choTrong, idClipMoi, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, clipTai,
     hienThiNeo, bangClipChuaMedia, opsDatGio, opsThemTrack, opsKhepKhoang, opsXoaGon, opsChenGon, opsTiaToiDauPhat, idMoiNhieu,
     moRongNhom, opsTachAm, idNhomMoi, trackVideoTuDuoiLen, opsThemChuyenCanh, opsXoaChuyenCanh, nhanClip, viTriKeyframes,
     mucMenuChoClip, opsNhanDoi, clipMediaMoi, opsThemNhieuMedia, opsSapXepTrack, KIEU_SAP_XEP_TRACK,
@@ -1103,7 +1103,7 @@ export class Timeline {
                 const c = this.tl.clips.find(x => x.id === cid);
                 this.ctx.sua('Tiếng', [tao.dat(this.tl, ['clips', { id: cid }, 'tat_am'], !c.tat_am)]);
             }
-            if (l.dataset.l === 'toc') this.ctx.sua('Tốc độ', [tao.dat(this.tl, ['clips', { id: cid }, 'toc_do'], Number(l.dataset.v))]);
+            if (l.dataset.l === 'toc') this.ctx.sua('Tốc độ', opsDatTocDo(this.tl, this.tl.clips.find((x) => x.id === cid), Number(l.dataset.v)));
         });
         setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
     }
@@ -1133,11 +1133,10 @@ export class Timeline {
         const oW = fw * k;
         const so = Math.ceil(rongPx / oW);
         const dau = Math.max(0, Math.floor(a / oW)), cuoi = Math.min(so, Math.ceil(b / oW), dau + 400);
-        const toc = Number(c.toc_do) || 1;
         const url = `/api/du-an/${pid}/media/${m.id}/dai-hinh?v=${esc(m.nhap_luc)}`;
         let html = '';
         for (let i = dau; i < cuoi; i += 1) {
-            const tm = (Number(c.vao) || 0) + ((i + 0.5) * oW / this.px) * toc;
+            const tm = thoiDiemMedia(c, (Number(c.bat_dau) || 0) + (i + 0.5) * oW / this.px);
             const khung = Math.max(0, Math.min(n - 1, Math.floor((tm / dai) * n)));
             html += `<i style="left:${i * oW}px;width:${oW}px;background-image:url('${url}');`
                 + `background-size:${n * oW}px ${H_KHUNG}px;background-position:${-khung * oW}px 0"></i>`;

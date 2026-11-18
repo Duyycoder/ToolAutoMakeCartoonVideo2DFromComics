@@ -5,12 +5,12 @@
  *  - chuyển cảnh (bấm ⧓ trên timeline): kiểu, thời lượng, xoá
  * Mọi thay đổi là lệnh hoàn tác được; kéo thanh trượt gộp thành một bước. */
 import { $, esc, fmtThoiGian, coFile, toast, api } from './chung.js';
-import { ketThucClip, tao, hienThiNeo, chongClip, idClipMoi, opsThemChuyenCanh, opsXoaChuyenCanh, giaTriTai } from './store.js';
+import { ketThucClip, tao, hienThiNeo, idClipMoi, opsThemChuyenCanh, opsXoaChuyenCanh, giaTriTai } from './store.js';
 import { KIEU_CHE } from './bang_che.js';
 import { CAC_KIEU as KIEU_CC } from './bang_chuyen_canh.js';
+import { htmlTocDo, ganTocDo } from './bang_toc_do.js';
 
 const TAB = [['video', 'Video'], ['am_thanh', 'Âm thanh'], ['hieu_ung', 'Hiệu ứng']];
-const TOC = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
 const EQ_MAU = {
     giong_ro: ['Giọng nói rõ', { thap: -3, trung: 3, cao: 2 }],
     podcast: ['Podcast', { thap: -2, trung: 2, cao: 3, giam_on: 30 }],
@@ -110,7 +110,7 @@ export class BangPhai {
         
         const am_clip = {
             id: idClipMoi(this.tl), track: trA.id, media: c.media, bat_dau: c.bat_dau, 
-            vao: c.vao, ra: c.ra, toc_do: c.toc_do, am_luong: c.am_luong || 1,
+            vao: c.vao, ra: c.ra, toc_do: c.toc_do, ...(c.toc_do_cong ? { toc_do_cong: c.toc_do_cong } : {}), am_luong: c.am_luong || 1,
             am_vao: c.am_vao || 0, am_ra: c.am_ra || 0
         };
         ops.push(tao.them(this.tl, ['clips'], am_clip));
@@ -254,15 +254,7 @@ export class BangPhai {
         let v = o.type === 'range' || o.type === 'number' || o.tagName === 'SELECT' && o.dataset.so ? Number(o.value) : o.value;
         const p = (...x) => ['clips', { id: c.id }, ...x];
         let ops;
-        if (k === 'toc_do') {
-            const kt = Number(c.bat_dau) + (Number(c.ra) - Number(c.vao)) / v;
-            if (chongClip(this.tl, c.track, Number(c.bat_dau), kt, [c.id])) {
-                toast('Chậm lại thì clip dài ra và đè clip sau — dời clip sau hoặc tỉa bớt trước.', 'warn');
-                o.value = c.toc_do || 1;
-                return;
-            }
-            ops = [tao.dat(this.tl, p('toc_do'), v)];
-        } else if (k.startsWith('hieu_ung.')) {
+        if (k.startsWith('hieu_ung.')) {
             const [, iStr, truong] = k.split('.');
             const i = parseInt(iStr);
             let hu = [...(c.hieu_ung || [])];
@@ -447,7 +439,7 @@ export class BangPhai {
                     ['Track', clip.track], ['Bắt đầu', fmtThoiGian(clip.bat_dau, true, fps)],
                     ['Kết thúc', fmtThoiGian(ketThucClip(clip), true, fps)],
                     ['Đoạn trong media', `${fmtThoiGian(clip.vao, true, fps)} → ${fmtThoiGian(clip.ra, true, fps)}`],
-                ]) + `<div class="o-form" style="margin-top:8px"><label>Tốc độ<select data-k="toc_do" data-so="1">${TOC.map((x) => `<option value="${x}" ${Number(clip.toc_do || 1) === x ? 'selected' : ''}>${x}×</option>`).join('')}</select></label></div>`)
+                ]) + htmlTocDo(ctx, clip))
                     + this._muc('bien_doi', 'Biến đổi', `<div class="o-form">
                         <div class="goi-y-kf">◇ = keyframe (chuyển động/đổi dần): đặt đầu phát → bấm ◇ để ghim giá trị → sang
                             thời điểm khác đổi giá trị là tự thêm keyframe. ◆ = có keyframe ở đây (bấm để xoá).</div>
@@ -526,6 +518,7 @@ export class BangPhai {
                 ${this._muc('du_an', 'Dự án', this._bang(this._dongDuAn()))}</div>`;
         }
         this.el.innerHTML = `<div class="bang-dau"><h2 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(tieuDe)}</h2></div>${noi}`;
+        ganTocDo(this);
     }
 
     _dongMedia(m) {
@@ -547,4 +540,4 @@ export class BangPhai {
 }
 
 const TEN_SUA = { text: 'Sửa phụ đề', kieu: 'Đổi kiểu che', do_manh: 'Độ mạnh vùng che', mau: 'Màu vùng che',
-    am_luong: 'Âm lượng clip', toc_do: 'Tốc độ clip' };
+    am_luong: 'Âm lượng clip' };

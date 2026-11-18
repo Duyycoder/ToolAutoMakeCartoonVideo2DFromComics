@@ -8,7 +8,9 @@
     "clips": [
       {"id": "c_1", "track": "V1", "media": "m_01", "bat_dau": 0, "vao": 0, "ra": 4, "toc_do": 1},
       {"id": "c_2", "track": "V1", "media": "m_01", "bat_dau": 6, "vao": 5, "ra": 9, "toc_do": 2},
-      {"id": "c_3", "track": "A1", "media": "m_09", "bat_dau": 1, "vao": 10, "ra": 20, "toc_do": 1}
+      {"id": "c_3", "track": "A1", "media": "m_09", "bat_dau": 1, "vao": 10, "ra": 20, "toc_do": 1},
+      {"id": "c_4", "track": "V1", "media": "m_05", "bat_dau": 20, "vao": 0, "ra": 4, "toc_do": 2,
+       "toc_do_cong": [{"q": 0, "v": 1}, {"q": 1, "v": 3}]}
     ]
   },
   "ca": [
@@ -23,6 +25,8 @@
     {"ten": "media không có trên timeline", "clip": {"id": "s_5", "loai": "phu_de", "tu_media": "m_77", "t_vao": 0, "t_ra": 1},
      "ket_qua": []},
     {"ten": "câu tự gõ, thời gian tuyệt đối", "clip": {"id": "s_6", "loai": "phu_de", "bat_dau": 2.5, "ket_thuc": 3.5},
-     "ket_qua": [{"bd": 2.5, "kt": 3.5, "clip": null}]}
+     "ket_qua": [{"bd": 2.5, "kt": 3.5, "clip": null}]},
+    {"ten": "clip có đồ thị tốc độ 1×→3×: nguồn 1.5 s nằm giữa clip trên timeline", "clip": {"id": "s_7", "loai": "phu_de", "tu_media": "m_05", "t_vao": 1.5, "t_ra": 4},
+     "ket_qua": [{"bd": 21, "kt": 22, "clip": "c_4"}]}
   ]
 }

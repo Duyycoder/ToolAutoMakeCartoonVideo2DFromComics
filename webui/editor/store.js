@@ -14,6 +14,8 @@
 export const GIOI_HAN_BO_NHO = 100;
 export const GIOI_HAN_GHI = 50;
 
+import { chuan as chuanCong, nguonTai, viTriTai, tocTai, catCong, tocTrungBinh } from './toc_do_cong.js';
+
 const sao = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
 
 function buoc(cha, khoa) {
@@ -265,8 +267,8 @@ export function hienThiNeo(tl, c, bang = null) {
         const vao = Number(v.vao || 0), ra = Number(v.ra || 0);
         const lo = Math.max(tv, vao), hi = Math.min(tr, ra);
         if (hi - lo <= 1e-6) continue;
-        const toc = Number(v.toc_do) || 1, bd0 = Number(v.bat_dau || 0);
-        out.push({ bd: tron6(bd0 + (lo - vao) / toc), kt: tron6(bd0 + (hi - vao) / toc), clip: v.id });
+        const bd0 = Number(v.bat_dau || 0);
+        out.push({ bd: tron6(bd0 + veTimeline(v, lo)), kt: tron6(bd0 + veTimeline(v, hi)), clip: v.id });
     }
     return out.sort((a, b) => a.bd - b.bd);
 }
@@ -356,7 +358,7 @@ export function opsTachAm(tl, cid) {
     const nhomId = idNhomMoi(nhap);
     const id = idClipMoi(nhap);
     ops.push({ op: 'them', path: ['clips'], vi_tri: nhap.clips.length, gia_tri: {
-        id, track: tr.id, media: c.media, bat_dau: c.bat_dau, vao: c.vao, ra: c.ra, toc_do: c.toc_do || 1,
+        id, track: tr.id, media: c.media, bat_dau: c.bat_dau, vao: c.vao, ra: c.ra, toc_do: c.toc_do || 1, ...(c.toc_do_cong ? { toc_do_cong: c.toc_do_cong } : {}),
         am_luong: c.am_luong ?? 1, am_vao: c.am_vao || 0, am_ra: c.am_ra || 0, tach_tu: c.id, lien_ket: nhomId,
     } });
     ops.push(tao.dat(tl, ['clips', { id: cid }, 'tat_am'], true));
@@ -461,8 +463,7 @@ export function opsDatGio(tl, c, vid, bdMoi, ktMoi) {
 /* Đổi thời điểm trên timeline về giây trong media gốc, qua clip media `vid` (dùng khi sửa giờ phụ đề). */
 export function veMedia(tl, vid, t) {
     const v = (tl.clips || []).find((x) => x.id === vid);
-    if (!v) return t;
-    return Number(v.vao || 0) + (t - Number(v.bat_dau || 0)) * (Number(v.toc_do) || 1);
+    return v ? thoiDiemMedia(v, t) : t;
 }
 
 export function idClipMoi(tl) {
@@ -478,8 +479,48 @@ export function clipTai(tl, trackId, t) {
 
 /* Vị trí trong media gốc ứng với thời điểm t trên timeline. */
 export function thoiDiemMedia(c, t) {
-    return Number(c.vao || 0) + (t - Number(c.bat_dau || 0)) * (Number(c.toc_do) || 1);
+    const vao = Number(c.vao || 0), toc = Number(c.toc_do) || 1, x = t - Number(c.bat_dau || 0);
+    const cong = chuanCong(c.toc_do_cong), L = Number(c.ra || 0) - vao;
+    if (!cong || L <= 0) return vao + x * toc;
+    return vao + L * nguonTai(cong, x * toc / L);
 }
+
+/* Ngược lại: giây s trong media → giây kể từ đầu clip trên timeline (bản Python: quy_doi.ve_timeline). */
+export function veTimeline(c, s) {
+    const vao = Number(c.vao || 0), toc = Number(c.toc_do) || 1;
+    const cong = chuanCong(c.toc_do_cong), L = Number(c.ra || 0) - vao;
+    if (!cong || L <= 0) return (s - vao) / toc;
+    return L / toc * viTriTai(cong, (s - vao) / L);
+}
+
+/* Tốc độ phát của clip tại thời điểm t trên timeline (đồ thị tốc độ → đổi theo t). */
+export function tocDoTai(c, t) {
+    const toc = Number(c.toc_do) || 1;
+    const cong = chuanCong(c.toc_do_cong), L = Number(c.ra || 0) - Number(c.vao || 0);
+    if (!cong || L <= 0) return toc;
+    return tocTai(cong, (t - Number(c.bat_dau || 0)) * toc / L);
+}
+
+/* Phần đồ thị tốc độ còn lại khi cắt clip tại t: 'truoc' = phần trước t, 'sau' = phần sau t.
+ * → {toc_do, toc_do_cong} (null nếu clip không có đồ thị). */
+export function catDoThiTocDo(c, t, phia) {
+    const cong = chuanCong(c.toc_do_cong);
+    const D = ketThucClip(c) - Number(c.bat_dau || 0);
+    if (!cong || D <= 0) return null;
+    const q = Math.min(1, Math.max(0, (t - Number(c.bat_dau || 0)) / D));
+    const moi = catCong(cong, q)[phia === 'truoc' ? 0 : 1];
+    return moi ? { toc_do: tocTrungBinh(moi), toc_do_cong: moi } : null;
+}
+
+/* Đặt tốc độ cố định (bỏ đồ thị tốc độ nếu có). */
+export function opsDatTocDo(tl, c, v) {
+    const ops = [tao.dat(tl, ['clips', { id: c.id }, 'toc_do'], v)];
+    if (c.toc_do_cong) ops.push(tao.dat(tl, ['clips', { id: c.id }, 'toc_do_cong'], undefined));
+    return ops;
+}
+
+const opsDoThi = (tl, id, g) => (g ? [tao.dat(tl, ['clips', { id }, 'toc_do'], g.toc_do),
+    tao.dat(tl, ['clips', { id }, 'toc_do_cong'], g.toc_do_cong)] : []);
 
 /* Bắt dính: t gần điểm nào trong `diem` dưới `nguong` giây thì hút vào điểm đó. */
 export function hutDinh(t, diem, nguong) {
@@ -570,6 +611,9 @@ export function opsTach(tl, cid, t, idMoi) {
     
     const giua = Math.round(thoiDiemMedia(c, t) * 1000) / 1000;
     moi.vao = giua;
+    const sau = catDoThiTocDo(c, t, 'sau');
+    if (sau) Object.assign(moi, sau);
+    ops.push(...opsDoThi(tl, cid, catDoThiTocDo(c, t, 'truoc')));
     ops.push(tao.dat(tl, ['clips', { id: cid }, 'ra'], giua));
     ops.push({ op: 'them', path: ['clips'], vi_tri: i + 1, gia_tri: moi });
     return ops;
@@ -708,6 +752,7 @@ export function opsTiaToiDauPhat(tl, ids, t, phia, gon) {
             const giua = Math.round(thoiDiemMedia(c, t) * 1000) / 1000;
             const { kfTruoc, kfSau } = tachKeyframes(c, t - bd);
             
+            if (!khongMedia) ops.push(...opsDoThi(tl, c.id, catDoThiTocDo(c, t, phia === 'truoc' ? 'sau' : 'truoc')));
             if (phia === 'truoc') {
                 const khoang = t - bd;
                 if (kfSau) ops.push(tao.dat(tl, ['clips', { id: c.id }, 'keyframes'], kfSau));

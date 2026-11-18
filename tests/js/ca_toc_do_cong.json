@@ -1,0 +1,13 @@
+{
+  "_ghi_chu": "Ca test DÃ™NG CHUNG cho orchestrator/editor/toc_do_cong.py (pytest) vÃ  webui/editor/toc_do_cong.js (node --test). nguon: [q, P(q)] â€” P lÃ  vá»‹ trÃ­ nguá»“n chuáº©n hoÃ¡; vi_tri_tai(P) pháº£i tráº£ láº¡i q.",
+  "ca": [
+    {"ten": "tÄƒng Ä‘á»u 1Ã— â†’ 3Ã—", "cong": [{"q": 0, "v": 1}, {"q": 1, "v": 3}], "trung_binh": 2,
+     "nguon": [[0, 0], [0.5, 0.375], [1, 1], [-0.5, -0.25], [1.5, 1.75]]},
+    {"ten": "Ä‘á»©ng yÃªn rá»“i tÄƒng vá»t", "cong": [{"q": 0, "v": 1}, {"q": 0.5, "v": 1}, {"q": 0.75, "v": 4}, {"q": 1, "v": 4}], "trung_binh": 2.125,
+     "nguon": [[0.25, 0.1176471], [0.5, 0.2352941], [0.75, 0.5294118], [1, 1]]},
+    {"ten": "thiáº¿u Ä‘iá»ƒm mÃ©p thÃ¬ tá»± thÃªm, giÃ¡ trá»‹ bá»‹ káº¹p 0.1â€“10", "cong": [{"q": 0.5, "v": 50}, {"q": 0.2, "v": 0.01}], "trung_binh": 6.535,
+     "nguon": [[0.2, 0.00306044376], [1, 1]]}
+  ],
+  "cat": {"cong": [{"q": 0, "v": 1}, {"q": 1, "v": 3}], "q": 0.5,
+          "trai": [{"q": 0, "v": 1}, {"q": 1, "v": 2}], "phai": [{"q": 0, "v": 2}, {"q": 1, "v": 3}]}
+}

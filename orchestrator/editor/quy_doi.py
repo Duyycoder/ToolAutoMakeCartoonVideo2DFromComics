@@ -14,6 +14,8 @@ Bản JS tương ứng: `webui/editor/store.js › hienThiNeo`. Hai bản chạy
 """
 from typing import Any, Dict, List
 
+from orchestrator.editor import toc_do_cong
+
 LOAI_NEO = ("phu_de", "che_phu_de")
 
 
@@ -26,6 +28,16 @@ def ket_thuc(c: Dict[str, Any]) -> float:
         return float(c["ket_thuc"])
     toc = float(c.get("toc_do") or 1)
     return float(c.get("bat_dau") or 0) + (float(c.get("ra") or 0) - float(c.get("vao") or 0)) / toc
+
+
+def ve_timeline(v: Dict[str, Any], s: float) -> float:
+    """Giây `s` trong media gốc → giây kể từ đầu clip `v` trên timeline (theo tốc độ / đồ thị tốc độ)."""
+    vao, ra = float(v.get("vao") or 0), float(v.get("ra") or 0)
+    toc = float(v.get("toc_do") or 1)
+    cong = toc_do_cong.cua_clip(v)
+    if not cong or ra - vao <= 0:
+        return (s - vao) / toc
+    return (ra - vao) / toc * toc_do_cong.vi_tri_tai(cong, (s - vao) / (ra - vao))
 
 
 def clip_chua_media(tl: Dict[str, Any], mid: str) -> List[Dict[str, Any]]:
@@ -49,9 +61,8 @@ def hien_thi(tl: Dict[str, Any], c: Dict[str, Any]) -> List[Dict[str, Any]]:
         lo, hi = max(tv, vao), min(tr, ra)
         if hi - lo <= 1e-6:
             continue
-        toc = float(v.get("toc_do") or 1)
         bd0 = float(v.get("bat_dau") or 0)
-        out.append({"bd": round(bd0 + (lo - vao) / toc, 6), "kt": round(bd0 + (hi - vao) / toc, 6),
+        out.append({"bd": round(bd0 + ve_timeline(v, lo), 6), "kt": round(bd0 + ve_timeline(v, hi), 6),
                     "clip": v["id"]})
     out.sort(key=lambda x: x["bd"])
     return out

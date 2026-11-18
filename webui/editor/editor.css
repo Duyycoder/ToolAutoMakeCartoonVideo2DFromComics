@@ -710,3 +710,24 @@ select { cursor: pointer; }
 .pd-nhieu-ds { max-height: min(50vh, 360px); overflow-y: auto; border: 1px solid var(--vien); border-radius: 6px; padding: 4px 8px; }
 .pd-nhieu-ds .check { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; min-height: 36px; }
 .pd-nhieu-ds .check span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+
+/* Tốc độ clip: thường (thanh trượt) / đồ thị (bang_toc_do.js) */
+.toc-do { margin-top: 10px; display: grid; gap: 8px; font-size: 12.5px; color: var(--chu-2); }
+.toc-dau { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.toc-tab { display: flex; gap: 4px; }
+.toc-do .nut-nho.dang { background: var(--nhan-mo); border-color: var(--nhan); color: var(--chu); }
+.toc-hang { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.toc-hang input[type=range] { flex: 1; min-width: 120px; accent-color: var(--nhan); }
+.toc-hang input[type=number] { width: 70px; }
+.toc-hang label { display: flex; align-items: center; gap: 6px; }
+.toc-chip { display: flex; gap: 4px; flex-wrap: wrap; }
+.toc-svg { width: 100%; display: block; background: var(--nen); border: 1px solid var(--vien); border-radius: 6px; touch-action: none; cursor: crosshair; }
+.toc-luoi { stroke: var(--vien); stroke-width: 1; }
+.toc-1x { stroke: var(--vien-sang); stroke-width: 1; stroke-dasharray: 4 3; }
+.toc-nhan { fill: var(--chu-2); font-size: 10px; font-family: var(--font-so); }
+.toc-nen { fill: var(--nhan-mo); }
+.toc-duong { fill: none; stroke: var(--nhan-sang); stroke-width: 2; }
+.toc-dau-phat { stroke: var(--cam); stroke-width: 1; }
+.toc-diem-tron { fill: var(--nen-2); stroke: var(--nhan-sang); stroke-width: 2; cursor: grab; }
+.toc-diem-tron.chon { fill: var(--nhan); }
+.toc-dai { color: var(--chu-3); font-size: 11.5px; }
