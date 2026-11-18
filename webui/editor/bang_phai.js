@@ -10,7 +10,7 @@ import { KIEU_CHE } from './bang_che.js';
 import { CAC_KIEU as KIEU_CC } from './bang_chuyen_canh.js';
 import { htmlTocDo, ganTocDo } from './bang_toc_do.js';
 
-const TAB = [['video', 'Video'], ['am_thanh', 'Âm thanh'], ['hieu_ung', 'Hiệu ứng']];
+const TAB = [['video', 'Video'], ['am_thanh', 'Âm thanh'], ['toc_do', 'Tốc độ'], ['hieu_ung', 'Hiệu ứng']];
 const EQ_MAU = {
     giong_ro: ['Giọng nói rõ', { thap: -3, trung: 3, cao: 2 }],
     podcast: ['Podcast', { thap: -2, trung: 2, cao: 3, giam_on: 30 }],
@@ -439,7 +439,7 @@ export class BangPhai {
                     ['Track', clip.track], ['Bắt đầu', fmtThoiGian(clip.bat_dau, true, fps)],
                     ['Kết thúc', fmtThoiGian(ketThucClip(clip), true, fps)],
                     ['Đoạn trong media', `${fmtThoiGian(clip.vao, true, fps)} → ${fmtThoiGian(clip.ra, true, fps)}`],
-                ]) + htmlTocDo(ctx, clip))
+                ]))
                     + this._muc('bien_doi', 'Biến đổi', `<div class="o-form">
                         <div class="goi-y-kf">◇ = keyframe (chuyển động/đổi dần): đặt đầu phát → bấm ◇ để ghim giá trị → sang
                             thời điểm khác đổi giá trị là tự thêm keyframe. ◆ = có keyframe ở đây (bấm để xoá).</div>
@@ -466,6 +466,10 @@ export class BangPhai {
                             <option value="lighten" ${ht.hoa_tron === 'lighten' ? 'selected' : ''}>Lighten</option>
                         </select></label>
                     </div>`);
+            } else if (tab === 'toc_do') {
+                than = m && m.loai === 'anh'
+                    ? '<div class="sap-co">Ảnh tĩnh không có tốc độ — kéo mép clip để đổi thời lượng.</div>'
+                    : htmlTocDo(ctx, clip);
             } else if (tab === 'am_thanh') {
                 const pc = (x) => Math.round((x || 0) * 100);
                 const tCucBo = this.ctx.ui.dau_phat - (clip.bat_dau || 0);

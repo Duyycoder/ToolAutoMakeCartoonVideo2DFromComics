@@ -1103,6 +1103,7 @@ export class Timeline {
                 const c = this.tl.clips.find(x => x.id === cid);
                 this.ctx.sua('Tiếng', [tao.dat(this.tl, ['clips', { id: cid }, 'tat_am'], !c.tat_am)]);
             }
+            if (l.dataset.l === 'toc-chinh') { this.chonClip(cid); this.ctx.bus.emit('mo_thuoc_tinh', 'toc_do'); }
             if (l.dataset.l === 'toc') this.ctx.sua('Tốc độ', opsDatTocDo(this.tl, this.tl.clips.find((x) => x.id === cid), Number(l.dataset.v)));
         });
         setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);

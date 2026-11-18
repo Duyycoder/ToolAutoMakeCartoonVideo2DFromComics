@@ -942,6 +942,7 @@ export function cacMucMenuClip(tl, mediaDict, cid, dangChonTuDanhSach, coBoNhoTa
     
     if (c && !c.loai && m && m.loai !== 'anh') {
         muc.push({ separator: true });
+        muc.push({ id: 'toc-chinh', text: '⏩ Chỉnh tốc độ… (thanh trượt / đồ thị)' });
         muc.push({ id: 'toc', v: 0.5, text: 'Tốc độ 0.5×' });
         muc.push({ id: 'toc', v: 1, text: 'Tốc độ 1×' });
         muc.push({ id: 'toc', v: 1.5, text: 'Tốc độ 1.5×' });
