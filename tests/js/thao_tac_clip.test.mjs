@@ -155,3 +155,55 @@ test('đánh dấu theo nhịp: dấu đặt theo giờ timeline của clip, tha
     s.thucHien('Xoá', opsXoaDauNhip(s.timeline));
     assert.deepEqual(s.timeline.danh_dau.map((d) => d.id), ['dd_3']);
 });
+
+test('slip trượt đoạn nguồn trong clip, roll dời điểm nối giữa hai clip — tổng độ dài không đổi', async () => {
+    const { opsSlip, opsRoll } = await import('../../webui/editor/thao_tac_clip.js');
+    const media = { m1: { loai: 'video', thoi_luong: 10 }, m2: { loai: 'video', thoi_luong: 8 }, anh: { loai: 'anh' } };
+    const tl = () => ({ tracks: [{ id: 'V1', loai: 'video' }], clips: [
+        { id: 'a', track: 'V1', media: 'm1', bat_dau: 0, vao: 2, ra: 6, toc_do: 1 },          // 0 → 4, nguồn còn 4 s phía sau
+        { id: 'b', track: 'V1', media: 'm2', bat_dau: 4, vao: 1, ra: 5, toc_do: 2 },          // 4 → 6, tốc 2×
+        { id: 'c', track: 'V1', media: 'anh', bat_dau: 6, vao: 0, ra: 5, toc_do: 1 },         // ảnh 6 → 11
+    ] });
+    let s = new Store(tl());
+    s.thucHien('Slip', opsSlip(s.timeline, s.timeline.clips[0], 1.5, media));               // kéo phải 1,5 s → nguồn sớm hơn
+    assert.deepEqual([s.timeline.clips[0].vao, s.timeline.clips[0].ra, s.timeline.clips[0].bat_dau], [0.5, 4.5, 0]);
+    assert.deepEqual(opsSlip(s.timeline, s.timeline.clips[0], -99, media).map((o) => o.moi), [6, 10], 'chặn ở cuối nguồn');
+    assert.deepEqual(opsSlip(s.timeline, s.timeline.clips[2], 1, media), [], 'ảnh tĩnh không slip');
+
+    s = new Store(tl());
+    let kq = opsRoll(s.timeline, s.timeline.clips[0], 'phai', 1, media);                     // điểm nối a|b dời phải 1 s
+    s.thucHien('Roll', kq.ops);
+    const [a, b, c] = s.timeline.clips;
+    assert.deepEqual([a.ra, b.bat_dau, b.vao, b.ra, ketThucClip(b)], [7, 5, 3, 5, 6]);
+    kq = opsRoll(s.timeline, b, 'trai', -99, media);                                         // kéo trái hết cỡ: b chỉ còn 3 s nguồn phía trước (tốc 2× → 1,5 s)
+    assert.equal(kq.d, -1.5);
+    kq = opsRoll(s.timeline, b, 'phai', 2, media);                                           // điểm nối b|ảnh: b hết nguồn sau 1,5 s
+    assert.equal(kq.d, 1.5);
+    s.thucHien('Roll', kq.ops);
+    assert.deepEqual([b.ra, c.bat_dau, c.vao, c.ra, ketThucClip(c)], [8, 7.5, 0, 3.5, 11]);
+    assert.equal(opsRoll(s.timeline, a, 'trai', 1, media), null, 'không có clip kề bên trái');
+});
+
+test('gộp clip: các clip chọn được thay bằng một clip tại thời điểm sớm nhất, chuyển cảnh dính tới chúng được gỡ', async () => {
+    const { opsGopClip } = await import('../../webui/editor/thao_tac_clip.js');
+    const tl = { tracks: [{ id: 'V2', loai: 'video' }, { id: 'V1', loai: 'video' }, { id: 'A1', loai: 'audio' }],
+        chuyen_canh: [{ id: 'x1', truoc: 'a', sau: 'b' }, { id: 'x2', truoc: 'c', sau: 'd' }], clips: [
+            { id: 'a', track: 'V1', media: 'm1', bat_dau: 2, vao: 0, ra: 3, toc_do: 1 },
+            { id: 'b', track: 'V1', media: 'm2', bat_dau: 5, vao: 0, ra: 3, toc_do: 1 },
+            { id: 'p', track: 'V2', media: 'm3', bat_dau: 3, vao: 0, ra: 2, toc_do: 1 },
+            { id: 'c', track: 'V1', media: 'm4', bat_dau: 8, vao: 0, ra: 2, toc_do: 1 },
+            { id: 'd', track: 'V1', media: 'm5', bat_dau: 10, vao: 0, ra: 2, toc_do: 1 }] };
+    const s = new Store(tl);
+    const kq = opsGopClip(s.timeline, ['a', 'b', 'p'], { id: 'm_gop', loai: 'video', thoi_luong: 6 });
+    s.thucHien('Gộp', kq.ops);
+    assert.deepEqual(s.timeline.clips.map((c) => [c.id, c.track, c.media, c.bat_dau, c.ra]),
+        [['c', 'V1', 'm4', 8, 2], ['d', 'V1', 'm5', 10, 2], [kq.id, 'V1', 'm_gop', 2, 6]]);
+    assert.deepEqual(s.timeline.chuyen_canh.map((x) => x.id), ['x2']);
+    s.hoanTacMot();
+    assert.deepEqual(s.timeline.clips.map((c) => c.id), ['a', 'b', 'p', 'c', 'd']);
+    assert.equal(s.timeline.chuyen_canh.length, 2);
+    // Dòng gốc bị clip khác chiếm chỗ → thêm dòng mới.
+    const kq2 = opsGopClip(s.timeline, ['a', 'b'], { id: 'm_gop', loai: 'video', thoi_luong: 9 });
+    assert.equal(kq2.ops.some((o) => o.path[0] === 'tracks'), true);
+    assert.equal(opsGopClip(s.timeline, ['khong_co'], { id: 'm', thoi_luong: 1 }), null);
+});

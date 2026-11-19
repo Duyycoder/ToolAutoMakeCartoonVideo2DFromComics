@@ -509,6 +509,19 @@ def test_tua_nguoc_video_thanh_media_moi_va_dung_lai_file(ws):
     assert ws.get(f"/api/du-an/{pid}/media/{anh.json()['id']}/file").content[1:4] == b"PNG"
     assert ws.post(f"/api/du-an/{pid}/media/{m['id']}/khung-dung", json={"phien": phien, "t": 2.0}).status_code == 200
     assert ws.post(f"/api/du-an/{pid}/media/{anh.json()['id']}/khung-dung", json={"phien": phien, "t": 0}).status_code == 400
+    # Chống rung chạy nền: POST trả khoá việc, hỏi /viec-nen tới khi xong → media mới.
+    import time
+    v = ws.post(f"/api/du-an/{pid}/media/{m['id']}/chong-rung", json={"phien": phien, "vao": 0, "ra": 1.5, "manh": 40}).json()
+    assert v["trang_thai"] in ("dang", "xong") and v["khoa"].startswith(pid + ":cr:")
+    for _ in range(200):
+        if v["trang_thai"] != "dang":
+            break
+        time.sleep(0.1)
+        v = ws.get(f"/api/du-an/{pid}/viec-nen", params={"khoa": v["khoa"]}).json()
+    assert v["trang_thai"] == "xong", v
+    _cho_media(ws)
+    assert v["media"]["loai"] == "video" and "chống rung 0.00-1.50 m40" in v["media"]["file"] and v["media"]["tu_media"] == m["id"]
+    assert ws.get(f"/api/du-an/{pid}/viec-nen", params={"khoa": "khac:cr:x"}).status_code == 404
 
 
 def test_tai_ve_ban_xuat(ws):
@@ -608,3 +621,37 @@ def test_xuat_goi_du_an_roi_nhap_thanh_du_an_moi(ws):
     ws.put(f"/api/du-an/nhap-goi/{uid}?vi_tri=0", content=b.getvalue())
     assert ws.post(f"/api/du-an/nhap-goi/{uid}/xong", json={}).status_code == 400
     assert len(ws.get("/api/workspace").json()["du_an"]) == 2
+
+
+@pytest.mark.skipif(not media.ffmpeg_exe(), reason="cần ffmpeg")
+def test_gop_clip_dung_cac_clip_da_chon_thanh_media_moi(ws):
+    import subprocess
+    import time
+    v_goc = ws.tmp / "clip.mp4"
+    subprocess.run([media.ffmpeg_exe(), "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc=s=64x48:d=4",
+                    "-f", "lavfi", "-i", "sine=d=4", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+                    "-shortest", str(v_goc)], check=True)
+    pid = _tao(ws)["id"]
+    phien = ws.get(f"/api/du-an/{pid}").json()["khoa"]["phien"]
+    m = _tai_len(ws, pid, phien, "canh.mp4", v_goc.read_bytes())
+    tl = luu_tru.timeline_rong()
+    tl["clips"] += [{"id": "c1", "track": "V1", "media": m["id"], "vao": 0, "ra": 1, "bat_dau": 5, "toc_do": 1},
+                    {"id": "c2", "track": "V1", "media": m["id"], "vao": 2, "ra": 3, "bat_dau": 6, "toc_do": 1},
+                    {"id": "c3", "track": "V1", "media": m["id"], "vao": 0, "ra": 4, "bat_dau": 20, "toc_do": 1}]
+    assert ws.put(f"/api/du-an/{pid}/timeline", json={"phien": phien, "phien_ban": 0, "timeline": tl}).status_code == 200
+    assert ws.post(f"/api/du-an/{pid}/gop-clip", json={"phien": phien, "ids": ["khong_co"]}).status_code == 400
+    v = ws.post(f"/api/du-an/{pid}/gop-clip", json={"phien": phien, "ids": ["c1", "c2"]}).json()
+    assert v["bat_dau"] == 5 and v["khoa"].startswith(pid + ":gop:")
+    for _ in range(300):
+        if v["trang_thai"] != "dang":
+            break
+        time.sleep(0.1)
+        v = ws.get(f"/api/du-an/{pid}/viec-nen", params={"khoa": v["khoa"]}).json()
+    assert v["trang_thai"] == "xong", v
+    _cho_media(ws)
+    assert v["media"]["loai"] == "video" and v["media"]["file"] == "media/Gộp 2 clip.mp4"
+    folder = ws.get(f"/api/du-an/{pid}").json()["du_an"]["folder"]
+    res = subprocess.run([media.ffmpeg_exe(), "-hide_banner", "-i", os.path.join(folder, v["media"]["file"])],
+                         capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert abs(media.phan_tich(res.stderr).get("thoi_luong", 0) - 2.0) < 0.2            # hai clip 1 s nối nhau (đo thật)
+    assert not os.path.isdir(luu_tru._p(folder, luu_tru.CACHE, "gop", v["khoa"].split(":")[-1]))   # thư mục làm việc đã dọn

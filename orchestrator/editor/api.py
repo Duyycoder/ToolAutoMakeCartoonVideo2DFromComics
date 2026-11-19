@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from orchestrator.config import load_global_config, save_global_config
-from orchestrator.editor import (ai_bridge, chuan_hoa_file, dao_nguoc, goi_du_an, hang_doi, khoang_lang, nhip, luu_tru, mau_nang_cao, media, nuong, render,
+from orchestrator.editor import (ai_bridge, chong_rung, chuan_hoa_file, dao_nguoc, goi_du_an, gop_clip, hang_doi, khoang_lang, nhip, luu_tru, mau_nang_cao, media, nuong, render,
                                  srt, tai_len, thu_vien_am, workspace, xuat_tu_xa)
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -70,6 +70,12 @@ class KhoangLangSchema(BaseModel):
     ra: float = 0
     nguong_db: float = -35
     toi_thieu: float = 0.6
+
+class ChongRungSchema(DaoNguocSchema):
+    manh: int = 50
+
+class GopClipSchema(PhienSchema):
+    ids: List[str] = []
 
 class KhungDungSchema(PhienSchema):
     t: float = 0
@@ -856,6 +862,98 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
             except (RuntimeError, OSError, subprocess.SubprocessError) as e:
                 raise HTTPException(status_code=500, detail=str(e))
         return qlm.dang_ky_file(folder, pid, dich, tu_media=mid)
+
+    # Việc nền sinh media mới (chống rung, gộp clip…): chạy ở luồng riêng vì có thể lâu hơn giới hạn 100 giây của proxy.
+    viec_nen: Dict[str, Dict[str, Any]] = {}          # khoá → {khoa, trang_thai: dang|xong|loi, loi, media}
+
+    def chay_nen(khoa: str, ham) -> Dict[str, Any]:
+        v = viec_nen.get(khoa)
+        if v and v["trang_thai"] == "dang":
+            return v
+        v = {"khoa": khoa, "trang_thai": "dang", "loi": "", "media": None}
+        viec_nen[khoa] = v
+
+        def lam():
+            try:
+                v["media"] = ham()
+                v["trang_thai"] = "xong"
+            except Exception as e:                    # luồng nền: mọi lỗi phải tới được giao diện
+                v.update(trang_thai="loi", loi=str(e))
+        threading.Thread(target=lam, daemon=True).start()
+        return v
+
+    @r.get("/api/du-an/{pid}/viec-nen")
+    def background_job(pid: str, khoa: str):
+        v = viec_nen.get(khoa)
+        if not v or not khoa.startswith(pid + ":"):
+            raise HTTPException(status_code=404, detail="Không có việc này (server đã khởi động lại?) — bấm lại.")
+        return v
+
+    @r.post("/api/du-an/{pid}/gop-clip")
+    def merge_clips(pid: str, body: GopClipSchema):
+        """Dựng riêng các clip `ids` (đọc timeline TRÊN ĐĨA) thành một file media mới — chạy nền, hỏi ở /viec-nen.
+        Trả thêm `bat_dau`: thời điểm trên timeline của clip sớm nhất, để giao diện đặt clip gộp vào đúng chỗ."""
+        import uuid
+        folder = folder_cua(pid)
+        khoa_ghi(folder, body.phien)
+        ff = media.ffmpeg_exe()
+        if not ff:
+            raise HTTPException(status_code=500, detail="Không tìm thấy ffmpeg.")
+        du_an = luu_tru.doc_duan(folder) or {}
+        tl, _ = luu_tru.doc_timeline(folder)
+        try:
+            con, t0, co_hinh = gop_clip.tl_con(tl, body.ids)
+            so = sum(1 for c in con["clips"] if not c.get("loai"))
+            dich = os.path.join(folder, luu_tru.MEDIA_DIR,
+                                media.ten_dich(folder, f"Gộp {so} clip{'.mp4' if co_hinh else '.m4a'}", set()))
+            kq = render.dung_lenh_xuat(folder, du_an, con, {"crf": 16, "bo_ma_hoa": "x264", "chi_am_thanh": not co_hinh},
+                                       dich, ff, co_ass=False)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        ma = uuid.uuid4().hex[:10]
+
+        def lam():
+            thu_muc = luu_tru._p(folder, luu_tru.CACHE, "gop", ma)
+            os.makedirs(thu_muc, exist_ok=True)
+            try:
+                with open(os.path.join(thu_muc, "loc.txt"), "w", encoding="utf-8") as fh:
+                    fh.write(kq["loc"])
+                ghi_tep_phu(thu_muc, kq)
+                res = subprocess.run(kq["cmd"], cwd=thu_muc, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                                     encoding="utf-8", errors="replace", timeout=7200, creationflags=NO_WINDOW)
+                if res.returncode != 0 or not os.path.isfile(dich):
+                    if os.path.exists(dich):
+                        os.remove(dich)
+                    raise RuntimeError("ffmpeg lỗi khi gộp: " + (res.stderr or "").strip()[-300:])
+            finally:
+                import shutil
+                shutil.rmtree(thu_muc, ignore_errors=True)
+            return qlm.dang_ky_file(folder, pid, dich)
+        v = chay_nen(f"{pid}:gop:{ma}", lam)
+        v["bat_dau"] = t0
+        return v
+
+    @r.post("/api/du-an/{pid}/media/{mid}/chong-rung")
+    def stabilize_video(pid: str, mid: str, body: ChongRungSchema):
+        """Chống rung đoạn [vao, ra] của video → media video mới. Chạy nền: hỏi kết quả ở /viec-nen?khoa=…"""
+        folder, m, path = media_path(pid, mid)
+        khoa_ghi(folder, body.phien)
+        if m.get("loai") != "video":
+            raise HTTPException(status_code=400, detail="Chỉ chống rung được clip video.")
+        ff = media.ffmpeg_exe()
+        if not ff or not os.path.isfile(path):
+            raise HTTPException(status_code=500, detail="Thiếu ffmpeg hoặc file video gốc.")
+        vao, ra = max(0.0, float(body.vao)), min(float(body.ra), float(m.get("thoi_luong") or body.ra))
+        manh = max(1, min(100, int(body.manh)))
+        if not 0 <= vao < ra or ra - vao > chong_rung.DAI_TOI_DA:
+            raise HTTPException(status_code=400, detail="Đoạn chống rung không hợp lệ hoặc dài quá 30 phút.")
+        dich = os.path.join(folder, luu_tru.MEDIA_DIR, f"{m.get('ten') or mid} (chống rung {vao:.2f}-{ra:.2f} m{manh}).mp4")
+
+        def lam():
+            if not os.path.isfile(dich):
+                chong_rung.tao(ff, path, dich, vao, ra, m.get("co_am_thanh") is not False, manh)
+            return qlm.dang_ky_file(folder, pid, dich, tu_media=mid)
+        return chay_nen(f"{pid}:cr:{mid}:{vao:.2f}:{ra:.2f}:{manh}", lam)
 
     @r.post("/api/du-an/{pid}/media/{mid}/khoang-lang")
     def find_silence(pid: str, mid: str, body: KhoangLangSchema):

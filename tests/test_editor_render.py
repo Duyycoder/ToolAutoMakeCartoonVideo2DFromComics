@@ -1274,3 +1274,20 @@ def test_xuat_that_anh_png_trong_suot_lam_sticker(media_mau):
     k = _doc_khung(exe, ra, 1, 320, 180)                           # sticker 200×200 co vừa khung cao 180 → 180×180 ở giữa
     assert k[90, 160][1] > 180 and k[90, 160][0] < 80, f"giữa sticker: xanh lá {k[90, 160]}"
     assert k[90, 85][0] > 180 and k[90, 85][1] < 80, f"viền trong suốt của sticker: lộ nền đỏ {k[90, 85]}"
+
+
+def test_xuat_that_lop_dieu_chinh_chi_ap_trong_khoang_cua_no(media_mau):
+    """Lớp điều chỉnh (đen trắng) trên track phủ: trong khoảng 1–2 s hình mất màu, ngoài khoảng đó giữ nguyên màu đỏ."""
+    goc, exe = media_mau
+    tl = {"tracks": [{"id": "O1", "loai": "lop_phu"}, {"id": "V1", "loai": "video"}], "kieu_phu_de": {}, "clips": [
+        {"id": "c1", "track": "V1", "media": "m_do", "bat_dau": 0, "vao": 0, "ra": 3, "toc_do": 1},
+        {"id": "dc", "track": "O1", "loai": "dieu_chinh", "bat_dau": 1, "ket_thuc": 2, "mau": {},
+         "hieu_ung": [{"id": "h1", "loai": "grayscale", "do_manh": 100, "bat": True}]}]}
+    ra, kq = _xuat_va_kiem(exe, goc, _da(), tl)
+    assert "overlay=enable='between(t" in kq["loc"]
+    truoc, giua, sau = (_doc_khung(exe, ra, t, 320, 180)[90, 160] for t in (0.5, 1.5, 2.5))
+    assert truoc[0] > 180 and truoc[1] < 60 and sau[0] > 180 and sau[1] < 60, f"ngoài khoảng vẫn đỏ: {truoc} {sau}"
+    assert abs(int(giua[0]) - int(giua[1])) < 25 and abs(int(giua[1]) - int(giua[2])) < 25, f"trong khoảng phải xám: {giua}"
+    # Lớp điều chỉnh rỗng (chưa chỉnh gì) thì không thêm bộ lọc nào.
+    tl["clips"][1]["hieu_ung"] = []
+    assert "dcb" not in render.dung_lenh_xuat(str(goc), _da(), tl, {}, "ra.mp4", exe)["loc"]

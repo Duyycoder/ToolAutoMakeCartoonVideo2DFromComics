@@ -3,6 +3,7 @@
    · cải thiện hình ảnh (làm nét, khử nhiễu). Mọi thứ lưu trong clip.mau; kéo thanh trượt gộp thành một bước hoàn tác. */
 import { esc, toast } from './chung.js';
 import { tao } from './store.js';
+import { opsThemLopPhu } from './bang_chu.js';
 import { BoLoc } from './dc_bo_loc.js';
 import { DuongCong } from './dc_duong_cong.js';
 import { ChinhHsl } from './dc_hsl.js';
@@ -29,7 +30,13 @@ export class BangDieuChinh {
         this.dong = new Set(['cong', 'hsl']);
         this.el = document.createElement('div');
         this.el.style.cssText = 'display:flex;flex-direction:column;min-height:0;height:100%';
-        this.el.innerHTML = `<div class="bang-dau"><h2>Điều chỉnh màu</h2></div><div class="bang-noi" data-khu="noi"></div>`;
+        this.el.innerHTML = `<div class="bang-dau"><h2>Điều chỉnh màu</h2>
+            <button class="nut nut-nho" data-l="them-lop-dc" title="Thêm một lớp điều chỉnh tại đầu phát: màu và hiệu ứng của lớp này áp lên MỌI hình bên dưới trong khoảng thời gian của nó">＋ Lớp điều chỉnh</button></div><div class="bang-noi" data-khu="noi"></div>`;
+        this.el.querySelector('[data-l=them-lop-dc]').addEventListener('click', () => {
+            const { ops, clip } = opsThemLopPhu(this.tl, this.ctx.ui.dau_phat || 0, 5,
+                (id, tr, bd, dai) => ({ id, track: tr, loai: 'dieu_chinh', bat_dau: bd, ket_thuc: Math.round((bd + dai) * 1000) / 1000, mau: {}, hieu_ung: [] }));
+            if (this.ctx.sua('Thêm lớp điều chỉnh', ops)) { this.ctx.timeline.chonClip(clip.id); toast('Đã thêm lớp điều chỉnh — chỉnh màu ở đây hoặc thêm hiệu ứng ở bảng Hiệu ứng.', 'success', 4000); }
+        });
         this.noi = this.el.querySelector('[data-khu=noi]');
         this.boLoc = new BoLoc(ctx, (p, nhan, gop) => this.datMau(p, nhan, gop));
         this.cong = new DuongCong((kenh, diem, xong) => {
@@ -79,7 +86,7 @@ export class BangDieuChinh {
     _clipChon() {
         if (this.ctx.ui.dang_chon.length !== 1) return null;
         const c = this.tl.clips.find((x) => x.id === this.ctx.ui.dang_chon[0]);
-        return c && c.media && c.loai !== 'che_phu_de' ? c : null;
+        return c && (c.loai === 'dieu_chinh' || (c.media && c.loai !== 'che_phu_de')) ? c : null;
     }
 
     _thanh(t, v) {
@@ -91,7 +98,7 @@ export class BangDieuChinh {
     ve() {
         const c = this._clipChon();
         if (!c) {
-            this.noi.innerHTML = `<div class="goi-y">Chọn một clip video/ảnh trên timeline để điều chỉnh màu.</div>`;
+            this.noi.innerHTML = `<div class="goi-y">Chọn một clip video/ảnh trên timeline để điều chỉnh màu, hoặc bấm ＋ Lớp điều chỉnh để chỉnh màu cho mọi clip trong một khoảng thời gian.</div>`;
             return;
         }
         const mau = c.mau || {};

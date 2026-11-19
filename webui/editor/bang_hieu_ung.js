@@ -44,7 +44,7 @@ export class BangHieuUng {
     _clipChon() {
         if (this.ctx.ui.dang_chon.length !== 1) return null;
         const c = this.tl.clips.find(x => x.id === this.ctx.ui.dang_chon[0]);
-        if (c && c.media && c.loai !== 'che_phu_de') return c;
+        if (c && (c.loai === 'dieu_chinh' || (c.media && c.loai !== 'che_phu_de'))) return c;
         return null;
     }
 

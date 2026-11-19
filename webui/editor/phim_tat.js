@@ -19,6 +19,8 @@ const NHOM = [
     ]],
     ['Chuột', [
         ['Chuột phải vào clip', 'Menu clip: tua ngược, đóng băng khung hình, chuyển động, tốc độ, tách âm…'],
+        ['Alt + kéo thân clip', 'Slip: trượt đoạn nguồn bên trong, clip đứng yên'],
+        ['Alt + kéo mép clip', 'Roll: dời điểm nối với clip nằm sát bên'],
         ['Alt + bấm 🔊 của dòng', 'Solo: chỉ nghe dòng đó (bấm lại để bật tiếng mọi dòng)'],
         ['Kéo file từ máy vào cửa sổ', 'Tải file lên dự án'],
     ]],

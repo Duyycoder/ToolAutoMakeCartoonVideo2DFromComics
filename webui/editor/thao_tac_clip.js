@@ -234,3 +234,76 @@ export function opsHieuUngClip(tl, c, vao, ra, dai = 0.5) {
     return [tao.dat(tl, p('keyframes'), kf), tao.dat(tl, p('hu_vao'), vao || undefined), tao.dat(tl, p('hu_ra'), ra || undefined),
         tao.dat(tl, p('hu_dai'), vao || ra ? dai : undefined)];
 }
+
+/* ------------------------------------------------------------ Slip / Roll (Alt + kéo trên timeline)
+   Slip: giữ nguyên chỗ và độ dài clip trên timeline, chỉ trượt ĐOẠN NGUỒN bên trong (kéo phải = lấy phần sớm hơn).
+   Roll: dời điểm nối giữa hai clip liền nhau — clip này dài ra bao nhiêu thì clip kia ngắn lại bấy nhiêu, tổng không đổi.
+   Cả hai không áp cho clip có đồ thị tốc độ. `media` = {id: media} để biết độ dài nguồn / ảnh tĩnh. */
+const laAnh = (media, c) => (media[c.media] || {}).loai === 'anh';
+const daiNguon = (media, c) => Number((media[c.media] || {}).thoi_luong) || Infinity;
+const thuong = (c) => c && !c.loai && !c.toc_do_cong && c.ket_thuc == null;
+
+export function opsSlip(tl, c, dt, media) {
+    if (!thuong(c) || laAnh(media, c)) return [];
+    const toc = Number(c.toc_do) || 1, vao = Number(c.vao || 0), L = Number(c.ra || 0) - vao;
+    const moi = tron(Math.min(Math.max(0, vao - dt * toc), Math.max(0, daiNguon(media, c) - L)));
+    if (Math.abs(moi - vao) < 1e-4) return [];
+    const p = (k) => ['clips', { id: c.id }, k];
+    return [tao.dat(tl, p('vao'), moi), tao.dat(tl, p('ra'), tron(moi + L))];
+}
+
+/* Clip nằm sát mép `phia` ('trai' | 'phai') của c trên cùng track. */
+export function clipKe(tl, c, phia) {
+    const moc = phia === 'phai' ? ketThucClip(c) : Number(c.bat_dau || 0);
+    return (tl.clips || []).find((x) => x.id !== c.id && x.track === c.track && !x.loai
+        && Math.abs((phia === 'phai' ? Number(x.bat_dau || 0) : ketThucClip(x)) - moc) < 0.02) || null;
+}
+
+/* → {ops, d} (d = độ dời thật của điểm nối sau khi chặn theo nguồn còn lại và độ dài tối thiểu) | null nếu không roll được. */
+export function opsRoll(tl, c, phia, dt, media, minDai = 0.04) {
+    const ke = clipKe(tl, c, phia);
+    const [a, b] = phia === 'phai' ? [c, ke] : [ke, c];              // a bên trái điểm nối, b bên phải
+    if (!thuong(a) || !thuong(b)) return null;
+    const ta = Number(a.toc_do) || 1, tb = Number(b.toc_do) || 1;
+    const da = ketThucClip(a) - Number(a.bat_dau || 0), db = ketThucClip(b) - Number(b.bat_dau || 0);
+    const lo = Math.max(-(da - minDai), laAnh(media, b) ? -Infinity : -Number(b.vao || 0) / tb);
+    const hi = Math.min(db - minDai, laAnh(media, a) ? Infinity : (daiNguon(media, a) - Number(a.ra || 0)) / ta);
+    const d = tron(Math.min(Math.max(dt, lo), hi));
+    if (Math.abs(d) < 1e-4) return { ops: [], d: 0 };
+    const p = (x, k) => ['clips', { id: x.id }, k];
+    const ops = [tao.dat(tl, p(a, 'ra'), tron(Number(a.ra || 0) + d * ta)), tao.dat(tl, p(b, 'bat_dau'), tron(Number(b.bat_dau || 0) + d))];
+    ops.push(laAnh(media, b) ? tao.dat(tl, p(b, 'ra'), tron(Number(b.ra || 0) - d * tb)) : tao.dat(tl, p(b, 'vao'), tron(Number(b.vao || 0) + d * tb)));
+    return { ops, d };
+}
+
+/* Gộp clip (compound): các clip media `ids` được thay bằng MỘT clip dùng media `mMoi` (server đã dựng sẵn từ chính chúng),
+   đặt tại thời điểm của clip sớm nhất. Chọn dòng: dòng của một clip vừa gộp mà còn trống đúng khoảng đó (ưu tiên dòng video
+   dưới cùng), không có thì thêm dòng mới. Chuyển cảnh dính tới clip bị gộp được gỡ. Trả {ops, id} | null. */
+export function opsGopClip(tl, ids, mMoi) {
+    const chon = new Set(ids);
+    const loai = Object.fromEntries((tl.tracks || []).map((t) => [t.id, t.loai]));
+    const cac = (tl.clips || []).filter((c) => chon.has(c.id) && !c.loai && c.media && (loai[c.track] === 'video' || loai[c.track] === 'audio'));
+    const D = Number(mMoi.thoi_luong) || 0;
+    if (!cac.length || !D) return null;
+    const t0 = tron(Math.min(...cac.map((c) => Number(c.bat_dau || 0))));
+    const nhap = JSON.parse(JSON.stringify(tl));
+    const ops = [];
+    const lam = (op) => { apOp(nhap, op); ops.push(op); };
+    const bo = new Set(cac.map((c) => c.id));
+    const cc = (nhap.chuyen_canh || []).filter((x) => !bo.has(x.truoc) && !bo.has(x.sau));
+    if (cc.length !== (nhap.chuyen_canh || []).length) lam(tao.dat(nhap, ['chuyen_canh'], cc));
+    nhap.clips.map((c, i) => [c, i]).filter(([c]) => bo.has(c.id)).reverse()
+        .forEach(([c, i]) => lam({ op: 'xoa', path: ['clips'], vi_tri: i, gia_tri: JSON.parse(JSON.stringify(c)) }));
+    const canLoai = mMoi.loai === 'audio' ? 'audio' : 'video';
+    const thuTu = (nhap.tracks || []).filter((t) => t.loai === canLoai && !t.khoa && cac.some((c) => c.track === t.id));
+    if (canLoai === 'video') thuTu.reverse();                                  // dòng video dưới cùng trước
+    let tr = thuTu.find((t) => !chongClip(nhap, t.id, t0, t0 + D));
+    if (!tr) {
+        const moi = opsThemTrack(nhap, canLoai);
+        moi.ops.forEach(lam);
+        tr = { id: moi.id };
+    }
+    const id = idClipMoi(nhap);
+    lam(tao.them(nhap, ['clips'], clipMediaMoi(id, tr.id, mMoi.id, t0, D)));
+    return { ops, id };
+}

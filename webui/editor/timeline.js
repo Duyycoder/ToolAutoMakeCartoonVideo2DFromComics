@@ -5,13 +5,13 @@
  * Khi kéo chỉ đổi style DOM; thả tay mới ghi lệnh vào store (một bước hoàn tác). */
 import { $, esc, toast, fmtThoiGian, api, hoi } from './chung.js';
 import { ganCamUng } from './timeline_cam_ung.js';
-import { opsKenBurns, opsDongBang, opsNoiMuotAm, capNoiMuot, opsCatKhoangLang, opsDanhDauNhip, opsXoaDauNhip, KIEU_KEN_BURNS } from './thao_tac_clip.js';
+import { opsKenBurns, opsDongBang, opsNoiMuotAm, capNoiMuot, opsCatKhoangLang, opsDanhDauNhip, opsXoaDauNhip, opsSlip, opsRoll, clipKe, opsGopClip, KIEU_KEN_BURNS } from './thao_tac_clip.js';
 import { ThuAm } from './thu_am.js';
 import {
     tao, thoiLuong, ketThucClip, thoiDiemMedia, opsDatTocDo, choTrong, idClipMoi, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, clipTai,
     hienThiNeo, bangClipChuaMedia, opsDatGio, opsThemTrack, opsKhepKhoang, opsXoaGon, opsChenGon, opsTiaToiDauPhat, idMoiNhieu,
     moRongNhom, opsTachAm, idNhomMoi, trackVideoTuDuoiLen, opsThemChuyenCanh, opsXoaChuyenCanh, nhanClip, viTriKeyframes,
-    mucMenuChoClip, opsNhanDoi, clipMediaMoi, nhomNeoMoi, opsDaoNguoc, opsBoDaoNguoc, opsThemNhieuMedia, opsSapXepTrack, KIEU_SAP_XEP_TRACK,
+    mucMenuChoClip, opsNhanDoi, clipMediaMoi, nhomNeoMoi, opsDaoNguoc, opsBoDaoNguoc, opsChongRung, opsBoChongRung, opsThemNhieuMedia, opsSapXepTrack, KIEU_SAP_XEP_TRACK,
 } from './store.js';
 
 const LOP = { video: 'v', phu_de: 's', lop_phu: 'o', audio: 'a' };
@@ -494,6 +494,7 @@ export class Timeline {
         if (!(this.ui.dang_chon || []).includes(cid) || e.shiftKey || e.ctrlKey) this.chonClip(cid, e.shiftKey || e.ctrlKey);
         if (tr && tr.khoa) return;
         if (ctx.store.chiDoc) return;
+        if (e.altKey && !c.loai) { this._keoRollSlip(e, el, c); return; }
         const r = el.getBoundingClientRect();
         // Ngón tay: vùng nắm mép rộng hơn (chỉ clip đang chọn — xem timeline_cam_ung.js).
         const mep = e.pointerType === 'touch' ? Math.min(MEP_CHAM, r.width / 3) : MEP;
@@ -582,6 +583,42 @@ export class Timeline {
             if (!ops.length) { this.ve(); return; }
             const ten = kieu === 'doi' ? 'Dời clip' : 'Tỉa clip';
             if (!ctx.sua(ten, ops)) this.ve();
+        };
+        el.addEventListener('pointermove', di);
+        el.addEventListener('pointerup', xong);
+        el.addEventListener('pointercancel', xong);
+    }
+
+    /* Alt + kéo: thân clip = SLIP (trượt đoạn nguồn bên trong, clip đứng yên); mép clip = ROLL (dời điểm nối với clip kề). */
+    _keoRollSlip(e, el, c) {
+        const r = el.getBoundingClientRect();
+        const kieu = e.clientX - r.left < MEP ? 'trai' : r.right - e.clientX < MEP ? 'phai' : 'doi';
+        const media = Object.fromEntries(this.ctx.media.map((m) => [m.id, m]));
+        if (kieu !== 'doi' && !clipKe(this.tl, c, kieu)) { toast('Roll cần một clip nằm sát mép này.', 'info', 2500); return; }
+        if (c.toc_do_cong) { toast('Clip có đồ thị tốc độ không slip/roll được.', 'info', 2500); return; }
+        const t0 = this._t(e.clientX);
+        let ops = [];
+        let n = el.querySelector('.nhan-keo');
+        if (!n) { n = document.createElement('span'); n.className = 'nhan-keo so'; el.appendChild(n); }
+        el.setPointerCapture(e.pointerId);
+        el.classList.add('dang-keo');
+        const di = (ev) => {
+            const dt = this._t(ev.clientX) - t0;
+            if (kieu === 'doi') {
+                ops = opsSlip(this.tl, c, dt, media);
+                n.textContent = ops.length ? `slip: nguồn từ ${Number(ops[0].moi).toFixed(2)}s` : 'slip';
+            } else {
+                const kq = opsRoll(this.tl, c, kieu, dt, media);
+                ops = kq ? kq.ops : [];
+                n.textContent = `roll ${kq && kq.d >= 0 ? '+' : ''}${kq ? kq.d.toFixed(2) : '0.00'}s`;
+            }
+        };
+        const xong = () => {
+            el.removeEventListener('pointermove', di);
+            el.removeEventListener('pointerup', xong);
+            el.removeEventListener('pointercancel', xong);
+            el.classList.remove('dang-keo');
+            if (!ops.length || !this.ctx.sua(kieu === 'doi' ? 'Slip clip' : 'Roll điểm nối', ops)) this.ve();
         };
         el.addEventListener('pointermove', di);
         el.addEventListener('pointerup', xong);
@@ -799,6 +836,60 @@ export class Timeline {
             if (!kq) { toast('Không thấy khoảng lặng nào đủ dài trong clip này.', 'info'); return; }
             if (this.ctx.sua('Tự cắt khoảng lặng', kq.ops)) toast(`Đã cắt ${kq.so} khoảng lặng — ngắn đi ${kq.giam.toFixed(1)} giây.`, 'success', 4000);
         } catch (err) { toast(err.message, 'error'); }
+    }
+
+    /* Chờ một việc nền của server (POST trả {khoa, trang_thai}) chạy xong → media mới. Hỏi lại mỗi 1,5 giây. */
+    async _choViecNen(v) {
+        while (v.trang_thai === 'dang') {
+            await new Promise((r) => setTimeout(r, 1500));
+            v = await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/viec-nen?khoa=${encodeURIComponent(v.khoa)}`);
+        }
+        if (v.trang_thai !== 'xong') throw new Error(v.loi || 'Việc nền thất bại.');
+        if (!this.ctx.media.find((x) => x.id === v.media.id)) this.ctx.media.push(v.media);
+        this.ctx.bus.emit('media_can_tai');
+        return v.media;
+    }
+
+    /* Gộp các clip đang chọn thành một clip: server dựng riêng chúng thành một file, rồi thay chúng bằng clip dùng file đó. */
+    async gopClip(ids) {
+        const tb = toast('Đang gộp clip… (server dựng các clip đã chọn thành một file)', 'info', 3600000);
+        try {
+            await this.ctx.boLuu.flush();            // server đọc timeline TRÊN ĐĨA — phải lưu hết trước
+            const dau = JSON.stringify(ids.map((id) => this.tl.clips.find((x) => x.id === id)));
+            const m = await this._choViecNen(await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/gop-clip`,
+                { method: 'POST', body: { phien: this.ctx.boLuu.phien, ids } }));
+            if (JSON.stringify(ids.map((id) => this.tl.clips.find((x) => x.id === id))) !== dau) {
+                toast('Các clip đã đổi trong lúc gộp — file gộp vẫn nằm ở bảng Media, bấm Gộp lại nếu cần.', 'warn', 6000);
+                return;
+            }
+            const kq = opsGopClip(this.tl, ids, m);
+            if (kq && this.ctx.sua('Gộp clip', kq.ops)) {
+                this.chonClip(kq.id);
+                toast('Đã gộp. Muốn sửa lại bên trong thì hoàn tác (Ctrl+Z).', 'success', 4000);
+            }
+        } catch (err) { toast(err.message, 'error'); } finally { tb.remove(); }
+    }
+
+    /* Chống rung / bỏ chống rung một clip video (server dựng file đã ổn định cho đúng đoạn clip đang dùng). */
+    async chongRung(cid) {
+        const c = this.tl.clips.find((x) => x.id === cid);
+        if (!c) return;
+        if (c.chong_rung) {
+            if (!this.ctx.media.find((x) => x.id === c.chong_rung.media)) { toast('Video gốc đã bị xoá khỏi dự án.', 'warn'); return; }
+            this.ctx.sua('Bỏ chống rung', opsBoChongRung(this.tl, c));
+            return;
+        }
+        const tb = toast('Đang chống rung… (video dài có thể mất vài phút, cứ làm việc khác)', 'info', 3600000);
+        try {
+            const m = await this._choViecNen(await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${encodeURIComponent(c.media)}/chong-rung`,
+                { method: 'POST', body: { phien: this.ctx.boLuu.phien, vao: Number(c.vao || 0), ra: Number(c.ra || 0), manh: 50 } }));
+            const hien = this.tl.clips.find((x) => x.id === cid);
+            if (!hien || hien.media !== c.media || hien.vao !== c.vao || hien.ra !== c.ra) {
+                toast('Clip đã đổi trong lúc chống rung — bấm Chống rung lại (file đã làm sẽ được dùng lại).', 'warn');
+                return;
+            }
+            if (this.ctx.sua('Chống rung', opsChongRung(this.tl, hien, m))) toast('Đã chống rung clip.', 'success', 2500);
+        } catch (err) { toast(err.message, 'error'); } finally { tb.remove(); }
     }
 
     /* Tua ngược / bỏ tua ngược một clip video. Server sinh file phát ngược đúng đoạn clip đang dùng (đoạn dài thì lâu). */
@@ -1183,6 +1274,10 @@ export class Timeline {
             muc.push({ id: 'dau-nhip', text: '🥁 Đánh dấu theo nhịp nhạc (beat)' });
             if ((this.tl.danh_dau || []).some((d) => d.nhip)) muc.push({ id: 'xoa-nhip', text: '🥁 Xoá các dấu nhịp' });
         }
+        if (dangChon.filter((id) => { const x = this.tl.clips.find((y) => y.id === id); return x && !x.loai && x.media; }).length >= 2) {
+            muc.push({ separator: true });
+            muc.push({ id: 'gop-clip', text: `📦 Gộp ${dangChon.length} clip thành một (compound)` });
+        }
         if (capNoiMuot(this.tl, dangChon)) {
             muc.push({ separator: true });
             muc.push({ id: 'noi-muot', text: '🎚 Crossfade hai clip âm thanh (0.5s)' });
@@ -1230,6 +1325,8 @@ export class Timeline {
                 this.ctx.sua('Tiếng', [tao.dat(this.tl, ['clips', { id: cid }, 'tat_am'], !c.tat_am)]);
             }
             if (l.dataset.l === 'dao-nguoc') this.daoNguoc(cid);
+            if (l.dataset.l === 'chong-rung') this.chongRung(cid);
+            if (l.dataset.l === 'gop-clip') this.gopClip(dangChon);
             if (l.dataset.l === 'dong-bang') this.dongBang(cid);
             if (l.dataset.l === 'cat-lang') this.catKhoangLang(cid);
             if (l.dataset.l === 'dau-nhip') this.danhDauNhip(cid);

@@ -718,3 +718,14 @@ test('media thêm lần nữa mang nhóm neo riêng, phụ đề của clip cũ 
     assert.deepEqual(hienThiNeo(tl, cau, bangClipChuaMedia(tl)).map((k) => k.clip), ['c_1']);
     assert.deepEqual(hienThiNeo(tl, { ...cau, tu_nhom: 'n_1' }).map((k) => k.clip), [ops[0].gia_tri.id]);
 });
+
+test('chống rung rồi bỏ chống rung trả clip về đúng đoạn gốc (kể cả đã tỉa)', async () => {
+    const { opsChongRung, opsBoChongRung } = await import('../../webui/editor/store.js');
+    const s = new Store(tl2());
+    s.thucHien('Chống rung', opsChongRung(s.timeline, s.timeline.clips[0], { id: 'm_on', thoi_luong: 5.02 }));
+    const c = s.timeline.clips[0];
+    assert.deepEqual([c.media, c.vao, c.ra, c.chong_rung], ['m_on', 0, 5, { media: 'm1', vao: 2, ra: 7 }]);
+    s.thucHien('Tỉa', [tao.dat(s.timeline, ['clips', { id: 'c_1' }, 'vao'], 1)]);
+    s.thucHien('Bỏ', opsBoChongRung(s.timeline, s.timeline.clips[0]));
+    assert.deepEqual([c.media, c.vao, c.ra, c.chong_rung], ['m1', 3, 7, undefined]);
+});

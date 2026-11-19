@@ -42,6 +42,10 @@ export function phanLoai(tl, media, n0, n1, fps, khongGiaiMa = new Set()) {
         }
         const bd = Number(c.bat_dau) || 0, kt = ketThucClip(c);
         if (c.loai === 'chu' || c.loai === 'hinh') { if (giao(bd, kt)) lopChu = true; continue; }
+        if (c.loai === 'dieu_chinh') {
+            if (giao(bd, kt)) { khuc.push([khungTu(bd, fps), khungTu(kt, fps)]); lyDo.add('lớp điều chỉnh'); }
+            continue;
+        }
         if (c.loai === 'che_phu_de') {
             if (c.kieu && c.kieu !== 'mau') canhBao.add('vùng che làm mờ/khảm vẽ bằng trình duyệt — gần giống bản Server');
             continue;

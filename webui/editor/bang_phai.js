@@ -471,6 +471,18 @@ export class BangPhai {
                     </label>
                 </div>
             </div>`;
+        } else if (clip && clip.loai === 'dieu_chinh') {
+            tieuDe = 'Lớp điều chỉnh';
+            const hu = clip.hieu_ung || [];
+            noi = `<div class="bang-noi o-form" style="padding-top:4px">
+                <div class="goi-y-nho">Màu và hiệu ứng của lớp này áp lên mọi video/ảnh bên dưới, từ ${fmtThoiGian(clip.bat_dau, true, fps)} tới ${fmtThoiGian(clip.ket_thuc, true, fps)}
+                    (kéo clip trên timeline để đổi khoảng). Chỉnh màu ở bảng ☰ Màu, thêm hiệu ứng ở bảng ◈ Hiệu ứng. Chữ và phụ đề không bị ảnh hưởng.
+                    Màu nâng cao (LUT, đường cong, HSL) chỉ thấy ở bản xuất.</div>
+                ${hu.length ? hu.map((h) => `<div class="hang" style="align-items:center"><span style="flex:1">${esc(h.loai)}</span>
+                    <button class="nut-icon nut-nho" data-hu="bat" data-id-hu="${h.id}" title="Bật/tắt">${h.bat === false ? '👁‍🗨' : '👁'}</button>
+                    <button class="nut-icon nut-nho" data-hu="xoa" data-id-hu="${h.id}" style="color:#ff4444" title="Xoá">✕</button></div>`).join('')
+                    : '<div class="goi-y-nho">Chưa có hiệu ứng nào.</div>'}
+            </div>`;
         } else if (clip && clip.loai === 'hinh') {
             tieuDe = 'Thuộc tính Hình dạng';
             const bd = clip.bien_doi || {};

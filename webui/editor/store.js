@@ -216,6 +216,7 @@ export function nhanClip(c, m) {
     if (c.loai === 'che_phu_de') return `▦ Che (${c.kieu || 'blur'})`;
     if (c.loai === 'chu') return (c.noi_dung || '').replace(/\n/g, ' ');
     if (c.loai === 'hinh') return `⬠ Hình (${c.dang || 'chu_nhat'})`;
+    if (c.loai === 'dieu_chinh') return '◐ Lớp điều chỉnh';
     return c.text || (m && m.ten) || c.loai || c.id;
 }
 
@@ -546,6 +547,23 @@ export function opsBoDaoNguoc(tl, c) {
     const tron = (x) => Math.round(Math.max(o.vao, Math.min(o.ra, x)) * 1000) / 1000;
     return [tao.dat(tl, p('media'), o.media), tao.dat(tl, p('vao'), tron(o.ra - Number(c.ra || 0))),
         tao.dat(tl, p('ra'), tron(o.ra - Number(c.vao || 0))), tao.dat(tl, p('dao_nguoc'), undefined)];
+}
+
+/* Chống rung: clip chuyển sang media `moi` (file đã ổn định đúng đoạn [vao, ra] cũ) và nhớ nguồn cũ trong `chong_rung`. */
+export function opsChongRung(tl, c, moi) {
+    const p = (k) => ['clips', { id: c.id }, k];
+    const L = Number(c.ra || 0) - Number(c.vao || 0);
+    const ra = Math.round(Math.min(L, Number(moi.thoi_luong) || L) * 1000) / 1000;
+    return [tao.dat(tl, p('media'), moi.id), tao.dat(tl, p('vao'), 0), tao.dat(tl, p('ra'), ra),
+        tao.dat(tl, p('chong_rung'), { media: c.media, vao: Number(c.vao || 0), ra: Number(c.ra || 0) })];
+}
+
+/* Bỏ chống rung: về media gốc, giữ đúng phần đang dùng (kể cả khi đã tỉa clip sau khi chống rung). */
+export function opsBoChongRung(tl, c) {
+    const p = (k) => ['clips', { id: c.id }, k], o = c.chong_rung;
+    const tron = (x) => Math.round(Math.max(o.vao, Math.min(o.ra, x)) * 1000) / 1000;
+    return [tao.dat(tl, p('media'), o.media), tao.dat(tl, p('vao'), tron(o.vao + Number(c.vao || 0))),
+        tao.dat(tl, p('ra'), tron(o.vao + Number(c.ra || 0))), tao.dat(tl, p('chong_rung'), undefined)];
 }
 
 /* Đặt tốc độ cố định (bỏ đồ thị tốc độ nếu có). */
@@ -980,7 +998,8 @@ export function cacMucMenuClip(tl, mediaDict, cid, dangChonTuDanhSach, coBoNhoTa
     
     if (c && !c.loai && tr && tr.loai === 'video' && m && m.loai === 'video') {
         muc.push({ separator: true });
-        muc.push({ id: 'dao-nguoc', text: c.dao_nguoc ? '⏪ Bỏ tua ngược' : '⏪ Tua ngược' });
+        if (!c.chong_rung) muc.push({ id: 'dao-nguoc', text: c.dao_nguoc ? '⏪ Bỏ tua ngược' : '⏪ Tua ngược' });
+        if (!c.dao_nguoc) muc.push({ id: 'chong-rung', text: c.chong_rung ? '🎯 Bỏ chống rung' : '🎯 Chống rung' });
     }
 
     if (c && !c.loai && m && m.loai !== 'anh') {

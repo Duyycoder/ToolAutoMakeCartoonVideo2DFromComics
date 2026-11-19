@@ -665,6 +665,28 @@ class DungLenh:
                     tieng.append(f"pa{n}")
         return vc, tieng
 
+    def _dieu_chinh(self, vc: str) -> str:
+        """Lớp điều chỉnh (clip `dieu_chinh` trên track phủ): chỉnh màu + hiệu ứng áp lên TOÀN BỘ hình đã ghép bên dưới,
+        chỉ trong khoảng thời gian của clip. Chữ và phụ đề vẽ sau nên không bị ảnh hưởng.
+
+        Không gắn `enable=` vào từng bộ lọc (nhiều bộ lọc không hỗ trợ): tách luồng, lọc cả nhánh, rồi chồng nhánh đã lọc
+        lên bản gốc đúng khoảng thời gian đó."""
+        an = {t["id"] for t in self.tracks.values() if t.get("an")}
+        for i, c in enumerate(self.tl.get("clips") or []):
+            if c.get("loai") != "dieu_chinh" or c.get("track") in an:
+                continue
+            bd, kt = float(c.get("bat_dau") or 0), quy_doi.ket_thuc(c)
+            loc = (self._loc_mau_nang_cao(c) + hieu_ung.loc_mau(c.get("mau") or {})
+                   + hieu_ung.loc_hieu_ung(c.get("hieu_ung") or [], self.W, self.H))
+            if kt <= bd or not loc:
+                continue
+            self.loc.append(f"[{vc}]split[dca{i}][dcb{i}]")
+            self.loc.append(f"[dcb{i}]{','.join(loc)},format={self.pf}[dcc{i}]")
+            self.loc.append(f"[dca{i}][dcc{i}]overlay=enable='between(t\\,{_so(bd)}\\,{_so(kt)})':format=auto,"
+                            f"format={self.pf},setsar=1[dcd{i}]")
+            vc = f"dcd{i}"
+        return vc
+
     def _che_cho(self, mid: str, nhom: str = "") -> List[Dict[str, Any]]:
         an = {t["id"] for t in self.tracks.values() if t.get("an")}
         return [c for c in self.tl.get("clips") or []
@@ -804,6 +826,7 @@ class DungLenh:
         chi_tieng = bool(self.tc.get("chi_am_thanh"))
         vc, ac = self._hinh(T)
         vc, tieng_phu = self._phu(vc, T)
+        vc = self._dieu_chinh(vc)
         aout = self._tieng_tong(self._tieng(ac, T, tieng_phu), T)
         dong_pd = quy_doi.phu_de_tren_timeline(self.tl)
         co_chu_hinh = any(c.get("loai") in ("chu", "hinh") for c in self.tl.get("clips") or [])

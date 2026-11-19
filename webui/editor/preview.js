@@ -479,7 +479,19 @@ export class Preview {
         return { x: 0, y: 0, w: this.man.clientWidth, h: this.man.clientHeight, mid: null };
     }
 
+    /* Lớp điều chỉnh đang phủ thời điểm t → CSS filter trên cả vùng lớp video (chỉnh màu cơ bản + hiệu ứng; phần màu nâng cao
+       như LUT/đường cong chỉ thấy ở bản xuất). */
+    _veDieuChinh(t) {
+        const an = new Set((this.tl.tracks || []).filter((x) => x.an).map((x) => x.id));
+        const loc = this.nguon ? [] : (this.tl.clips || []).filter((c) => c.loai === 'dieu_chinh' && !an.has(c.track)
+            && t >= Number(c.bat_dau || 0) - 1e-6 && t < Number(c.ket_thuc || 0) - 1e-6)
+            .map((c) => cssFilter(c.mau, c.hieu_ung, 1)).filter((f) => f && f !== 'none');
+        const css = loc.join(' ');
+        if (this.cacLop.style.filter !== css) this.cacLop.style.filter = css;
+    }
+
     _veLop(t) {
+        this._veDieuChinh(t);
         this._vePhuDe(t);
         this._veChe(t);
         this._veChuHinh(t);
