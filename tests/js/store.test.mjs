@@ -694,3 +694,27 @@ test('opsSapXepTrack xếp liền nhau, dời clip liên kết, đảo/tên/th�
     assert.deepEqual(ops.filter((o) => o.path[1].id === 'c_2').map((o) => o.moi), [5], 'dài → ngắn: c_1 giữ 2, c_2 khép về 5');
     assert.equal(opsSapXepTrack(t2, 'A1', 'dao', dict).length, 0, 'track 1 clip không sắp');
 });
+
+test('tua ngược rồi bỏ tua ngược trả clip về đúng đoạn gốc (kể cả đã tỉa)', async () => {
+    const { opsDaoNguoc, opsBoDaoNguoc } = await import('../../webui/editor/store.js');
+    const s = new Store(tl2());
+    s.thucHien('Tua ngược', opsDaoNguoc(s.timeline, s.timeline.clips[0], { id: 'm_dao', thoi_luong: 4.98 }));
+    const c = s.timeline.clips[0];
+    assert.deepEqual([c.media, c.vao, c.ra, c.dao_nguoc], ['m_dao', 0, 4.98, { media: 'm1', vao: 2, ra: 7 }]);
+    s.thucHien('Tỉa', [tao.dat(s.timeline, ['clips', { id: 'c_1' }, 'vao'], 1)]);      // bỏ 1 s đầu bản ngược = 1 s cuối bản gốc
+    s.thucHien('Bỏ', opsBoDaoNguoc(s.timeline, s.timeline.clips[0]));
+    assert.deepEqual([c.media, c.vao, c.ra, c.dao_nguoc], ['m1', 2.02, 6, undefined]);
+});
+
+test('media thêm lần nữa mang nhóm neo riêng, phụ đề của clip cũ không hiện lên nó', async () => {
+    const { nhomNeoMoi, hienThiNeo, bangClipChuaMedia } = await import('../../webui/editor/store.js');
+    const tl = { tracks: [{ id: 'V1', loai: 'video' }, { id: 'S1', loai: 'phu_de' }], clips: [
+        { id: 'c_1', track: 'V1', media: 'm1', bat_dau: 0, vao: 0, ra: 5, toc_do: 1 }] };
+    assert.equal(nhomNeoMoi(tl, 'm2'), undefined, 'media chưa có trên timeline → không cần nhóm');
+    const { ops } = opsThemNhieuMedia(tl, [{ id: 'm1', loai: 'video', thoi_luong: 5 }], 'V1', null);
+    assert.equal(ops[0].gia_tri.nhom_neo, 'n_1');
+    tl.clips.push(ops[0].gia_tri);
+    const cau = { id: 's', track: 'S1', loai: 'phu_de', tu_media: 'm1', t_vao: 1, t_ra: 2 };
+    assert.deepEqual(hienThiNeo(tl, cau, bangClipChuaMedia(tl)).map((k) => k.clip), ['c_1']);
+    assert.deepEqual(hienThiNeo(tl, { ...cau, tu_nhom: 'n_1' }).map((k) => k.clip), [ops[0].gia_tri.id]);
+});

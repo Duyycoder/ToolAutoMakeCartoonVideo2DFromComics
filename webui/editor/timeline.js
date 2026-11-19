@@ -9,7 +9,7 @@ import {
     tao, thoiLuong, ketThucClip, thoiDiemMedia, opsDatTocDo, choTrong, idClipMoi, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, clipTai,
     hienThiNeo, bangClipChuaMedia, opsDatGio, opsThemTrack, opsKhepKhoang, opsXoaGon, opsChenGon, opsTiaToiDauPhat, idMoiNhieu,
     moRongNhom, opsTachAm, idNhomMoi, trackVideoTuDuoiLen, opsThemChuyenCanh, opsXoaChuyenCanh, nhanClip, viTriKeyframes,
-    mucMenuChoClip, opsNhanDoi, clipMediaMoi, opsThemNhieuMedia, opsSapXepTrack, KIEU_SAP_XEP_TRACK,
+    mucMenuChoClip, opsNhanDoi, clipMediaMoi, nhomNeoMoi, opsDaoNguoc, opsBoDaoNguoc, opsThemNhieuMedia, opsSapXepTrack, KIEU_SAP_XEP_TRACK,
 } from './store.js';
 
 const LOP = { video: 'v', phu_de: 's', lop_phu: 'o', audio: 'a' };
@@ -62,8 +62,9 @@ export class Timeline {
             </div>
             <div class="tl-than">
                 <div class="tl-dau-cot"><div class="thuoc-cho"><span class="chu-tracks">TRACKS</span>
-                    <button class="nut" data-hd="them-v" title="Thêm track Video">+ V</button>
-                    <button class="nut" data-hd="them-a" title="Thêm track Audio">+ A</button></div><div data-khu="dau" style="overflow:hidden;flex:1"></div></div>
+                    <button class="nut" data-hd="them-v" title="Thêm dòng Video — video/ảnh ở dòng trên hiện đè lên dòng dưới (overlay)">+ V</button>
+                    <button class="nut" data-hd="them-o" title="Thêm dòng Overlay — chữ, hình, vùng che">+ O</button>
+                    <button class="nut" data-hd="them-a" title="Thêm dòng Âm thanh">+ A</button></div><div data-khu="dau" style="overflow:hidden;flex:1"></div></div>
                 <div class="tl-cuon" data-khu="cuon"><div class="tl-noi" data-khu="noi"></div></div>
             </div>`;
         this.dau = this.el.querySelector('[data-khu=dau]');
@@ -285,7 +286,7 @@ export class Timeline {
         this.el.querySelector('.tl-dau-cot .thuoc-cho').addEventListener('click', (e) => {
             const hd = e.target.closest('[data-hd]');
             if (!hd) return;
-            const lenh = opsThemTrack(this.tl, hd.dataset.hd === 'them-v' ? 'video' : 'audio');
+            const lenh = opsThemTrack(this.tl, { 'them-v': 'video', 'them-o': 'lop_phu' }[hd.dataset.hd] || 'audio');
             this.ctx.sua(`Thêm track ${lenh.id}`, lenh.ops);
         });
         this.dau.addEventListener('click', (e) => {
@@ -657,6 +658,8 @@ export class Timeline {
         if (m.loai === 'phu_de') { this.ctx.bus.emit('nhap_srt_media', m); return; }
         const loaiTrack = m.loai === 'audio' ? 'audio' : 'video';
         let tr = this.tl.tracks.find((x) => x.id === trackId);
+        // Thả video/ảnh vào dòng Overlay hay Phụ đề = muốn nó đè lên hình: đặt thành một lớp video ngay chỗ thả.
+        if (tr && loaiTrack === 'video' && (tr.loai === 'lop_phu' || tr.loai === 'phu_de')) { this.themLopTaiDauPhat(m, t); return; }
         if (!tr || tr.loai !== loaiTrack) tr = this.tl.tracks.find((x) => x.loai === loaiTrack);
         if (!tr) { toast('Không có track phù hợp.', 'warn'); return; }
         if (tr.khoa) { toast(`Track ${tr.id} đang khoá.`, 'warn'); return; }
@@ -667,7 +670,7 @@ export class Timeline {
         if (t != null && this.ui.bat_dinh) tt = hutDinh(tt, diemDinh(this.tl, this.ui.dau_phat), this._nguongDinh(2));
         const bd = choTrong(this.tl, tr.id, tt, dai);
         const cid = idClipMoi(this.tl);
-        const clip = clipMediaMoi(cid, tr.id, m.id, bd, dai);
+        const clip = clipMediaMoi(cid, tr.id, m.id, bd, dai, nhomNeoMoi(this.tl, m.id));
         if (this.ctx.sua(`Thêm ${m.ten} vào ${tr.id}`, [tao.them(this.tl, ['clips'], clip)])) this.chonClip(cid);
     }
 
@@ -698,10 +701,10 @@ export class Timeline {
     /* Đặt media thành MỘT LỚP ở đầu phát: âm thanh → track âm thanh còn trống đúng chỗ đó (trừ track lồng tiếng);
        video/ảnh → track video PHỦ (trên nền) còn trống. Không còn track trống → thêm track mới (lớp trên cùng).
        Một bước hoàn tác. */
-    themLopTaiDauPhat(m) {
+    themLopTaiDauPhat(m, t = null) {
         if (m.loai === 'phu_de') { this.ctx.bus.emit('nhap_srt_media', m); return; }
         const amThanh = m.loai === 'audio', loai = amThanh ? 'audio' : 'video';
-        const tt = Math.round((this.ui.dau_phat || 0) * 1000) / 1000;
+        const tt = Math.round(Math.max(0, t == null ? (this.ui.dau_phat || 0) : t) * 1000) / 1000;
         const dai = m.loai === 'anh' ? 5 : Number(m.thoi_luong) || 0;
         if (!dai) { toast('Media chưa có thời lượng.', 'warn'); return; }
         const nen = (trackVideoTuDuoiLen(this.tl)[0] || {}).id;
@@ -711,11 +714,35 @@ export class Timeline {
         let tid = tr && tr.id;
         if (!tid) { const lenh = opsThemTrack(this.tl, loai); tid = lenh.id; ops.push(...lenh.ops); }
         const cid = idClipMoi(this.tl);
-        ops.push(tao.them(this.tl, ['clips'], clipMediaMoi(cid, tid, m.id, tt, dai)));
+        ops.push(tao.them(this.tl, ['clips'], clipMediaMoi(cid, tid, m.id, tt, dai, nhomNeoMoi(this.tl, m.id))));
         if (this.ctx.sua(`Thêm ${m.ten} thành lớp ${tid}`, ops)) this.chonClip(cid);
     }
 
     themAmTaiDauPhat(m) { this.themLopTaiDauPhat(m); }
+
+    /* Tua ngược / bỏ tua ngược một clip video. Server sinh file phát ngược đúng đoạn clip đang dùng (đoạn dài thì lâu). */
+    async daoNguoc(cid) {
+        const c = this.tl.clips.find((x) => x.id === cid);
+        if (!c) return;
+        if (c.dao_nguoc) {
+            if (!this.ctx.media.find((x) => x.id === c.dao_nguoc.media)) { toast('Video gốc đã bị xoá khỏi dự án.', 'warn'); return; }
+            this.ctx.sua('Bỏ tua ngược', opsBoDaoNguoc(this.tl, c));
+            return;
+        }
+        toast('Đang tạo bản tua ngược…', 'info', 4000);
+        try {
+            const m = await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${encodeURIComponent(c.media)}/dao-nguoc`,
+                { method: 'POST', body: { phien: this.ctx.boLuu.phien, vao: Number(c.vao || 0), ra: Number(c.ra || 0) } });
+            if (!this.ctx.media.find((x) => x.id === m.id)) this.ctx.media.push(m);
+            this.ctx.bus.emit('media_can_tai');
+            const hien = this.tl.clips.find((x) => x.id === cid);          // người dùng có thể đã sửa clip trong lúc chờ
+            if (!hien || hien.media !== c.media || hien.vao !== c.vao || hien.ra !== c.ra) {
+                toast('Clip đã đổi trong lúc tạo bản tua ngược — bấm Tua ngược lại.', 'warn');
+                return;
+            }
+            if (this.ctx.sua('Tua ngược', opsDaoNguoc(this.tl, hien, m))) toast('Đã tua ngược clip.', 'success', 2500);
+        } catch (err) { toast(err.message, 'error'); }
+    }
 
     /* Thả/thêm nhiều media một lượt: nối đuôi nhau theo đúng thứ tự đang chọn ở bảng nguồn, MỘT lệnh hoàn tác. */
     themNhieuMedia(ds, trackId, t) {
@@ -1103,6 +1130,7 @@ export class Timeline {
                 const c = this.tl.clips.find(x => x.id === cid);
                 this.ctx.sua('Tiếng', [tao.dat(this.tl, ['clips', { id: cid }, 'tat_am'], !c.tat_am)]);
             }
+            if (l.dataset.l === 'dao-nguoc') this.daoNguoc(cid);
             if (l.dataset.l === 'toc-chinh') { this.chonClip(cid); this.ctx.bus.emit('mo_thuoc_tinh', 'toc_do'); }
             if (l.dataset.l === 'toc') this.ctx.sua('Tốc độ', opsDatTocDo(this.tl, this.tl.clips.find((x) => x.id === cid), Number(l.dataset.v)));
         });
@@ -1305,15 +1333,20 @@ export class Timeline {
             el.style.left = `${bd * this.px}px`;
             el.style.width = `${(kt - bd) * this.px}px`;
         };
-        const xong = () => {
+        const xong = (ev) => {
             el.removeEventListener('pointermove', di);
             el.removeEventListener('pointerup', xong);
             el.removeEventListener('pointercancel', xong);
             const { moi, daDi } = this._keo;
             this._keo = null;
             if (!daDi || !moi) { this.ve(); return; }
+            // Thả sang dòng khác CÙNG LOẠI (O1 → O2, S1 → S2) thì đổi dòng luôn.
+            const duoi = kieu === 'doi' && ev && ev.type === 'pointerup' ? document.elementFromPoint(ev.clientX, ev.clientY) : null;
+            const trMoi = duoi && duoi.closest('.tl-track') && this.tl.tracks.find((t) => t.id === duoi.closest('.tl-track').dataset.track);
+            const doiDong = trMoi && tr && trMoi.id !== tr.id && trMoi.loai === tr.loai && !trMoi.khoa
+                ? [tao.dat(this.tl, ['clips', { id: cid }, 'track'], trMoi.id)] : [];
             const ten = c.loai === 'che_phu_de' ? 'Chỉnh vùng che' : c.loai === 'chu' ? 'Chỉnh chữ' : c.loai === 'hinh' ? 'Chỉnh hình' : 'Chỉnh giờ phụ đề';
-            if (!this.ctx.sua(ten, opsDatGio(this.tl, c, vid, moi.bd, moi.kt))) this.ve();
+            if (!this.ctx.sua(ten, [...opsDatGio(this.tl, c, vid, moi.bd, moi.kt), ...doiDong])) this.ve();
         };
         el.addEventListener('pointermove', di);
         el.addEventListener('pointerup', xong);

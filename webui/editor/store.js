@@ -247,9 +247,21 @@ export function bangClipChuaMedia(tl) {
     return bang;
 }
 
-export function clipChuaMedia(tl, mid) {
+/* Nhóm neo: cùng một media đưa vào timeline LẦN NỮA thì clip mới mang `nhom_neo` riêng — phụ đề/vùng che của
+   clip cũ (không có `tu_nhom`, hoặc `tu_nhom` khác) không hiện lên nó. Cắt đôi/nhân đôi clip thì giữ nguyên nhóm. */
+const cungNhom = (v, nhom) => (v.nhom_neo || '') === (nhom || '');
+
+/* `nhom_neo` cho clip sắp thêm của media `mid`: undefined nếu media chưa có clip nào trên timeline. */
+export function nhomNeoMoi(tl, mid) {
+    if (!(tl.clips || []).some((c) => c.media === mid)) return undefined;
+    const so = (tl.clips || []).map((c) => /^n_(\d+)$/.exec(c.nhom_neo || '')).filter(Boolean).map((x) => Number(x[1]));
+    return `n_${(so.length ? Math.max(...so) : 0) + 1}`;
+}
+
+/* Clip đang dùng media `mid`; có `nhom` (kể cả '') thì chỉ lấy clip thuộc nhóm neo đó. */
+export function clipChuaMedia(tl, mid, nhom) {
     const loai = Object.fromEntries((tl.tracks || []).map((t) => [t.id, t.loai]));
-    const cac = (tl.clips || []).filter((c) => c.media === mid);
+    const cac = (tl.clips || []).filter((c) => c.media === mid && (nhom === undefined || cungNhom(c, nhom)));
     const video = cac.filter((c) => loai[c.track] === 'video');
     return video.length ? video : cac.filter((c) => loai[c.track] === 'audio');
 }
@@ -263,7 +275,7 @@ export function hienThiNeo(tl, c, bang = null) {
     }
     const tv = Number(c.t_vao), tr = Number(c.t_ra);
     const out = [];
-    for (const v of (bang ? (bang.get(c.tu_media) || []) : clipChuaMedia(tl, c.tu_media))) {
+    for (const v of (bang ? (bang.get(c.tu_media) || []).filter((x) => cungNhom(x, c.tu_nhom)) : clipChuaMedia(tl, c.tu_media, c.tu_nhom || ''))) {
         const vao = Number(v.vao || 0), ra = Number(v.ra || 0);
         const lo = Math.max(tv, vao), hi = Math.min(tr, ra);
         if (hi - lo <= 1e-6) continue;
@@ -359,6 +371,7 @@ export function opsTachAm(tl, cid) {
     const id = idClipMoi(nhap);
     ops.push({ op: 'them', path: ['clips'], vi_tri: nhap.clips.length, gia_tri: {
         id, track: tr.id, media: c.media, bat_dau: c.bat_dau, vao: c.vao, ra: c.ra, toc_do: c.toc_do || 1, ...(c.toc_do_cong ? { toc_do_cong: c.toc_do_cong } : {}),
+        ...(c.nhom_neo ? { nhom_neo: c.nhom_neo } : {}),
         am_luong: c.am_luong ?? 1, am_vao: c.am_vao || 0, am_ra: c.am_ra || 0, tach_tu: c.id, lien_ket: nhomId,
     } });
     ops.push(tao.dat(tl, ['clips', { id: cid }, 'tat_am'], true));
@@ -510,6 +523,24 @@ export function catDoThiTocDo(c, t, phia) {
     const q = Math.min(1, Math.max(0, (t - Number(c.bat_dau || 0)) / D));
     const moi = catCong(cong, q)[phia === 'truoc' ? 0 : 1];
     return moi ? { toc_do: tocTrungBinh(moi), toc_do_cong: moi } : null;
+}
+
+/* Tua ngược: clip chuyển sang media `moi` (file phát ngược đúng đoạn [vao, ra] cũ, do server sinh) và nhớ lại
+   nguồn cũ trong `dao_nguoc` để bỏ tua ngược được. Phụ đề neo theo media gốc không hiện trên clip tua ngược. */
+export function opsDaoNguoc(tl, c, moi) {
+    const p = (k) => ['clips', { id: c.id }, k];
+    const L = Number(c.ra || 0) - Number(c.vao || 0);
+    const ra = Math.round(Math.min(L, Number(moi.thoi_luong) || L) * 1000) / 1000;
+    return [tao.dat(tl, p('media'), moi.id), tao.dat(tl, p('vao'), 0), tao.dat(tl, p('ra'), ra),
+        tao.dat(tl, p('dao_nguoc'), { media: c.media, vao: Number(c.vao || 0), ra: Number(c.ra || 0) })];
+}
+
+/* Bỏ tua ngược: về media gốc, giữ đúng phần đang dùng (clip đã tỉa sau khi tua ngược thì đoạn gốc tỉa theo). */
+export function opsBoDaoNguoc(tl, c) {
+    const p = (k) => ['clips', { id: c.id }, k], o = c.dao_nguoc;
+    const tron = (x) => Math.round(Math.max(o.vao, Math.min(o.ra, x)) * 1000) / 1000;
+    return [tao.dat(tl, p('media'), o.media), tao.dat(tl, p('vao'), tron(o.ra - Number(c.ra || 0))),
+        tao.dat(tl, p('ra'), tron(o.ra - Number(c.vao || 0))), tao.dat(tl, p('dao_nguoc'), undefined)];
 }
 
 /* Đặt tốc độ cố định (bỏ đồ thị tốc độ nếu có). */
@@ -940,6 +971,11 @@ export function cacMucMenuClip(tl, mediaDict, cid, dangChonTuDanhSach, coBoNhoTa
         muc.push({ id: 'tieng', text: c.tat_am ? '🔊 Bật tiếng' : '🔇 Tắt tiếng' });
     }
     
+    if (c && !c.loai && tr && tr.loai === 'video' && m && m.loai === 'video') {
+        muc.push({ separator: true });
+        muc.push({ id: 'dao-nguoc', text: c.dao_nguoc ? '⏪ Bỏ tua ngược' : '⏪ Tua ngược' });
+    }
+
     if (c && !c.loai && m && m.loai !== 'anh') {
         muc.push({ separator: true });
         muc.push({ id: 'toc-chinh', text: '⏩ Chỉnh tốc độ… (thanh trượt / đồ thị)' });
@@ -1113,9 +1149,9 @@ export function opsNhacNen(tl, mid, daiBai, tongDai) {
 }
 
 /* ------------------------------------------------------------ thêm nhiều media / sắp xếp track */
-export function clipMediaMoi(id, track, mid, bd, dai) {
+export function clipMediaMoi(id, track, mid, bd, dai, nhomNeo) {
     return {
-        id, track, media: mid, bat_dau: bd, vao: 0, ra: Math.round(dai * 1000) / 1000,
+        id, track, media: mid, ...(nhomNeo ? { nhom_neo: nhomNeo } : {}), bat_dau: bd, vao: 0, ra: Math.round(dai * 1000) / 1000,
         toc_do: 1, am_luong: 1, nhac_nen_giam: 0,
         bien_doi: { x: 0.5, y: 0.5, ti_le: 1, xoay: 0 },
         cat_khung: { trai: 0, phai: 0, tren: 0, duoi: 0, mem: 0 },
@@ -1145,7 +1181,7 @@ export function opsThemNhieuMedia(tl, ds, trackId, t) {
                 : t;
         }
         const bd = choTrong(nhap, tr.id, conTro[tr.id], dai);
-        const clip = clipMediaMoi(idClipMoi(nhap), tr.id, m.id, bd, dai);
+        const clip = clipMediaMoi(idClipMoi(nhap), tr.id, m.id, bd, dai, nhomNeoMoi(nhap, m.id));
         ops.push({ op: 'them', path: ['clips'], vi_tri: nhap.clips.length, gia_tri: clip });
         nhap.clips.push(clip);
         ids.push(clip.id);

@@ -35,7 +35,7 @@ export class BangChe {
         if (!v) { toast('Đưa đầu phát vào một clip video trước — vùng che neo theo video đó.', 'warn'); return; }
         const trO = this.tl.tracks.find((x) => x.loai === 'lop_phu');
         const id = idClipMoi(this.tl);
-        const clip = { id, track: trO.id, loai: 'che_phu_de', tu_media: v.media,
+        const clip = { id, track: trO.id, loai: 'che_phu_de', tu_media: v.media, ...(v.nhom_neo ? { tu_nhom: v.nhom_neo } : {}),
             t_vao: Math.round(thoiDiemMedia(v, t) * 1000) / 1000, t_ra: Number(v.ra),
             vung: { x: 0.08, y: 0.8, w: 0.84, h: 0.12 }, kieu: 'blur', do_manh: 20, mau: '#000000' };
         if (this.ctx.sua('Thêm vùng che phụ đề', [tao.them(this.tl, ['clips'], clip)])) {

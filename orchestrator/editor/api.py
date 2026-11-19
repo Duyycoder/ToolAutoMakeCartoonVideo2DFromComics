@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from orchestrator.config import load_global_config, save_global_config
-from orchestrator.editor import (ai_bridge, chuan_hoa_file, hang_doi, luu_tru, mau_nang_cao, media, nuong, render,
+from orchestrator.editor import (ai_bridge, chuan_hoa_file, dao_nguoc, hang_doi, luu_tru, mau_nang_cao, media, nuong, render,
                                  srt, tai_len, thu_vien_am, workspace, xuat_tu_xa)
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -60,6 +60,10 @@ class SuaDuAnSchema(BaseModel):
 
 class PhienSchema(BaseModel):
     phien: str = ""
+
+class DaoNguocSchema(PhienSchema):
+    vao: float = 0
+    ra: float = 0
 
 class TimelineSchema(PhienSchema):
     phien_ban: int
@@ -734,6 +738,28 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                 os.remove(ra)
             raise HTTPException(status_code=500, detail="ffmpeg lỗi: " + (res.stderr or "").strip()[-300:])
         return qlm.dang_ky_file(folder, pid, ra, tu_media=mid)
+
+    @r.post("/api/du-an/{pid}/media/{mid}/dao-nguoc")
+    def reverse_video(pid: str, mid: str, body: DaoNguocSchema):
+        """Tua ngược đoạn [vao, ra] của video → media video mới (dùng lại file đã làm cho đúng đoạn đó)."""
+        folder, m, path = media_path(pid, mid)
+        khoa_ghi(folder, body.phien)
+        if m.get("loai") != "video":
+            raise HTTPException(status_code=400, detail="Chỉ tua ngược được clip video.")
+        ff = media.ffmpeg_exe()
+        if not ff or not os.path.isfile(path):
+            raise HTTPException(status_code=500, detail="Thiếu ffmpeg hoặc file video gốc.")
+        vao, ra = max(0.0, float(body.vao)), min(float(body.ra), float(m.get("thoi_luong") or body.ra))
+        ten = f"{m.get('ten') or mid} (tua ngược {vao:.2f}-{ra:.2f}).mp4"
+        dich = os.path.join(folder, luu_tru.MEDIA_DIR, ten)
+        if not os.path.isfile(dich):
+            try:
+                dao_nguoc.tao(ff, path, dich, vao, ra, m.get("co_am_thanh") is not False)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            except (RuntimeError, OSError, subprocess.SubprocessError) as e:
+                raise HTTPException(status_code=500, detail=str(e))
+        return qlm.dang_ky_file(folder, pid, dich, tu_media=mid)
 
     @r.get("/api/du-an/{pid}/media/{mid}/tieng-16k")
     def media_audio_16k(pid: str, mid: str):

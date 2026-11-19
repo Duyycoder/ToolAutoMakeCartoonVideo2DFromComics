@@ -395,7 +395,7 @@ class DungLenh:
                 hdr = (f",scale=w='min(iw,{M})':h='min(ih,{M})':force_original_aspect_ratio=decrease"
                        f":force_divisible_by=2:flags=bicubic,{media_mod.loc_hdr_sang_sdr(m['hdr'])}")
             self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS{hdr}[{cur}]")
-            for j, che in enumerate(self._che_cho(m["id"])):
+            for j, che in enumerate(self._che_cho(m["id"], c.get("nhom_neo") or "")):
                 a, b = max(0.0, float(che["t_vao"]) - vao), min(float(che["t_ra"]) - vao, ra - vao)
                 if b <= a:
                     continue
@@ -630,10 +630,10 @@ class DungLenh:
                     tieng.append(f"pa{n}")
         return vc, tieng
 
-    def _che_cho(self, mid: str) -> List[Dict[str, Any]]:
+    def _che_cho(self, mid: str, nhom: str = "") -> List[Dict[str, Any]]:
         an = {t["id"] for t in self.tracks.values() if t.get("an")}
         return [c for c in self.tl.get("clips") or []
-                if c.get("loai") == "che_phu_de" and c.get("tu_media") == mid and quy_doi.la_neo(c)
+                if c.get("loai") == "che_phu_de" and c.get("tu_media") == mid and (c.get("tu_nhom") or "") == nhom and quy_doi.la_neo(c)
                 and c.get("track") not in an]
 
     def _khoang(self, dai: float, i: int) -> Tuple[str, str]:

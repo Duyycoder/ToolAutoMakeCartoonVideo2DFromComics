@@ -107,7 +107,7 @@ export class BangPhuDe {
         let clip;
         if (v) {
             const tm = thoiDiemMedia(v, t);
-            clip = { id, track: tr.id, loai: 'phu_de', tu_media: v.media, t_vao: Math.round(tm * 1000) / 1000,
+            clip = { id, track: tr.id, loai: 'phu_de', tu_media: v.media, ...(v.nhom_neo ? { tu_nhom: v.nhom_neo } : {}), t_vao: Math.round(tm * 1000) / 1000,
                 t_ra: Math.round(Math.min(Number(v.ra), tm + 2 * (Number(v.toc_do) || 1)) * 1000) / 1000,
                 text: 'Câu mới', text_goc: '', kieu: 'k_mac_dinh' };
         } else {

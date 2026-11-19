@@ -8,12 +8,15 @@
     "clips": [
       {"id": "c_1", "track": "V1", "media": "m_01", "bat_dau": 0, "vao": 0, "ra": 4, "toc_do": 1},
       {"id": "c_2", "track": "V1", "media": "m_01", "bat_dau": 6, "vao": 5, "ra": 9, "toc_do": 2},
+      {"id": "c_5", "track": "V1", "media": "m_01", "nhom_neo": "n_1", "bat_dau": 40, "vao": 0, "ra": 9, "toc_do": 1},
       {"id": "c_3", "track": "A1", "media": "m_09", "bat_dau": 1, "vao": 10, "ra": 20, "toc_do": 1},
       {"id": "c_4", "track": "V1", "media": "m_05", "bat_dau": 20, "vao": 0, "ra": 4, "toc_do": 2,
        "toc_do_cong": [{"q": 0, "v": 1}, {"q": 1, "v": 3}]}
     ]
   },
   "ca": [
+    {"ten": "media thêm lần nữa (nhóm neo n_1): câu gắn nhóm đó chỉ hiện ở clip mới", "clip": {"id": "s_n", "loai": "phu_de", "tu_media": "m_01", "tu_nhom": "n_1", "t_vao": 1, "t_ra": 2},
+     "ket_qua": [{"bd": 41, "kt": 42, "clip": "c_5"}]},
     {"ten": "câu nằm trọn trong clip đầu", "clip": {"id": "s_1", "loai": "phu_de", "tu_media": "m_01", "t_vao": 1, "t_ra": 2},
      "ket_qua": [{"bd": 1, "kt": 2, "clip": "c_1"}]},
     {"ten": "câu vắt qua chỗ cắt: phần đầu ở c_1, phần sau ở c_2 (tốc 2x)", "clip": {"id": "s_2", "loai": "phu_de", "tu_media": "m_01", "t_vao": 3, "t_ra": 7},

@@ -40,10 +40,14 @@ def ve_timeline(v: Dict[str, Any], s: float) -> float:
     return (ra - vao) / toc * toc_do_cong.vi_tri_tai(cong, (s - vao) / (ra - vao))
 
 
-def clip_chua_media(tl: Dict[str, Any], mid: str) -> List[Dict[str, Any]]:
-    """Clip (track video, không có thì track âm thanh) đang dùng media `mid`."""
+def clip_chua_media(tl: Dict[str, Any], mid: str, nhom: Any = None) -> List[Dict[str, Any]]:
+    """Clip (track video, không có thì track âm thanh) đang dùng media `mid`.
+
+    Có `nhom` (kể cả "") thì chỉ lấy clip thuộc nhóm neo đó: media đưa vào timeline lần nữa mang `nhom_neo` riêng
+    nên phụ đề/vùng che của clip cũ không hiện lên nó (bản JS: store.js › clipChuaMedia)."""
     loai = {t["id"]: t.get("loai") for t in tl.get("tracks") or []}
-    cac = [c for c in tl.get("clips") or [] if c.get("media") == mid]
+    cac = [c for c in tl.get("clips") or [] if c.get("media") == mid
+           and (nhom is None or (c.get("nhom_neo") or "") == nhom)]
     video = [c for c in cac if loai.get(c.get("track")) == "video"]
     return video or [c for c in cac if loai.get(c.get("track")) == "audio"]
 
@@ -56,7 +60,7 @@ def hien_thi(tl: Dict[str, Any], c: Dict[str, Any]) -> List[Dict[str, Any]]:
         return [{"bd": float(c["bat_dau"]), "kt": ket_thuc(c), "clip": None}]
     tv, tr = float(c["t_vao"]), float(c["t_ra"])
     out = []
-    for v in clip_chua_media(tl, c["tu_media"]):
+    for v in clip_chua_media(tl, c["tu_media"], c.get("tu_nhom") or ""):
         vao, ra = float(v.get("vao") or 0), float(v.get("ra") or 0)
         lo, hi = max(tv, vao), min(tr, ra)
         if hi - lo <= 1e-6:

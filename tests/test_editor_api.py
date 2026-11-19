@@ -481,6 +481,26 @@ def test_trich_am_thanh_tu_video(ws, monkeypatch):
     assert ws.get(f"/api/du-an/{pid}/media/{am['id']}/file").content[4:8] == b"ftyp"
 
 
+@pytest.mark.skipif(not media.ffmpeg_exe(), reason="cần ffmpeg")
+def test_tua_nguoc_video_thanh_media_moi_va_dung_lai_file(ws):
+    import subprocess
+    v = ws.tmp / "clip.mp4"
+    subprocess.run([media.ffmpeg_exe(), "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc=s=64x48:d=2",
+                    "-f", "lavfi", "-i", "sine=d=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+                    "-shortest", str(v)], check=True)
+    pid = _tao(ws)["id"]
+    phien = ws.get(f"/api/du-an/{pid}").json()["khoa"]["phien"]
+    m = _tai_len(ws, pid, phien, "canh.mp4", v.read_bytes())
+    r = ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 0.5, "ra": 1.5})
+    assert r.status_code == 200, r.text
+    dao = r.json()
+    assert dao["loai"] == "video" and dao["tu_media"] == m["id"] and "tua ngược 0.50-1.50" in dao["file"]
+    assert ws.get(f"/api/du-an/{pid}/media/{dao['id']}/file").content[4:8] == b"ftyp"   # thời lượng: test_editor_dao_nguoc
+    lai = ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 0.5, "ra": 1.5}).json()
+    assert lai["id"] == dao["id"]                                  # cùng đoạn → không sinh media thứ hai
+    assert ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 1, "ra": 1}).status_code == 400
+
+
 def test_tai_ve_ban_xuat(ws):
     pid = _tao(ws)["id"]
     folder = ws.get(f"/api/du-an/{pid}").json()["du_an"]["folder"]

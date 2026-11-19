@@ -1,9 +1,11 @@
 import { tao, idClipMoi, choTrong, opsThemTrack, clipChuMacDinh } from './store.js';
 
-/* Ops thêm một clip chữ/hình dài `dai` giây tại đầu phát vào track lớp phủ đang có (chưa có thì thêm track O1).
+/* Ops thêm một clip chữ/hình dài `dai` giây tại đầu phát vào track lớp phủ còn trống đúng chỗ đó (không có thì track
+   lớp phủ đầu tiên, dời về sau; chưa có track nào thì thêm track O1).
    Dùng chung cho bảng T Chữ và nhóm Hình dạng của bảng ⬠. `taoClip(id, track, bd, dai)` sinh clip mặc định. */
 export function opsThemLopPhu(tl, t, dai, taoClip) {
-    let trackId = (tl.tracks.find((tr) => tr.loai === 'lop_phu') || {}).id;
+    const cac = tl.tracks.filter((tr) => tr.loai === 'lop_phu' && !tr.khoa);
+    let trackId = (cac.find((tr) => choTrong(tl, tr.id, t, dai) === t) || cac[0] || tl.tracks.find((tr) => tr.loai === 'lop_phu') || {}).id;
     const ops = [];
     if (!trackId) { const moi = opsThemTrack(tl, 'lop_phu'); trackId = moi.id; ops.push(...moi.ops); }
     const bd = choTrong(tl, trackId, t, dai);          // choTrong trả SỐ: giờ bắt đầu còn trống trên track
