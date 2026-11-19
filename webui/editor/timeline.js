@@ -927,19 +927,17 @@ export class Timeline {
             this.ctx.sua('Bỏ tua ngược', opsBoDaoNguoc(this.tl, c));
             return;
         }
-        toast('Đang tạo bản tua ngược…', 'info', 4000);
+        const tb = toast('Đang tạo bản tua ngược… (clip dài có thể mất vài phút, cứ làm việc khác)', 'info', 3600000);
         try {
-            const m = await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${encodeURIComponent(c.media)}/dao-nguoc`,
-                { method: 'POST', body: { phien: this.ctx.boLuu.phien, vao: Number(c.vao || 0), ra: Number(c.ra || 0) } });
-            if (!this.ctx.media.find((x) => x.id === m.id)) this.ctx.media.push(m);
-            this.ctx.bus.emit('media_can_tai');
+            const m = await this._choViecNen(await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${encodeURIComponent(c.media)}/dao-nguoc`,
+                { method: 'POST', body: { phien: this.ctx.boLuu.phien, vao: Number(c.vao || 0), ra: Number(c.ra || 0) } }));
             const hien = this.tl.clips.find((x) => x.id === cid);          // người dùng có thể đã sửa clip trong lúc chờ
             if (!hien || hien.media !== c.media || hien.vao !== c.vao || hien.ra !== c.ra) {
                 toast('Clip đã đổi trong lúc tạo bản tua ngược — bấm Tua ngược lại.', 'warn');
                 return;
             }
             if (this.ctx.sua('Tua ngược', opsDaoNguoc(this.tl, hien, m))) toast('Đã tua ngược clip.', 'success', 2500);
-        } catch (err) { toast(err.message, 'error'); }
+        } catch (err) { toast(err.message, 'error'); } finally { tb.remove(); }
     }
 
     /* Thả/thêm nhiều media một lượt: nối đuôi nhau theo đúng thứ tự đang chọn ở bảng nguồn, MỘT lệnh hoàn tác. */

@@ -843,7 +843,8 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
 
     @r.post("/api/du-an/{pid}/media/{mid}/dao-nguoc")
     def reverse_video(pid: str, mid: str, body: DaoNguocSchema):
-        """Tua ngược đoạn [vao, ra] của video → media video mới (dùng lại file đã làm cho đúng đoạn đó)."""
+        """Tua ngược đoạn [vao, ra] của video → media video mới (dùng lại file đã làm cho đúng đoạn đó).
+        Chạy nền như chống rung (clip dài lâu hơn giới hạn 100 giây của proxy): hỏi kết quả ở /viec-nen?khoa=…"""
         folder, m, path = media_path(pid, mid)
         khoa_ghi(folder, body.phien)
         if m.get("loai") != "video":
@@ -854,14 +855,14 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         vao, ra = max(0.0, float(body.vao)), min(float(body.ra), float(m.get("thoi_luong") or body.ra))
         ten = f"{m.get('ten') or mid} (tua ngược {vao:.2f}-{ra:.2f}).mp4"
         dich = os.path.join(folder, luu_tru.MEDIA_DIR, ten)
-        if not os.path.isfile(dich):
-            try:
+        if not 0 <= vao < ra or ra - vao > dao_nguoc.DAI_TOI_DA:
+            raise HTTPException(status_code=400, detail=f"Đoạn tua ngược không hợp lệ hoặc dài quá {int(dao_nguoc.DAI_TOI_DA / 60)} phút.")
+
+        def lam():
+            if not os.path.isfile(dich):
                 dao_nguoc.tao(ff, path, dich, vao, ra, m.get("co_am_thanh") is not False)
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e))
-            except (RuntimeError, OSError, subprocess.SubprocessError) as e:
-                raise HTTPException(status_code=500, detail=str(e))
-        return qlm.dang_ky_file(folder, pid, dich, tu_media=mid)
+            return qlm.dang_ky_file(folder, pid, dich, tu_media=mid)
+        return chay_nen(f"{pid}:dn:{mid}:{vao:.2f}:{ra:.2f}", lam)
 
     # Việc nền sinh media mới (chống rung, gộp clip…): chạy ở luồng riêng vì có thể lâu hơn giới hạn 100 giây của proxy.
     viec_nen: Dict[str, Dict[str, Any]] = {}          # khoá → {khoa, trang_thai: dang|xong|loi, loi, media}

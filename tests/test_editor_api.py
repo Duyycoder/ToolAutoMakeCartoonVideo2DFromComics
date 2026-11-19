@@ -491,13 +491,24 @@ def test_tua_nguoc_video_thanh_media_moi_va_dung_lai_file(ws):
     pid = _tao(ws)["id"]
     phien = ws.get(f"/api/du-an/{pid}").json()["khoa"]["phien"]
     m = _tai_len(ws, pid, phien, "canh.mp4", v.read_bytes())
+    import time
+
+    def cho(v):
+        """Việc nền: hỏi /viec-nen tới khi xong → media."""
+        for _ in range(300):
+            if v["trang_thai"] != "dang":
+                break
+            time.sleep(0.1)
+            v = ws.get(f"/api/du-an/{pid}/viec-nen", params={"khoa": v["khoa"]}).json()
+        assert v["trang_thai"] == "xong", v
+        return v["media"]
     r = ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 0.5, "ra": 1.5})
-    assert r.status_code == 200, r.text
-    dao = r.json()
+    assert r.status_code == 200 and r.json()["khoa"].startswith(pid + ":dn:"), r.text
+    dao = cho(r.json())
     _cho_media(ws)        # việc nền (thumbnail) ghi lại .duan.json — trên Windows đọc đúng lúc đó có thể hụt
     assert dao["loai"] == "video" and dao["tu_media"] == m["id"] and "tua ngược 0.50-1.50" in dao["file"]
     assert ws.get(f"/api/du-an/{pid}/media/{dao['id']}/file").content[4:8] == b"ftyp"   # thời lượng: test_editor_dao_nguoc
-    lai = ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 0.5, "ra": 1.5}).json()
+    lai = cho(ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 0.5, "ra": 1.5}).json())
     _cho_media(ws)
     assert lai["id"] == dao["id"]                                  # cùng đoạn → không sinh media thứ hai
     assert ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 1, "ra": 1}).status_code == 400
