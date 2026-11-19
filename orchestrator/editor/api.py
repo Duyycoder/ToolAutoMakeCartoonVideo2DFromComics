@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from orchestrator.config import load_global_config, save_global_config
-from orchestrator.editor import (ai_bridge, chuan_hoa_file, dao_nguoc, hang_doi, luu_tru, mau_nang_cao, media, nuong, render,
+from orchestrator.editor import (ai_bridge, chuan_hoa_file, dao_nguoc, goi_du_an, hang_doi, luu_tru, mau_nang_cao, media, nuong, render,
                                  srt, tai_len, thu_vien_am, workspace, xuat_tu_xa)
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -67,6 +67,9 @@ class DaoNguocSchema(PhienSchema):
 
 class KhungDungSchema(PhienSchema):
     t: float = 0
+
+class GoiSchema(BaseModel):
+    kem_xuat: bool = False
 
 class TimelineSchema(PhienSchema):
     phien_ban: int
@@ -258,6 +261,90 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         folder = os.path.abspath(body.folder)
         them_ngoai(folder)
         return the_cua(folder)
+
+    # ------------------------------------------------------------ Gói dự án (.duan.zip) — mang dự án sang máy khác
+    goi_viec: Dict[str, Dict[str, Any]] = {}          # pid → {trang_thai: dang|xong|loi, phan_tram, kich_thuoc, loi, file}
+
+    def thu_muc_nhap_goi() -> str:
+        return os.path.join(workspace.lay_workspace({"editor": _cfg_editor()}), ".nhap_goi")
+
+    def file_nhap_goi(uid: str) -> str:
+        if not uid or not all(c in "0123456789abcdef" for c in uid) or len(uid) != 32:
+            raise HTTPException(status_code=400, detail="Mã tải lên không hợp lệ.")
+        return os.path.join(thu_muc_nhap_goi(), uid + ".zip")
+
+    @r.post("/api/du-an/nhap-goi")
+    def import_package_start():
+        import uuid
+        os.makedirs(thu_muc_nhap_goi(), exist_ok=True)
+        uid = uuid.uuid4().hex
+        open(file_nhap_goi(uid), "wb").close()
+        return {"uid": uid}
+
+    @r.put("/api/du-an/nhap-goi/{uid}")
+    async def import_package_chunk(uid: str, request: Request, vi_tri: int):
+        """Nối một phần vào gói đang tải lên. `vi_tri` phải đúng bằng số byte đã nhận (gửi tuần tự, gửi lại được)."""
+        path = file_nhap_goi(uid)
+        if not os.path.isfile(path):
+            raise HTTPException(status_code=404, detail="Phiên tải gói đã hết — chọn lại file.")
+        da_co = os.path.getsize(path)
+        if vi_tri != da_co:
+            raise HTTPException(status_code=409, detail=f"Sai vị trí: đã nhận {da_co} byte.")
+        du_lieu = await request.body()
+        with open(path, "ab") as f:
+            f.write(du_lieu)
+        return {"da_nhan": da_co + len(du_lieu)}
+
+    @r.post("/api/du-an/nhap-goi/{uid}/xong")
+    def import_package_finish(uid: str):
+        path = file_nhap_goi(uid)
+        if not os.path.isfile(path):
+            raise HTTPException(status_code=404, detail="Phiên tải gói đã hết — chọn lại file.")
+        try:
+            folder = goi_du_an.mo_goi(path, workspace.lay_workspace({"editor": _cfg_editor()}))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except OSError as e:
+            raise HTTPException(status_code=500, detail=f"Không giải nén được gói: {e}")
+        finally:
+            if os.path.exists(path):
+                os.remove(path)
+        return the_cua(folder)
+
+    @r.post("/api/du-an/{pid}/goi")
+    def export_package(pid: str, body: GoiSchema):
+        """Bắt đầu đóng gói dự án ở luồng nền (dự án vài GB mất cả phút) — hỏi tiến độ bằng GET cùng địa chỉ."""
+        folder = folder_cua(pid)
+        viec = goi_viec.get(pid)
+        if viec and viec["trang_thai"] == "dang":
+            return viec
+        da = luu_tru.doc_duan(folder) or {}
+        from orchestrator.storage import slugify
+        dich = luu_tru._p(folder, luu_tru.CACHE, "goi", (slugify(str(da.get("name") or "")) or "du-an") + goi_du_an.DUOI)
+        viec = {"trang_thai": "dang", "phan_tram": 0, "kich_thuoc": 0, "loi": "", "file": dich}
+        goi_viec[pid] = viec
+
+        def lam():
+            try:
+                viec["kich_thuoc"] = goi_du_an.dong_goi(folder, dich, lambda p: viec.update(phan_tram=int(p * 100)), body.kem_xuat)
+                viec.update(trang_thai="xong", phan_tram=100)
+            except Exception as e:                      # luồng nền: mọi lỗi phải tới được giao diện
+                viec.update(trang_thai="loi", loi=str(e))
+        threading.Thread(target=lam, daemon=True).start()
+        return viec
+
+    @r.get("/api/du-an/{pid}/goi")
+    def export_package_status(pid: str):
+        folder_cua(pid)
+        return goi_viec.get(pid) or {"trang_thai": "chua", "phan_tram": 0, "kich_thuoc": 0, "loi": ""}
+
+    @r.get("/api/du-an/{pid}/goi/tai")
+    def export_package_download(pid: str):
+        folder_cua(pid)
+        viec = goi_viec.get(pid) or {}
+        if viec.get("trang_thai") != "xong" or not os.path.isfile(viec.get("file") or ""):
+            raise HTTPException(status_code=404, detail="Chưa có gói — bấm Xuất file dự án trước.")
+        return FileResponse(viec["file"], media_type="application/zip", filename=os.path.basename(viec["file"]))
 
     @r.get("/api/du-an/{pid}")
     def open_project(pid: str, phien: str = ""):

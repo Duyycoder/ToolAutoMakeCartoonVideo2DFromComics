@@ -494,14 +494,17 @@ def test_tua_nguoc_video_thanh_media_moi_va_dung_lai_file(ws):
     r = ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 0.5, "ra": 1.5})
     assert r.status_code == 200, r.text
     dao = r.json()
+    _cho_media(ws)        # việc nền (thumbnail) ghi lại .duan.json — trên Windows đọc đúng lúc đó có thể hụt
     assert dao["loai"] == "video" and dao["tu_media"] == m["id"] and "tua ngược 0.50-1.50" in dao["file"]
     assert ws.get(f"/api/du-an/{pid}/media/{dao['id']}/file").content[4:8] == b"ftyp"   # thời lượng: test_editor_dao_nguoc
     lai = ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 0.5, "ra": 1.5}).json()
+    _cho_media(ws)
     assert lai["id"] == dao["id"]                                  # cùng đoạn → không sinh media thứ hai
     assert ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 1, "ra": 1}).status_code == 400
     # Đóng băng khung hình: ảnh PNG thành media mới; xin quá cuối video vẫn lấy được khung gần cuối.
     anh = ws.post(f"/api/du-an/{pid}/media/{m['id']}/khung-dung", json={"phien": phien, "t": 1.2})
     assert anh.status_code == 200, anh.text
+    _cho_media(ws)
     assert anh.json()["loai"] == "anh" and anh.json()["file"].endswith("(khung 1.200s).png") and anh.json()["tu_media"] == m["id"]
     assert ws.get(f"/api/du-an/{pid}/media/{anh.json()['id']}/file").content[1:4] == b"PNG"
     assert ws.post(f"/api/du-an/{pid}/media/{m['id']}/khung-dung", json={"phien": phien, "t": 2.0}).status_code == 200
@@ -550,3 +553,58 @@ def test_may_xuat_cau_hinh_va_laptop_tat_thi_xuat_o_may_nay(ws):
     viec, _ = ws.router.xep_xuat(mo["du_an"]["folder"], pid, {"may_xuat": "laptop", "bo_ma_hoa": "x264"})
     assert "xuất bằng server" in viec.nhan and viec.tham_so["bo_ma_hoa"] in ("x264", "nvenc")
     viec.huy_event.set()
+
+
+def test_xuat_goi_du_an_roi_nhap_thanh_du_an_moi(ws):
+    import io
+    import time
+    import zipfile
+    da = _tao(ws, "Phim Mang Đi")
+    pid = da["id"]
+    phien = ws.get(f"/api/du-an/{pid}").json()["khoa"]["phien"]
+    m = _tai_len(ws, pid, phien, "canh.mp4", b"video-gia" * 1000)
+    folder = ws.get(f"/api/du-an/{pid}").json()["du_an"]["folder"]
+    os.makedirs(os.path.join(folder, "xuat"), exist_ok=True)
+    open(os.path.join(folder, "xuat", "ban_xuat.mp4"), "wb").write(b"x" * 500)
+
+    assert ws.get(f"/api/du-an/{pid}/goi/tai").status_code == 404
+    v = ws.post(f"/api/du-an/{pid}/goi", json={}).json()
+    for _ in range(100):
+        if v["trang_thai"] != "dang":
+            break
+        time.sleep(0.05)
+        v = ws.get(f"/api/du-an/{pid}/goi").json()
+    assert v["trang_thai"] == "xong" and v["kich_thuoc"] > 9000, v
+    goi = ws.get(f"/api/du-an/{pid}/goi/tai")
+    assert goi.status_code == 200 and "attachment" in goi.headers["content-disposition"]
+    ten = zipfile.ZipFile(io.BytesIO(goi.content)).namelist()
+    assert ".duan.json" in ten and m["file"] in ten and ".duan/timeline.json" in ten
+    assert not [n for n in ten if n.startswith(("xuat/", ".duan/cache/")) or n == ".duan/lock"]
+
+    # Nhập lại: gửi hai phần, phần gửi sai vị trí bị từ chối kèm số byte đã nhận.
+    uid = ws.post("/api/du-an/nhap-goi", json={}).json()["uid"]
+    nua = len(goi.content) // 2
+    assert ws.put(f"/api/du-an/nhap-goi/{uid}?vi_tri=0", content=goi.content[:nua]).json()["da_nhan"] == nua
+    assert ws.put(f"/api/du-an/nhap-goi/{uid}?vi_tri=0", content=goi.content[:nua]).status_code == 409
+    assert ws.put(f"/api/du-an/nhap-goi/{uid}?vi_tri={nua}", content=goi.content[nua:]).status_code == 200
+    moi = ws.post(f"/api/du-an/nhap-goi/{uid}/xong", json={})
+    assert moi.status_code == 200, moi.text
+    the = moi.json()
+    assert the["id"] != pid and the["name"] == "Phim Mang Đi" and the["folder"] != folder
+    mo = ws.get(f"/api/du-an/{the['id']}").json()
+    assert [x["file"] for x in mo["du_an"]["media"]] == [m["file"]]
+    assert open(os.path.join(the["folder"], m["file"]), "rb").read() == b"video-gia" * 1000
+    assert ws.post(f"/api/du-an/nhap-goi/{uid}/xong", json={}).status_code == 404        # file tạm đã dọn
+
+    # Gói rác / gói không có dự án bị từ chối, không để lại thư mục.
+    uid = ws.post("/api/du-an/nhap-goi", json={}).json()["uid"]
+    ws.put(f"/api/du-an/nhap-goi/{uid}?vi_tri=0", content=b"khong phai zip")
+    assert ws.post(f"/api/du-an/nhap-goi/{uid}/xong", json={}).status_code == 400
+    b = io.BytesIO()
+    with zipfile.ZipFile(b, "w") as z:
+        z.writestr(".duan.json", "{}")
+        z.writestr("../thoat.txt", "x")
+    uid = ws.post("/api/du-an/nhap-goi", json={}).json()["uid"]
+    ws.put(f"/api/du-an/nhap-goi/{uid}?vi_tri=0", content=b.getvalue())
+    assert ws.post(f"/api/du-an/nhap-goi/{uid}/xong", json={}).status_code == 400
+    assert len(ws.get("/api/workspace").json()["du_an"]) == 2

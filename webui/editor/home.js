@@ -77,7 +77,8 @@ function menuThe(id, x, y) {
         <button data-l="nhan-ban">📑 Nhân bản</button>
         <button data-l="ten">✎ Đổi tên</button>
         <button data-l="mo-ta">📝 Sửa mô tả</button>
-        <button data-l="thu-muc">📂 Mở thư mục</button><hr>
+        <button data-l="thu-muc">📂 Mở thư mục</button>
+        <button data-l="xuat-goi">📦 Xuất file dự án (.zip)</button><hr>
         <button data-l="xoa" class="nguy">🗑 Xoá (chuyển vào Thùng rác)</button>`;
     document.body.appendChild(m);
     const r = m.getBoundingClientRect();
@@ -90,6 +91,7 @@ function menuThe(id, x, y) {
         try {
             if (l === 'mo') moDuAn(id);
             if (l === 'thu-muc') await api(`/api/du-an/${id}/mo-thu-muc`, { method: 'POST' });
+            if (l === 'xuat-goi') await xuatGoi(id);
             if (l === 'nhan-ban') {
                 const ten = await hoi({ tieuDe: 'Nhân bản dự án', o: { giaTri: d.name + ' (bản sao)' }, nut: 'Nhân bản' });
                 if (ten && ten.trim()) {
@@ -213,6 +215,66 @@ function hopDuAnMoi() {
     f.ten.focus();
 }
 
+/* ------------------------------------------------------------------ Gói dự án (.duan.zip): mang dự án sang máy khác */
+const CO_PHAN_GOI = 16 * 1024 * 1024;       // 16 MB mỗi phần — dưới giới hạn 100 MB/yêu cầu của Cloudflare
+
+/* Server đóng gói ở nền (dự án lớn mất cả phút) → hỏi tiến độ → xong thì trình duyệt tải file về. */
+async function xuatGoi(id) {
+    const t = toast('Đang đóng gói dự án… 0%', 'info', 3600000);
+    try {
+        let v = await api(`/api/du-an/${id}/goi`, { method: 'POST', body: {} });
+        while (v.trang_thai === 'dang') {
+            t.textContent = `Đang đóng gói dự án… ${v.phan_tram}%`;
+            await new Promise((r) => setTimeout(r, 1000));
+            v = await api(`/api/du-an/${id}/goi`);
+        }
+        if (v.trang_thai !== 'xong') throw new Error(v.loi || 'Đóng gói thất bại.');
+        const a = document.createElement('a');
+        a.href = `/api/du-an/${id}/goi/tai`;
+        a.download = '';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        toast(`Đã đóng gói (${(v.kich_thuoc / 1048576).toFixed(0)} MB) — trình duyệt đang tải file về. Sang máy kia bấm "Nhập file dự án".`, 'success', 8000);
+    } catch (e) { toast(e.message, 'error'); } finally { t.remove(); }
+}
+
+/* Chọn file .duan.zip → tải lên từng phần (phần nào lỗi mạng thì gửi lại tối đa 5 lần) → server giải nén thành dự án mới. */
+async function nhapGoi() {
+    const o = Object.assign(document.createElement('input'), { type: 'file', accept: '.zip' });
+    o.style.display = 'none';
+    document.body.appendChild(o);
+    o.addEventListener('change', async () => {
+        const file = o.files[0];
+        o.remove();
+        if (!file) return;
+        const t = toast('Đang tải gói dự án lên… 0%', 'info', 3600000);
+        try {
+            const { uid } = await api('/api/du-an/nhap-goi', { method: 'POST', body: {} });
+            for (let vt = 0; vt < file.size;) {
+                let da = null;
+                for (let lan = 0; lan < 5 && da == null; lan += 1) {
+                    try {
+                        const r = await fetch(`/api/du-an/nhap-goi/${uid}?vi_tri=${vt}`, { method: 'PUT', body: file.slice(vt, vt + CO_PHAN_GOI) });
+                        if (r.ok) da = (await r.json()).da_nhan;
+                        else if (r.status === 409) da = Number(/(\d+) byte/.exec((await r.json()).detail || '')?.[1] ?? NaN);   // phần này đã tới ở lần gửi trước
+                        else if (r.status < 500) throw Object.assign(new Error((await r.json().catch(() => ({}))).detail || `Lỗi ${r.status}`), { dung: true });
+                    } catch (e) { if (e.dung) throw e; }
+                    if (da == null || Number.isNaN(da)) { da = null; await new Promise((x) => setTimeout(x, 1500)); }
+                }
+                if (da == null) throw new Error('Mất kết nối khi tải gói lên — thử lại.');
+                vt = da;
+                t.textContent = `Đang tải gói dự án lên… ${Math.round(vt * 100 / file.size)}%`;
+            }
+            t.textContent = 'Đang giải nén gói…';
+            const the = await api(`/api/du-an/nhap-goi/${uid}/xong`, { method: 'POST', body: {} });
+            toast(`Đã nhập "${the.name}".`, 'success');
+            await taiDanhSach();
+        } catch (e) { toast(e.message, 'error'); } finally { t.remove(); }
+    });
+    o.click();
+}
+
 /* ------------------------------------------------------------------ Gắn sự kiện */
 function ganSuKien() {
     $('btnDuAnMoi').addEventListener('click', hopDuAnMoi);
@@ -228,6 +290,7 @@ function ganSuKien() {
             toast('Đã đổi Nơi làm việc.', 'success');
         } catch (e) { toast(e.message, 'error'); }
     });
+    $('btnNhapGoi').addEventListener('click', nhapGoi);
     $('btnNhapDuAn').addEventListener('click', async () => {
         try {
             const folder = await chonFile('folder');
