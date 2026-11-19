@@ -19,6 +19,7 @@ import { BangAmThanh } from './bang_am_thanh.js';
 import { BangChuyenCanh } from './bang_chuyen_canh.js';
 import { ganXuat } from './xuat.js';
 import { opsTachNeo } from './thao_tac_clip.js';
+import { moHopPhimTat } from './phim_tat.js';
 
 const UI_MAC_DINH = {
     dau_phat: 0, zoom_timeline: 0.45, cuon_timeline: { x: 0, y: 0 },
@@ -323,6 +324,15 @@ async function khoiDong() {
     };
     $('btnVe').addEventListener('click', ve);
     const caiDat = () => moCaiDat();
+    $('btnPhimTat').addEventListener('click', moHopPhimTat);
+    // Kéo file từ máy thả vào cửa sổ editor → tải lên dự án (như bấm nút Nhập ở bảng Media).
+    addEventListener('dragover', (e) => { if ([...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+    addEventListener('drop', (e) => {
+        if (![...e.dataTransfer.types].includes('Files')) return;
+        e.preventDefault();
+        const files = [...e.dataTransfer.files];
+        if (files.length) bangMedia.taiLenNhieu(files);
+    });
     $('btnCaiDat').addEventListener('click', caiDat);
     $('btnCaiDat2').addEventListener('click', caiDat);
     const luuTay = async () => {
@@ -367,6 +377,7 @@ async function khoiDong() {
             timeline.chonClip(null); 
             return; 
         }
+        if (e.key === '?') { e.preventDefault(); moHopPhimTat(); return; }
         if (!ctrl && e.key.toLowerCase() === 'm') { e.preventDefault(); timeline.danhDau(); return; }
         if (!ctrl && e.key.toLowerCase() === 'q') { e.preventDefault(); timeline.tiaToiDauPhat('truoc', !e.altKey); return; }
         if (!ctrl && e.key.toLowerCase() === 'w') { e.preventDefault(); timeline.tiaToiDauPhat('sau', !e.altKey); return; }

@@ -18,6 +18,8 @@ const EQ_MAU = {
     phang: ['Phẳng', { thap: 0, trung: 0, cao: 0 }],
 };
 
+import { opsHieuUngClip, HU_VAO, HU_RA } from './thao_tac_clip.js';
+const EASING = { tuyen_tinh: 'Đều', vao_ra: 'Mượt', vao: 'Chậm → nhanh', ra: 'Nhanh → chậm', giu: 'Giữ nguyên' };
 const FONT_CHU = ['Arial', 'Roboto', 'Segoe UI', 'Tahoma', 'Verdana', 'Times New Roman', 'Be Vietnam Pro', 'Montserrat', 'Impact', 'Comic Sans MS'];
 
 export class BangPhai {
@@ -54,7 +56,11 @@ export class BangPhai {
             if (kfBtn) this._xuLyKF(kfBtn);
         });
         this.el.addEventListener('input', (e) => this._sua(e));
-        this.el.addEventListener('change', (e) => { if (e.target.matches('select, [data-k=text]')) this._sua(e); });
+        this.el.addEventListener('change', (e) => {
+            if (e.target.matches('[data-kf-em]')) { this._datEasing(e.target); return; }
+            if (e.target.matches('[data-hu-clip]')) { this._datHieuUngClip(); return; }
+            if (e.target.matches('select, [data-k=text]')) this._sua(e);
+        });
         ['chon', 'timeline', 'media'].forEach((ev) => ctx.bus.on(ev, () => {
             if (!this._dangSua && this.el.isConnected) {
                 if (document.activeElement && this.el.contains(document.activeElement) && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
@@ -178,6 +184,8 @@ export class BangPhai {
                 : `<button class="kf-nut kf-chinh" data-kf="them" title="${kf.length ? 'Thêm keyframe ở đầu phát' : 'Bật keyframe: ghim giá trị ở đầu phát'}">◇</button>`)
             + `<button class="kf-nut" data-kf="sau" ${kfSau ? '' : 'disabled'} title="Tới keyframe sau">▶</button>`
             + (kf.length ? `<small class="kf-so">${kf.length}</small>` : '')
+            + (coKFNay ? `<select class="kf-em" data-kf-em title="Kiểu chuyển động từ keyframe này tới keyframe sau">${Object.entries(EASING).map(([v, ten]) =>
+                `<option value="${v}" ${(kf.find((x) => Math.abs(x.t - t) < 1e-4).em || 'tuyen_tinh') === v ? 'selected' : ''}>${ten}</option>`).join('')}</select>` : '')
             + '</span>';
     }
 
@@ -216,6 +224,24 @@ export class BangPhai {
     }
 
     get tl() { return this.ctx.store.timeline; }
+
+    /* Đổi kiểu chuyển động (easing) của keyframe đang nằm ở đầu phát. */
+    _datEasing(o) {
+        const c = this._clip(), dd = o.closest('.kf-nhom')?.dataset.dd;
+        if (!c || !dd) return;
+        const t = this.ctx.ui.dau_phat - (c.bat_dau || 0);
+        const moi = ((c.keyframes || {})[dd] || []).map((k) => (Math.abs(k.t - t) < 1e-4 ? { ...k, em: o.value } : k));
+        this.ctx.sua('Kiểu chuyển động keyframe', [tao.dat(this.tl, ['clips', { id: c.id }, 'keyframes', dd], moi)]);
+    }
+
+    /* Hiệu ứng vào/ra của clip (mờ dần, phóng, trượt…): sinh keyframe ở đầu/cuối clip. */
+    _datHieuUngClip() {
+        const c = this._clip();
+        if (!c) return;
+        const gt = (k) => this.el.querySelector(`[data-hu-clip=${k}]`)?.value || '';
+        const ops = opsHieuUngClip(this.tl, c, gt('vao'), gt('ra'), Number(gt('dai')) || 0.5);
+        if (ops.length && this.ctx.sua('Hiệu ứng vào/ra', ops)) this.ve();
+    }
 
     /* Lấp đầy khung: phóng clip vừa đủ kín khung dự án (cắt bớt phần thừa hai bên), đặt lại giữa khung. */
     _lapDay() {
@@ -485,6 +511,12 @@ export class BangPhai {
                             <label class="check" title="Khoảng trống quanh clip (video ngang trong khung dọc…) được lấp bằng chính hình đó làm mờ. Chỉ áp cho dòng video dưới cùng."><input type="checkbox" data-k="nen_mo" ${clip.nen_mo ? 'checked' : ''}> Nền mờ</label></div>
                         <div class="hang"><label class="check"><input type="checkbox" data-k="lat_ngang" ${clip.lat_ngang ? 'checked' : ''}> ⇋ Lật ngang</label>
                             <label class="check"><input type="checkbox" data-k="lat_doc" ${clip.lat_doc ? 'checked' : ''}> ⇅ Lật dọc</label></div>
+                    </div>`)
+                    + this._muc('hu_clip', 'Hiệu ứng vào / ra', `<div class="o-form">
+                        <div class="hang"><label>Vào<select data-hu-clip="vao">${Object.entries(HU_VAO).map(([v, ten]) => `<option value="${v}" ${(clip.hu_vao || '') === v ? 'selected' : ''}>${ten}</option>`).join('')}</select></label>
+                            <label>Ra<select data-hu-clip="ra">${Object.entries(HU_RA).map(([v, ten]) => `<option value="${v}" ${(clip.hu_ra || '') === v ? 'selected' : ''}>${ten}</option>`).join('')}</select></label></div>
+                        <label>Dài (giây)<select data-hu-clip="dai">${[0.3, 0.5, 0.8, 1, 1.5].map((v) => `<option value="${v}" ${(clip.hu_dai || 0.5) === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+                        <div class="goi-y-nho">Hiệu ứng tạo keyframe cho độ mờ, tỉ lệ, vị trí ở đầu và cuối clip (thay keyframe cũ của các thuộc tính đó). Tỉa clip xong thì chọn lại để hiệu ứng ra khớp điểm cuối mới.</div>
                     </div>`)
                     + this._muc('cat_khung', 'Cắt khung', `<div class="o-form">
                         <div class="hang"><label>Trái %<input type="number" data-k="cat_khung.trai" min="0" max="100" value="${pc(ck.trai)}"></label>

@@ -2,7 +2,7 @@
  *  - opsKenBurns: phóng to / thu nhỏ / lia ngang dần bằng keyframe biến đổi
  *  - opsDongBang: chèn một ảnh tĩnh (khung hình tại đầu phát) vào giữa clip, đẩy mọi thứ phía sau lùi lại
  *  - opsNoiMuotAm: crossfade hai clip âm thanh liền nhau */
-import { tao, apOp, opsTach, idClipMoi, idMoiNhieu, idNhomMoi, ketThucClip, clipMediaMoi, chongClip, opsThemTrack } from './store.js';
+import { tao, apOp, opsTach, opsXoaGon, veTimeline, idClipMoi, idMoiNhieu, idNhomMoi, ketThucClip, clipMediaMoi, chongClip, opsThemTrack } from './store.js';
 
 const tron = (x) => Math.round(x * 1000) / 1000;
 
@@ -150,4 +150,71 @@ export function opsTachNeo(tl) {
     const ids = idMoiNhieu(tl, sao.length), dau = (tl.clips || []).length;
     sao.forEach((c, i) => ops.push({ op: 'them', path: ['clips'], vi_tri: dau + i, gia_tri: { ...c, id: ids[i] } }));
     return { ops, soCau: sao.length };
+}
+
+/* Tự cắt khoảng lặng (jump cut): `khoang` = [[a, b], …] giây trong MEDIA (server đo bằng silencedetect). Mỗi khoảng lặng
+   nằm trong clip được cắt ra và xoá gợn (phần sau dồn lên), chừa lại `dem` giây lặng ở mỗi đầu cho đỡ cụt tiếng.
+   Clip liên kết trùng giờ với clip này (tiếng đã tách) cắt y hệt để hình–tiếng vẫn khớp. Trả {ops, so, giam} | null. */
+export function opsCatKhoangLang(tl, cid, khoang, dem = 0.12) {
+    const goc = (tl.clips || []).find((x) => x.id === cid);
+    if (!goc || goc.loai) return null;
+    const bd = Number(goc.bat_dau || 0), kt = ketThucClip(goc);
+    // Khoảng lặng → giờ timeline, xét từ CUỐI lên để các lần xoá gợn không làm lệch khoảng chưa xử lý.
+    const doan = khoang.map(([a, b]) => [bd + veTimeline(goc, Math.max(Number(goc.vao || 0), a + dem)), bd + veTimeline(goc, Math.min(Number(goc.ra || 0), b - dem))])
+        .map(([a, b]) => [tron(Math.max(bd, a)), tron(Math.min(kt, b))]).filter(([a, b]) => b - a > 0.1).sort((x, y) => y[0] - x[0]);
+    if (!doan.length) return null;
+    const cung = (tl.clips || []).filter((x) => !x.loai && (x.id === cid || (goc.lien_ket && x.lien_ket === goc.lien_ket
+        && Math.abs(Number(x.bat_dau || 0) - bd) < 1e-3 && Math.abs(ketThucClip(x) - kt) < 1e-3))).map((x) => x.id);
+    const nhap = JSON.parse(JSON.stringify(tl));
+    const ops = [];
+    const lam = (o) => { if (o) o.forEach((op) => { apOp(nhap, op); ops.push(op); }); return o; };
+    for (const [a, b] of doan) {
+        for (const id of cung) {
+            if (b < kt - 0.02) lam(opsTach(nhap, id, b, idClipMoi(nhap)));          // phần sau khoảng lặng thành clip riêng
+            let giua = id;                                                         // khoảng lặng bắt đầu ngay đầu clip → xoá chính nó
+            if (a > bd + 0.02) { giua = idClipMoi(nhap); if (!lam(opsTach(nhap, id, a, giua))) continue; }
+            lam(opsXoaGon(nhap, [giua]));
+        }
+    }
+    return { ops, so: doan.length, giam: tron(doan.reduce((s, [a, b]) => s + b - a, 0)) };
+}
+
+/* Hiệu ứng vào/ra cho clip video/ảnh (kiểu CapCut): sinh keyframe độ mờ / tỉ lệ / vị trí trong `dai` giây đầu và cuối clip.
+   Tên hiệu ứng lưu ở clip.hu_vao / hu_ra / hu_dai để bảng thuộc tính hiện lại; keyframe cũ của 4 thuộc tính này bị thay. */
+export const HU_VAO = { '': 'Không', mo_dan: 'Mờ dần', phong_to: 'Phóng to dần', thu_nho: 'Thu nhỏ dần', truot_trai: 'Trượt vào từ trái',
+    truot_phai: 'Trượt vào từ phải', truot_len: 'Trượt lên', truot_xuong: 'Trượt xuống' };
+export const HU_RA = { '': 'Không', mo_dan: 'Mờ dần', phong_to: 'Phóng to dần', thu_nho: 'Thu nhỏ dần', truot_trai: 'Trượt ra bên trái',
+    truot_phai: 'Trượt ra bên phải', truot_len: 'Trượt lên', truot_xuong: 'Trượt xuống' };
+const DD_HU = { mo: 'hien_thi.do_mo', s: 'bien_doi.ti_le', x: 'bien_doi.x', y: 'bien_doi.y' };
+
+export function opsHieuUngClip(tl, c, vao, ra, dai = 0.5) {
+    const D = tron(ketThucClip(c) - Number(c.bat_dau || 0));
+    if (D <= 0) return [];
+    const d = tron(Math.min(dai, D / 2));
+    const b = c.bien_doi || {};
+    const goc = { mo: Number((c.hien_thi || {}).do_mo ?? 1), s: Number(b.ti_le ?? 1), x: Number(b.x ?? 0.5), y: Number(b.y ?? 0.5) };
+    // Giá trị ở mép ngoài (lúc bắt đầu vào / lúc ra hết) của từng hiệu ứng.
+    const mep = (ten, laVao) => ({
+        mo_dan: { mo: 0 },
+        phong_to: { s: goc.s * (laVao ? 0.6 : 1.4), mo: 0 },
+        thu_nho: { s: goc.s * (laVao ? 1.4 : 0.6), mo: 0 },
+        truot_trai: { x: goc.x - 0.6 }, truot_phai: { x: goc.x + 0.6 },
+        truot_len: { y: goc.y + (laVao ? 0.6 : -0.6) }, truot_xuong: { y: goc.y + (laVao ? -0.6 : 0.6) },
+    }[ten] || {});
+    const mv = mep(vao, true), mr = mep(ra, false);
+    const kf = { ...(c.keyframes || {}) };
+    for (const [k, dd] of Object.entries(DD_HU)) {
+        delete kf[dd];
+        if (!(k in mv) && !(k in mr)) continue;
+        const diem = k in mv ? [{ t: 0, v: tron(mv[k]), em: 'ra' }, { t: d, v: goc[k], em: 'tuyen_tinh' }] : [{ t: 0, v: goc[k], em: 'tuyen_tinh' }];
+        if (k in mr) {
+            if (diem[diem.length - 1].t < D - d - 1e-6) diem.push({ t: tron(D - d), v: goc[k], em: 'vao' });
+            else diem[diem.length - 1].em = 'vao';
+            diem.push({ t: D, v: tron(mr[k]), em: 'tuyen_tinh' });
+        }
+        kf[dd] = diem;
+    }
+    const p = (k) => ['clips', { id: c.id }, k];
+    return [tao.dat(tl, p('keyframes'), kf), tao.dat(tl, p('hu_vao'), vao || undefined), tao.dat(tl, p('hu_ra'), ra || undefined),
+        tao.dat(tl, p('hu_dai'), vao || ra ? dai : undefined)];
 }

@@ -36,6 +36,10 @@ def gia_tri_tai(clip: dict, duong_dan: str, t_cuc_bo: float):
             f = tl
             if em == 'vao_ra':
                 f = tl * tl * (3 - 2 * tl)
+            elif em == 'vao':
+                f = tl * tl
+            elif em == 'ra':
+                f = 1 - (1 - tl) * (1 - tl)
                 
             return d1['v'] + (d2['v'] - d1['v']) * f
             

@@ -918,6 +918,8 @@ export function giaTriTai(c, duongDan, tCucBo) {
             if (em === 'giu') return d1.v;
             let f = tl;
             if (em === 'vao_ra') f = tl * tl * (3 - 2 * tl);
+            else if (em === 'vao') f = tl * tl;                       // chậm → nhanh
+            else if (em === 'ra') f = 1 - (1 - tl) * (1 - tl);        // nhanh → chậm
             return d1.v + (d2.v - d1.v) * f;
         }
     }

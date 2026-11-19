@@ -5,7 +5,7 @@
  * Khi kéo chỉ đổi style DOM; thả tay mới ghi lệnh vào store (một bước hoàn tác). */
 import { $, esc, toast, fmtThoiGian, api, hoi } from './chung.js';
 import { ganCamUng } from './timeline_cam_ung.js';
-import { opsKenBurns, opsDongBang, opsNoiMuotAm, capNoiMuot, KIEU_KEN_BURNS } from './thao_tac_clip.js';
+import { opsKenBurns, opsDongBang, opsNoiMuotAm, capNoiMuot, opsCatKhoangLang, KIEU_KEN_BURNS } from './thao_tac_clip.js';
 import { ThuAm } from './thu_am.js';
 import {
     tao, thoiLuong, ketThucClip, thoiDiemMedia, opsDatTocDo, choTrong, idClipMoi, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, clipTai,
@@ -52,6 +52,7 @@ export class Timeline {
                 <input type="range" data-l="zoom" min="0" max="1" step="0.01" title="Zoom (Ctrl+cuộn chuột)">
                 <button class="nut-icon" data-l="phong" title="Phóng to">+</button>
                 <button class="nut-icon" data-l="vua" title="Vừa khung (hiện cả timeline)">⛶</button>
+                <button class="nut-icon" data-l="cao-dong" title="Đổi chiều cao các dòng: gọn → vừa → cao">↕</button>
                 <button class="nut-icon" data-l="bang-phai" title="Ẩn/hiện bảng thuộc tính">◧</button>
             </div>
             <div class="tl-chon-nhanh" hidden>
@@ -78,6 +79,7 @@ export class Timeline {
         this._daKhoiPhucCuon = false;
         this._keo = null;
         this._gan();
+        this._apCaoDong();
         ctx.bus.on('timeline', () => this.veKhiRanh());
         ctx.bus.on('media', () => this.veKhiRanh());
         ctx.bus.on('chon', () => this._veChon());
@@ -110,6 +112,11 @@ export class Timeline {
             if (l === 'thu') this.datZoom(this.ui.zoom_timeline - 0.06, this._neoDauPhat());
             if (l === 'phong') this.datZoom(this.ui.zoom_timeline + 0.06, this._neoDauPhat());
             if (l === 'vua') this.vuaKhung();
+            if (l === 'cao-dong') {
+                this.ui.cao_dong = { 32: 48, 48: 80, 80: 32 }[this.ui.cao_dong || 48] || 48;
+                this._apCaoDong();
+                ctx.luuUi();
+            }
             if (l === 'bang-phai') ctx.bus.emit('bat_bang_phai');
             if (l === 'bat-dinh') { e.stopPropagation(); this.menuDinh(e.target.closest('[data-l]')); return; }
             if (l === 'lien-ket') {
@@ -324,6 +331,15 @@ export class Timeline {
             const tid = b.closest('.tl-dau-track').dataset.track;
             const k = b.dataset.bat;
             const tr = this.tl.tracks.find((t) => t.id === tid);
+            if (k === 'tat_tieng' && e.altKey) {
+                // Solo: tắt tiếng mọi dòng có tiếng khác; đang solo dòng này rồi thì bật lại tất cả.
+                const coTieng = this.tl.tracks.filter((t) => t.loai === 'video' || t.loai === 'audio');
+                const dangSolo = !tr.tat_tieng && coTieng.every((t) => t.id === tid || t.tat_tieng);
+                const ops = coTieng.filter((t) => !!t.tat_tieng !== (dangSolo ? false : t.id !== tid))
+                    .map((t) => tao.dat(this.tl, ['tracks', { id: t.id }, 'tat_tieng'], dangSolo ? false : t.id !== tid));
+                if (ops.length) this.ctx.sua(dangSolo ? 'Bật tiếng mọi dòng' : `Solo ${tid}`, ops);
+                return;
+            }
             const ten = { an: tr[k] ? 'Hiện' : 'Ẩn', khoa: tr[k] ? 'Mở khoá' : 'Khoá', tat_tieng: tr[k] ? 'Bật tiếng' : 'Tắt tiếng' }[k];
             this.ctx.sua(`${ten} track ${tid}`, [tao.dat(this.tl, ['tracks', { id: tid }, k], !tr[k])]);
         });
@@ -729,6 +745,9 @@ export class Timeline {
 
     themAmTaiDauPhat(m) { this.themLopTaiDauPhat(m); }
 
+    /* Chiều cao dòng timeline (ui.cao_dong: 32 gọn / 48 vừa / 80 cao) → biến CSS --h-track. */
+    _apCaoDong() { this.el.style.setProperty('--h-track', `${this.ui.cao_dong || 48}px`); }
+
     /* Đóng băng khung hình tại đầu phát: clip chỉ định, không thì clip video (không phải ảnh) trên cùng đang nằm dưới đầu phát. */
     async dongBang(cid = null) {
         const t = Math.round((this.ui.dau_phat || 0) * 1000) / 1000;
@@ -747,6 +766,22 @@ export class Timeline {
             this.ctx.bus.emit('media_can_tai');
             const kq = opsDongBang(this.tl, c.id, t, m, 2);
             if (kq && this.ctx.sua('Đóng băng khung hình', kq.ops)) this.chonClip(kq.id);
+        } catch (err) { toast(err.message, 'error'); }
+    }
+
+    /* Tự cắt khoảng lặng của một clip: server đo các đoạn im (dưới -35 dB, dài từ 0,6 s), rồi cắt bỏ và dồn phần sau lên. */
+    async catKhoangLang(cid) {
+        const c = this.tl.clips.find((x) => x.id === cid);
+        if (!c) return;
+        toast('Đang tìm khoảng lặng…', 'info', 3000);
+        try {
+            const r = await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${encodeURIComponent(c.media)}/khoang-lang`,
+                { method: 'POST', body: { vao: Number(c.vao || 0), ra: Number(c.ra || 0) } });
+            const hien = this.tl.clips.find((x) => x.id === cid);
+            if (!hien || hien.vao !== c.vao || hien.ra !== c.ra || hien.bat_dau !== c.bat_dau) { toast('Clip đã đổi trong lúc đo — bấm lại.', 'warn'); return; }
+            const kq = opsCatKhoangLang(this.tl, cid, r.khoang || []);
+            if (!kq) { toast('Không thấy khoảng lặng nào đủ dài trong clip này.', 'info'); return; }
+            if (this.ctx.sua('Tự cắt khoảng lặng', kq.ops)) toast(`Đã cắt ${kq.so} khoảng lặng — ngắn đi ${kq.giam.toFixed(1)} giây.`, 'success', 4000);
         } catch (err) { toast(err.message, 'error'); }
     }
 
@@ -1126,6 +1161,10 @@ export class Timeline {
                 if (k !== 'bo' || coKB) muc.push({ id: 'ken-burns', v: k, text: `🎞 ${ten}` });
             }
         }
+        if (c && !c.loai && m && (m.loai === 'audio' || (m.loai === 'video' && m.co_am_thanh !== false))) {
+            muc.push({ separator: true });
+            muc.push({ id: 'cat-lang', text: '✂ Tự cắt khoảng lặng (jump cut)' });
+        }
         if (capNoiMuot(this.tl, dangChon)) {
             muc.push({ separator: true });
             muc.push({ id: 'noi-muot', text: '🎚 Crossfade hai clip âm thanh (0.5s)' });
@@ -1174,6 +1213,7 @@ export class Timeline {
             }
             if (l.dataset.l === 'dao-nguoc') this.daoNguoc(cid);
             if (l.dataset.l === 'dong-bang') this.dongBang(cid);
+            if (l.dataset.l === 'cat-lang') this.catKhoangLang(cid);
             if (l.dataset.l === 'ken-burns') {
                 const ops = opsKenBurns(this.tl, this.tl.clips.find((x) => x.id === cid), l.dataset.v);
                 if (ops.length) this.ctx.sua(`Chuyển động: ${KIEU_KEN_BURNS[l.dataset.v]}`, ops);
@@ -1312,7 +1352,7 @@ export class Timeline {
 
         this.dau.innerHTML = tl.tracks.map((tr) => `<div class="tl-dau-track" data-track="${esc(tr.id)}">
             <b>${esc(tr.ten || tr.id)}</b>
-            ${tr.loai === 'video' || tr.loai === 'audio' ? `<button class="nut-icon ${tr.tat_tieng ? 'bat' : ''}" data-bat="tat_tieng" title="${tr.tat_tieng ? 'Bật tiếng' : 'Tắt tiếng'}">${tr.tat_tieng ? '🔇' : '🔊'}</button>` : ''}
+            ${tr.loai === 'video' || tr.loai === 'audio' ? `<button class="nut-icon ${tr.tat_tieng ? 'bat' : ''}" data-bat="tat_tieng" title="${tr.tat_tieng ? 'Bật tiếng' : 'Tắt tiếng'} · Alt+bấm: solo (chỉ nghe dòng này)">${tr.tat_tieng ? '🔇' : '🔊'}</button>` : ''}
             ${tr.loai !== 'audio' ? `<button class="nut-icon ${tr.an ? 'bat' : ''}" data-bat="an" title="${tr.an ? 'Hiện' : 'Ẩn'}">${tr.an ? '🙈' : '👁'}</button>` : ''}
             <button class="nut-icon ${tr.khoa ? 'bat' : ''}" data-bat="khoa" title="${tr.khoa ? 'Mở khoá' : 'Khoá'}">${tr.khoa ? '🔒' : '🔓'}</button>
             <button class="nut-icon" data-hd="xoa-track" title="Xoá track">✕</button>

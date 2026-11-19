@@ -168,6 +168,10 @@ def bieu_thuc(ds: List[Dict[str, Any]], bien: str = 't', lech: float = 0.0) -> s
             f = tl
             if em == "vao_ra":
                 f = f"({tl}*{tl}*(3-2*{tl}))"
+            elif em == "vao":
+                f = f"({tl}*{tl})"
+            elif em == "ra":
+                f = f"(1-(1-{tl})*(1-{tl}))"
             dv = v2 - v1
             if dv >= 0:
                 val = f"({_so(v1)}+{_so(dv)}*{f})"

@@ -105,3 +105,42 @@ test('tách phụ đề dùng chung: clip trùng đoạn nguồn nhận nhóm ri
     assert.deepEqual(hienThiNeo(s.timeline, ban).map((k) => [k.clip, k.bd]), [['c_3', 21]]);
     assert.equal(opsTachNeo(s.timeline).soCau, 0, 'tách rồi thì không còn gì dính');
 });
+
+test('tự cắt khoảng lặng: bỏ phần im (chừa đệm), phần sau dồn lên, tiếng liên kết cắt y hệt', async () => {
+    const { opsCatKhoangLang } = await import('../../webui/editor/thao_tac_clip.js');
+    const tl = { tracks: [{ id: 'V1', loai: 'video' }, { id: 'A1', loai: 'audio' }], clips: [
+        { id: 'c_1', track: 'V1', media: 'm1', bat_dau: 10, vao: 2, ra: 12, toc_do: 1, lien_ket: 'lk_1' },     // 10 → 20
+        { id: 'c_2', track: 'V1', media: 'm2', bat_dau: 20, vao: 0, ra: 3, toc_do: 1 },
+        { id: 'c_3', track: 'A1', media: 'm1', bat_dau: 10, vao: 2, ra: 12, toc_do: 1, lien_ket: 'lk_1' },
+    ] };
+    const s = new Store(tl);
+    // media: im 4–6 s (timeline 12–14) và 9–13 s (timeline 17–20, chạm cuối clip); khoảng 0–1 s nằm ngoài clip.
+    const kq = opsCatKhoangLang(s.timeline, 'c_1', [[0, 1], [4, 6], [9, 13]], 0.25);
+    assert.equal(kq.so, 2);
+    assert.equal(kq.giam, 1.5 + 2.75);
+    s.thucHien('Cắt lặng', kq.ops);
+    const tren = (tr) => s.timeline.clips.filter((c) => c.track === tr).sort((a, b) => a.bat_dau - b.bat_dau)
+        .map((c) => [c.media, c.bat_dau, c.vao, c.ra]);
+    assert.deepEqual(tren('V1'), [['m1', 10, 2, 4.25], ['m1', 12.25, 5.75, 9.25], ['m2', 15.75, 0, 3]]);
+    assert.deepEqual(tren('A1'), [['m1', 10, 2, 4.25], ['m1', 12.25, 5.75, 9.25]]);
+    assert.equal(opsCatKhoangLang(s.timeline, 'c_2', [[5, 9]]), null, 'không có khoảng lặng trong clip');
+});
+
+test('hiệu ứng vào/ra của clip: keyframe ở đầu và cuối, đổi sang Không thì gỡ sạch', async () => {
+    const { opsHieuUngClip } = await import('../../webui/editor/thao_tac_clip.js');
+    const s = new Store({ tracks: [{ id: 'V1', loai: 'video' }], clips: [
+        { id: 'c_1', track: 'V1', media: 'm1', bat_dau: 5, vao: 0, ra: 4, toc_do: 1, bien_doi: { x: 0.5, y: 0.5, ti_le: 1, xoay: 0 },
+            keyframes: { 'bien_doi.xoay': [{ t: 0, v: 10 }] } }] });
+    const c = s.timeline.clips[0];
+    s.thucHien('HU', opsHieuUngClip(s.timeline, c, 'phong_to', 'truot_trai', 0.5));
+    assert.equal(giaTriTai(c, 'hien_thi.do_mo', 0), 0);
+    assert.equal(giaTriTai(c, 'hien_thi.do_mo', 0.5), 1);
+    assert.equal(giaTriTai(c, 'bien_doi.ti_le', 0), 0.6);
+    assert.equal(giaTriTai(c, 'bien_doi.ti_le', 2), 1);
+    assert.equal(giaTriTai(c, 'bien_doi.x', 3.5), 0.5);
+    assert.equal(giaTriTai(c, 'bien_doi.x', 4), -0.1);
+    assert.deepEqual([c.hu_vao, c.hu_ra, c.hu_dai], ['phong_to', 'truot_trai', 0.5]);
+    s.thucHien('HU', opsHieuUngClip(s.timeline, c, '', '', 0.5));
+    assert.deepEqual(Object.keys(c.keyframes), ['bien_doi.xoay']);
+    assert.deepEqual([c.hu_vao, c.hu_ra, c.hu_dai], [undefined, undefined, undefined]);
+});

@@ -273,6 +273,12 @@ export class BangMedia {
         if (dienThoai) toast('Chọn nhiều video thì iPhone cần vài chục giây "chuẩn bị" — đợi tới khi hiện thanh tải lên.', 'info', 8000);
         const files = await moChonFile({ accept, multiple: true });
         if (!files.length) return;
+        await this.taiLenNhieu(files);
+    }
+
+    /* Tải một loạt File (chọn từ hộp thoại hoặc kéo thả từ máy) lên dự án, lần lượt từng file. */
+    async taiLenNhieu(files) {
+        if (this.ctx.store.chiDoc) { toast('Cửa sổ này chỉ xem.', 'warn'); return; }
         // Toast tiến độ giữ tới khi xong (tải video điện thoại qua mạng di động có thể vài phút).
         // Một file lỗi không dừng cả lượt: tải tiếp các file còn lại rồi báo file nào hỏng.
         const tb = toast(`Đã nhận ${files.length} file — bắt đầu tải lên…`, 'info', 24 * 3600 * 1000);

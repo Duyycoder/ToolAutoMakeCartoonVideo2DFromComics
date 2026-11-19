@@ -67,6 +67,10 @@ a { color: var(--nhan-sang); }
 .kieu-dich { margin: 8px 0; padding: 6px 8px; border-left: 3px solid var(--vien); font-size: 12px; line-height: 1.5; }
 .kieu-dich.rieng { border-left-color: var(--nhan-sang); }
 .kieu-dich .nut { display: block; margin-top: 6px; }
+.luoi-phim-tat { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px 24px; }
+.luoi-phim-tat h4 { margin: 10px 0 6px; font-size: 12px; color: var(--chu-3); text-transform: uppercase; }
+.dong-phim { display: flex; gap: 10px; align-items: baseline; padding: 3px 0; font-size: 13px; }
+.dong-phim kbd { flex: none; min-width: 118px; font: 12px ui-monospace, Consolas, monospace; color: var(--nhan-sang); }
 .bao-dinh-pd { margin: 8px 0; padding: 8px 10px; border: 1px solid #b8860b; border-radius: 6px; background: rgba(184, 134, 11, .12); font-size: 12px; line-height: 1.5; }
 .bao-dinh-pd .nut { margin-top: 6px; display: block; }
 .nut-icon.dang-thu { background: #c62828; color: #fff; animation: nhay-thu 1s infinite; }

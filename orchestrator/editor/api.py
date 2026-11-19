@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from orchestrator.config import load_global_config, save_global_config
-from orchestrator.editor import (ai_bridge, chuan_hoa_file, dao_nguoc, goi_du_an, hang_doi, luu_tru, mau_nang_cao, media, nuong, render,
+from orchestrator.editor import (ai_bridge, chuan_hoa_file, dao_nguoc, goi_du_an, hang_doi, khoang_lang, luu_tru, mau_nang_cao, media, nuong, render,
                                  srt, tai_len, thu_vien_am, workspace, xuat_tu_xa)
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -64,6 +64,12 @@ class PhienSchema(BaseModel):
 class DaoNguocSchema(PhienSchema):
     vao: float = 0
     ra: float = 0
+
+class KhoangLangSchema(BaseModel):
+    vao: float = 0
+    ra: float = 0
+    nguong_db: float = -35
+    toi_thieu: float = 0.6
 
 class KhungDungSchema(PhienSchema):
     t: float = 0
@@ -850,6 +856,23 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
             except (RuntimeError, OSError, subprocess.SubprocessError) as e:
                 raise HTTPException(status_code=500, detail=str(e))
         return qlm.dang_ky_file(folder, pid, dich, tu_media=mid)
+
+    @r.post("/api/du-an/{pid}/media/{mid}/khoang-lang")
+    def find_silence(pid: str, mid: str, body: KhoangLangSchema):
+        """Các khoảng lặng trong đoạn [vao, ra] của media (giây trong media) — cho nút Tự cắt khoảng lặng."""
+        folder, m, path = media_path(pid, mid)
+        if m.get("loai") not in ("video", "audio") or m.get("co_am_thanh") is False:
+            raise HTTPException(status_code=400, detail="Media này không có tiếng.")
+        ff = media.ffmpeg_exe()
+        if not ff or not os.path.isfile(path):
+            raise HTTPException(status_code=500, detail="Thiếu ffmpeg hoặc file gốc.")
+        try:
+            return {"khoang": khoang_lang.do(ff, path, max(0.0, body.vao), body.ra,
+                                             max(-80.0, min(-10.0, body.nguong_db)), max(0.2, min(10.0, body.toi_thieu)))}
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except (RuntimeError, OSError, subprocess.SubprocessError) as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
     @r.post("/api/du-an/{pid}/media/{mid}/khung-dung")
     def freeze_frame(pid: str, mid: str, body: KhungDungSchema):
