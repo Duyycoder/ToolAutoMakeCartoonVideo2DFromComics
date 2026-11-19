@@ -8,6 +8,7 @@ import {
     tao, dongPhuDe, opsThemCau, opsXoaNhieu, cauCuaMedia, srtTuTimeline, opsDatGio, clipTai, thoiDiemMedia,
     idClipMoi, kieuPhuDeMacDinh,
 } from './store.js';
+import { opsTachNeo } from './thao_tac_clip.js';
 
 const FONT = ['Arial', 'Roboto', 'Segoe UI', 'Tahoma', 'Verdana', 'Times New Roman', 'Be Vietnam Pro', 'Montserrat'];
 
@@ -35,6 +36,48 @@ export class BangPhuDe {
         ctx.bus.on('media', () => { if (this.el.isConnected) this.ve(); });
         ctx.bus.on('dau_phat', () => { if (this.el.isConnected) this._veDangHien(); });
         ctx.bus.on('nhap_srt_media', (m) => this.nhapTuMedia(m));
+        ctx.bus.on('chon', () => { if (this.el.isConnected && this.el.querySelector('[data-khu=kieu]').open) this._veKieu(); });
+    }
+
+    /* Các câu phụ đề đang chọn. */
+    _cauChon() {
+        const chon = new Set(this.ctx.ui.dang_chon || []);
+        return this.tl.clips.filter((c) => c.loai === 'phu_de' && chon.has(c.id));
+    }
+
+    /* Tên kiểu mà ô "Kiểu chữ" đang sửa: kiểu riêng nếu MỌI câu đang chọn cùng dùng một kiểu riêng, không thì kiểu chung. */
+    _kieuDangSua() {
+        const ten = [...new Set(this._cauChon().map((c) => c.kieu || 'k_mac_dinh'))];
+        return ten.length === 1 && ten[0] !== 'k_mac_dinh' && (this.tl.kieu_phu_de || {})[ten[0]] ? ten[0] : 'k_mac_dinh';
+    }
+
+    /* Bật: các câu đang chọn nhận MỘT kiểu chữ riêng (chép từ kiểu chung) để chỉnh phông/cỡ/màu/vị trí độc lập.
+       Tắt: các câu đó về lại kiểu chung. Kiểu riêng không còn câu nào dùng thì xoá khỏi dự án. */
+    datKieuRieng(bat) {
+        const cau = this._cauChon();
+        if (!cau.length) { toast('Chọn câu phụ đề (trên timeline hoặc trong danh sách) trước.', 'info'); return; }
+        const kieu = this.tl.kieu_phu_de || {};
+        const ops = [];
+        let ten = 'k_mac_dinh';
+        if (bat) {
+            const so = Object.keys(kieu).map((k) => Number((/^k_(\d+)$/.exec(k) || [])[1] || 0));
+            ten = `k_${Math.max(0, ...so) + 1}`;
+            const goc = { ...kieuPhuDeMacDinh(), ...(kieu.k_mac_dinh || {}) };
+            if (!this.tl.kieu_phu_de) ops.push(tao.dat(this.tl, ['kieu_phu_de'], { k_mac_dinh: goc, [ten]: { ...goc } }));
+            else ops.push(tao.dat(this.tl, ['kieu_phu_de', ten], { ...goc }));
+        }
+        const bo = new Set(cau.map((c) => c.id));
+        for (const c of cau) ops.push(tao.dat(this.tl, ['clips', { id: c.id }, 'kieu'], ten));
+        const conDung = new Set(this.tl.clips.filter((c) => c.loai === 'phu_de' && !bo.has(c.id)).map((c) => c.kieu || 'k_mac_dinh'));
+        for (const k of new Set(cau.map((c) => c.kieu))) {
+            if (k && k !== 'k_mac_dinh' && kieu[k] && !conDung.has(k)) ops.push(tao.dat(this.tl, ['kieu_phu_de', k], undefined));
+        }
+        if (this.ctx.sua(bat ? 'Kiểu chữ riêng cho câu' : 'Về kiểu chữ chung', ops)) {
+            const o = this.el.querySelector('[data-khu=kieu]');
+            o.open = true;
+            this._veKieu();
+            o.scrollIntoView({ block: 'nearest' });
+        }
     }
 
     get tl() { return this.ctx.store.timeline; }
@@ -47,6 +90,12 @@ export class BangPhuDe {
             if (l === 'nhap') this.nhapFile();
             if (l === 'xuat') this.xuat();
             if (l === 'thay') this.thayTatCa();
+            if (l === 'kieu-rieng') this.datKieuRieng(true);
+            if (l === 'kieu-chung') this.datKieuRieng(false);
+            if (l === 'tach-neo') {
+                const kq = opsTachNeo(this.tl);
+                if (kq.soCau && this.ctx.sua('Tách phụ đề dùng chung', kq.ops)) toast(`Đã tách riêng ${kq.soCau} câu — giờ sửa từng chỗ độc lập.`, 'success', 3500);
+            }
             const dong = e.target.closest('.dong-pd');
             if (l === 'xoa' && dong) { this.xoa(dong.dataset.id); return; }
             if (l === 'gio' && dong) { this.suaGio(dong); return; }
@@ -78,7 +127,8 @@ export class BangPhuDe {
             if (o.dataset.k === 'nen') v = o.checked ? 'Box' : 'None';
             if (!this.tl.kieu_phu_de) this.ctx.sua('Kiểu chữ', [tao.dat(this.tl, ['kieu_phu_de'], { k_mac_dinh: kieuPhuDeMacDinh() })]);
             if (!this.tl.kieu_phu_de.k_mac_dinh) this.ctx.sua('Kiểu chữ', [tao.dat(this.tl, ['kieu_phu_de', 'k_mac_dinh'], kieuPhuDeMacDinh())]);
-            this.ctx.sua('Kiểu chữ phụ đề', [tao.dat(this.tl, ['kieu_phu_de', 'k_mac_dinh', o.dataset.k], v)], { gop: `kieu:${o.dataset.k}` });
+            const ten = this._kieuDangSua();
+            this.ctx.sua('Kiểu chữ phụ đề', [tao.dat(this.tl, ['kieu_phu_de', ten, o.dataset.k], v)], { gop: `kieu:${ten}:${o.dataset.k}` });
             const nhan = o.closest('label') && o.closest('label').querySelector('.gt');
             if (nhan) nhan.textContent = o.type === 'range' ? (o.dataset.k === 'vi_tri_y' ? `${Math.round(v * 100)}%` : v) : '';
         });
@@ -227,7 +277,10 @@ export class BangPhuDe {
                 <button class="nut nut-chinh" data-l="them">＋ Câu</button><button class="nut" data-l="nhap">⤓ Nhập .srt</button></div></div>`;
             return;
         }
-        this.noi.innerHTML = `<div class="dem-pd">${ds.length} dòng${tim ? ' khớp' : ''}</div>` + ds.map((d) => {
+        const dinh = opsTachNeo(this.tl).soCau;
+        const baoDinh = dinh ? `<div class="bao-dinh-pd">⚠ ${dinh} câu/vùng che đang hiện ở nhiều clip cùng lúc (cùng một video nằm ở nhiều chỗ)
+            — sửa một chỗ là đổi hết. <button class="nut nut-chinh nut-nho" data-l="tach-neo">Tách riêng từng chỗ</button></div>` : '';
+        this.noi.innerHTML = `${baoDinh}<div class="dem-pd">${ds.length} dòng${tim ? ' khớp' : ''}</div>` + ds.map((d) => {
             const c = d.c;
             const nguon = c.tu_media ? (media[c.tu_media] || {}).ten || c.tu_media : 'tuyệt đối';
             return `<div class="dong-pd ${chon.has(c.id) ? 'chon' : ''} ${d.bd == null ? 'ngoai' : ''}" data-id="${esc(c.id)}"
@@ -257,8 +310,14 @@ export class BangPhuDe {
     }
 
     _veKieu() {
-        const k = { ...kieuPhuDeMacDinh(), ...((this.tl.kieu_phu_de || {}).k_mac_dinh || {}) };
-        this.el.querySelector('[data-khu=kieu-noi]').innerHTML = `<div class="o-form kieu-form">
+        const ten = this._kieuDangSua(), n = this._cauChon().length;
+        const k = { ...kieuPhuDeMacDinh(), ...((this.tl.kieu_phu_de || {})[ten] || {}) };
+        const dau = ten === 'k_mac_dinh'
+            ? `<div class="kieu-dich">Đang chỉnh <b>kiểu chung</b> — áp cho mọi câu chưa có kiểu riêng.
+                ${n ? `<button class="nut nut-nho" data-l="kieu-rieng">Tạo kiểu riêng cho ${n} câu đang chọn</button>` : '<small>Chọn một hay nhiều câu để tạo kiểu riêng cho chúng.</small>'}</div>`
+            : `<div class="kieu-dich rieng">Đang chỉnh <b>kiểu riêng</b> của ${n} câu đang chọn.
+                <button class="nut nut-nho" data-l="kieu-chung">Bỏ kiểu riêng (về kiểu chung)</button></div>`;
+        this.el.querySelector('[data-khu=kieu-noi]').innerHTML = `${dau}<div class="o-form kieu-form">
             <label>Phông chữ<select data-k="font">${['', ...FONT].map((f) => `<option value="${esc(f)}" ${f === (k.font || '') ? 'selected' : ''}>${f || 'Mặc định (Arial)'}</option>`).join('')}</select></label>
             <label>Cỡ chữ (theo khung 1080p) <span class="gt">${k.co}</span><input type="range" data-k="co" min="16" max="140" step="1" value="${k.co}"></label>
             <div class="hang"><label>Màu chữ<input type="color" data-k="mau" value="${esc(k.mau)}"></label>

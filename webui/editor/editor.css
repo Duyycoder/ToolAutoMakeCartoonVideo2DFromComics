@@ -64,6 +64,13 @@ a { color: var(--nhan-sang); }
 .nut-icon:hover:not(:disabled) { background: var(--nen-4); color: var(--chu); }
 .nut-icon:disabled { opacity: .35; cursor: not-allowed; }
 .nut-icon.bat { color: var(--nhan-sang); background: var(--nhan-mo); }
+.kieu-dich { margin: 8px 0; padding: 6px 8px; border-left: 3px solid var(--vien); font-size: 12px; line-height: 1.5; }
+.kieu-dich.rieng { border-left-color: var(--nhan-sang); }
+.kieu-dich .nut { display: block; margin-top: 6px; }
+.bao-dinh-pd { margin: 8px 0; padding: 8px 10px; border: 1px solid #b8860b; border-radius: 6px; background: rgba(184, 134, 11, .12); font-size: 12px; line-height: 1.5; }
+.bao-dinh-pd .nut { margin-top: 6px; display: block; }
+.nut-icon.dang-thu { background: #c62828; color: #fff; animation: nhay-thu 1s infinite; }
+@keyframes nhay-thu { 50% { opacity: .55; } }
 :focus-visible { outline: 2px solid var(--nhan-sang); outline-offset: 1px; }
 
 input[type=text], input[type=number], input[type=search], select, textarea, .o-nhap {

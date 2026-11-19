@@ -65,6 +65,9 @@ class DaoNguocSchema(PhienSchema):
     vao: float = 0
     ra: float = 0
 
+class KhungDungSchema(PhienSchema):
+    t: float = 0
+
 class TimelineSchema(PhienSchema):
     phien_ban: int
     timeline: Dict[str, Any]
@@ -759,6 +762,29 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                 raise HTTPException(status_code=400, detail=str(e))
             except (RuntimeError, OSError, subprocess.SubprocessError) as e:
                 raise HTTPException(status_code=500, detail=str(e))
+        return qlm.dang_ky_file(folder, pid, dich, tu_media=mid)
+
+    @r.post("/api/du-an/{pid}/media/{mid}/khung-dung")
+    def freeze_frame(pid: str, mid: str, body: KhungDungSchema):
+        """Lấy khung hình tại giây `t` của video thành media ảnh PNG (đóng băng khung hình)."""
+        folder, m, path = media_path(pid, mid)
+        khoa_ghi(folder, body.phien)
+        if m.get("loai") != "video":
+            raise HTTPException(status_code=400, detail="Chỉ đóng băng được khung hình của video.")
+        ff = media.ffmpeg_exe()
+        if not ff or not os.path.isfile(path):
+            raise HTTPException(status_code=500, detail="Thiếu ffmpeg hoặc file video gốc.")
+        t = max(0.0, float(body.t))
+        dich = os.path.join(folder, luu_tru.MEDIA_DIR, f"{m.get('ten') or mid} (khung {t:.3f}s).png")
+        # Sát cuối video có thể không còn khung nào sau điểm seek → lùi dần cho tới khi lấy được.
+        for lui in (0, 0.1, 0.5):
+            if os.path.isfile(dich):
+                break
+            subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{max(0.0, t - lui):.3f}", "-i", path,
+                            "-frames:v", "1", dich], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120,
+                           creationflags=media.NO_WINDOW)
+        if not os.path.isfile(dich):
+            raise HTTPException(status_code=500, detail="Không lấy được khung hình tại thời điểm này.")
         return qlm.dang_ky_file(folder, pid, dich, tu_media=mid)
 
     @r.get("/api/du-an/{pid}/media/{mid}/tieng-16k")

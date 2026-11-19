@@ -354,7 +354,8 @@ export class BangPhai {
                 ${clip.text_goc && clip.text_goc !== clip.text ? `<div class="goc-pd">Bản gốc: ${esc(clip.text_goc)}</div>` : ''}
                 ${this._bang([['Hiện', k ? `${fmtThoiGian(k.bd, true, fps)} → ${fmtThoiGian(k.kt, true, fps)}` : 'ngoài đoạn video trên timeline'],
                     ['Neo theo', clip.tu_media ? `${(m || {}).ten || clip.tu_media} (${clip.t_vao}s → ${clip.t_ra}s trong video)` : 'giờ tuyệt đối']])}
-                <button class="nut nut-nho" data-l="mo-kieu">Kiểu chữ (phông, cỡ, màu, vị trí)…</button></div>`;
+                <div class="goi-y-nho">${clip.kieu && clip.kieu !== 'k_mac_dinh' && (this.tl.kieu_phu_de || {})[clip.kieu] ? 'Câu này đang dùng kiểu chữ riêng.' : 'Câu này đang dùng kiểu chữ chung.'}</div>
+                <button class="nut nut-nho" data-l="mo-kieu">Kiểu chữ của câu này (phông, cỡ, màu, vị trí)…</button></div>`;
         } else if (clip && clip.loai === 'che_phu_de') {
             tieuDe = 'Vùng che phụ đề';
             const v = clip.vung || {};

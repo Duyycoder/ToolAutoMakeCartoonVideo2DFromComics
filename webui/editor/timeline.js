@@ -5,6 +5,8 @@
  * Khi kéo chỉ đổi style DOM; thả tay mới ghi lệnh vào store (một bước hoàn tác). */
 import { $, esc, toast, fmtThoiGian, api, hoi } from './chung.js';
 import { ganCamUng } from './timeline_cam_ung.js';
+import { opsKenBurns, opsDongBang, opsNoiMuotAm, capNoiMuot, KIEU_KEN_BURNS } from './thao_tac_clip.js';
+import { ThuAm } from './thu_am.js';
 import {
     tao, thoiLuong, ketThucClip, thoiDiemMedia, opsDatTocDo, choTrong, idClipMoi, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, clipTai,
     hienThiNeo, bangClipChuaMedia, opsDatGio, opsThemTrack, opsKhepKhoang, opsXoaGon, opsChenGon, opsTiaToiDauPhat, idMoiNhieu,
@@ -38,6 +40,8 @@ export class Timeline {
                 <button class="nut-icon" data-l="xoa" title="Xoá clip đang chọn (Delete)">✕</button>
                 <button class="nut-icon" data-l="khep-khoang" title="Khép khoảng trống trên track đang chọn">⇤</button>
                 <button class="nut-icon" data-l="sap-xep" title="Sắp xếp clip trên track (tên, thời lượng, ngày nhập, đảo, xáo trộn)">⇅</button>
+                <button class="nut-icon" data-l="dong-bang" title="Đóng băng khung hình tại đầu phát (chèn ảnh tĩnh 2 giây)">❄</button>
+                <button class="nut-icon" data-l="thu-am" title="Thu âm lồng tiếng tại đầu phát">🎙</button>
                 <span class="ngan"></span>
                 <span class="tl-goi-y">Kéo clip để dời, mép để tỉa · kéo chỗ trống để cuộn, Shift+kéo để khoanh chọn · S cắt · Q/W tỉa tới ĐP · M đánh dấu · Shift+Del xoá gợn</span>
                 <div class="gian"></div>
@@ -98,6 +102,11 @@ export class Timeline {
             if (l === 'khep-khoang') this.khepKhoangDangChon();
             if (l === 'sap-xep') { e.stopPropagation(); this.menuSapXep(e.target.closest('[data-l]')); }
             if (l === 'cat') this.catTaiDauPhat();
+            if (l === 'dong-bang') this.dongBang();
+            if (l === 'thu-am') {
+                this.thuAm = this.thuAm || new ThuAm(ctx, e.target.closest('[data-l]'));
+                this.thuAm.batTat();
+            }
             if (l === 'thu') this.datZoom(this.ui.zoom_timeline - 0.06, this._neoDauPhat());
             if (l === 'phong') this.datZoom(this.ui.zoom_timeline + 0.06, this._neoDauPhat());
             if (l === 'vua') this.vuaKhung();
@@ -720,6 +729,27 @@ export class Timeline {
 
     themAmTaiDauPhat(m) { this.themLopTaiDauPhat(m); }
 
+    /* Đóng băng khung hình tại đầu phát: clip chỉ định, không thì clip video (không phải ảnh) trên cùng đang nằm dưới đầu phát. */
+    async dongBang(cid = null) {
+        const t = Math.round((this.ui.dau_phat || 0) * 1000) / 1000;
+        const laVideo = (c) => c && !c.loai && (this.ctx.media.find((x) => x.id === c.media) || {}).loai === 'video';
+        const c = cid ? this.tl.clips.find((x) => x.id === cid)
+            : this.tl.tracks.filter((x) => x.loai === 'video' && !x.khoa).map((x) => clipTai(this.tl, x.id, t)).find(laVideo);
+        if (!laVideo(c) || t < Number(c.bat_dau || 0) - 1e-6 || t > ketThucClip(c) + 1e-6) {
+            toast('Đưa đầu phát vào clip video cần đóng băng.', 'info');
+            return;
+        }
+        try {
+            const tm = Math.min(Number(c.ra || 0), Math.max(Number(c.vao || 0), thoiDiemMedia(c, t)));
+            const m = await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${encodeURIComponent(c.media)}/khung-dung`,
+                { method: 'POST', body: { phien: this.ctx.boLuu.phien, t: Math.round(tm * 1000) / 1000 } });
+            if (!this.ctx.media.find((x) => x.id === m.id)) this.ctx.media.push(m);
+            this.ctx.bus.emit('media_can_tai');
+            const kq = opsDongBang(this.tl, c.id, t, m, 2);
+            if (kq && this.ctx.sua('Đóng băng khung hình', kq.ops)) this.chonClip(kq.id);
+        } catch (err) { toast(err.message, 'error'); }
+    }
+
     /* Tua ngược / bỏ tua ngược một clip video. Server sinh file phát ngược đúng đoạn clip đang dùng (đoạn dài thì lâu). */
     async daoNguoc(cid) {
         const c = this.tl.clips.find((x) => x.id === cid);
@@ -1088,6 +1118,18 @@ export class Timeline {
         const dangChon = this.ui.dang_chon || [];
         const mediaDict = Object.fromEntries(this.ctx.media.map((m) => [m.id, m]));
         const muc = mucMenuChoClip(this.tl, mediaDict, cid, dangChon, !!this._boNhoTam);
+        if (c && !c.loai && tr && tr.loai === 'video' && m) {
+            muc.push({ separator: true });
+            if (m.loai === 'video') muc.push({ id: 'dong-bang', text: '❄ Đóng băng khung hình tại đầu phát' });
+            const coKB = c.keyframes && (c.keyframes['bien_doi.ti_le'] || c.keyframes['bien_doi.x']);
+            for (const [k, ten] of Object.entries(KIEU_KEN_BURNS)) {
+                if (k !== 'bo' || coKB) muc.push({ id: 'ken-burns', v: k, text: `🎞 ${ten}` });
+            }
+        }
+        if (capNoiMuot(this.tl, dangChon)) {
+            muc.push({ separator: true });
+            muc.push({ id: 'noi-muot', text: '🎚 Crossfade hai clip âm thanh (0.5s)' });
+        }
         
         const menu = document.createElement('div');
         menu.className = 'menu';
@@ -1131,6 +1173,15 @@ export class Timeline {
                 this.ctx.sua('Tiếng', [tao.dat(this.tl, ['clips', { id: cid }, 'tat_am'], !c.tat_am)]);
             }
             if (l.dataset.l === 'dao-nguoc') this.daoNguoc(cid);
+            if (l.dataset.l === 'dong-bang') this.dongBang(cid);
+            if (l.dataset.l === 'ken-burns') {
+                const ops = opsKenBurns(this.tl, this.tl.clips.find((x) => x.id === cid), l.dataset.v);
+                if (ops.length) this.ctx.sua(`Chuyển động: ${KIEU_KEN_BURNS[l.dataset.v]}`, ops);
+            }
+            if (l.dataset.l === 'noi-muot') {
+                const kq = opsNoiMuotAm(this.tl, dangChon);
+                if (kq && this.ctx.sua('Crossfade âm thanh', kq.ops)) toast(`Đã crossfade ${kq.dai}s — clip sau chuyển sang ${kq.track}.`, 'success', 3000);
+            }
             if (l.dataset.l === 'toc-chinh') { this.chonClip(cid); this.ctx.bus.emit('mo_thuoc_tinh', 'toc_do'); }
             if (l.dataset.l === 'toc') this.ctx.sua('Tốc độ', opsDatTocDo(this.tl, this.tl.clips.find((x) => x.id === cid), Number(l.dataset.v)));
         });

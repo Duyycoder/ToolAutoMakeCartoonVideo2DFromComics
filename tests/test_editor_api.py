@@ -499,6 +499,13 @@ def test_tua_nguoc_video_thanh_media_moi_va_dung_lai_file(ws):
     lai = ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 0.5, "ra": 1.5}).json()
     assert lai["id"] == dao["id"]                                  # cùng đoạn → không sinh media thứ hai
     assert ws.post(f"/api/du-an/{pid}/media/{m['id']}/dao-nguoc", json={"phien": phien, "vao": 1, "ra": 1}).status_code == 400
+    # Đóng băng khung hình: ảnh PNG thành media mới; xin quá cuối video vẫn lấy được khung gần cuối.
+    anh = ws.post(f"/api/du-an/{pid}/media/{m['id']}/khung-dung", json={"phien": phien, "t": 1.2})
+    assert anh.status_code == 200, anh.text
+    assert anh.json()["loai"] == "anh" and anh.json()["file"].endswith("(khung 1.200s).png") and anh.json()["tu_media"] == m["id"]
+    assert ws.get(f"/api/du-an/{pid}/media/{anh.json()['id']}/file").content[1:4] == b"PNG"
+    assert ws.post(f"/api/du-an/{pid}/media/{m['id']}/khung-dung", json={"phien": phien, "t": 2.0}).status_code == 200
+    assert ws.post(f"/api/du-an/{pid}/media/{anh.json()['id']}/khung-dung", json={"phien": phien, "t": 0}).status_code == 400
 
 
 def test_tai_ve_ban_xuat(ws):
