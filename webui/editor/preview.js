@@ -449,9 +449,12 @@ export class Preview {
                 .map(([a, b]) => `${a * vien}px ${b * vien}px 0 ${mauVien}`).join(',')
             : 'none';
         const coNen = (k.nen || 'None') !== 'None';
-        this.phuDe.innerHTML = coNen
-            ? `<span style="background:${k.mau_nen || 'rgba(0,0,0,.6)'};padding:0 .3em;box-decoration-break:clone;-webkit-box-decoration-break:clone">${esc(chu)}</span>`
-            : esc(chu);
+        const boc = (x) => (coNen
+            ? `<span style="background:${k.mau_nen || 'rgba(0,0,0,.6)'};padding:0 .3em;box-decoration-break:clone;-webkit-box-decoration-break:clone">${esc(x)}</span>`
+            : esc(x));
+        // Song ngữ: bản gốc ở dòng dưới, cỡ 0.7 (khớp srt.py › TI_LE_GOC).
+        const goc = k.song_ngu && (c.text_goc || '').trim() && c.text_goc.trim() !== chu.trim() ? c.text_goc.trim() : '';
+        this.phuDe.innerHTML = boc(chu) + (goc ? `<div style="font-size:.7em">${boc(goc)}</div>` : '');
     }
 
     _veChe(t) {
@@ -486,11 +489,19 @@ export class Preview {
             if (c.loai === 'chu') {
                 const k = c.kieu || {};
                 const co = (k.co || 48) * (H / 1080) * (bd.ti_le || 1);
-                const shadow = k.vien_day ? `-1px -1px 0 ${k.vien_mau}, 1px -1px 0 ${k.vien_mau}, -1px 1px 0 ${k.vien_mau}, 1px 1px 0 ${k.vien_mau}` : 'none';
+                // Khớp bản xuất (chu_hinh.py): nền hộp thì bỏ viền/bóng; căn trái/phải thì điểm neo là mép trái/phải của chữ.
+                const vd = Math.max(1, (k.vien_day || 0) * (H / 1080) * (bd.ti_le || 1)), vm = k.vien_mau || '#000';
+                const cacBong = [];
+                if (k.vien_day && !k.nen) cacBong.push(...[[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 1], [0, -1], [1, 0], [-1, 0]].map(([a, b2]) => `${a * vd}px ${b2 * vd}px 0 ${vm}`));
+                if (k.bong && !k.nen) cacBong.push(`${co * 0.06}px ${co * 0.06}px ${co * 0.04}px rgba(0,0,0,.6)`);
+                const shadow = cacBong.length ? cacBong.join(',') : 'none';
+                const can = { trai: ['left', '0'], phai: ['right', '-100%'] }[k.can] || ['center', '-50%'];
+                const nenHop = k.nen ? `background:${esc(k.nen_mau || '#000000')};padding:${co * 0.18}px;` : '';
                 noi = `<div class="chu-hinh-o ${chon.has(c.id) ? 'chon' : ''}" data-id="${esc(c.id)}" data-loai="chu" 
-                    style="position:absolute;left:${left}px;top:${top}px;transform:translate(-50%,-50%) rotate(${bd.xoay || 0}deg);
+                    style="position:absolute;left:${left}px;top:${top}px;transform:translate(${can[1]},-50%) rotate(${bd.xoay || 0}deg);
                     font-family:'${esc(k.font || 'Arial')}',sans-serif;font-size:${co}px;color:${esc(k.mau || '#fff')};
-                    text-shadow:${shadow};opacity:${mo};white-space:pre-wrap;text-align:center;width:max-content;max-width:${W}px;
+                    font-weight:${k.dam ? 700 : 400};font-style:${k.nghieng ? 'italic' : 'normal'};${nenHop}
+                    text-shadow:${shadow};opacity:${mo};white-space:pre-wrap;text-align:${can[0]};width:max-content;max-width:${W}px;
                     cursor:pointer">${esc(c.noi_dung || '')}</div>`;
             } else if (c.loai === 'hinh') {
                 const w = (bd.rong || 0.2) * W * (bd.ti_le || 1);

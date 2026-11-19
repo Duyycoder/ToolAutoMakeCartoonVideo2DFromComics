@@ -18,6 +18,8 @@ const EQ_MAU = {
     phang: ['Phẳng', { thap: 0, trung: 0, cao: 0 }],
 };
 
+const FONT_CHU = ['Arial', 'Roboto', 'Segoe UI', 'Tahoma', 'Verdana', 'Times New Roman', 'Be Vietnam Pro', 'Montserrat', 'Impact', 'Comic Sans MS'];
+
 export class BangPhai {
     constructor(ctx) {
         this.ctx = ctx;
@@ -260,6 +262,10 @@ export class BangPhai {
             let hu = [...(c.hieu_ung || [])];
             hu[i] = { ...hu[i], [truong]: Number(o.value) };
             ops = [tao.dat(this.tl, p('hieu_ung'), hu)];
+        } else if (k.startsWith('kieu.')) {
+            // Kiểu chữ của clip chữ: giữ đúng kiểu dữ liệu của ô (chuỗi font/màu, số, ô tích) — không ép về số.
+            const val = o.type === 'checkbox' ? o.checked : (o.type === 'number' || o.type === 'range' ? Number(o.value) : o.value);
+            ops = [tao.dat(this.tl, p('kieu'), { ...(c.kieu || {}), [k.slice(5)]: val })];
         } else if (k.includes('.')) {
             const [nhom, truong] = k.split('.');
             let val = truong === 'hoa_tron' ? o.value : Number(o.value);
@@ -376,12 +382,24 @@ export class BangPhai {
             noi = `<div class="bang-noi o-form" style="padding-top:4px">
                 <label>Nội dung<textarea data-k="noi_dung" rows="3">${esc(clip.noi_dung || '')}</textarea></label>
                 <div class="hang">
-                    <label>Font<input type="text" data-k="kieu.font" value="${esc(k.font || 'Arial')}"></label>
-                    <label>Cỡ chữ<input type="number" data-k="kieu.co" value="${k.co || 48}"></label>
+                    <label>Font<input type="text" data-k="kieu.font" list="dsFontChu" value="${esc(k.font || 'Arial')}">
+                        <datalist id="dsFontChu">${FONT_CHU.map((f) => `<option value="${f}">`).join('')}</datalist></label>
+                    <label>Cỡ chữ<input type="number" data-k="kieu.co" min="8" max="400" value="${k.co || 48}"></label>
+                </div>
+                <div class="hang">
+                    <label class="check"><input type="checkbox" data-k="kieu.dam" ${k.dam ? 'checked' : ''}> Đậm</label>
+                    <label class="check"><input type="checkbox" data-k="kieu.nghieng" ${k.nghieng ? 'checked' : ''}> Nghiêng</label>
+                    <label class="check"><input type="checkbox" data-k="kieu.bong" ${k.bong ? 'checked' : ''}> Bóng</label>
+                </div>
+                <div class="hang">
+                    <label>Căn lề<select data-k="kieu.can">${[['trai', 'Trái'], ['giua', 'Giữa'], ['phai', 'Phải']].map(([v, t]) =>
+                        `<option value="${v}" ${(k.can || 'giua') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+                    <label class="check"><input type="checkbox" data-k="kieu.nen" ${k.nen ? 'checked' : ''}> Nền hộp</label>
+                    <label>Màu nền<input type="color" data-k="kieu.nen_mau" value="${esc(k.nen_mau || '#000000')}"></label>
                 </div>
                 <div class="hang">
                     <label>Màu chữ<input type="color" data-k="kieu.mau" value="${esc(k.mau || '#ffffff')}"></label>
-                    <label>Độ mờ <span class="gt">${(clip.hien_thi?.do_mo ?? 1).toFixed(2)}</span><input type="range" data-k="hien_thi.do_mo" min="0" max="1" step="0.05" value="${clip.hien_thi?.do_mo ?? 1}"></label>
+                    <label>Độ mờ <span class="gt">${Math.round((clip.hien_thi?.do_mo ?? 1) * 100)}</span><input type="range" data-k="hien_thi.do_mo" min="0" max="100" step="5" value="${Math.round((clip.hien_thi?.do_mo ?? 1) * 100)}"></label>
                 </div>
                 <div class="hang">
                     <label>Viền màu<input type="color" data-k="kieu.vien_mau" value="${esc(k.vien_mau || '#000000')}"></label>

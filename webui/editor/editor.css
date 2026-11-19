@@ -675,8 +675,7 @@ select { cursor: pointer; }
 }
 .o-form input, .o-form select, .o-form textarea { min-width: 0; max-width: 100%; box-sizing: border-box; }
 .o-form .kf-nhom { min-width: 0; flex-wrap: wrap; }
-.tl-dau-cot .thuoc-cho .nut { margin-left: auto; padding: 1px 7px; font-size: 11px; }
-.tl-dau-cot .thuoc-cho .nut + .nut { margin-left: 0; }
+.tl-dau-cot .thuoc-cho .nut { margin-left: 0; flex: 1; min-width: 0; padding: 1px 2px; font-size: 11px; white-space: nowrap; }
 @media (max-width: 760px) { .tl-dau-cot .chu-tracks { display: none; } .tl-dau-cot .thuoc-cho .nut { margin-left: 0; flex: 1; } }
 /* Sóng âm trong clip audio: chỉ phủ phần đang nhìn thấy (timeline.js ve) — zoom sâu không tạo ảnh nền rộng hàng trăm nghìn px. */
 .clip .song-am { position: absolute; top: 0; bottom: 0; background-repeat: no-repeat; pointer-events: none; }

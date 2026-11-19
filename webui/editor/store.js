@@ -184,7 +184,12 @@ function coTheGop(a, b) {
 }
 
 /* --------------------------------------------------------------- tiện ích timeline */
-export function clipChuMacDinh(id, track, bd, dai, laTieuDe) {
+export function clipChuMacDinh(id, track, bd, dai, laTieuDe, mau = null) {
+    if (mau) {
+        const c = clipChuMacDinh(id, track, bd, dai, false);
+        return { ...c, noi_dung: mau.ten, kieu: { ...c.kieu, ...mau.kieu }, bien_doi: { ...c.bien_doi, ...(mau.bien_doi || {}) },
+            ...(mau.hieu_ung_vao ? { hieu_ung_vao: mau.hieu_ung_vao } : {}) };
+    }
     return {
         id, track, loai: 'chu', bat_dau: bd, ket_thuc: bd + dai,
         noi_dung: laTieuDe ? 'Tiêu đề' : 'Chữ mới',

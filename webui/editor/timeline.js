@@ -65,7 +65,7 @@ export class Timeline {
                 <button data-n="bo-chon">✕<span>Bỏ chọn</span></button>
             </div>
             <div class="tl-than">
-                <div class="tl-dau-cot"><div class="thuoc-cho"><span class="chu-tracks">TRACKS</span>
+                <div class="tl-dau-cot"><div class="thuoc-cho">
                     <button class="nut" data-hd="them-v" title="Thêm dòng Video — video/ảnh ở dòng trên hiện đè lên dòng dưới (overlay)">+ V</button>
                     <button class="nut" data-hd="them-o" title="Thêm dòng Overlay — chữ, hình, vùng che">+ O</button>
                     <button class="nut" data-hd="them-a" title="Thêm dòng Âm thanh">+ A</button></div><div data-khu="dau" style="overflow:hidden;flex:1"></div></div>

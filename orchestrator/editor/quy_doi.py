@@ -81,6 +81,6 @@ def phu_de_tren_timeline(tl: Dict[str, Any]) -> List[Dict[str, Any]]:
             continue
         for k in hien_thi(tl, c):
             out.append({"id": c["id"], "bd": k["bd"], "kt": k["kt"], "text": c.get("text") or "",
-                        "kieu": c.get("kieu") or "k_mac_dinh"})
+                        "text_goc": c.get("text_goc") or "", "kieu": c.get("kieu") or "k_mac_dinh"})
     out.sort(key=lambda x: (x["bd"], x["kt"]))
     return out

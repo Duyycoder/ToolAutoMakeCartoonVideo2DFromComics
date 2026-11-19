@@ -70,6 +70,7 @@ def tao_ass(tl: Dict[str, Any], W: int, H: int) -> str:
         xoay = float(b.get("xoay", 0))
         do_mo = float(c.get("hien_thi", {}).get("do_mo", 1.0))
         
+        kieu_sk = "k_chu"
         tags_co_ban = [f"\\pos({cx:.1f},{cy:.1f})"]
         if xoay:
             tags_co_ban.append(f"\\frz{-xoay:.2f}")
@@ -103,14 +104,21 @@ def tao_ass(tl: Dict[str, Any], W: int, H: int) -> str:
             if k.get("nghieng"): tags.append("\\i1")
             
             vien_day = float(k.get("vien_day", 0)) * H / 1080.0
-            if vien_day > 0:
+            if k.get("nen"):
+                # Nền hộp: kiểu k_hop (BorderStyle 3) vẽ hộp bằng màu viền, \bord là lề hộp — chữ không còn viền riêng.
+                kieu_sk = "k_hop"
+                tags.append(f"\\bord{co * 0.18:.1f}")
+                tags.append(f"\\3c&H{_ass_mau(k.get('nen_mau', '#000000'))[4:]}&")
+            elif vien_day > 0:
                 tags.append(f"\\bord{vien_day:.1f}")
                 tags.append(f"\\3c&H{_ass_mau(k.get('vien_mau', '#000000'))[4:]}&")
             else:
                 tags.append("\\bord0")
                 
-            if k.get("bong"):
-                tags.append("\\shad2\\4c&H80000000")
+            if k.get("bong") and not k.get("nen"):
+                tags.append(f"\\shad{max(1.0, co * 0.06):.1f}\\4c&H000000&\\4a&H60&")
+            else:
+                tags.append("\\shad0")
                 
             can = k.get("can", "giua")
             an = {"trai": 4, "giua": 5, "phai": 6}.get(can, 5)
@@ -132,13 +140,13 @@ def tao_ass(tl: Dict[str, Any], W: int, H: int) -> str:
                         continue
                     
                     if i < so_ky_tu - 1:
-                        su_kien.append(f"Dialogue: {layer},{srt._ass_gio(t_hien)},{srt._ass_gio(t_bien_mat)},k_mac_dinh,,0,0,0,,{{{ ''.join(tags) }}}{chu_tich_luy + char}")
+                        su_kien.append(f"Dialogue: {layer},{srt._ass_gio(t_hien)},{srt._ass_gio(t_bien_mat)},{kieu_sk},,0,0,0,,{{{ ''.join(tags) }}}{chu_tich_luy + char}")
                     else:
-                        su_kien.append(f"Dialogue: {layer},{srt._ass_gio(t_hien)},{srt._ass_gio(kt)},k_mac_dinh,,0,0,0,,{{{ ''.join(tags) }}}{chu_tich_luy + char}")
+                        su_kien.append(f"Dialogue: {layer},{srt._ass_gio(t_hien)},{srt._ass_gio(kt)},{kieu_sk},,0,0,0,,{{{ ''.join(tags) }}}{chu_tich_luy + char}")
                     chu_tich_luy += char
             else:
                 chu = chu.replace("\n", "\\N")
-                su_kien.append(f"Dialogue: {layer},{srt._ass_gio(bd)},{srt._ass_gio(kt)},k_mac_dinh,,0,0,0,,{{{ ''.join(tags) }}}{chu}")
+                su_kien.append(f"Dialogue: {layer},{srt._ass_gio(bd)},{srt._ass_gio(kt)},{kieu_sk},,0,0,0,,{{{ ''.join(tags) }}}{chu}")
             
         elif c["loai"] == "hinh":
             tags = tags_co_ban[:]
@@ -181,9 +189,14 @@ def tao_ass(tl: Dict[str, Any], W: int, H: int) -> str:
                 ve = _ve_mui_ten(rw, rh)
                 
             tags.append("\\p1")
-            su_kien.append(f"Dialogue: {layer},{srt._ass_gio(bd)},{srt._ass_gio(kt)},k_mac_dinh,,0,0,0,,{{{ ''.join(tags) }}}{ve}{{\\p0}}")
+            su_kien.append(f"Dialogue: {layer},{srt._ass_gio(bd)},{srt._ass_gio(kt)},{kieu_sk},,0,0,0,,{{{ ''.join(tags) }}}{ve}{{\\p0}}")
 
     ass_lines = ass_goc.split("\n")
+    # Kiểu riêng cho chữ/hình: không ăn theo viền/nền hộp của kiểu phụ đề.
+    chung = "Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,{},0,0,5,0,0,0,1"
+    cuoi = max((i for i, x in enumerate(ass_lines) if x.startswith("Style:")), default=-1)
+    if cuoi >= 0:
+        ass_lines[cuoi + 1:cuoi + 1] = ["Style: k_chu," + chung.format(1), "Style: k_hop," + chung.format(3)]
     max_layer = tong_tracks + 1
     for i in range(len(ass_lines)):
         if ass_lines[i].startswith("Dialogue: 0,"):

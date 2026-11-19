@@ -111,6 +111,9 @@ def _ass_mau(hex_mau: str, alpha: int = 0) -> str:
     return f"&H{alpha:02X}{b}{g}{r}".upper()
 
 
+TI_LE_GOC = 0.7      # cỡ chữ dòng bản gốc so với dòng bản dịch khi bật song ngữ
+
+
 def ghi_ass(dong: List[Dict[str, Any]], kieu: Dict[str, Dict[str, Any]], rong: int, cao: int) -> str:
     """`dong`: [{bd, kt, text, kieu}] theo giờ TIMELINE. Cỡ chữ `co` tính theo khung cao 1080."""
     styles = []
@@ -126,8 +129,14 @@ def ghi_ass(dong: List[Dict[str, Any]], kieu: Dict[str, Dict[str, Any]], rong: i
             f"{_ass_mau(k.get('mau_nen') or '#000000', int(k.get('nen_alpha', 110)))},"
             f"0,0,0,0,100,100,0,0,{3 if co_nen else 1},{vien:.1f},0,2,20,20,{le_duoi},1")
     su_kien = []
+    sach = lambda s: (s or "").replace("\\", "\\\\").replace("{", "(").replace("}", ")").replace("\n", "\\N")
     for d in dong:
-        chu = (d.get("text") or "").replace("\\", "\\\\").replace("{", "(").replace("}", ")").replace("\n", "\\N")
+        chu = sach(d.get("text"))
+        k = (kieu or {}).get(d.get("kieu") or "k_mac_dinh") or {}
+        goc = (d.get("text_goc") or "").strip()
+        if k.get("song_ngu") and goc and goc != (d.get("text") or "").strip():
+            # Song ngữ: bản gốc ở dòng dưới, chữ nhỏ bằng TI_LE_GOC lần bản dịch (preview.js › _vePhuDe dùng cùng tỉ lệ).
+            chu += "\\N{\\fs%.1f}%s" % (float(k.get("co") or 48) * cao / 1080.0 * TI_LE_GOC, sach(goc))
         su_kien.append(f"Dialogue: 0,{_ass_gio(d['bd'])},{_ass_gio(d['kt'])},{d.get('kieu') or 'k_mac_dinh'},,0,0,0,,{chu}")
     return "\n".join([
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {rong}", f"PlayResY: {cao}",

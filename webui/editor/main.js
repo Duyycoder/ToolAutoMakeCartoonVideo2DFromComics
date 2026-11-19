@@ -18,6 +18,7 @@ import { BangMauPro } from './bang_mau_pro.js';
 import { BangAmThanh } from './bang_am_thanh.js';
 import { BangChuyenCanh } from './bang_chuyen_canh.js';
 import { ganXuat } from './xuat.js';
+import { opsTachNeo } from './thao_tac_clip.js';
 
 const UI_MAC_DINH = {
     dau_phat: 0, zoom_timeline: 0.45, cuon_timeline: { x: 0, y: 0 },
@@ -241,6 +242,14 @@ async function khoiDong() {
     const bangPhai = new BangPhai(ctx);
     ctx.preview = preview;
     ctx.timeline = timeline;
+
+    // Dự án cũ: cùng một video nằm ở nhiều chỗ thì phụ đề/vùng che bị dùng chung (sửa một chỗ đổi hết) → tách riêng ngay khi mở.
+    if (!store.chiDoc) {
+        const tach = opsTachNeo(store.timeline);
+        if (tach.soCau && ctx.sua('Tách phụ đề dùng chung', tach.ops)) {
+            toast(`Đã tách riêng ${tach.soCau} câu phụ đề/vùng che đang dùng chung giữa các clip — giờ sửa từng chỗ độc lập (Ctrl+Z để hoàn tác).`, 'success', 7000);
+        }
+    }
 
     const bangTrai = $('bangTrai');
     function veBangTrai() {

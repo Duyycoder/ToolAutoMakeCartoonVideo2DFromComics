@@ -27,6 +27,7 @@ export class BangPhuDe {
                 <input type="text" data-o="thay" placeholder="Thay bằng…" style="flex:1;min-width:80px">
                 <button class="nut nut-nho" data-l="thay" title="Thay tất cả câu khớp">Thay</button>
             </div>
+            <div data-khu="bao-dinh" style="padding:0 12px"></div>
             <div class="bang-noi" data-khu="noi" style="padding-top:0"></div>
             <details class="kieu-chu" data-khu="kieu"><summary>Kiểu chữ</summary><div data-khu="kieu-noi"></div></details>`;
         this.noi = this.el.querySelector('[data-khu=noi]');
@@ -125,6 +126,7 @@ export class BangPhuDe {
             if (!o) return;
             let v = o.type === 'range' || o.type === 'number' ? Number(o.value) : o.value;
             if (o.dataset.k === 'nen') v = o.checked ? 'Box' : 'None';
+            if (o.dataset.k === 'song_ngu') v = o.checked;
             if (!this.tl.kieu_phu_de) this.ctx.sua('Kiểu chữ', [tao.dat(this.tl, ['kieu_phu_de'], { k_mac_dinh: kieuPhuDeMacDinh() })]);
             if (!this.tl.kieu_phu_de.k_mac_dinh) this.ctx.sua('Kiểu chữ', [tao.dat(this.tl, ['kieu_phu_de', 'k_mac_dinh'], kieuPhuDeMacDinh())]);
             const ten = this._kieuDangSua();
@@ -280,7 +282,8 @@ export class BangPhuDe {
         const dinh = opsTachNeo(this.tl).soCau;
         const baoDinh = dinh ? `<div class="bao-dinh-pd">⚠ ${dinh} câu/vùng che đang hiện ở nhiều clip cùng lúc (cùng một video nằm ở nhiều chỗ)
             — sửa một chỗ là đổi hết. <button class="nut nut-chinh nut-nho" data-l="tach-neo">Tách riêng từng chỗ</button></div>` : '';
-        this.noi.innerHTML = `${baoDinh}<div class="dem-pd">${ds.length} dòng${tim ? ' khớp' : ''}</div>` + ds.map((d) => {
+        this.el.querySelector('[data-khu=bao-dinh]').innerHTML = baoDinh;
+        this.noi.innerHTML = `<div class="dem-pd">${ds.length} dòng${tim ? ' khớp' : ''}</div>` + ds.map((d) => {
             const c = d.c;
             const nguon = c.tu_media ? (media[c.tu_media] || {}).ten || c.tu_media : 'tuyệt đối';
             return `<div class="dong-pd ${chon.has(c.id) ? 'chon' : ''} ${d.bd == null ? 'ngoai' : ''}" data-id="${esc(c.id)}"
@@ -325,6 +328,7 @@ export class BangPhuDe {
             <label>Độ dày viền <span class="gt">${k.do_day_vien}</span><input type="range" data-k="do_day_vien" min="0" max="10" step="0.5" value="${k.do_day_vien}"></label>
             <div class="hang"><label class="check"><input type="checkbox" data-k="nen" ${(k.nen || 'None') !== 'None' ? 'checked' : ''}> Nền hộp</label>
                 <label>Màu nền<input type="color" data-k="mau_nen" value="${esc(k.mau_nen || '#000000')}"></label></div>
+            <label class="check" title="Hiện thêm bản gốc (trước khi dịch) ở dòng dưới, chữ nhỏ hơn"><input type="checkbox" data-k="song_ngu" ${k.song_ngu ? 'checked' : ''}> Song ngữ — hiện thêm bản gốc ở dòng dưới</label>
             <label>Vị trí dọc <span class="gt">${Math.round(k.vi_tri_y * 100)}%</span><input type="range" data-k="vi_tri_y" min="0.05" max="0.98" step="0.01" value="${k.vi_tri_y}"></label>
         </div>`;
     }

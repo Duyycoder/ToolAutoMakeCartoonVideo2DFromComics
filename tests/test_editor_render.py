@@ -906,7 +906,7 @@ def test_chu_hinh_sinh_ass():
     from orchestrator.editor.chu_hinh import tao_ass
     ass = tao_ass(tl, 1920, 1080)
     # Check Text properties
-    assert "Dialogue: 3,0:00:01.00,0:00:04.00,k_mac_dinh,,0,0,0,," in ass
+    assert "Dialogue: 3,0:00:01.00,0:00:04.00,k_chu,,0,0,0,," in ass
     assert "\\pos(384.0,864.0)" in ass
     assert "\\frz-10.00" in ass
     assert "\\fscx150.0\\fscy150.0" in ass
@@ -918,7 +918,7 @@ def test_chu_hinh_sinh_ass():
     assert "\\fad(500,0)" in ass
     assert "Test chữ" in ass
     # Hình: toạ độ vẽ DƯƠNG (libass dời hộp bao về 0,0 nên vẽ quanh tâm bằng số âm làm lệch hình)
-    assert "Dialogue: 3,0:00:02.00,0:00:05.00,k_mac_dinh" in ass
+    assert "Dialogue: 3,0:00:02.00,0:00:05.00,k_chu" in ass
     assert "\\pos(960.0,540.0)" in ass
     assert "\\1c&HFF0000&" in ass  # xanh dương (BGR)
     assert "\\p1}m 384 0 b 596 0 768 96" in ass
