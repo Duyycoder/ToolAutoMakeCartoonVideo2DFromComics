@@ -282,6 +282,20 @@ export class Preview {
             filter: l.cssLoc,
             mixBlendMode: h.hoa_tron && h.hoa_tron !== 'normal' ? h.hoa_tron : '',
         });
+        // Mặt nạ elip / chữ nhật mép mềm bằng CSS mask (bản xuất: geq trong render.py › _lop). Chữ nhật là gần đúng ở bốn góc.
+        const mn = c.mat_na && c.mat_na.bat ? c.mat_na : null;
+        let mask = '';
+        if (mn) {
+            const p2 = (x) => `${(x * 100).toFixed(2)}%`;
+            const cx = Number(mn.x ?? 0.5), cy = Number(mn.y ?? 0.5), rx = Math.max(0.005, Number(mn.w ?? 0.6) / 2), ry = Math.max(0.005, Number(mn.h ?? 0.6) / 2);
+            const f = Math.max(0.002, Math.min(1, Number(mn.mem ?? 0.1)));
+            const doc = (huong, tam, r) => `linear-gradient(${huong}, transparent ${p2(tam - r)}, #000 ${p2(tam - r * (1 - f))}, #000 ${p2(tam + r * (1 - f))}, transparent ${p2(tam + r)})`;
+            mask = mn.dang === 'chu_nhat' ? `${doc('to right', cx, rx)}, ${doc('to bottom', cy, ry)}`
+                : `radial-gradient(ellipse ${p2(rx)} ${p2(ry)} at ${p2(cx)} ${p2(cy)}, #000 ${p2(1 - f)}, transparent 100%)`;
+        }
+        for (const k2 of ['maskImage', 'webkitMaskImage']) l.el.style[k2] = mask;
+        l.el.style.maskComposite = mn && mn.dang === 'chu_nhat' ? 'intersect' : '';
+        l.el.style.webkitMaskComposite = mn && mn.dang === 'chu_nhat' ? 'source-in' : '';
         l.hop = hop;
         // Lật hình: lật phần tử bên trong, khung cắt (clip-path của lớp) giữ nguyên — khớp render.py (lật ở nguồn, cắt sau).
         const lat = c.lat_ngang || c.lat_doc ? `scale(${c.lat_ngang ? -1 : 1},${c.lat_doc ? -1 : 1})` : '';

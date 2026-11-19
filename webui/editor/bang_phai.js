@@ -303,6 +303,10 @@ export class BangPhai {
             let hu = [...(c.hieu_ung || [])];
             hu[i] = { ...hu[i], [truong]: Number(o.value) };
             ops = [tao.dat(this.tl, p('hieu_ung'), hu)];
+        } else if (k.startsWith('mat_na.')) {
+            // Mặt nạ: ô tích / kiểu hình / số phần trăm.
+            const val = o.type === 'checkbox' ? o.checked : (o.tagName === 'SELECT' ? o.value : Number(o.value) / 100);
+            ops = [tao.dat(this.tl, p('mat_na'), { dang: 'elip', x: 0.5, y: 0.5, w: 0.6, h: 0.6, mem: 0.1, ...(c.mat_na || {}), [k.slice(7)]: val })];
         } else if (k.startsWith('khoa_mau.')) {
             // Phông xanh: ô tích / màu / thanh trượt phần trăm.
             const val = o.type === 'checkbox' ? o.checked : (o.type === 'range' ? Number(o.value) / 100 : o.value);
@@ -496,6 +500,7 @@ export class BangPhai {
                 const ck = clip.cat_khung || {};
                 const ht = clip.hien_thi || {};
                 const km = clip.khoa_mau || {};
+                const mn = clip.mat_na || {};
                 const pc = (x) => Math.round((x || 0) * 100);
                 const tCucBo = this.ctx.ui.dau_phat - (clip.bat_dau || 0);
                 const val = (k, fb) => giaTriTai(clip, k, tCucBo) ?? fb;
@@ -528,6 +533,17 @@ export class BangPhai {
                             <label>Phải %<input type="number" data-k="cat_khung.phai" min="0" max="100" value="${pc(ck.phai)}"></label></div>
                         <div class="hang"><label>Trên %<input type="number" data-k="cat_khung.tren" min="0" max="100" value="${pc(ck.tren)}"></label>
                             <label>Dưới %<input type="number" data-k="cat_khung.duoi" min="0" max="100" value="${pc(ck.duoi)}"></label></div>
+                    </div>`)
+                    + this._muc('mat_na', 'Mặt nạ (mask)', `<div class="o-form">
+                        <div class="hang"><label class="check"><input type="checkbox" data-k="mat_na.bat" ${mn.bat ? 'checked' : ''}> Chỉ hiện trong mặt nạ</label>
+                            <label>Hình<select data-k="mat_na.dang"><option value="elip" ${(mn.dang || 'elip') === 'elip' ? 'selected' : ''}>Elip / tròn</option>
+                                <option value="chu_nhat" ${mn.dang === 'chu_nhat' ? 'selected' : ''}>Chữ nhật</option></select></label></div>
+                        <div class="hang"><label>Tâm X %<input type="number" data-k="mat_na.x" min="0" max="100" value="${Math.round((mn.x ?? 0.5) * 100)}"></label>
+                            <label>Tâm Y %<input type="number" data-k="mat_na.y" min="0" max="100" value="${Math.round((mn.y ?? 0.5) * 100)}"></label></div>
+                        <div class="hang"><label>Rộng %<input type="number" data-k="mat_na.w" min="1" max="200" value="${Math.round((mn.w ?? 0.6) * 100)}"></label>
+                            <label>Cao %<input type="number" data-k="mat_na.h" min="1" max="200" value="${Math.round((mn.h ?? 0.6) * 100)}"></label></div>
+                        <label>Mềm mép <span class="gt">${Math.round((mn.mem ?? 0.1) * 100)}</span><input type="range" data-k="mat_na.mem" min="0" max="100" value="${Math.round((mn.mem ?? 0.1) * 100)}"></label>
+                        <div class="goi-y-nho">Vị trí và cỡ tính theo khung của chính clip. Có mặt nạ thì đoạn đó xuất chậm hơn.</div>
                     </div>`)
                     + this._muc('khoa_mau', 'Phông xanh (chroma key)', `<div class="o-form">
                         <div class="hang"><label class="check"><input type="checkbox" data-k="khoa_mau.bat" ${km.bat ? 'checked' : ''}> Xoá màu nền</label>

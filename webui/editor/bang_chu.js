@@ -1,4 +1,6 @@
 import { tao, idClipMoi, choTrong, opsThemTrack, clipChuMacDinh } from './store.js';
+import { toast } from './chung.js';
+import { taiLenFile } from './tai_len.js';
 
 /* Ops thêm một clip chữ/hình dài `dai` giây tại đầu phát vào track lớp phủ còn trống đúng chỗ đó (không có thì track
    lớp phủ đầu tiên, dời về sau; chưa có track nào thì thêm track O1).
@@ -12,6 +14,30 @@ export function opsThemLopPhu(tl, t, dai, taoClip) {
     const clip = taoClip(idClipMoi(tl), trackId, bd, dai);
     ops.push(tao.them(tl, ['clips'], clip));
     return { ops, clip };
+}
+
+/* Sticker emoji. Bản xuất vẽ chữ bằng libass (không có emoji màu) nên sticker KHÔNG phải clip chữ: emoji được vẽ ra ảnh PNG
+   nền trong suốt ngay trên trình duyệt (dùng bộ emoji của máy), tải lên dự án như một ảnh, rồi đặt thành lớp video phủ —
+   nhờ vậy sticker dời, phóng, xoay, đặt keyframe, hiệu ứng vào/ra y như mọi clip ảnh và xuất ra đúng như xem trước. */
+export const STICKER = ['😀', '😂', '🤣', '😍', '🥰', '😎', '🤔', '😱', '😭', '😡', '🥺', '😴', '🤯', '🤡', '👀', '💀',
+    '👍', '👎', '👏', '🙏', '💪', '👉', '👈', '👆', '👇', '✌️', '🤝', '❤️', '💔', '🔥', '✨', '⭐',
+    '💯', '❗', '❓', '‼️', '✅', '❌', '⚠️', '💥', '💢', '💤', '💬', '💭', '🎉', '🎁', '🏆', '👑',
+    '💰', '💸', '📌', '📢', '🔔', '🎵', '📷', '🎬', '⏰', '🚀', '🌈', '☀️', '🌙', '⚡', '🍀', '🌹'];
+
+/* Emoji → File PNG 512×512 nền trong suốt. Tên file theo mã Unicode để cùng một emoji chỉ tải lên một lần. */
+export function tenSticker(emoji) {
+    return `sticker-${[...emoji].map((ch) => ch.codePointAt(0).toString(16)).join('-')}`;
+}
+
+function anhSticker(emoji) {
+    const cv = document.createElement('canvas');
+    cv.width = 512; cv.height = 512;
+    const g = cv.getContext('2d');
+    g.font = '400px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(emoji, 256, 280);
+    return new Promise((xong) => cv.toBlob((b) => xong(new File([b], `${tenSticker(emoji)}.png`, { type: 'image/png' })), 'image/png'));
 }
 
 /* Mẫu chữ dựng sẵn: bấm là thêm clip chữ với kiểu này tại đầu phát (sửa tiếp ở bảng thuộc tính). */
@@ -38,11 +64,18 @@ export class BangChu {
                     <button class="nut" data-l="them-tieu-de">+ Tiêu đề</button>
                     <button class="nut" data-l="them-chu-thuong">+ Chữ thường</button>
                 </div>
+                <h3 style="margin:16px 0 8px;font-size:12px;color:var(--chu-3)">STICKER</h3>
+                <div class="nhom-sticker" style="display:grid;grid-template-columns:repeat(8,1fr);gap:2px">${STICKER.map((e) =>
+                    `<button class="nut-icon" data-sticker="${e}" style="font-size:20px;width:auto;height:34px" title="Thêm sticker ${e} tại đầu phát">${e}</button>`).join('')}</div>
                 <h3 style="margin:16px 0 8px;font-size:12px;color:var(--chu-3)">MẪU CHỮ</h3>
                 <div class="nhom-mau-chu" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${MAU_CHU.map((m, i) => `<button class="nut mau-chu" data-mau="${i}"
                     style="height:54px;font-family:'${m.kieu.font || 'Arial'}';font-weight:${m.kieu.dam ? 700 : 400};font-style:${m.kieu.nghieng ? 'italic' : 'normal'};color:${m.kieu.mau};
                     ${m.kieu.nen ? `background:${m.kieu.nen_mau};` : `background:#3a3f4b;text-shadow:0 0 2px ${m.kieu.vien_mau || '#000'},0 0 2px ${m.kieu.vien_mau || '#000'};`}">${m.ten}</button>`).join('')}</div>
             </div>`;
+        this.el.querySelector('.nhom-sticker').addEventListener('click', (e) => {
+            const b = e.target.closest('[data-sticker]');
+            if (b) this.themSticker(b.dataset.sticker);
+        });
         this.el.querySelector('.nhom-mau-chu').addEventListener('click', (e) => {
             const b = e.target.closest('[data-mau]');
             if (b) this.them(false, MAU_CHU[Number(b.dataset.mau)]);
@@ -54,6 +87,26 @@ export class BangChu {
     }
 
     ve() {}
+
+    /* Thêm sticker emoji tại đầu phát: dùng lại ảnh đã có trong dự án, chưa có thì vẽ và tải lên. Đặt cỡ 25% khung. */
+    async themSticker(emoji) {
+        if (this.ctx.store.chiDoc) { toast('Cửa sổ này chỉ xem.', 'warn'); return; }
+        const dat = (m) => {
+            const tlUi = this.ctx.timeline;
+            tlUi.themLopTaiDauPhat(m);
+            const tl = this.ctx.store.timeline;
+            const c = tl.clips.find((x) => x.id === this.ctx.chon.clip);
+            if (c && c.media === m.id) this.ctx.sua('Cỡ sticker', [tao.dat(tl, ['clips', { id: c.id }, 'bien_doi'], { ...(c.bien_doi || {}), ti_le: 0.25 })]);
+        };
+        const ten = tenSticker(emoji);
+        const co = this.ctx.media.find((m) => m.loai === 'anh' && m.ten === ten && m.trang_thai === 'san_sang' && !m.mat_file);
+        if (co) { dat(co); return; }
+        try {
+            const file = await anhSticker(emoji);
+            const hua = taiLenFile(this.ctx.id, this.ctx.boLuu.phien, file).then((ds) => ({ media: ds }));
+            this.ctx.timeline._nhapRoiDat(hua, dat);
+        } catch (e) { toast(`Không thêm được sticker: ${e.message}`, 'error'); }
+    }
 
     them(laTieuDe, mau = null) {
         const tl = this.ctx.store.timeline;

@@ -1239,3 +1239,38 @@ def test_xuat_that_phong_xanh(media_mau):
     assert "chromakey=color=0x008000" in kq["loc"]
     px = _doc_khung(exe, ra, 1, 320, 180)[90, 160]
     assert px[0] > 180 and px[1] < 60, f"khoá màu xanh lá → phải thấy nền đỏ: {px}"
+
+
+def test_xuat_that_mat_na_elip_mep_mem(media_mau):
+    """Mặt nạ elip trên lớp phủ: tâm còn hình lớp phủ, ngoài mặt nạ lộ nền, vùng mép mềm pha hai màu."""
+    goc, exe = media_mau
+    tl = {"tracks": [{"id": "V2", "loai": "video"}, {"id": "V1", "loai": "video"}], "kieu_phu_de": {}, "clips": [
+        {"id": "c1", "track": "V1", "media": "m_do", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1},
+        {"id": "c2", "track": "V2", "media": "m_xd", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1,
+         "mat_na": {"bat": True, "dang": "elip", "x": 0.5, "y": 0.5, "w": 0.5, "h": 0.5, "mem": 0.4}}]}
+    ra, kq = _xuat_va_kiem(exe, goc, _da(), tl)
+    assert "hypot(" in kq["loc"]
+    k = _doc_khung(exe, ra, 1, 320, 180)
+    assert k[90, 160][2] > 180 and k[90, 160][0] < 70, f"tâm mặt nạ: lớp xanh dương {k[90, 160]}"
+    assert k[90, 20][0] > 180 and k[90, 20][2] < 70, f"ngoài mặt nạ: nền đỏ {k[90, 20]}"
+    mep = k[90, 160 + 68]                                         # d ≈ 0,85 → độ đục ≈ 0,37: pha đỏ + xanh dương
+    assert 60 < mep[0] < 230 and 30 < mep[2] < 200, f"mép mềm phải pha màu: {mep}"
+
+
+def test_xuat_that_anh_png_trong_suot_lam_sticker(media_mau):
+    """Sticker = ảnh PNG nền trong suốt đặt ở track phủ: chỗ trong suốt phải lộ video nền, chỗ có hình thì đè lên."""
+    goc, exe = media_mau
+    png = goc / "media" / "sticker.png"
+    res = subprocess.run([exe, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                          "color=c=black@0.0:s=200x200,format=rgba,drawbox=x=50:y=50:w=100:h=100:color=lime@1.0:t=fill:replace=1",
+                          "-frames:v", "1", str(png)], capture_output=True, timeout=60)
+    assert res.returncode == 0, res.stderr.decode(errors="replace")[-300:]
+    them = [{"id": "m_st", "loai": "anh", "file": "media/sticker.png", "rong": 200, "cao": 200}]
+    tl = {"tracks": [{"id": "V2", "loai": "video"}, {"id": "V1", "loai": "video"}], "kieu_phu_de": {}, "clips": [
+        {"id": "c1", "track": "V1", "media": "m_do", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1},
+        {"id": "c2", "track": "V2", "media": "m_st", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1,
+         "bien_doi": {"x": 0.5, "y": 0.5, "ti_le": 1, "xoay": 0}}]}
+    ra, _ = _xuat_va_kiem(exe, goc, _da(them_media=them), tl)
+    k = _doc_khung(exe, ra, 1, 320, 180)                           # sticker 200×200 co vừa khung cao 180 → 180×180 ở giữa
+    assert k[90, 160][1] > 180 and k[90, 160][0] < 80, f"giữa sticker: xanh lá {k[90, 160]}"
+    assert k[90, 85][0] > 180 and k[90, 85][1] < 80, f"viền trong suốt của sticker: lộ nền đỏ {k[90, 85]}"

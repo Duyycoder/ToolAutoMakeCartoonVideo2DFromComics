@@ -211,8 +211,8 @@ def la_lop_mac_dinh(c: Dict[str, Any]) -> bool:
     for d in ["bien_doi.x", "bien_doi.y", "bien_doi.ti_le", "bien_doi.xoay", "hien_thi.do_mo", "hien_thi.bo_goc"]:
         if d in kf and kf[d]:
             return False
-    if (c.get("khoa_mau") or {}).get("bat"):
-        return False            # phông xanh cần kênh alpha → luôn đi đường "lớp"
+    if (c.get("khoa_mau") or {}).get("bat") or (c.get("mat_na") or {}).get("bat"):
+        return False            # phông xanh / mặt nạ cần kênh alpha → luôn đi đường "lớp"
     b, k, h = c.get("bien_doi") or {}, c.get("cat_khung") or {}, c.get("hien_thi") or {}
     return (float(b.get("x", 0.5)) == 0.5 and float(b.get("y", 0.5)) == 0.5 and float(b.get("ti_le", 1)) == 1
             and not float(b.get("xoay") or 0) and not any(float(k.get(x) or 0) for x in ("trai", "phai", "tren", "duoi"))
@@ -490,6 +490,17 @@ class DungLenh:
             loc.append(f"chromakey=color=0x{_mau(km.get('mau') or '#00ff00')[-6:]}:"
                        f"similarity={max(0.01, min(1.0, float(km.get('nguong', 0.25)))):.3f}:"
                        f"blend={max(0.0, min(1.0, float(km.get('mem', 0.08)))):.3f}")
+        mn = c.get("mat_na") or {}
+        if mn.get("bat"):
+            # Mặt nạ elip / chữ nhật có mép mềm. Toạ độ mặt nạ tính theo hộp clip CHƯA cắt khung (như màn xem trước) →
+            # đổi sang hộp đã cắt. Độ đục = clip((1 − d) / mềm, 0, 1) với d = khoảng cách chuẩn hoá tới tâm (1 = mép).
+            kw, kh = 1 - tr_ - ph, 1 - tr2 - du
+            cx, cy = (float(mn.get("x", 0.5)) - tr_) / kw, (float(mn.get("y", 0.5)) - tr2) / kh
+            rx, ry = max(0.005, float(mn.get("w", 0.6)) / 2) / kw, max(0.005, float(mn.get("h", 0.6)) / 2) / kh
+            dx, dy = f"(X-{cx:.4f}*W)/({rx:.4f}*W)", f"(Y-{cy:.4f}*H)/({ry:.4f}*H)"
+            d = f"max(abs({dx})\\,abs({dy}))" if mn.get("dang") == "chu_nhat" else f"hypot({dx}\\,{dy})"
+            mem = max(0.002, min(1.0, float(mn.get("mem", 0.1))))
+            loc.append(f"geq=lum='p(X\\,Y)':cb='p(X\\,Y)':cr='p(X\\,Y)':a='alpha(X\\,Y)*clip((1-{d})/{mem:.3f}\\,0\\,1)'")
 
         hien = c.get("hien_thi") or {}
         r = float(hien.get("bo_goc") or 0) * self.H / 1080
