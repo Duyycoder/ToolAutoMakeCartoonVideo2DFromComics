@@ -270,6 +270,11 @@ class DungLenh:
         self.nen = _mau(ts.get("mau_nen") or "#000000")
         self.vao: List[List[str]] = []      # các nhóm tham số đầu vào
         self.loc: List[str] = []            # các dòng filter_complex
+        if self.tc.get("doan_nuong") and not self.tc.get("chi_am_thanh"):
+            # Nướng cho xuất trên thiết bị chỉ lấy HÌNH của vài khung (tiếng do việc xuất tiếng riêng lo). Dựng cả nhánh
+            # tiếng thật thì khi hình xong sớm, các bộ lọc tiếng còn dở (afir, amix nhiều track) làm ffmpeg thoát với
+            # "Invalid data found when processing input" dù file đã ghi đủ khung → coi mọi track là tắt tiếng.
+            self.tl = tl = {**tl, "tracks": [{**t, "tat_tieng": True} for t in tl.get("tracks") or []]}
         self.tracks = {t["id"]: t for t in tl.get("tracks") or []}
         self.co_hdr = False                 # có clip HDR → gắn nhãn màu BT.709 cho file xuất
         # Xuất GIỮ HDR: HLG 10-bit BT.2020, HEVC. Mặc định là SDR 8-bit H.264 (xem được ở mọi nơi).
