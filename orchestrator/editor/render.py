@@ -307,7 +307,8 @@ class DungLenh:
         """Một clip của track NỀN → đoạn hình W×H (+ tiếng) đúng độ dài cho concat."""
         k, nhan, dai = self._nguon_lop(c, str(i))
         nv = f"v{i}"
-        if la_lop_mac_dinh(c):
+        nen_mo = bool(c.get("nen_mo"))
+        if la_lop_mac_dinh(c) and not nen_mo:
             m = self.media[c["media"]]
             mr, mc = float(m.get("rong") or self.W), float(m.get("cao") or self.H)
             ratio = min(self.W / mr, self.H / mc)
@@ -324,8 +325,16 @@ class DungLenh:
                 chuoi_loc += f",pad={self.W}:{self.H}:(ow-iw)/2:(oh-ih)/2:color={self.nen},setsar=1,format={self.pf},fps={_so(self.fps)}"
             self.loc.append(f"[{nhan}]{chuoi_loc}[{nv}]")
         else:
+            if nen_mo:
+                # Nền mờ: chính hình của clip phóng kín khung rồi làm mờ (thu nhỏ 1/4 trước khi mờ cho nhanh) thay cho màu nền.
+                w4, h4 = _chan(self.W / 4), _chan(self.H / 4)
+                self.loc.append(f"[{nhan}]split[fgm{i}][bgm{i}]")
+                self.loc.append(f"[bgm{i}]scale={w4}:{h4}:force_original_aspect_ratio=increase:flags=fast_bilinear,crop={w4}:{h4},"
+                                f"boxblur=6:2,scale={self.W}:{self.H}:flags=bilinear,setsar=1,format={self.pf}[nn{i}]")
+                nhan = f"fgm{i}"
             lop, x, y = self._lop(c, nhan, str(i), lech_t=0.0)
-            self.loc.append(f"color=c={self.nen}:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format={self.pf}[nn{i}]")
+            if not nen_mo:
+                self.loc.append(f"color=c={self.nen}:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format={self.pf}[nn{i}]")
             hoa_tron = c.get("hien_thi", {}).get("hoa_tron", "normal")
             if hoa_tron != "normal":
                 self.loc.append(f"color=c=black@0:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format={self.pfa}[tr{i}]")
@@ -373,10 +382,12 @@ class DungLenh:
         dai_xuat = dai + pad_truoc + pad_sau
         
         cur = f"s{i}"
+        # Lật hình ngay ở nguồn (trước vùng che, cắt khung): vùng che và khung cắt tính trên hình ĐÃ lật như ở màn xem trước.
+        lat = (",hflip" if c.get("lat_ngang") else "") + (",vflip" if c.get("lat_doc") else "")
         if m.get("loai") == "anh":
             k = self._input("-loop", "1", "-framerate", _so(self.fps), "-t", _so(dai_xuat), "-i", self._file(m))
             hlg = "," + media_mod.loc_sang_hlg("") if self.hdr_ra else ""
-            self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS{hlg}[{cur}]")
+            self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS{hlg}{lat}[{cur}]")
         else:
             # Giải mã CUDA chỉ khi CHẮC video không có thẻ xoay: với khung trên GPU ffmpeg không tự xoay theo
             # "Display Matrix" (video quay dọc của điện thoại) → hình nằm ngang. Media cũ chưa đo `xoay` → giải mã CPU.
@@ -394,7 +405,7 @@ class DungLenh:
                 M = max(self.W, self.H)
                 hdr = (f",scale=w='min(iw,{M})':h='min(ih,{M})':force_original_aspect_ratio=decrease"
                        f":force_divisible_by=2:flags=bicubic,{media_mod.loc_hdr_sang_sdr(m['hdr'])}")
-            self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS{hdr}[{cur}]")
+            self.loc.append(f"[{k}:v]setpts=PTS-STARTPTS{hdr}{lat}[{cur}]")
             for j, che in enumerate(self._che_cho(m["id"], c.get("nhom_neo") or "")):
                 a, b = max(0.0, float(che["t_vao"]) - vao), min(float(che["t_ra"]) - vao, ra - vao)
                 if b <= a:

@@ -275,6 +275,39 @@ export class Preview {
             mixBlendMode: h.hoa_tron && h.hoa_tron !== 'normal' ? h.hoa_tron : '',
         });
         l.hop = hop;
+        // Lật hình: lật phần tử bên trong, khung cắt (clip-path của lớp) giữ nguyên — khớp render.py (lật ở nguồn, cắt sau).
+        const lat = c.lat_ngang || c.lat_doc ? `scale(${c.lat_ngang ? -1 : 1},${c.lat_doc ? -1 : 1})` : '';
+        l.v.style.transform = lat;
+        l.img.style.transform = lat;
+        if (l.gl?.cv) l.gl.cv.style.transform = lat;
+        this._veNenMo(l, c);
+    }
+
+    /* Nền mờ (clip.nen_mo, chỉ track nền): vẽ khung hiện tại của clip lên một canvas nhỏ phóng kín khung rồi làm mờ bằng CSS —
+       gần giống bản xuất (render.py › _doan_video). Canvas dùng chung, nằm dưới mọi lớp video. */
+    _veNenMo(l, c) {
+        const nen = (trackVideoTuDuoiLen(this.tl)[0] || {}).id;
+        if (!c || c.track !== nen) return;
+        if (!c.nen_mo) { if (this.nenMo) this.nenMo.style.display = 'none'; return; }
+        if (!this.nenMo) {
+            this.nenMo = document.createElement('canvas');
+            this.nenMo.width = 96; this.nenMo.height = 96;
+            this.nenMo.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;filter:blur(14px);pointer-events:none';
+            this.cacLop.parentNode.insertBefore(this.nenMo, this.cacLop);
+        }
+        if (!l.coNgheNenMo) {
+            l.coNgheNenMo = true;
+            ['seeked', 'loadeddata'].forEach((ev) => l.v.addEventListener(ev, () => { if (l.clip) this._veNenMo(l, l.clip); }));
+            l.img.addEventListener('load', () => { if (l.clip) this._veNenMo(l, l.clip); });
+        }
+        const src = l.img.style.display !== 'none' ? l.img : l.v;
+        const sw = src.videoWidth || src.naturalWidth, sh = src.videoHeight || src.naturalHeight;
+        this.nenMo.style.display = '';
+        this.nenMo.style.transform = `scale(${c.lat_ngang ? -1.1 : 1.1},${c.lat_doc ? -1.1 : 1.1})`;
+        if (!sw || !sh) return;
+        const fa = this.man.clientWidth / Math.max(1, this.man.clientHeight);
+        const cw = sw / sh > fa ? sh * fa : sw, ch = sw / sh > fa ? sh : sw / fa;      // phần nguồn cùng tỉ lệ với khung
+        try { this.nenMo.getContext('2d').drawImage(src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, 96, 96); } catch (e) { /* khung chưa sẵn */ }
     }
 
     /* Hiện clip `c` trên lớp `l` tại thời điểm t; phat=true thì cho chạy và chỉ tua khi lệch nhiều. */
@@ -878,6 +911,7 @@ export class Preview {
             } else if (moi) {
                 l.v.volume = Math.min(1, Number(moi.am_luong ?? 1) * this.master * heSoFade(moi, t));
                 if (moi.toc_do_cong) l.v.playbackRate = this._tocPhat(moi, t);   // đồ thị tốc độ: đổi theo từng nhịp
+                if (moi.nen_mo) this._veNenMo(l, moi);
                 if (l !== nen && l.v.readyState >= 1 && Math.abs(l.v.currentTime - thoiDiemMedia(moi, t)) > LECH_TOI_DA) {
                     l.v.currentTime = thoiDiemMedia(moi, t);
                 }

@@ -50,6 +50,8 @@ export function phanLoai(tl, media, n0, n1, fps, khongGiaiMa = new Set()) {
         const m = mdict[c.media];
         const can = [khungTu(bd, fps), khungTu(kt, fps)];
         if (coNangCao(c.mau)) { khuc.push(can); lyDo.add('chỉnh màu nâng cao'); }
+        if (c.lat_ngang || c.lat_doc) { khuc.push(can); lyDo.add('lật hình'); }
+        if (c.nen_mo) { khuc.push(can); lyDo.add('nền mờ'); }
         if (khongGiaiMa.has(c.media)) { khuc.push(can); lyDo.add(`video máy không đọc được (${m ? m.ten : c.media})`); }
         if (m && m.hdr) canhBao.add('video HDR được chuyển sang SDR — màu có thể khác bản Server một chút');
         if ((c.hieu_ung || []).some((h) => h.bat !== false)) canhBao.add('hiệu ứng hình dùng bộ lọc của trình duyệt — có thể lệch nhẹ');

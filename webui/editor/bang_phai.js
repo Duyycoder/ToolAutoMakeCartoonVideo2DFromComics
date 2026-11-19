@@ -45,6 +45,7 @@ export class BangPhai {
             if (l && l.dataset.l === 've-lai-vung') this._veLaiVung();
             if (l && l.dataset.l === 'xoa-cc') ctx.timeline.xoaDangChon();
             if (l && l.dataset.l === 'mo-kieu') ctx.moBang('phu_de', true);
+            if (l && l.dataset.l === 'lap-day') this._lapDay();
             
             const hu = e.target.closest('[data-hu]');
             if (hu) this._xuLyHieuUng(hu.dataset.hu, hu.dataset.idHu);
@@ -216,6 +217,19 @@ export class BangPhai {
 
     get tl() { return this.ctx.store.timeline; }
 
+    /* Lấp đầy khung: phóng clip vừa đủ kín khung dự án (cắt bớt phần thừa hai bên), đặt lại giữa khung. */
+    _lapDay() {
+        const c = this._clip();
+        const m = c && this.ctx.media.find((x) => x.id === c.media);
+        const ts = this.ctx.du.thong_so || {};
+        const W = Number(ts.rong) || 1920, H = Number(ts.cao) || 1080;
+        const mw = Number(m && m.rong) || W, mh = Number(m && m.cao) || H;
+        const ti = Math.round(Math.max(W / mw, H / mh) / Math.min(W / mw, H / mh) * 1000) / 1000;
+        if (!c) return;
+        this.ctx.sua('Lấp đầy khung', [tao.dat(this.tl, ['clips', { id: c.id }, 'bien_doi'], { ...(c.bien_doi || {}), x: 0.5, y: 0.5, ti_le: ti })]);
+        this.ve();
+    }
+
     _clip() {
         const cid = this.ctx.chon.clip;
         return cid ? this.tl.clips.find((c) => c.id === cid) : null;
@@ -254,6 +268,7 @@ export class BangPhai {
         if (!o || !c) return;
         const k = o.dataset.k;
         let v = o.type === 'range' || o.type === 'number' || o.tagName === 'SELECT' && o.dataset.so ? Number(o.value) : o.value;
+        if (o.type === 'checkbox' && !k.includes('.')) v = o.checked || undefined;      // ô tích cấp clip (lật hình…): bỏ tích = xoá khoá
         const p = (...x) => ['clips', { id: c.id }, ...x];
         let ops;
         if (k.startsWith('hieu_ung.')) {
@@ -466,6 +481,10 @@ export class BangPhai {
                             <label>Y % ${this._nutKF(clip, 'bien_doi.y')}<input type="number" data-k="bien_doi.y" step="1" value="${pc(val('bien_doi.y', bd.y ?? 0.5))}"></label></div>
                         <div class="hang"><label>Tỉ lệ % ${this._nutKF(clip, 'bien_doi.ti_le')}<input type="number" data-k="bien_doi.ti_le" step="1" value="${pc(val('bien_doi.ti_le', bd.ti_le ?? 1))}"></label>
                             <label>Xoay ° ${this._nutKF(clip, 'bien_doi.xoay')}<input type="number" data-k="bien_doi.xoay" step="1" value="${val('bien_doi.xoay', bd.xoay ?? 0)}"></label></div>
+                        <div class="hang"><button class="nut nut-nho" data-l="lap-day" title="Phóng clip vừa kín khung dự án (cắt bớt phần thừa)">⛶ Lấp đầy khung</button>
+                            <label class="check" title="Khoảng trống quanh clip (video ngang trong khung dọc…) được lấp bằng chính hình đó làm mờ. Chỉ áp cho dòng video dưới cùng."><input type="checkbox" data-k="nen_mo" ${clip.nen_mo ? 'checked' : ''}> Nền mờ</label></div>
+                        <div class="hang"><label class="check"><input type="checkbox" data-k="lat_ngang" ${clip.lat_ngang ? 'checked' : ''}> ⇋ Lật ngang</label>
+                            <label class="check"><input type="checkbox" data-k="lat_doc" ${clip.lat_doc ? 'checked' : ''}> ⇅ Lật dọc</label></div>
                     </div>`)
                     + this._muc('cat_khung', 'Cắt khung', `<div class="o-form">
                         <div class="hang"><label>Trái %<input type="number" data-k="cat_khung.trai" min="0" max="100" value="${pc(ck.trai)}"></label>

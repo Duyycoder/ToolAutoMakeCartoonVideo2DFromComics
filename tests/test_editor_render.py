@@ -1139,3 +1139,49 @@ def test_xuat_mac_dinh_van_la_sdr_8bit(tmp_path):
     kq = render.dung_lenh_xuat(str(tmp_path), _du_an(), _tl(_v("c_1", "m_v", 0, 0, 5)), {}, "ra.mp4")
     assert kq["cmd"][kq["cmd"].index("-pix_fmt") + 1] == "yuv420p" and "libx264" in kq["cmd"]
     assert "10le" not in kq["loc"]
+
+
+def test_xuat_that_lat_ngang_va_nen_mo(media_mau):
+    """Lật ngang đổi chỗ nửa trái/phải; nền mờ lấp khoảng trống quanh video ngang trong khung dọc bằng màu của chính nó."""
+    goc, exe = media_mau
+    nua = goc / "media" / "nua.mp4"
+    res = subprocess.run([exe, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                          "color=c=red:s=160x180:r=30:d=2[l];color=c=blue:s=160x180:r=30:d=2[r];[l][r]hstack",
+                          "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an", str(nua)], capture_output=True, timeout=120)
+    assert res.returncode == 0
+    them = [{"id": "m_nua", "loai": "video", "file": "media/nua.mp4", "co_am_thanh": False, "rong": 320, "cao": 180}]
+    clip = {"id": "c1", "track": "V1", "media": "m_nua", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1}
+    tl = lambda **kw: {"tracks": [{"id": "V1", "loai": "video"}], "clips": [{**clip, **kw}], "kieu_phu_de": {}}
+
+    ra, _ = _xuat_va_kiem(exe, goc, _da(them_media=them), tl(lat_ngang=True))
+    khung = _doc_khung(exe, ra, 1, 320, 180)
+    assert khung[90, 40][2] > 180 and khung[90, 40][0] < 80, f"nửa trái phải thành xanh dương: {khung[90, 40]}"
+    assert khung[90, 280][0] > 180 and khung[90, 280][2] < 80, f"nửa phải phải thành đỏ: {khung[90, 280]}"
+
+    doc = _da(rong=180, cao=320, them_media=them)                  # khung dọc, video ngang nằm giữa, trên dưới trống
+    ra, _ = _xuat_va_kiem(exe, goc, doc, tl())
+    assert int(_doc_khung(exe, ra, 1, 180, 320)[20, 90].sum()) < 60, "không bật nền mờ thì khoảng trống là màu nền (đen)"
+    ra, kq = _xuat_va_kiem(exe, goc, doc, tl(nen_mo=True))
+    assert "boxblur" in kq["loc"]
+    tren = _doc_khung(exe, ra, 1, 180, 320)[20]
+    assert int(tren[20].sum()) > 120 and int(tren[160].sum()) > 120, f"khoảng trống phải được lấp bằng hình mờ: {tren[20]} {tren[160]}"
+    giua = _doc_khung(exe, ra, 1, 180, 320)[160]
+    assert giua[30][0] > 180 and giua[150][2] > 180, "hình chính vẫn nét ở giữa khung"
+
+
+def test_ass_song_ngu_va_chu_nen_hop():
+    from orchestrator.editor.chu_hinh import tao_ass
+    tl = {"tracks": [{"id": "O1", "loai": "lop_phu"}, {"id": "V1", "loai": "video"}, {"id": "S1", "loai": "phu_de"}],
+          "kieu_phu_de": {"k_mac_dinh": {"co": 50, "nen": "Box"}, "k_1": {"co": 60, "song_ngu": True}},
+          "clips": [
+              {"id": "v", "track": "V1", "media": "m", "bat_dau": 0, "vao": 0, "ra": 5, "toc_do": 1},
+              {"id": "s1", "track": "S1", "loai": "phu_de", "bat_dau": 0, "ket_thuc": 1, "text": "Xin chào", "text_goc": "Hello", "kieu": "k_1"},
+              {"id": "s2", "track": "S1", "loai": "phu_de", "bat_dau": 1, "ket_thuc": 2, "text": "Tạm biệt", "text_goc": "Bye"},
+              {"id": "t", "track": "O1", "loai": "chu", "bat_dau": 0, "ket_thuc": 2, "noi_dung": "Hộp",
+               "kieu": {"co": 50, "nen": True, "nen_mau": "#ff0000", "can": "trai", "dam": True}}]}
+    ass = tao_ass(tl, 1080, 1920)
+    assert r"Xin chào\N{\fs74.7}Hello" in ass                      # kiểu riêng bật song ngữ: bản gốc ở dòng dưới, cỡ 0.7
+    assert ",k_mac_dinh,,0,0,0,,Tạm biệt" in ass and "Bye" not in ass  # kiểu chung không bật → chỉ bản dịch
+    hop = next(x for x in ass.splitlines() if x.endswith("}Hộp"))
+    assert ",k_hop,," in hop and r"\3c&H0000FF&" in hop and r"\an4" in hop and r"\b1" in hop
+    assert "Style: k_hop," in ass and "Style: k_chu," in ass
