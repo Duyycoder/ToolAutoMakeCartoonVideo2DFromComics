@@ -15777,6 +15777,4506 @@
    "nguon": "https://freesound.org/people/Flem0527/sounds/630018/"
   },
   {
+   "id": "fs-571508",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Bùm trầm (boom meme) 1",
+   "file": "sfx/freesound/bass-boom/571508.m4a",
+   "thoi_luong": 2.339,
+   "the": [
+    "bass boom"
+   ],
+   "mo_ta": "boom.mp3",
+   "tac_gia": "Kagateni",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Kagateni/sounds/571508/"
+  },
+  {
+   "id": "fs-339437",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Bùm trầm (boom meme) 2",
+   "file": "sfx/freesound/bass-boom/339437.m4a",
+   "thoi_luong": 0.331,
+   "the": [
+    "bass boom"
+   ],
+   "mo_ta": "super low bass hit kick drum wAv",
+   "tac_gia": "phluidbox",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/phluidbox/sounds/339437/"
+  },
+  {
+   "id": "fs-856174",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Bùm trầm (boom meme) 3",
+   "file": "sfx/freesound/bass-boom/856174.m4a",
+   "thoi_luong": 4.0,
+   "the": [
+    "bass boom"
+   ],
+   "mo_ta": "Subterranean Deep Sub-Bass Rumble Drop",
+   "tac_gia": "brktkrgll",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/brktkrgll/sounds/856174/"
+  },
+  {
+   "id": "fs-342539",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Thịch (thud) 1",
+   "file": "sfx/freesound/thud/342539.m4a",
+   "thoi_luong": 1.254,
+   "the": [
+    "thud"
+   ],
+   "mo_ta": "Plastic Thud 1",
+   "tac_gia": "sgrowe",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/sgrowe/sounds/342539/"
+  },
+  {
+   "id": "fs-339832",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Thịch (thud) 2",
+   "file": "sfx/freesound/thud/339832.m4a",
+   "thoi_luong": 0.673,
+   "the": [
+    "thud"
+   ],
+   "mo_ta": "thud.ogg",
+   "tac_gia": "insanity54",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/insanity54/sounds/339832/"
+  },
+  {
+   "id": "fs-613290",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Thịch (thud) 3",
+   "file": "sfx/freesound/thud/613290.m4a",
+   "thoi_luong": 0.722,
+   "the": [
+    "thud"
+   ],
+   "mo_ta": "bassy-thud.wav",
+   "tac_gia": "birdOfTheNorth",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/birdOfTheNorth/sounds/613290/"
+  },
+  {
+   "id": "fs-440829",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Nhạc chốt hài (comedy sting) 1",
+   "file": "sfx/freesound/comedy-sting/440829.m4a",
+   "thoi_luong": 5.333,
+   "the": [
+    "comedy sting"
+   ],
+   "mo_ta": "Sting, rimshot, drum roll (smooth)",
+   "tac_gia": "tlwmdbt",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/tlwmdbt/sounds/440829/"
+  },
+  {
+   "id": "fs-578368",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Nhạc chốt hài (comedy sting) 2",
+   "file": "sfx/freesound/comedy-sting/578368.m4a",
+   "thoi_luong": 3.645,
+   "the": [
+    "comedy sting"
+   ],
+   "mo_ta": "Mild Surprise 5",
+   "tac_gia": "nomiqbomi",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/nomiqbomi/sounds/578368/"
+  },
+  {
+   "id": "fs-578369",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Nhạc chốt hài (comedy sting) 3",
+   "file": "sfx/freesound/comedy-sting/578369.m4a",
+   "thoi_luong": 1.66,
+   "the": [
+    "comedy sting"
+   ],
+   "mo_ta": "Double Blink",
+   "tac_gia": "nomiqbomi",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/nomiqbomi/sounds/578369/"
+  },
+  {
+   "id": "fs-237105",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Ting (loé sáng) 1",
+   "file": "sfx/freesound/ting/237105.m4a",
+   "thoi_luong": 0.347,
+   "the": [
+    "ting"
+   ],
+   "mo_ta": "sqeeeek_bell_ting2.wav",
+   "tac_gia": "sqeeeek",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/sqeeeek/sounds/237105/"
+  },
+  {
+   "id": "fs-174027",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Ting (loé sáng) 2",
+   "file": "sfx/freesound/ting/174027.m4a",
+   "thoi_luong": 1.493,
+   "the": [
+    "ting"
+   ],
+   "mo_ta": "News Ting",
+   "tac_gia": "robni7",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/robni7/sounds/174027/"
+  },
+  {
+   "id": "fs-685256",
+   "loai": "sfx",
+   "nhom": "Điện ảnh",
+   "ten": "Riser căng dần 1",
+   "file": "sfx/freesound/riser/685256.m4a",
+   "thoi_luong": 3.047,
+   "the": [
+    "riser"
+   ],
+   "mo_ta": "Riser sound effect short.wav",
+   "tac_gia": "syntheffects",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/syntheffects/sounds/685256/"
+  },
+  {
+   "id": "fs-754284",
+   "loai": "sfx",
+   "nhom": "Điện ảnh",
+   "ten": "Riser căng dần 2",
+   "file": "sfx/freesound/riser/754284.m4a",
+   "thoi_luong": 5.413,
+   "the": [
+    "riser"
+   ],
+   "mo_ta": "Riser Hit sfx 092",
+   "tac_gia": "AudioPapkin",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/AudioPapkin/sounds/754284/"
+  },
+  {
+   "id": "fs-750768",
+   "loai": "sfx",
+   "nhom": "Điện ảnh",
+   "ten": "Riser căng dần 3",
+   "file": "sfx/freesound/riser/750768.m4a",
+   "thoi_luong": 4.112,
+   "the": [
+    "riser"
+   ],
+   "mo_ta": "Riser Hit sfx 085",
+   "tac_gia": "AudioPapkin",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/AudioPapkin/sounds/750768/"
+  },
+  {
+   "id": "fs-427803",
+   "loai": "sfx",
+   "nhom": "Điện ảnh",
+   "ten": "Cú giật kịch tính (cinematic hit) 1",
+   "file": "sfx/freesound/cinematic-hit/427803.m4a",
+   "thoi_luong": 4.366,
+   "the": [
+    "cinematic hit"
+   ],
+   "mo_ta": "Cinematic Hit With Horns.wav",
+   "tac_gia": "DeVern",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/DeVern/sounds/427803/"
+  },
+  {
+   "id": "fs-511863",
+   "loai": "sfx",
+   "nhom": "Điện ảnh",
+   "ten": "Cú giật kịch tính (cinematic hit) 3",
+   "file": "sfx/freesound/cinematic-hit/511863.m4a",
+   "thoi_luong": 2.008,
+   "the": [
+    "cinematic hit"
+   ],
+   "mo_ta": "Riser Hit sfx 015.wav",
+   "tac_gia": "AudioPapkin",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/AudioPapkin/sounds/511863/"
+  },
+  {
+   "id": "fs-856173",
+   "loai": "sfx",
+   "nhom": "Điện ảnh",
+   "ten": "Braam 1",
+   "file": "sfx/freesound/braam/856173.m4a",
+   "thoi_luong": 4.0,
+   "the": [
+    "braam"
+   ],
+   "mo_ta": "Apocalyptic Cinematic Brass Braam Impact",
+   "tac_gia": "brktkrgll",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/brktkrgll/sounds/856173/"
+  },
+  {
+   "id": "fs-697057",
+   "loai": "sfx",
+   "nhom": "Điện ảnh",
+   "ten": "Braam 2",
+   "file": "sfx/freesound/braam/697057.m4a",
+   "thoi_luong": 2.967,
+   "the": [
+    "braam"
+   ],
+   "mo_ta": "DSGNBram_BramDistorted01_InMotionAudio_FREESampleSunday.wav",
+   "tac_gia": "InMotionAudio",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/InMotionAudio/sounds/697057/"
+  },
+  {
+   "id": "fs-346316",
+   "loai": "sfx",
+   "nhom": "Điện ảnh",
+   "ten": "Âm trầm rung (sub drop) 1",
+   "file": "sfx/freesound/sub-drop/346316.m4a",
+   "thoi_luong": 3.649,
+   "the": [
+    "sub drop"
+   ],
+   "mo_ta": "Ramon's Sexy Sub Drop 6000",
+   "tac_gia": "IV_Studios_666",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/IV_Studios_666/sounds/346316/"
+  },
+  {
+   "id": "fs-81149",
+   "loai": "sfx",
+   "nhom": "Điện ảnh",
+   "ten": "Âm trầm rung (sub drop) 2",
+   "file": "sfx/freesound/sub-drop/81149.m4a",
+   "thoi_luong": 2.906,
+   "the": [
+    "sub drop"
+   ],
+   "mo_ta": "SUB OCEANO G sharp.wav",
+   "tac_gia": "uzerx",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/uzerx/sounds/81149/"
+  },
+  {
+   "id": "fs-373803",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Violin căng thẳng (tremolo) 1",
+   "file": "sfx/freesound/violin-tremolo/373803.m4a",
+   "thoi_luong": 6.563,
+   "the": [
+    "violin tremolo"
+   ],
+   "mo_ta": "Solo Violin - tremolo - F#5 (LLVln_trem_G4_v2_rr1.wav)",
+   "tac_gia": "sgossner",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/sgossner/sounds/373803/"
+  },
+  {
+   "id": "fs-494668",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Violin căng thẳng (tremolo) 2",
+   "file": "sfx/freesound/violin-tremolo/494668.m4a",
+   "thoi_luong": 2.695,
+   "the": [
+    "violin tremolo"
+   ],
+   "mo_ta": "violin tremolo 4",
+   "tac_gia": "PhonosUPF",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/PhonosUPF/sounds/494668/"
+  },
+  {
+   "id": "fs-578807",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Dây đàn giật mình (string stab) 1",
+   "file": "sfx/freesound/string-stab/578807.m4a",
+   "thoi_luong": 1.425,
+   "the": [
+    "string stab"
+   ],
+   "mo_ta": "Pluck 1",
+   "tac_gia": "nomiqbomi",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/nomiqbomi/sounds/578807/"
+  },
+  {
+   "id": "fs-695918",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Dây đàn giật mình (string stab) 2",
+   "file": "sfx/freesound/string-stab/695918.m4a",
+   "thoi_luong": 0.5,
+   "the": [
+    "string stab"
+   ],
+   "mo_ta": "piano_fifth3.wav",
+   "tac_gia": "synxwtf",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/synxwtf/sounds/695918/"
+  },
+  {
+   "id": "fs-867220",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Trống bongo dạo 1",
+   "file": "sfx/freesound/bongo-fill/867220.m4a",
+   "thoi_luong": 2.313,
+   "the": [
+    "bongo fill"
+   ],
+   "mo_ta": "Stupid Bongo Fill",
+   "tac_gia": "CAT-FOX_ALEX",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/CAT-FOX_ALEX/sounds/867220/"
+  },
+  {
+   "id": "fs-702164",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Trống bongo dạo 2",
+   "file": "sfx/freesound/bongo-fill/702164.m4a",
+   "thoi_luong": 0.781,
+   "the": [
+    "bongo fill"
+   ],
+   "mo_ta": "bongo_fill_BillM-1.wav",
+   "tac_gia": "badbear904",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/badbear904/sounds/702164/"
+  },
+  {
+   "id": "fs-392482",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Đi rón rén (tiptoe) 1",
+   "file": "sfx/freesound/tiptoe/392482.m4a",
+   "thoi_luong": 2.718,
+   "the": [
+    "tiptoe"
+   ],
+   "mo_ta": "Footsteps tap.wav",
+   "tac_gia": "gpag1",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/gpag1/sounds/392482/"
+  },
+  {
+   "id": "fs-670263",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Đi rón rén (tiptoe) 2",
+   "file": "sfx/freesound/tiptoe/670263.m4a",
+   "thoi_luong": 0.145,
+   "the": [
+    "tiptoe"
+   ],
+   "mo_ta": "Tiptoe Perc",
+   "tac_gia": "adh.dreaming",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/adh.dreaming/sounds/670263/"
+  },
+  {
+   "id": "fs-493743",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Oof 1",
+   "file": "sfx/freesound/oof/493743.m4a",
+   "thoi_luong": 1.62,
+   "the": [
+    "oof"
+   ],
+   "mo_ta": "oof.mp3",
+   "tac_gia": "CrimsonImaging",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/CrimsonImaging/sounds/493743/"
+  },
+  {
+   "id": "fs-438912",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Oof 2",
+   "file": "sfx/freesound/oof/438912.m4a",
+   "thoi_luong": 0.458,
+   "the": [
+    "oof"
+   ],
+   "mo_ta": "HomemadeOof.wav",
+   "tac_gia": "LucyTheDev",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/LucyTheDev/sounds/438912/"
+  },
+  {
+   "id": "fs-711583",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Nope 1",
+   "file": "sfx/freesound/nope/711583.m4a",
+   "thoi_luong": 0.43,
+   "the": [
+    "nope"
+   ],
+   "mo_ta": "Nope_ThomasL_persona",
+   "tac_gia": "tommylee4200",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/tommylee4200/sounds/711583/"
+  },
+  {
+   "id": "fs-784984",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Nope 2",
+   "file": "sfx/freesound/nope/784984.m4a",
+   "thoi_luong": 1.339,
+   "the": [
+    "nope"
+   ],
+   "mo_ta": "Nope (my own)",
+   "tac_gia": "boro07",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/boro07/sounds/784984/"
+  },
+  {
+   "id": "fs-703866",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Bloop 1",
+   "file": "sfx/freesound/bloop/703866.m4a",
+   "thoi_luong": 1.905,
+   "the": [
+    "bloop"
+   ],
+   "mo_ta": "bloop g6.wav",
+   "tac_gia": "Ragnar59",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Ragnar59/sounds/703866/"
+  },
+  {
+   "id": "fs-258020",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Bloop 2",
+   "file": "sfx/freesound/bloop/258020.m4a",
+   "thoi_luong": 0.495,
+   "the": [
+    "bloop"
+   ],
+   "mo_ta": "Arcade Bleep Sound",
+   "tac_gia": "Kodack",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Kodack/sounds/258020/"
+  },
+  {
+   "id": "fs-611642",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Bloop 3",
+   "file": "sfx/freesound/bloop/611642.m4a",
+   "thoi_luong": 0.517,
+   "the": [
+    "bloop"
+   ],
+   "mo_ta": "waterbloop.mp3",
+   "tac_gia": "kstargio",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/kstargio/sounds/611642/"
+  },
+  {
+   "id": "fs-168439",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Chíp chíp (cute squeak) 1",
+   "file": "sfx/freesound/squeak/168439.m4a",
+   "thoi_luong": 1.795,
+   "the": [
+    "squeak"
+   ],
+   "mo_ta": "Bird-Like-Chair-Squeak-1.flac",
+   "tac_gia": "dland",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/dland/sounds/168439/"
+  },
+  {
+   "id": "fs-465404",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Chíp chíp (cute squeak) 2",
+   "file": "sfx/freesound/squeak/465404.m4a",
+   "thoi_luong": 1.884,
+   "the": [
+    "squeak"
+   ],
+   "mo_ta": "Scream of the Squeak",
+   "tac_gia": "nataliedmc",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/nataliedmc/sounds/465404/"
+  },
+  {
+   "id": "fs-384065",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Chíp chíp (cute squeak) 3",
+   "file": "sfx/freesound/squeak/384065.m4a",
+   "thoi_luong": 1.043,
+   "the": [
+    "squeak"
+   ],
+   "mo_ta": "door squeak",
+   "tac_gia": "SkySpeira",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/SkySpeira/sounds/384065/"
+  },
+  {
+   "id": "fs-335906",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Kèn trumpet thua cuộc 1",
+   "file": "sfx/freesound/fail-trumpet/335906.m4a",
+   "thoi_luong": 2.15,
+   "the": [
+    "fail trumpet"
+   ],
+   "mo_ta": "Fail.mp3",
+   "tac_gia": "LittleRainySeasons",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/LittleRainySeasons/sounds/335906/"
+  },
+  {
+   "id": "fs-242208",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Kèn trumpet thua cuộc 2",
+   "file": "sfx/freesound/fail-trumpet/242208.m4a",
+   "thoi_luong": 3.061,
+   "the": [
+    "fail trumpet"
+   ],
+   "mo_ta": "failfare.mp3",
+   "tac_gia": "Wagna",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Wagna/sounds/242208/"
+  },
+  {
+   "id": "fs-532964",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Tiếng lắc đầu (cartoon shake) 1",
+   "file": "sfx/freesound/cartoon-shake/532964.m4a",
+   "thoi_luong": 2.5,
+   "the": [
+    "cartoon shake"
+   ],
+   "mo_ta": "Lắc Đầu",
+   "tac_gia": "SieuAmThanh",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/SieuAmThanh/sounds/532964/"
+  },
+  {
+   "id": "fs-614749",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Tiếng lắc đầu (cartoon shake) 2",
+   "file": "sfx/freesound/cartoon-shake/614749.m4a",
+   "thoi_luong": 0.211,
+   "the": [
+    "cartoon shake"
+   ],
+   "mo_ta": "Boing.flac",
+   "tac_gia": "Hajisounds",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Hajisounds/sounds/614749/"
+  },
+  {
+   "id": "fs-541507",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Vút lên (cartoon zip) 1",
+   "file": "sfx/freesound/cartoon-zip/541507.m4a",
+   "thoi_luong": 0.244,
+   "the": [
+    "cartoon zip"
+   ],
+   "mo_ta": "Cartoon Quick Zip 02",
+   "tac_gia": "se2001",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/se2001/sounds/541507/"
+  },
+  {
+   "id": "fs-19285",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Vút lên (cartoon zip) 2",
+   "file": "sfx/freesound/cartoon-zip/19285.m4a",
+   "thoi_luong": 1.873,
+   "the": [
+    "cartoon zip"
+   ],
+   "mo_ta": "cartoon poppyup appearances -0002.aiff",
+   "tac_gia": "martian",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/martian/sounds/19285/"
+  },
+  {
+   "id": "fs-19286",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Vút lên (cartoon zip) 3",
+   "file": "sfx/freesound/cartoon-zip/19286.m4a",
+   "thoi_luong": 1.595,
+   "the": [
+    "cartoon zip"
+   ],
+   "mo_ta": "cartoon poppyup appearances -0003.aiff",
+   "tac_gia": "martian",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/martian/sounds/19286/"
+  },
+  {
+   "id": "fs-667463",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Trượt phanh hoạt hình 2",
+   "file": "sfx/freesound/cartoon-skid/667463.m4a",
+   "thoi_luong": 2.313,
+   "the": [
+    "cartoon skid"
+   ],
+   "mo_ta": "Myles Moss' Cartoon Quick Ratchet or Skid with Twang SFX.mp3",
+   "tac_gia": "MylieJoeMoss1996",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/MylieJoeMoss1996/sounds/667463/"
+  },
+  {
+   "id": "fs-796125",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Nháy mắt lấp lánh (bling) 1",
+   "file": "sfx/freesound/bling/796125.m4a",
+   "thoi_luong": 1.433,
+   "the": [
+    "bling"
+   ],
+   "mo_ta": "BLING",
+   "tac_gia": "MSH443PL8",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/MSH443PL8/sounds/796125/"
+  },
+  {
+   "id": "fs-677771",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Nháy mắt lấp lánh (bling) 2",
+   "file": "sfx/freesound/bling/677771.m4a",
+   "thoi_luong": 1.669,
+   "the": [
+    "bling"
+   ],
+   "mo_ta": "Dramatic Shine Sound",
+   "tac_gia": "samrad20",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/samrad20/sounds/677771/"
+  },
+  {
+   "id": "fs-735898",
+   "loai": "sfx",
+   "nhom": "Hài hước",
+   "ten": "Nháy mắt lấp lánh (bling) 3",
+   "file": "sfx/freesound/bling/735898.m4a",
+   "thoi_luong": 0.613,
+   "the": [
+    "bling"
+   ],
+   "mo_ta": "Casinosfx 001",
+   "tac_gia": "modusmogulus",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/modusmogulus/sounds/735898/"
+  },
+  {
+   "id": "fs-740423",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Tin nhắn đến 1",
+   "file": "sfx/freesound/message-notification/740423.m4a",
+   "thoi_luong": 0.319,
+   "the": [
+    "message notification"
+   ],
+   "mo_ta": "Message Notification 4",
+   "tac_gia": "AnthonyRox",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/AnthonyRox/sounds/740423/"
+  },
+  {
+   "id": "fs-636401",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Tin nhắn đến 2",
+   "file": "sfx/freesound/message-notification/636401.m4a",
+   "thoi_luong": 2.13,
+   "the": [
+    "message notification"
+   ],
+   "mo_ta": "Text Tone 5.mp3",
+   "tac_gia": "dVidrio02",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/dVidrio02/sounds/636401/"
+  },
+  {
+   "id": "fs-815289",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Tin nhắn đến 3",
+   "file": "sfx/freesound/message-notification/815289.m4a",
+   "thoi_luong": 1.0,
+   "the": [
+    "message notification"
+   ],
+   "mo_ta": "Klick - Generic Notification Sound Effect for Incoming Message etc.",
+   "tac_gia": "Demcker",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Demcker/sounds/815289/"
+  },
+  {
+   "id": "fs-879792",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Gửi tin (swoosh) 1",
+   "file": "sfx/freesound/message-sent/879792.m4a",
+   "thoi_luong": 0.672,
+   "the": [
+    "message sent"
+   ],
+   "mo_ta": "Message Sent Swoosh",
+   "tac_gia": "Qvantor",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Qvantor/sounds/879792/"
+  },
+  {
+   "id": "fs-592772",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Gửi tin (swoosh) 2",
+   "file": "sfx/freesound/message-sent/592772.m4a",
+   "thoi_luong": 1.5,
+   "the": [
+    "message sent"
+   ],
+   "mo_ta": "Message sound.wav",
+   "tac_gia": "Sunart1",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Sunart1/sounds/592772/"
+  },
+  {
+   "id": "fs-635075",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Pop-up hiện ra 1",
+   "file": "sfx/freesound/pop-up/635075.m4a",
+   "thoi_luong": 0.167,
+   "the": [
+    "pop up"
+   ],
+   "mo_ta": "popchat.wav",
+   "tac_gia": "olivertravian",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/olivertravian/sounds/635075/"
+  },
+  {
+   "id": "fs-567087",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Pop-up hiện ra 3",
+   "file": "sfx/freesound/pop-up/567087.m4a",
+   "thoi_luong": 1.607,
+   "the": [
+    "pop up"
+   ],
+   "mo_ta": "4 Pop in a row",
+   "tac_gia": "lem120",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/lem120/sounds/567087/"
+  },
+  {
+   "id": "fs-853727",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Gõ phím điện thoại 1",
+   "file": "sfx/freesound/phone-typing/853727.m4a",
+   "thoi_luong": 2.389,
+   "the": [
+    "phone typing"
+   ],
+   "mo_ta": "PhoneHapticClickGonzalez",
+   "tac_gia": "ag1160505",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/ag1160505/sounds/853727/"
+  },
+  {
+   "id": "fs-380809",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Gõ phím điện thoại 2",
+   "file": "sfx/freesound/phone-typing/380809.m4a",
+   "thoi_luong": 3.826,
+   "the": [
+    "phone typing"
+   ],
+   "mo_ta": "typing iphone.wav",
+   "tac_gia": "TheoMachine",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/TheoMachine/sounds/380809/"
+  },
+  {
+   "id": "fs-51169",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Bắt đầu quay (record beep) 1",
+   "file": "sfx/freesound/record-beep/51169.m4a",
+   "thoi_luong": 0.622,
+   "the": [
+    "record beep"
+   ],
+   "mo_ta": "Telephone Placed In Dock Beep.wav",
+   "tac_gia": "RutgerMuller",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/RutgerMuller/sounds/51169/"
+  },
+  {
+   "id": "fs-668985",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Bắt đầu quay (record beep) 2",
+   "file": "sfx/freesound/record-beep/668985.m4a",
+   "thoi_luong": 0.791,
+   "the": [
+    "record beep"
+   ],
+   "mo_ta": "stopwatch beep.wav",
+   "tac_gia": "vestibule-door",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/vestibule-door/sounds/668985/"
+  },
+  {
+   "id": "fs-571513",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Chuông đăng ký (bell) 1",
+   "file": "sfx/freesound/notification-bell/571513.m4a",
+   "thoi_luong": 0.801,
+   "the": [
+    "notification bell"
+   ],
+   "mo_ta": "Soft-Notifications - Bell - Ding-Dong.mp3",
+   "tac_gia": "LegitCheese",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/LegitCheese/sounds/571513/"
+  },
+  {
+   "id": "fs-878254",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Chuông đăng ký (bell) 2",
+   "file": "sfx/freesound/notification-bell/878254.m4a",
+   "thoi_luong": 0.632,
+   "the": [
+    "notification bell"
+   ],
+   "mo_ta": "UI Toast Notification",
+   "tac_gia": "Qvantor",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Qvantor/sounds/878254/"
+  },
+  {
+   "id": "fs-648960",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Chuông đăng ký (bell) 3",
+   "file": "sfx/freesound/notification-bell/648960.m4a",
+   "thoi_luong": 1.518,
+   "the": [
+    "notification bell"
+   ],
+   "mo_ta": "Handheld Bell",
+   "tac_gia": "IENBA",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/IENBA/sounds/648960/"
+  },
+  {
+   "id": "fs-779817",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Thành công (success) 1",
+   "file": "sfx/freesound/success/779817.m4a",
+   "thoi_luong": 1.846,
+   "the": [
+    "success"
+   ],
+   "mo_ta": "success2",
+   "tac_gia": "Kenneth_Cooney",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Kenneth_Cooney/sounds/779817/"
+  },
+  {
+   "id": "fs-582988",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Thành công (success) 2",
+   "file": "sfx/freesound/success/582988.m4a",
+   "thoi_luong": 2.052,
+   "the": [
+    "success"
+   ],
+   "mo_ta": "Success.mp3",
+   "tac_gia": "oysterqueen",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/oysterqueen/sounds/582988/"
+  },
+  {
+   "id": "fs-668791",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Thành công (success) 3",
+   "file": "sfx/freesound/success/668791.m4a",
+   "thoi_luong": 2.915,
+   "the": [
+    "success"
+   ],
+   "mo_ta": "success.mp3",
+   "tac_gia": "jolup123",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/jolup123/sounds/668791/"
+  },
+  {
+   "id": "fs-653813",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Lỗi (error) 1",
+   "file": "sfx/freesound/error/653813.m4a",
+   "thoi_luong": 1.6,
+   "the": [
+    "error"
+   ],
+   "mo_ta": "Error",
+   "tac_gia": "EilasSFX",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/EilasSFX/sounds/653813/"
+  },
+  {
+   "id": "fs-869284",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Lỗi (error) 2",
+   "file": "sfx/freesound/error/869284.m4a",
+   "thoi_luong": 0.456,
+   "the": [
+    "error"
+   ],
+   "mo_ta": "19_UI_Game_Error_SFX",
+   "tac_gia": "SignatureSoundsOrg",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/SignatureSoundsOrg/sounds/869284/"
+  },
+  {
+   "id": "fs-264823",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Lỗi (error) 3",
+   "file": "sfx/freesound/error/264823.m4a",
+   "thoi_luong": 1.0,
+   "the": [
+    "error"
+   ],
+   "mo_ta": "PC speaker error beep.wav",
+   "tac_gia": "CZghost",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/CZghost/sounds/264823/"
+  },
+  {
+   "id": "fs-187341",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Mở khoá 2",
+   "file": "sfx/freesound/unlock/187341.m4a",
+   "thoi_luong": 0.96,
+   "the": [
+    "unlock"
+   ],
+   "mo_ta": "Unlocking Door with Key.wav",
+   "tac_gia": "baidonovan",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/baidonovan/sounds/187341/"
+  },
+  {
+   "id": "fs-534104",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Click chuột 1",
+   "file": "sfx/freesound/mouse-click/534104.m4a",
+   "thoi_luong": 0.47,
+   "the": [
+    "mouse click"
+   ],
+   "mo_ta": "mouse-click-double-00.flac",
+   "tac_gia": "pbimal",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/pbimal/sounds/534104/"
+  },
+  {
+   "id": "fs-746167",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Click chuột 2",
+   "file": "sfx/freesound/mouse-click/746167.m4a",
+   "thoi_luong": 0.341,
+   "the": [
+    "mouse click"
+   ],
+   "mo_ta": "Mouse Click",
+   "tac_gia": "100blacktak",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/100blacktak/sounds/746167/"
+  },
+  {
+   "id": "fs-710039",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Click chuột 3",
+   "file": "sfx/freesound/mouse-click/710039.m4a",
+   "thoi_luong": 0.253,
+   "the": [
+    "mouse click"
+   ],
+   "mo_ta": "Mouse Click Sound for Vlogs, Tutorial Videos and More",
+   "tac_gia": "inkedflorist",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/inkedflorist/sounds/710039/"
+  },
+  {
+   "id": "fs-466832",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Cuộc gọi tút tút 1",
+   "file": "sfx/freesound/phone-dial-tone/466832.m4a",
+   "thoi_luong": 1.68,
+   "the": [
+    "phone dial tone"
+   ],
+   "mo_ta": "Phone Dial",
+   "tac_gia": "Breviceps",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Breviceps/sounds/466832/"
+  },
+  {
+   "id": "fs-775609",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Cuộc gọi tút tút 2",
+   "file": "sfx/freesound/phone-dial-tone/775609.m4a",
+   "thoi_luong": 2.0,
+   "the": [
+    "phone dial tone"
+   ],
+   "mo_ta": "phone tone",
+   "tac_gia": "Anonio82",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Anonio82/sounds/775609/"
+  },
+  {
+   "id": "fs-575853",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Cúp máy 1",
+   "file": "sfx/freesound/phone-hang-up/575853.m4a",
+   "thoi_luong": 3.0,
+   "the": [
+    "phone hang up"
+   ],
+   "mo_ta": "intercom bell phone hang up.wav",
+   "tac_gia": "martian",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/martian/sounds/575853/"
+  },
+  {
+   "id": "fs-406233",
+   "loai": "sfx",
+   "nhom": "Mạng xã hội & điện thoại",
+   "ten": "Cúp máy 2",
+   "file": "sfx/freesound/phone-hang-up/406233.m4a",
+   "thoi_luong": 3.308,
+   "the": [
+    "phone hang up"
+   ],
+   "mo_ta": "Heavy Phone Up and Down_near_mono.wav",
+   "tac_gia": "_stubb",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/_stubb/sounds/406233/"
+  },
+  {
+   "id": "fs-516435",
+   "loai": "sfx",
+   "nhom": "Không gian & nền",
+   "ten": "Quán cà phê 1",
+   "file": "sfx/freesound/cafe-ambience/516435.m4a",
+   "thoi_luong": 13.607,
+   "the": [
+    "cafe ambience"
+   ],
+   "mo_ta": "cafe-ambience.m4a",
+   "tac_gia": "wolfdoctor",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/wolfdoctor/sounds/516435/"
+  },
+  {
+   "id": "fs-636035",
+   "loai": "sfx",
+   "nhom": "Không gian & nền",
+   "ten": "Quán cà phê 2",
+   "file": "sfx/freesound/cafe-ambience/636035.m4a",
+   "thoi_luong": 9.594,
+   "the": [
+    "cafe ambience"
+   ],
+   "mo_ta": "musica café parís.wav",
+   "tac_gia": "paolacruz84",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/paolacruz84/sounds/636035/"
+  },
+  {
+   "id": "fs-675164",
+   "loai": "sfx",
+   "nhom": "Không gian & nền",
+   "ten": "Văn phòng 1",
+   "file": "sfx/freesound/office-ambience/675164.m4a",
+   "thoi_luong": 13.647,
+   "the": [
+    "office ambience"
+   ],
+   "mo_ta": "S04-10 Movement in indoor space; office or waiting room; throat clearing; creaking.wav",
+   "tac_gia": "craigsmith",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/craigsmith/sounds/675164/"
+  },
+  {
+   "id": "fs-61504",
+   "loai": "sfx",
+   "nhom": "Không gian & nền",
+   "ten": "Sân trường 2",
+   "file": "sfx/freesound/playground/61504.m4a",
+   "thoi_luong": 15.906,
+   "the": [
+    "playground"
+   ],
+   "mo_ta": "playground 2.wav",
+   "tac_gia": "cognito perceptu",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/cognito perceptu/sounds/61504/"
+  },
+  {
+   "id": "fs-267250",
+   "loai": "sfx",
+   "nhom": "Không gian & nền",
+   "ten": "Đám đông rì rầm 1",
+   "file": "sfx/freesound/crowd-talking/267250.m4a",
+   "thoi_luong": 6.275,
+   "the": [
+    "crowd talking"
+   ],
+   "mo_ta": "BerlinGameScene.com Crowd Mumble 2",
+   "tac_gia": "BerlinGameScene",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/BerlinGameScene/sounds/267250/"
+  },
+  {
+   "id": "fs-381373",
+   "loai": "sfx",
+   "nhom": "Không gian & nền",
+   "ten": "Đám đông rì rầm 2",
+   "file": "sfx/freesound/crowd-talking/381373.m4a",
+   "thoi_luong": 10.893,
+   "the": [
+    "crowd talking"
+   ],
+   "mo_ta": "Crowd Talking Quietly Stadium.mp3",
+   "tac_gia": "FunWithSound",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/FunWithSound/sounds/381373/"
+  },
+  {
+   "id": "fs-691547",
+   "loai": "sfx",
+   "nhom": "Không gian & nền",
+   "ten": "Kẹt xe 1",
+   "file": "sfx/freesound/traffic/691547.m4a",
+   "thoi_luong": 15.664,
+   "the": [
+    "traffic"
+   ],
+   "mo_ta": "rain_light_traffic_10.wav",
+   "tac_gia": "ania635",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/ania635/sounds/691547/"
+  },
+  {
+   "id": "fs-851965",
+   "loai": "sfx",
+   "nhom": "Không gian & nền",
+   "ten": "Kẹt xe 2",
+   "file": "sfx/freesound/traffic/851965.m4a",
+   "thoi_luong": 17.684,
+   "the": [
+    "traffic"
+   ],
+   "mo_ta": "Crowd traffic under bridge in Cairo",
+   "tac_gia": "34mwi_",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/34mwi_/sounds/851965/"
+  },
+  {
+   "id": "fs-655630",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Túi ni lông sột soạt 1",
+   "file": "sfx/freesound/plastic-bag/655630.m4a",
+   "thoi_luong": 2.93,
+   "the": [
+    "plastic bag"
+   ],
+   "mo_ta": "plastic bag.wav",
+   "tac_gia": "Hankof",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Hankof/sounds/655630/"
+  },
+  {
+   "id": "fs-762402",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Túi ni lông sột soạt 2",
+   "file": "sfx/freesound/plastic-bag/762402.m4a",
+   "thoi_luong": 1.807,
+   "the": [
+    "plastic bag"
+   ],
+   "mo_ta": "small plastic bag shake x2 - 1",
+   "tac_gia": "FOSSarts",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/FOSSarts/sounds/762402/"
+  },
+  {
+   "id": "fs-167219",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Túi ni lông sột soạt 3",
+   "file": "sfx/freesound/plastic-bag/167219.m4a",
+   "thoi_luong": 0.891,
+   "the": [
+    "plastic bag"
+   ],
+   "mo_ta": "Plastic bag explosion.flac",
+   "tac_gia": "qubodup",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/qubodup/sounds/167219/"
+  },
+  {
+   "id": "fs-637753",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Đặt cốc xuống bàn 1",
+   "file": "sfx/freesound/cup-down/637753.m4a",
+   "thoi_luong": 0.834,
+   "the": [
+    "cup down"
+   ],
+   "mo_ta": "plastic cup down.flac",
+   "tac_gia": "kyles",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/kyles/sounds/637753/"
+  },
+  {
+   "id": "fs-272022",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Đặt cốc xuống bàn 2",
+   "file": "sfx/freesound/cup-down/272022.m4a",
+   "thoi_luong": 0.709,
+   "the": [
+    "cup down"
+   ],
+   "mo_ta": "Cup set Down",
+   "tac_gia": "aldenroth2",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/aldenroth2/sounds/272022/"
+  },
+  {
+   "id": "fs-540135",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Đếm tiền 1",
+   "file": "sfx/freesound/counting-money/540135.m4a",
+   "thoi_luong": 4.877,
+   "the": [
+    "counting money"
+   ],
+   "mo_ta": "Money Counter.wav",
+   "tac_gia": "aidansamuel",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/aidansamuel/sounds/540135/"
+  },
+  {
+   "id": "fs-595041",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Đếm tiền 2",
+   "file": "sfx/freesound/counting-money/595041.m4a",
+   "thoi_luong": 3.5,
+   "the": [
+    "counting money"
+   ],
+   "mo_ta": "money counter.wav",
+   "tac_gia": "21100354",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/21100354/sounds/595041/"
+  },
+  {
+   "id": "fs-879807",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Chuông thang máy 1",
+   "file": "sfx/freesound/elevator-ding/879807.m4a",
+   "thoi_luong": 1.925,
+   "the": [
+    "elevator ding"
+   ],
+   "mo_ta": "Elevator Ding",
+   "tac_gia": "Qvantor",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Qvantor/sounds/879807/"
+  },
+  {
+   "id": "fs-588718",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Chuông thang máy 2",
+   "file": "sfx/freesound/elevator-ding/588718.m4a",
+   "thoi_luong": 0.672,
+   "the": [
+    "elevator ding"
+   ],
+   "mo_ta": "Elevator Ding",
+   "tac_gia": "collierhs_colinlib",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/collierhs_colinlib/sounds/588718/"
+  },
+  {
+   "id": "fs-656038",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Ghế kẽo kẹt 1",
+   "file": "sfx/freesound/chair-creak/656038.m4a",
+   "thoi_luong": 2.603,
+   "the": [
+    "chair creak"
+   ],
+   "mo_ta": "Creak OWI.wav",
+   "tac_gia": "nayahnaidoo",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/nayahnaidoo/sounds/656038/"
+  },
+  {
+   "id": "fs-436525",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Bước chân chạy 1",
+   "file": "sfx/freesound/running-footsteps/436525.m4a",
+   "thoi_luong": 5.905,
+   "the": [
+    "running footsteps"
+   ],
+   "mo_ta": "Footsteps Gravel Running-Stop",
+   "tac_gia": "KikeVilaplana",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/KikeVilaplana/sounds/436525/"
+  },
+  {
+   "id": "fs-813381",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Giày cao gót 1",
+   "file": "sfx/freesound/high-heels/813381.m4a",
+   "thoi_luong": 4.233,
+   "the": [
+    "high heels"
+   ],
+   "mo_ta": "Steps in high heels",
+   "tac_gia": "Luisa_Sanchez",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Luisa_Sanchez/sounds/813381/"
+  },
+  {
+   "id": "fs-117608",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Giày cao gót 2",
+   "file": "sfx/freesound/high-heels/117608.m4a",
+   "thoi_luong": 5.28,
+   "the": [
+    "high heels"
+   ],
+   "mo_ta": "High Heels on Wooden Floor",
+   "tac_gia": "mefrancis13",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/mefrancis13/sounds/117608/"
+  },
+  {
+   "id": "fs-560366",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Dép lê 1",
+   "file": "sfx/freesound/flip-flops/560366.m4a",
+   "thoi_luong": 4.5,
+   "the": [
+    "flip flops"
+   ],
+   "mo_ta": "chanclas.wav",
+   "tac_gia": "Isaroru",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Isaroru/sounds/560366/"
+  },
+  {
+   "id": "fs-712866",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Dép lê 2",
+   "file": "sfx/freesound/flip-flops/712866.m4a",
+   "thoi_luong": 4.316,
+   "the": [
+    "flip flops"
+   ],
+   "mo_ta": "Putting on flip flops",
+   "tac_gia": "vicleb",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/vicleb/sounds/712866/"
+  },
+  {
+   "id": "fs-732705",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Quạt máy 1",
+   "file": "sfx/freesound/fan/732705.m4a",
+   "thoi_luong": 7.498,
+   "the": [
+    "fan"
+   ],
+   "mo_ta": "1U Rackmount Server Fan",
+   "tac_gia": "tt_runscript",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/tt_runscript/sounds/732705/"
+  },
+  {
+   "id": "fs-819060",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Quạt máy 2",
+   "file": "sfx/freesound/fan/819060.m4a",
+   "thoi_luong": 4.885,
+   "the": [
+    "fan"
+   ],
+   "mo_ta": "fan on",
+   "tac_gia": "repapaioei9e3",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/repapaioei9e3/sounds/819060/"
+  },
+  {
+   "id": "fs-816869",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Rửa bát 1",
+   "file": "sfx/freesound/washing-dishes/816869.m4a",
+   "thoi_luong": 3.032,
+   "the": [
+    "washing dishes"
+   ],
+   "mo_ta": "washing dishes 2 edit",
+   "tac_gia": "Luisa_Sanchez",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Luisa_Sanchez/sounds/816869/"
+  },
+  {
+   "id": "fs-813443",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Rửa bát 2",
+   "file": "sfx/freesound/washing-dishes/813443.m4a",
+   "thoi_luong": 3.032,
+   "the": [
+    "washing dishes"
+   ],
+   "mo_ta": "Washing dishes",
+   "tac_gia": "Luisa_Sanchez",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Luisa_Sanchez/sounds/813443/"
+  },
+  {
+   "id": "fs-402162",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Quét nhà 2",
+   "file": "sfx/freesound/sweeping/402162.m4a",
+   "thoi_luong": 5.38,
+   "the": [
+    "sweeping"
+   ],
+   "mo_ta": "sweeping-chips-on-floor_5.wav",
+   "tac_gia": "Mickael_Leroi",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Mickael_Leroi/sounds/402162/"
+  },
+  {
+   "id": "fs-439264",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Bấm bút 1",
+   "file": "sfx/freesound/pen-click/439264.m4a",
+   "thoi_luong": 0.801,
+   "the": [
+    "pen click"
+   ],
+   "mo_ta": "Pen Click1.wav",
+   "tac_gia": "Jaime1989",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Jaime1989/sounds/439264/"
+  },
+  {
+   "id": "fs-431492",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Bấm bút 2",
+   "file": "sfx/freesound/pen-click/431492.m4a",
+   "thoi_luong": 0.43,
+   "the": [
+    "pen click"
+   ],
+   "mo_ta": "Pen Click",
+   "tac_gia": "LexzachGames",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/LexzachGames/sounds/431492/"
+  },
+  {
+   "id": "fs-277312",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Viết bút chì 1",
+   "file": "sfx/freesound/pencil-writing/277312.m4a",
+   "thoi_luong": 1.074,
+   "the": [
+    "pencil writing"
+   ],
+   "mo_ta": "Pencil Writing on Paper",
+   "tac_gia": "elliotlp",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/elliotlp/sounds/277312/"
+  },
+  {
+   "id": "fs-411026",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Viết bút chì 2",
+   "file": "sfx/freesound/pencil-writing/411026.m4a",
+   "thoi_luong": 3.773,
+   "the": [
+    "pencil writing"
+   ],
+   "mo_ta": "pencil writing.mp3",
+   "tac_gia": "krismar1230",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/krismar1230/sounds/411026/"
+  },
+  {
+   "id": "fs-50735",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Mở ngăn kéo 1",
+   "file": "sfx/freesound/drawer/50735.m4a",
+   "thoi_luong": 1.112,
+   "the": [
+    "drawer"
+   ],
+   "mo_ta": "Kitchen Drawer Close 3.wav",
+   "tac_gia": "RutgerMuller",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/RutgerMuller/sounds/50735/"
+  },
+  {
+   "id": "fs-774485",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Mở ngăn kéo 2",
+   "file": "sfx/freesound/drawer/774485.m4a",
+   "thoi_luong": 2.327,
+   "the": [
+    "drawer"
+   ],
+   "mo_ta": "Drawer Jitter 2",
+   "tac_gia": "HyperFoley",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/HyperFoley/sounds/774485/"
+  },
+  {
+   "id": "fs-19291",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Vải sột soạt 1",
+   "file": "sfx/freesound/cloth-rustle/19291.m4a",
+   "thoi_luong": 2.676,
+   "the": [
+    "cloth rustle"
+   ],
+   "mo_ta": "foley cloth rustle.wav",
+   "tac_gia": "martian",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/martian/sounds/19291/"
+  },
+  {
+   "id": "fs-872226",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Vải sột soạt 2",
+   "file": "sfx/freesound/cloth-rustle/872226.m4a",
+   "thoi_luong": 1.659,
+   "the": [
+    "cloth rustle"
+   ],
+   "mo_ta": "Person Rolling on Floor Clothing Rustle",
+   "tac_gia": "KoimeMatsuchiya",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/KoimeMatsuchiya/sounds/872226/"
+  },
+  {
+   "id": "fs-126492",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Rơi đồ xuống sàn 1",
+   "file": "sfx/freesound/drop/126492.m4a",
+   "thoi_luong": 0.441,
+   "the": [
+    "drop"
+   ],
+   "mo_ta": "key_drop 04.wav",
+   "tac_gia": "Ayavaron",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Ayavaron/sounds/126492/"
+  },
+  {
+   "id": "fs-570977",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Rơi đồ xuống sàn 2",
+   "file": "sfx/freesound/drop/570977.m4a",
+   "thoi_luong": 0.848,
+   "the": [
+    "drop"
+   ],
+   "mo_ta": "Paver Drop on Gravel 3.wav",
+   "tac_gia": "dichardson",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/dichardson/sounds/570977/"
+  },
+  {
+   "id": "fs-273870",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Rơi đồ xuống sàn 3",
+   "file": "sfx/freesound/drop/273870.m4a",
+   "thoi_luong": 0.382,
+   "the": [
+    "drop"
+   ],
+   "mo_ta": "water drop 1.aif",
+   "tac_gia": "beskhu",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/beskhu/sounds/273870/"
+  },
+  {
+   "id": "fs-454222",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Gõ bàn 1",
+   "file": "sfx/freesound/table-knock/454222.m4a",
+   "thoi_luong": 0.393,
+   "the": [
+    "table knock"
+   ],
+   "mo_ta": "thud pint glass beer down on table wood knock door Vows.flac",
+   "tac_gia": "kyles",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/kyles/sounds/454222/"
+  },
+  {
+   "id": "fs-788615",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Gõ bàn 2",
+   "file": "sfx/freesound/table-knock/788615.m4a",
+   "thoi_luong": 0.906,
+   "the": [
+    "table knock"
+   ],
+   "mo_ta": "Knocking Door - PSRsounds (SoundPack1)",
+   "tac_gia": "PSRsounds",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/PSRsounds/sounds/788615/"
+  },
+  {
+   "id": "fs-818573",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Hút ống hút 1",
+   "file": "sfx/freesound/straw/818573.m4a",
+   "thoi_luong": 1.249,
+   "the": [
+    "straw"
+   ],
+   "mo_ta": "Jelly Sucked Up a Metal Straw (Short)",
+   "tac_gia": "DoctorMelon",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/DoctorMelon/sounds/818573/"
+  },
+  {
+   "id": "fs-444009",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Hút ống hút 2",
+   "file": "sfx/freesound/straw/444009.m4a",
+   "thoi_luong": 3.136,
+   "the": [
+    "straw"
+   ],
+   "mo_ta": "Straw.m4a",
+   "tac_gia": "cfran789",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/cfran789/sounds/444009/"
+  },
+  {
+   "id": "fs-436971",
+   "loai": "sfx",
+   "nhom": "Đời thường",
+   "ten": "Lắc đá trong ly 1",
+   "file": "sfx/freesound/ice-shake/436971.m4a",
+   "thoi_luong": 2.258,
+   "the": [
+    "ice shake"
+   ],
+   "mo_ta": "ice sounds6.wav",
+   "tac_gia": "creeeeak",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/creeeeak/sounds/436971/"
+  },
+  {
+   "id": "fs-395040",
+   "loai": "sfx",
+   "nhom": "Xe cộ & còi",
+   "ten": "Xe tay ga 1",
+   "file": "sfx/freesound/scooter/395040.m4a",
+   "thoi_luong": 6.32,
+   "the": [
+    "scooter"
+   ],
+   "mo_ta": "Scooter_Fall_Over_Impact_Fiberglass_Asphalt.wav",
+   "tac_gia": "AslakHostaker",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/AslakHostaker/sounds/395040/"
+  },
+  {
+   "id": "fs-708183",
+   "loai": "sfx",
+   "nhom": "Xe cộ & còi",
+   "ten": "Xe tay ga 2",
+   "file": "sfx/freesound/scooter/708183.m4a",
+   "thoi_luong": 3.5,
+   "the": [
+    "scooter"
+   ],
+   "mo_ta": "kids scooter passing by.",
+   "tac_gia": "mudflea2",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/mudflea2/sounds/708183/"
+  },
+  {
+   "id": "fs-653001",
+   "loai": "sfx",
+   "nhom": "Xe cộ & còi",
+   "ten": "Xe tải 1",
+   "file": "sfx/freesound/truck/653001.m4a",
+   "thoi_luong": 9.482,
+   "the": [
+    "truck"
+   ],
+   "mo_ta": "Truck Horn Passing By Left To Right.wav",
+   "tac_gia": "MisticalSounds2.o",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/MisticalSounds2.o/sounds/653001/"
+  },
+  {
+   "id": "fs-263054",
+   "loai": "sfx",
+   "nhom": "Xe cộ & còi",
+   "ten": "Xe tải 2",
+   "file": "sfx/freesound/truck/263054.m4a",
+   "thoi_luong": 5.235,
+   "the": [
+    "truck"
+   ],
+   "mo_ta": "Truck.wav",
+   "tac_gia": "13anicholson",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/13anicholson/sounds/263054/"
+  },
+  {
+   "id": "fs-657493",
+   "loai": "sfx",
+   "nhom": "Xe cộ & còi",
+   "ten": "Xe buýt 1",
+   "file": "sfx/freesound/bus/657493.m4a",
+   "thoi_luong": 5.004,
+   "the": [
+    "bus"
+   ],
+   "mo_ta": "bus_pass5.wav",
+   "tac_gia": "bus_samples_",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/bus_samples_/sounds/657493/"
+  },
+  {
+   "id": "fs-711410",
+   "loai": "sfx",
+   "nhom": "Xe cộ & còi",
+   "ten": "Xe buýt 2",
+   "file": "sfx/freesound/bus/711410.m4a",
+   "thoi_luong": 4.8,
+   "the": [
+    "bus"
+   ],
+   "mo_ta": "bus5 idle",
+   "tac_gia": "prabashm",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/prabashm/sounds/711410/"
+  },
+  {
+   "id": "fs-323133",
+   "loai": "sfx",
+   "nhom": "Xe cộ & còi",
+   "ten": "Xe đạp 1",
+   "file": "sfx/freesound/bicycle/323133.m4a",
+   "thoi_luong": 2.594,
+   "the": [
+    "bicycle"
+   ],
+   "mo_ta": "Bicycle_Bell_from_BikeKitchen_Augsburg_11.wav",
+   "tac_gia": "geraldfiebig",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/geraldfiebig/sounds/323133/"
+  },
+  {
+   "id": "fs-539144",
+   "loai": "sfx",
+   "nhom": "Xe cộ & còi",
+   "ten": "Xe đạp 2",
+   "file": "sfx/freesound/bicycle/539144.m4a",
+   "thoi_luong": 1.864,
+   "the": [
+    "bicycle"
+   ],
+   "mo_ta": "Bicycle air horn 001 (2).wav",
+   "tac_gia": "ristooooo1",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/ristooooo1/sounds/539144/"
+  },
+  {
+   "id": "fs-551437",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Tim đập nhanh 1",
+   "file": "sfx/freesound/heartbeat-fast/551437.m4a",
+   "thoi_luong": 3.599,
+   "the": [
+    "heartbeat fast"
+   ],
+   "mo_ta": "heartbeat.mp3",
+   "tac_gia": "ZHRØ",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/ZHRØ/sounds/551437/"
+  },
+  {
+   "id": "fs-856171",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Tim đập nhanh 2",
+   "file": "sfx/freesound/heartbeat-fast/856171.m4a",
+   "thoi_luong": 6.0,
+   "the": [
+    "heartbeat fast"
+   ],
+   "mo_ta": "Racing Panic Heartbeat Adrenaline Pulse",
+   "tac_gia": "brktkrgll",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/brktkrgll/sounds/856171/"
+  },
+  {
+   "id": "fs-398637",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Tim ngừng đập (flatline) 1",
+   "file": "sfx/freesound/flatline/398637.m4a",
+   "thoi_luong": 3.001,
+   "the": [
+    "flatline"
+   ],
+   "mo_ta": "1kHz Stereo",
+   "tac_gia": "shanedk",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/shanedk/sounds/398637/"
+  },
+  {
+   "id": "fs-398635",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Tim ngừng đập (flatline) 2",
+   "file": "sfx/freesound/flatline/398635.m4a",
+   "thoi_luong": 3.0,
+   "the": [
+    "flatline"
+   ],
+   "mo_ta": "1kHz Loud",
+   "tac_gia": "shanedk",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/shanedk/sounds/398635/"
+  },
+  {
+   "id": "fs-554906",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Tiếng thở sợ hãi 1",
+   "file": "sfx/freesound/scared-breathing/554906.m4a",
+   "thoi_luong": 7.047,
+   "the": [
+    "scared breathing"
+   ],
+   "mo_ta": "Male_Breath_Scared_Frozen_Loop_Stereo.wav",
+   "tac_gia": "Nox_Sound",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Nox_Sound/sounds/554906/"
+  },
+  {
+   "id": "fs-543174",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Tiếng thở sợ hãi 2",
+   "file": "sfx/freesound/scared-breathing/543174.m4a",
+   "thoi_luong": 7.194,
+   "the": [
+    "scared breathing"
+   ],
+   "mo_ta": "panting OWI.wav",
+   "tac_gia": "1skyland",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/1skyland/sounds/543174/"
+  },
+  {
+   "id": "fs-700705",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Cửa sắt đóng sầm 1",
+   "file": "sfx/freesound/metal-door/700705.m4a",
+   "thoi_luong": 1.875,
+   "the": [
+    "metal door"
+   ],
+   "mo_ta": "Metal Door Squeaking 8 (Medium)",
+   "tac_gia": "MathewHenry",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/MathewHenry/sounds/700705/"
+  },
+  {
+   "id": "fs-334683",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Cửa sắt đóng sầm 2",
+   "file": "sfx/freesound/metal-door/334683.m4a",
+   "thoi_luong": 4.498,
+   "the": [
+    "metal door"
+   ],
+   "mo_ta": "Metal Shed Door Close 1",
+   "tac_gia": "Yoyodaman234",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Yoyodaman234/sounds/334683/"
+  },
+  {
+   "id": "fs-767148",
+   "loai": "sfx",
+   "nhom": "Kinh dị & hồi hộp",
+   "ten": "Gió hú 1",
+   "file": "sfx/freesound/howling-wind/767148.m4a",
+   "thoi_luong": 6.315,
+   "the": [
+    "howling wind"
+   ],
+   "mo_ta": "Wind howling",
+   "tac_gia": "paf60",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/paf60/sounds/767148/"
+  },
+  {
+   "id": "fs-879797",
+   "loai": "sfx",
+   "nhom": "Lấp lánh & phép thuật",
+   "ten": "Hé lộ (magic reveal) 1",
+   "file": "sfx/freesound/magic-reveal/879797.m4a",
+   "thoi_luong": 2.367,
+   "the": [
+    "magic reveal"
+   ],
+   "mo_ta": "Shine Chime",
+   "tac_gia": "Qvantor",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Qvantor/sounds/879797/"
+  },
+  {
+   "id": "fs-878615",
+   "loai": "sfx",
+   "nhom": "Lấp lánh & phép thuật",
+   "ten": "Hé lộ (magic reveal) 2",
+   "file": "sfx/freesound/magic-reveal/878615.m4a",
+   "thoi_luong": 3.705,
+   "the": [
+    "magic reveal"
+   ],
+   "mo_ta": "Treasure Chest Reveal",
+   "tac_gia": "Qvantor",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Qvantor/sounds/878615/"
+  },
+  {
+   "id": "fs-264981",
+   "loai": "sfx",
+   "nhom": "Lấp lánh & phép thuật",
+   "ten": "Hé lộ (magic reveal) 3",
+   "file": "sfx/freesound/magic-reveal/264981.m4a",
+   "thoi_luong": 1.954,
+   "the": [
+    "magic reveal"
+   ],
+   "mo_ta": "SFX Magic",
+   "tac_gia": "renatalmar",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/renatalmar/sounds/264981/"
+  },
+  {
+   "id": "fs-107009",
+   "loai": "sfx",
+   "nhom": "Lấp lánh & phép thuật",
+   "ten": "Thiên thần (angel) 1",
+   "file": "sfx/freesound/angel/107009.m4a",
+   "thoi_luong": 5.128,
+   "the": [
+    "angel"
+   ],
+   "mo_ta": "angels02.ogg",
+   "tac_gia": "pennyhatemachine",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/pennyhatemachine/sounds/107009/"
+  },
+  {
+   "id": "fs-107008",
+   "loai": "sfx",
+   "nhom": "Lấp lánh & phép thuật",
+   "ten": "Thiên thần (angel) 2",
+   "file": "sfx/freesound/angel/107008.m4a",
+   "thoi_luong": 5.128,
+   "the": [
+    "angel"
+   ],
+   "mo_ta": "angels01.ogg",
+   "tac_gia": "pennyhatemachine",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/pennyhatemachine/sounds/107008/"
+  },
+  {
+   "id": "fs-370182",
+   "loai": "sfx",
+   "nhom": "Lấp lánh & phép thuật",
+   "ten": "Chuông ngân (chime) 2",
+   "file": "sfx/freesound/chime/370182.m4a",
+   "thoi_luong": 5.0,
+   "the": [
+    "chime"
+   ],
+   "mo_ta": "4-tone chime UP",
+   "tac_gia": "mpaol2023",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/mpaol2023/sounds/370182/"
+  },
+  {
+   "id": "fs-444714",
+   "loai": "sfx",
+   "nhom": "Lấp lánh & phép thuật",
+   "ten": "Bùa sáng (shine) 2",
+   "file": "sfx/freesound/shine/444714.m4a",
+   "thoi_luong": 2.161,
+   "the": [
+    "shine"
+   ],
+   "mo_ta": "30. Brilla Shine.wav",
+   "tac_gia": "cabusta9",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/cabusta9/sounds/444714/"
+  },
+  {
+   "id": "fs-792232",
+   "loai": "sfx",
+   "nhom": "Thiên nhiên",
+   "ten": "Sóng biển 1",
+   "file": "sfx/freesound/ocean-waves/792232.m4a",
+   "thoi_luong": 32.176,
+   "the": [
+    "ocean waves"
+   ],
+   "mo_ta": "WATRSurf-EXT_WATER-Ocean Soundscape Of Hawaiian Island Waves Crashes And Roars Onto Beach With Birds Chirping In The Background T2_YMLT_NONE_29933494",
+   "tac_gia": "YouMightLikeThis",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/YouMightLikeThis/sounds/792232/"
+  },
+  {
+   "id": "fs-381853",
+   "loai": "sfx",
+   "nhom": "Thiên nhiên",
+   "ten": "Gió giật 1",
+   "file": "sfx/freesound/wind-gust/381853.m4a",
+   "thoi_luong": 2.084,
+   "the": [
+    "wind gust"
+   ],
+   "mo_ta": "wind_gust_short_sqeeeek.wav",
+   "tac_gia": "sqeeeek",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/sqeeeek/sounds/381853/"
+  },
+  {
+   "id": "fs-379472",
+   "loai": "sfx",
+   "nhom": "Thiên nhiên",
+   "ten": "Gió giật 2",
+   "file": "sfx/freesound/wind-gust/379472.m4a",
+   "thoi_luong": 4.085,
+   "the": [
+    "wind gust"
+   ],
+   "mo_ta": "Wind5.mp3",
+   "tac_gia": "vandale",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/vandale/sounds/379472/"
+  },
+  {
+   "id": "fs-612592",
+   "loai": "sfx",
+   "nhom": "Thiên nhiên",
+   "ten": "Dế đêm 1",
+   "file": "sfx/freesound/night-crickets/612592.m4a",
+   "thoi_luong": 12.854,
+   "the": [
+    "night crickets"
+   ],
+   "mo_ta": "Night ambient with crickets and baby 48000 Hz 24 bit Stereo.wav",
+   "tac_gia": "diogorusso",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/diogorusso/sounds/612592/"
+  },
+  {
+   "id": "fs-138112",
+   "loai": "sfx",
+   "nhom": "Đám đông",
+   "ten": "Đám đông cười 1",
+   "file": "sfx/freesound/crowd-laugh/138112.m4a",
+   "thoi_luong": 4.567,
+   "the": [
+    "crowd laugh"
+   ],
+   "mo_ta": "Small Crowd Laughing",
+   "tac_gia": "snakebarney",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/snakebarney/sounds/138112/"
+  },
+  {
+   "id": "fs-588394",
+   "loai": "sfx",
+   "nhom": "Đám đông",
+   "ten": "Đám đông cười 2",
+   "file": "sfx/freesound/crowd-laugh/588394.m4a",
+   "thoi_luong": 1.687,
+   "the": [
+    "crowd laugh"
+   ],
+   "mo_ta": "Laugh Crowd Soft.mp3",
+   "tac_gia": "FunWithSound",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/FunWithSound/sounds/588394/"
+  },
+  {
+   "id": "fs-752711",
+   "loai": "sfx",
+   "nhom": "Đám đông",
+   "ten": "Đám đông cười 3",
+   "file": "sfx/freesound/crowd-laugh/752711.m4a",
+   "thoi_luong": 3.217,
+   "the": [
+    "crowd laugh"
+   ],
+   "mo_ta": "Voice_Crowd_Small_Expression_Laugh_Stereo",
+   "tac_gia": "Nox_Sound",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Nox_Sound/sounds/752711/"
+  },
+  {
+   "id": "fs-346682",
+   "loai": "sfx",
+   "nhom": "Đám đông",
+   "ten": "Đám đông ồ lên (ooh) 1",
+   "file": "sfx/freesound/crowd-ooh/346682.m4a",
+   "thoi_luong": 5.258,
+   "the": [
+    "crowd ooh"
+   ],
+   "mo_ta": "Crowd awkward laughter.wav",
+   "tac_gia": "deleted_user_2104797",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/deleted_user_2104797/sounds/346682/"
+  },
+  {
+   "id": "fs-220817",
+   "loai": "sfx",
+   "nhom": "Đám đông",
+   "ten": "Đám đông hét 1",
+   "file": "sfx/freesound/crowd-scream/220817.m4a",
+   "thoi_luong": 1.868,
+   "the": [
+    "crowd scream"
+   ],
+   "mo_ta": "Crowd screaming.wav",
+   "tac_gia": "EricSueiro",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/EricSueiro/sounds/220817/"
+  },
+  {
+   "id": "fs-220814",
+   "loai": "sfx",
+   "nhom": "Đám đông",
+   "ten": "Đám đông hét 2",
+   "file": "sfx/freesound/crowd-scream/220814.m4a",
+   "thoi_luong": 0.86,
+   "the": [
+    "crowd scream"
+   ],
+   "mo_ta": "woman scream.wav",
+   "tac_gia": "EricSueiro",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/EricSueiro/sounds/220814/"
+  },
+  {
+   "id": "fs-416703",
+   "loai": "sfx",
+   "nhom": "Đám đông",
+   "ten": "Trẻ con cười 1",
+   "file": "sfx/freesound/children-laughing/416703.m4a",
+   "thoi_luong": 6.72,
+   "the": [
+    "children laughing"
+   ],
+   "mo_ta": "Laugh Group of Children.wav",
+   "tac_gia": "FunWithSound",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/FunWithSound/sounds/416703/"
+  },
+  {
+   "id": "fs-462362",
+   "loai": "sfx",
+   "nhom": "Đám đông",
+   "ten": "Vỗ tay ít người 1",
+   "file": "sfx/freesound/small-applause/462362.m4a",
+   "thoi_luong": 4.486,
+   "the": [
+    "small applause"
+   ],
+   "mo_ta": "Small applause",
+   "tac_gia": "Breviceps",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Breviceps/sounds/462362/"
+  },
+  {
+   "id": "fs-481646",
+   "loai": "sfx",
+   "nhom": "Đám đông",
+   "ten": "Vỗ tay ít người 2",
+   "file": "sfx/freesound/small-applause/481646.m4a",
+   "thoi_luong": 6.895,
+   "the": [
+    "small applause"
+   ],
+   "mo_ta": "Applause 1.mp3",
+   "tac_gia": "bowlingballout",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/bowlingballout/sounds/481646/"
+  },
+  {
+   "id": "fs-863035",
+   "loai": "sfx",
+   "nhom": "Đám đông",
+   "ten": "Huýt sáo cổ vũ 1",
+   "file": "sfx/freesound/cheer-whistle/863035.m4a",
+   "thoi_luong": 4.61,
+   "the": [
+    "cheer whistle"
+   ],
+   "mo_ta": "Small Audience Cheer",
+   "tac_gia": "Robo9418",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Robo9418/sounds/863035/"
+  },
+  {
+   "id": "fs-335909",
+   "loai": "sfx",
+   "nhom": "Gameshow",
+   "ten": "Hết giờ 1",
+   "file": "sfx/freesound/time-up/335909.m4a",
+   "thoi_luong": 2.637,
+   "the": [
+    "time up"
+   ],
+   "mo_ta": "Time's Up.wav",
+   "tac_gia": "LittleRainySeasons",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/LittleRainySeasons/sounds/335909/"
+  },
+  {
+   "id": "fs-878618",
+   "loai": "sfx",
+   "nhom": "Gameshow",
+   "ten": "Trúng thưởng (jackpot) 1",
+   "file": "sfx/freesound/jackpot/878618.m4a",
+   "thoi_luong": 2.892,
+   "the": [
+    "jackpot"
+   ],
+   "mo_ta": "Jackpot Win",
+   "tac_gia": "Qvantor",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Qvantor/sounds/878618/"
+  },
+  {
+   "id": "fs-877907",
+   "loai": "sfx",
+   "nhom": "Gameshow",
+   "ten": "Trúng thưởng (jackpot) 2",
+   "file": "sfx/freesound/jackpot/877907.m4a",
+   "thoi_luong": 5.97,
+   "the": [
+    "jackpot"
+   ],
+   "mo_ta": "Coins Shower - Rapid Coin Collection - 01",
+   "tac_gia": "boynet",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/boynet/sounds/877907/"
+  },
+  {
+   "id": "fs-376009",
+   "loai": "sfx",
+   "nhom": "Gameshow",
+   "ten": "Hoàn thành màn 1",
+   "file": "sfx/freesound/level-complete/376009.m4a",
+   "thoi_luong": 1.987,
+   "the": [
+    "level complete"
+   ],
+   "mo_ta": "levelComplete.mp3",
+   "tac_gia": "deleteCookies",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/deleteCookies/sounds/376009/"
+  },
+  {
+   "id": "fs-258142",
+   "loai": "sfx",
+   "nhom": "Gameshow",
+   "ten": "Hoàn thành màn 2",
+   "file": "sfx/freesound/level-complete/258142.m4a",
+   "thoi_luong": 3.484,
+   "the": [
+    "level complete"
+   ],
+   "mo_ta": "Level win.wav",
+   "tac_gia": "Tuudurt",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Tuudurt/sounds/258142/"
+  },
+  {
+   "id": "fs-580740",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc hài 1",
+   "file": "nhac/freesound/comedy-music/580740.m4a",
+   "thoi_luong": 30.966,
+   "the": [
+    "comedy music"
+   ],
+   "mo_ta": "Scrappy remix of BaDoink's freesound #580590",
+   "tac_gia": "cookies+policy",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/cookies+policy/sounds/580740/"
+  },
+  {
+   "id": "fs-650939",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc hài 2",
+   "file": "nhac/freesound/comedy-music/650939.m4a",
+   "thoi_luong": 51.206,
+   "the": [
+    "comedy music"
+   ],
+   "mo_ta": "Numskull",
+   "tac_gia": "Beetlemuse",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Beetlemuse/sounds/650939/"
+  },
+  {
+   "id": "fs-609553",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc hài 3",
+   "file": "nhac/freesound/comedy-music/609553.m4a",
+   "thoi_luong": 16.0,
+   "the": [
+    "comedy music"
+   ],
+   "mo_ta": "Dapper Drake Sting.wav",
+   "tac_gia": "WannyManny",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/WannyManny/sounds/609553/"
+  },
+  {
+   "id": "fs-670025",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc hài 4",
+   "file": "nhac/freesound/comedy-music/670025.m4a",
+   "thoi_luong": 59.269,
+   "the": [
+    "comedy music"
+   ],
+   "mo_ta": "Violin Glissando",
+   "tac_gia": "mael46",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/mael46/sounds/670025/"
+  },
+  {
+   "id": "fs-529967",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc vui nhộn 1",
+   "file": "nhac/freesound/funny-music/529967.m4a",
+   "thoi_luong": 75.976,
+   "the": [
+    "funny music"
+   ],
+   "mo_ta": "Funny music (orchestra) .wav",
+   "tac_gia": "Darkash28",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Darkash28/sounds/529967/"
+  },
+  {
+   "id": "fs-537907",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc vui nhộn 3",
+   "file": "nhac/freesound/funny-music/537907.m4a",
+   "thoi_luong": 36.57,
+   "the": [
+    "funny music"
+   ],
+   "mo_ta": "Weird Future Music.mp3",
+   "tac_gia": "belanhud",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/belanhud/sounds/537907/"
+  },
+  {
+   "id": "fs-381531",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc lén lút 1",
+   "file": "nhac/freesound/sneaky-music/381531.m4a",
+   "thoi_luong": 35.724,
+   "the": [
+    "sneaky music"
+   ],
+   "mo_ta": "Playful Music.mp3",
+   "tac_gia": "dominictreis",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/dominictreis/sounds/381531/"
+  },
+  {
+   "id": "fs-529008",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc lén lút 2",
+   "file": "nhac/freesound/sneaky-music/529008.m4a",
+   "thoi_luong": 56.296,
+   "the": [
+    "sneaky music"
+   ],
+   "mo_ta": "Short Pizzicato Song",
+   "tac_gia": "DanJFilms",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/DanJFilms/sounds/529008/"
+  },
+  {
+   "id": "fs-331874",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc lén lút 3",
+   "file": "nhac/freesound/sneaky-music/331874.m4a",
+   "thoi_luong": 27.429,
+   "the": [
+    "sneaky music"
+   ],
+   "mo_ta": "Undercover.wav",
+   "tac_gia": "furbyguy",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/furbyguy/sounds/331874/"
+  },
+  {
+   "id": "fs-843018",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc hoạt hình 1",
+   "file": "nhac/freesound/cartoon-music/843018.m4a",
+   "thoi_luong": 33.2,
+   "the": [
+    "cartoon music"
+   ],
+   "mo_ta": "Begin Music Of Accordian Joe",
+   "tac_gia": "SieuAmThanh",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/SieuAmThanh/sounds/843018/"
+  },
+  {
+   "id": "fs-573056",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc hoạt hình 2",
+   "file": "nhac/freesound/cartoon-music/573056.m4a",
+   "thoi_luong": 17.0,
+   "the": [
+    "cartoon music"
+   ],
+   "mo_ta": "Slow Talker.mp3",
+   "tac_gia": "Clameria",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Clameria/sounds/573056/"
+  },
+  {
+   "id": "fs-583487",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc kịch tính 1",
+   "file": "nhac/freesound/dramatic-music/583487.m4a",
+   "thoi_luong": 58.0,
+   "the": [
+    "dramatic music"
+   ],
+   "mo_ta": "Dark night city Keys Piano Music Dramatic Cinematic",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/583487/"
+  },
+  {
+   "id": "fs-610534",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc kịch tính 2",
+   "file": "nhac/freesound/dramatic-music/610534.m4a",
+   "thoi_luong": 82.0,
+   "the": [
+    "dramatic music"
+   ],
+   "mo_ta": "Dark Sad Mood Orchestra Synth Strings Drone Dramatic Thriller Cinematic Music Surround.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/610534/"
+  },
+  {
+   "id": "fs-623426",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc kịch tính 3",
+   "file": "nhac/freesound/dramatic-music/623426.m4a",
+   "thoi_luong": 116.247,
+   "the": [
+    "dramatic music"
+   ],
+   "mo_ta": "Melancholic piano music.mp3",
+   "tac_gia": "ZHRØ",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/ZHRØ/sounds/623426/"
+  },
+  {
+   "id": "fs-686660",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc kịch tính 4",
+   "file": "nhac/freesound/dramatic-music/686660.m4a",
+   "thoi_luong": 101.314,
+   "the": [
+    "dramatic music"
+   ],
+   "mo_ta": "The slow music of our breakup",
+   "tac_gia": "xkeril",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/xkeril/sounds/686660/"
+  },
+  {
+   "id": "fs-505986",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc hồi hộp 1",
+   "file": "nhac/freesound/suspense-music/505986.m4a",
+   "thoi_luong": 42.515,
+   "the": [
+    "suspense music"
+   ],
+   "mo_ta": "80 Synth Music 1",
+   "tac_gia": "bipwave",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/bipwave/sounds/505986/"
+  },
+  {
+   "id": "fs-387223",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc hồi hộp 2",
+   "file": "nhac/freesound/suspense-music/387223.m4a",
+   "thoi_luong": 90.489,
+   "the": [
+    "suspense music"
+   ],
+   "mo_ta": "Orchestral Suspense Loop 1",
+   "tac_gia": "awrmacd",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/awrmacd/sounds/387223/"
+  },
+  {
+   "id": "fs-818855",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc hồi hộp 3",
+   "file": "nhac/freesound/suspense-music/818855.m4a",
+   "thoi_luong": 41.143,
+   "the": [
+    "suspense music"
+   ],
+   "mo_ta": "crushed-suspense-001",
+   "tac_gia": "Johnmode",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Johnmode/sounds/818855/"
+  },
+  {
+   "id": "fs-632686",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc căng thẳng 1",
+   "file": "nhac/freesound/tension-music/632686.m4a",
+   "thoi_luong": 71.192,
+   "the": [
+    "tension music"
+   ],
+   "mo_ta": "We are not alone here (music)",
+   "tac_gia": "xkeril",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/xkeril/sounds/632686/"
+  },
+  {
+   "id": "fs-703422",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc căng thẳng 3",
+   "file": "nhac/freesound/tension-music/703422.m4a",
+   "thoi_luong": 50.133,
+   "the": [
+    "tension music"
+   ],
+   "mo_ta": "Deep Tesnsion 01.wav",
+   "tac_gia": "Metamorphose",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Metamorphose/sounds/703422/"
+  },
+  {
+   "id": "fs-545459",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Dàn nhạc hùng tráng 1",
+   "file": "nhac/freesound/epic-orchestral/545459.m4a",
+   "thoi_luong": 74.212,
+   "the": [
+    "epic orchestral"
+   ],
+   "mo_ta": "Epic Synth/Orchestral Music",
+   "tac_gia": "Bertsz",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Bertsz/sounds/545459/"
+  },
+  {
+   "id": "fs-671962",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Dàn nhạc hùng tráng 2",
+   "file": "nhac/freesound/epic-orchestral/671962.m4a",
+   "thoi_luong": 78.474,
+   "the": [
+    "epic orchestral"
+   ],
+   "mo_ta": "Glimmer of hope (AI music)",
+   "tac_gia": "xkeril",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/xkeril/sounds/671962/"
+  },
+  {
+   "id": "fs-621852",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Dàn nhạc hùng tráng 3",
+   "file": "nhac/freesound/epic-orchestral/621852.m4a",
+   "thoi_luong": 45.148,
+   "the": [
+    "epic orchestral"
+   ],
+   "mo_ta": "Orchestral Score - Violin Solo 1.wav",
+   "tac_gia": "WelvynZPorterSamples",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/WelvynZPorterSamples/sounds/621852/"
+  },
+  {
+   "id": "fs-759031",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc violin 1",
+   "file": "nhac/freesound/violin-music/759031.m4a",
+   "thoi_luong": 61.182,
+   "the": [
+    "violin music"
+   ],
+   "mo_ta": "Type 1 Sad Violin Piano Music All Mix",
+   "tac_gia": "rahulsawla_",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/rahulsawla_/sounds/759031/"
+  },
+  {
+   "id": "fs-612883",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc violin 2",
+   "file": "nhac/freesound/violin-music/612883.m4a",
+   "thoi_luong": 68.0,
+   "the": [
+    "violin music"
+   ],
+   "mo_ta": "Dark Park - Solo Violin Drone 120Bpm Sample String Atmo Amp Cinematic Music.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/612883/"
+  },
+  {
+   "id": "fs-609647",
+   "loai": "nhac",
+   "nhom": "Buồn & cảm xúc",
+   "ten": "Nhạc buồn 2",
+   "file": "nhac/freesound/sad-music/609647.m4a",
+   "thoi_luong": 58.293,
+   "the": [
+    "sad music"
+   ],
+   "mo_ta": "Sad Alone Orchestra Strings Vocal Choir Drama Noise music Mood Surround.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/609647/"
+  },
+  {
+   "id": "fs-609656",
+   "loai": "nhac",
+   "nhom": "Buồn & cảm xúc",
+   "ten": "Nhạc buồn 3",
+   "file": "nhac/freesound/sad-music/609656.m4a",
+   "thoi_luong": 81.179,
+   "the": [
+    "sad music"
+   ],
+   "mo_ta": "Slow Sad Mood Orchestral Strings Cinematic Atmo Music Surround.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/609656/"
+  },
+  {
+   "id": "fs-215767",
+   "loai": "nhac",
+   "nhom": "Buồn & cảm xúc",
+   "ten": "Piano cảm xúc 1",
+   "file": "nhac/freesound/emotional-piano/215767.m4a",
+   "thoi_luong": 64.04,
+   "the": [
+    "emotional piano"
+   ],
+   "mo_ta": "Awesome Emotional Piano",
+   "tac_gia": "Endersniper123",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Endersniper123/sounds/215767/"
+  },
+  {
+   "id": "fs-668907",
+   "loai": "nhac",
+   "nhom": "Buồn & cảm xúc",
+   "ten": "Piano cảm xúc 2",
+   "file": "nhac/freesound/emotional-piano/668907.m4a",
+   "thoi_luong": 54.783,
+   "the": [
+    "emotional piano"
+   ],
+   "mo_ta": "Free Cinematic Emotional Piano [92bpm] [D Major]",
+   "tac_gia": "deadrobotmusic",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/deadrobotmusic/sounds/668907/"
+  },
+  {
+   "id": "fs-491284",
+   "loai": "nhac",
+   "nhom": "Buồn & cảm xúc",
+   "ten": "Piano cảm xúc 3",
+   "file": "nhac/freesound/emotional-piano/491284.m4a",
+   "thoi_luong": 21.333,
+   "the": [
+    "emotional piano"
+   ],
+   "mo_ta": "Emotional Piano 001 (D#-90)",
+   "tac_gia": "Xinematix",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Xinematix/sounds/491284/"
+  },
+  {
+   "id": "fs-735080",
+   "loai": "nhac",
+   "nhom": "Lãng mạn",
+   "ten": "Nhạc lãng mạn 1",
+   "file": "nhac/freesound/romantic-music/735080.m4a",
+   "thoi_luong": 65.557,
+   "the": [
+    "romantic music"
+   ],
+   "mo_ta": "Lament of the Vaquero v1",
+   "tac_gia": "city11",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/city11/sounds/735080/"
+  },
+  {
+   "id": "fs-735624",
+   "loai": "nhac",
+   "nhom": "Lãng mạn",
+   "ten": "Nhạc lãng mạn 2",
+   "file": "nhac/freesound/romantic-music/735624.m4a",
+   "thoi_luong": 65.557,
+   "the": [
+    "romantic music"
+   ],
+   "mo_ta": "Sierra Serenade",
+   "tac_gia": "city11",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/city11/sounds/735624/"
+  },
+  {
+   "id": "fs-505989",
+   "loai": "nhac",
+   "nhom": "Lãng mạn",
+   "ten": "Nhạc lãng mạn 3",
+   "file": "nhac/freesound/romantic-music/505989.m4a",
+   "thoi_luong": 26.0,
+   "the": [
+    "romantic music"
+   ],
+   "mo_ta": "Emotive film music",
+   "tac_gia": "bipwave",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/bipwave/sounds/505989/"
+  },
+  {
+   "id": "fs-612249",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc vui 1",
+   "file": "nhac/freesound/happy-music/612249.m4a",
+   "thoi_luong": 54.0,
+   "the": [
+    "happy music"
+   ],
+   "mo_ta": "Happy Winter Snow - Orchestra Strings Orchestral 120Bpm Drama Atmo Cinematic Music Surround.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/612249/"
+  },
+  {
+   "id": "fs-607304",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc vui 2",
+   "file": "nhac/freesound/happy-music/607304.m4a",
+   "thoi_luong": 35.824,
+   "the": [
+    "happy music"
+   ],
+   "mo_ta": "Beach Dance - EDM Dance Cinematic Party Eletro Chill Happy 120bpm Music - EQ Mastered.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/607304/"
+  },
+  {
+   "id": "fs-619557",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc vui 3",
+   "file": "nhac/freesound/happy-music/619557.m4a",
+   "thoi_luong": 93.429,
+   "the": [
+    "happy music"
+   ],
+   "mo_ta": "Cuban Ensemble Mood Style Happy Band Dance Cinematic Music.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/619557/"
+  },
+  {
+   "id": "fs-545457",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc sôi nổi 1",
+   "file": "nhac/freesound/upbeat-music/545457.m4a",
+   "thoi_luong": 87.0,
+   "the": [
+    "upbeat music"
+   ],
+   "mo_ta": "Bit Forest Intro music",
+   "tac_gia": "Bertsz",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Bertsz/sounds/545457/"
+  },
+  {
+   "id": "fs-749977",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc sôi nổi 2",
+   "file": "nhac/freesound/upbeat-music/749977.m4a",
+   "thoi_luong": 25.612,
+   "the": [
+    "upbeat music"
+   ],
+   "mo_ta": "upbeat 80s synth",
+   "tac_gia": "solarpsychedelic",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/solarpsychedelic/sounds/749977/"
+  },
+  {
+   "id": "fs-841299",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc sôi nổi 3",
+   "file": "nhac/freesound/upbeat-music/841299.m4a",
+   "thoi_luong": 31.22,
+   "the": [
+    "upbeat music"
+   ],
+   "mo_ta": "Upbeat Game Loop - Aurora Ride",
+   "tac_gia": "Venus17",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Venus17/sounds/841299/"
+  },
+  {
+   "id": "fs-389758",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Ukulele 1",
+   "file": "nhac/freesound/ukulele-music/389758.m4a",
+   "thoi_luong": 32.613,
+   "the": [
+    "ukulele music"
+   ],
+   "mo_ta": "ukulele jingle.wav",
+   "tac_gia": "buzbe20",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/buzbe20/sounds/389758/"
+  },
+  {
+   "id": "fs-232702",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Ukulele 2",
+   "file": "nhac/freesound/ukulele-music/232702.m4a",
+   "thoi_luong": 20.824,
+   "the": [
+    "ukulele music"
+   ],
+   "mo_ta": "ukulele.wav",
+   "tac_gia": "Ottomaani138",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Ottomaani138/sounds/232702/"
+  },
+  {
+   "id": "fs-528666",
+   "loai": "nhac",
+   "nhom": "Hành động",
+   "ten": "Nhạc rượt đuổi 2",
+   "file": "nhac/freesound/chase-music/528666.m4a",
+   "thoi_luong": 94.883,
+   "the": [
+    "chase music"
+   ],
+   "mo_ta": "zither nice 'chase' type music 48000 1.wav",
+   "tac_gia": "clivew",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/clivew/sounds/528666/"
+  },
+  {
+   "id": "fs-608882",
+   "loai": "nhac",
+   "nhom": "Hành động",
+   "ten": "Nhạc hành động 1",
+   "file": "nhac/freesound/action-music/608882.m4a",
+   "thoi_luong": 45.371,
+   "the": [
+    "action music"
+   ],
+   "mo_ta": "Follow the Sun - Action Movie Drums Beat Synth Drone Drum Ethno World Drama Cinematic Music Surround.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/608882/"
+  },
+  {
+   "id": "fs-609034",
+   "loai": "nhac",
+   "nhom": "Hành động",
+   "ten": "Nhạc hành động 2",
+   "file": "nhac/freesound/action-music/609034.m4a",
+   "thoi_luong": 59.408,
+   "the": [
+    "action music"
+   ],
+   "mo_ta": "Monk in the wind - Drums Ethno Choir Monk Voice Drone World Hum Action Dark Cinematic Music Surround.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/609034/"
+  },
+  {
+   "id": "fs-595467",
+   "loai": "nhac",
+   "nhom": "Hành động",
+   "ten": "Nhạc hành động 3",
+   "file": "nhac/freesound/action-music/595467.m4a",
+   "thoi_luong": 68.453,
+   "the": [
+    "action music"
+   ],
+   "mo_ta": "Cop Action - Action Cinematic Music.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/595467/"
+  },
+  {
+   "id": "fs-745414",
+   "loai": "nhac",
+   "nhom": "Hồi hộp",
+   "ten": "Nhạc bí ẩn 1",
+   "file": "nhac/freesound/mysterious-music/745414.m4a",
+   "thoi_luong": 16.008,
+   "the": [
+    "mysterious music"
+   ],
+   "mo_ta": "Detective Loop/ Mysterious Background Music",
+   "tac_gia": "Lilfoxeone",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Lilfoxeone/sounds/745414/"
+  },
+  {
+   "id": "fs-813193",
+   "loai": "nhac",
+   "nhom": "Hồi hộp",
+   "ten": "Nhạc bí ẩn 2",
+   "file": "nhac/freesound/mysterious-music/813193.m4a",
+   "thoi_luong": 22.891,
+   "the": [
+    "mysterious music"
+   ],
+   "mo_ta": "Mysterious Song (Loop)",
+   "tac_gia": "AnnaBaX01Q",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/AnnaBaX01Q/sounds/813193/"
+  },
+  {
+   "id": "fs-596499",
+   "loai": "nhac",
+   "nhom": "Hồi hộp",
+   "ten": "Nhạc kinh dị 1",
+   "file": "nhac/freesound/horror-music/596499.m4a",
+   "thoi_luong": 71.568,
+   "the": [
+    "horror music"
+   ],
+   "mo_ta": "Action Music Thriller Atmo Dark Horror Beat Noise - EQ Mastered.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/596499/"
+  },
+  {
+   "id": "fs-596497",
+   "loai": "nhac",
+   "nhom": "Hồi hộp",
+   "ten": "Nhạc kinh dị 2",
+   "file": "nhac/freesound/horror-music/596497.m4a",
+   "thoi_luong": 71.696,
+   "the": [
+    "horror music"
+   ],
+   "mo_ta": "Ethno World Music Thriller Atmo Dark Horror Beat Dance Flute Low Chill - Mastered.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/596497/"
+  },
+  {
+   "id": "fs-520193",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc xiếc 2",
+   "file": "nhac/freesound/circus-music/520193.m4a",
+   "thoi_luong": 33.889,
+   "the": [
+    "circus music"
+   ],
+   "mo_ta": "A Story of the Sea",
+   "tac_gia": "code_box",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/code_box/sounds/520193/"
+  },
+  {
+   "id": "fs-514988",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc ngớ ngẩn 1",
+   "file": "nhac/freesound/silly-music/514988.m4a",
+   "thoi_luong": 30.545,
+   "the": [
+    "silly music"
+   ],
+   "mo_ta": "Funky Piano Music \"Romeo's Hat\".wav",
+   "tac_gia": "dominictreis",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/dominictreis/sounds/514988/"
+  },
+  {
+   "id": "fs-865575",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc ngớ ngẩn 3",
+   "file": "nhac/freesound/silly-music/865575.m4a",
+   "thoi_luong": 26.629,
+   "the": [
+    "silly music"
+   ],
+   "mo_ta": "Normal Melody 1",
+   "tac_gia": "MirMaximus",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/MirMaximus/sounds/865575/"
+  },
+  {
+   "id": "fs-577603",
+   "loai": "nhac",
+   "nhom": "Hài hước",
+   "ten": "Nhạc kazoo / tuba 1",
+   "file": "nhac/freesound/tuba-music/577603.m4a",
+   "thoi_luong": 26.667,
+   "the": [
+    "tuba music"
+   ],
+   "mo_ta": "Wonky Ska",
+   "tac_gia": "code_box",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/code_box/sounds/577603/"
+  },
+  {
+   "id": "fs-622233",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc trailer 1",
+   "file": "nhac/freesound/trailer-music/622233.m4a",
+   "thoi_luong": 72.533,
+   "the": [
+    "trailer music"
+   ],
+   "mo_ta": "Movie Action Trailer Marimba Female Male Choir Atmo Music Cinematic 120Bpm Mastered.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/622233/"
+  },
+  {
+   "id": "fs-509389",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc trailer 2",
+   "file": "nhac/freesound/trailer-music/509389.m4a",
+   "thoi_luong": 50.4,
+   "the": [
+    "trailer music"
+   ],
+   "mo_ta": "Noir Now (trailer music)",
+   "tac_gia": "SondreDrakensson",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/SondreDrakensson/sounds/509389/"
+  },
+  {
+   "id": "fs-477596",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc trailer 3",
+   "file": "nhac/freesound/trailer-music/477596.m4a",
+   "thoi_luong": 15.147,
+   "the": [
+    "trailer music"
+   ],
+   "mo_ta": "Skibka - Winter Music 4.wav",
+   "tac_gia": "SkibkaMusic",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/SkibkaMusic/sounds/477596/"
+  },
+  {
+   "id": "fs-639988",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc đấu trí 1",
+   "file": "nhac/freesound/intense-music/639988.m4a",
+   "thoi_luong": 69.744,
+   "the": [
+    "intense music"
+   ],
+   "mo_ta": "Intense music fragment",
+   "tac_gia": "SamsterBirdies",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/SamsterBirdies/sounds/639988/"
+  },
+  {
+   "id": "fs-747622",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc đấu trí 2",
+   "file": "nhac/freesound/intense-music/747622.m4a",
+   "thoi_luong": 35.712,
+   "the": [
+    "intense music"
+   ],
+   "mo_ta": "Intense Horror Build Up",
+   "tac_gia": "JeSSeper09+",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/JeSSeper09+/sounds/747622/"
+  },
+  {
+   "id": "fs-747023",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc đấu trí 3",
+   "file": "nhac/freesound/intense-music/747023.m4a",
+   "thoi_luong": 76.671,
+   "the": [
+    "intense music"
+   ],
+   "mo_ta": "Intense Horror music",
+   "tac_gia": "JeSSeper09+",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/JeSSeper09+/sounds/747023/"
+  },
+  {
+   "id": "fs-716385",
+   "loai": "nhac",
+   "nhom": "Kịch tính & drama",
+   "ten": "Nhạc hùng tráng 1",
+   "file": "nhac/freesound/heroic-music/716385.m4a",
+   "thoi_luong": 42.466,
+   "the": [
+    "heroic music"
+   ],
+   "mo_ta": "Epic Heroic Soundtrack - Above The Sky",
+   "tac_gia": "MusicByMisterbates",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/MusicByMisterbates/sounds/716385/"
+  },
+  {
+   "id": "fs-759032",
+   "loai": "nhac",
+   "nhom": "Buồn & cảm xúc",
+   "ten": "Piano buồn 2",
+   "file": "nhac/freesound/sad-piano-music/759032.m4a",
+   "thoi_luong": 61.182,
+   "the": [
+    "sad piano music"
+   ],
+   "mo_ta": "Type 2 Sad Violin Piano Music High",
+   "tac_gia": "rahulsawla_",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/rahulsawla_/sounds/759032/"
+  },
+  {
+   "id": "fs-610532",
+   "loai": "nhac",
+   "nhom": "Buồn & cảm xúc",
+   "ten": "Piano buồn 3",
+   "file": "nhac/freesound/sad-piano-music/610532.m4a",
+   "thoi_luong": 72.784,
+   "the": [
+    "sad piano music"
+   ],
+   "mo_ta": "Dark Sad Mood Orchestra Strings Piano Choir Cinematic Music Atmo Ambient Surround.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/610532/"
+  },
+  {
+   "id": "fs-517559",
+   "loai": "nhac",
+   "nhom": "Buồn & cảm xúc",
+   "ten": "Guitar buồn 1",
+   "file": "nhac/freesound/sad-guitar/517559.m4a",
+   "thoi_luong": 18.514,
+   "the": [
+    "sad guitar"
+   ],
+   "mo_ta": "Guitar Solo Sad Livingroom loop",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/517559/"
+  },
+  {
+   "id": "fs-517560",
+   "loai": "nhac",
+   "nhom": "Buồn & cảm xúc",
+   "ten": "Guitar buồn 2",
+   "file": "nhac/freesound/sad-guitar/517560.m4a",
+   "thoi_luong": 18.514,
+   "the": [
+    "sad guitar"
+   ],
+   "mo_ta": "Guitar Solo Sad loop",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/517560/"
+  },
+  {
+   "id": "fs-843433",
+   "loai": "nhac",
+   "nhom": "Buồn & cảm xúc",
+   "ten": "Nhạc nhớ nhung 2",
+   "file": "nhac/freesound/nostalgic-music/843433.m4a",
+   "thoi_luong": 59.281,
+   "the": [
+    "nostalgic music"
+   ],
+   "mo_ta": "Stems 4 (NOSTALGIC MALL)",
+   "tac_gia": "NotMeat2020",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/NotMeat2020/sounds/843433/"
+  },
+  {
+   "id": "fs-595860",
+   "loai": "nhac",
+   "nhom": "Lãng mạn",
+   "ten": "Nhạc tình yêu 1",
+   "file": "nhac/freesound/love-music/595860.m4a",
+   "thoi_luong": 74.0,
+   "the": [
+    "love music"
+   ],
+   "mo_ta": "Africa, Safari, Love - World Ethnic Modern Soundtrack Music Drum Flute Piano Snare Contemporary - EQ Mastered.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/595860/"
+  },
+  {
+   "id": "fs-609900",
+   "loai": "nhac",
+   "nhom": "Lãng mạn",
+   "ten": "Nhạc tình yêu 2",
+   "file": "nhac/freesound/love-music/609900.m4a",
+   "thoi_luong": 82.0,
+   "the": [
+    "love music"
+   ],
+   "mo_ta": "Slow Sea Orchestra Big Orchestral String Piano Myst Drama Love Cinematic Music Surround.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/609900/"
+  },
+  {
+   "id": "fs-720183",
+   "loai": "nhac",
+   "nhom": "Lãng mạn",
+   "ten": "Guitar mộc 1",
+   "file": "nhac/freesound/acoustic-guitar-music/720183.m4a",
+   "thoi_luong": 24.97,
+   "the": [
+    "acoustic guitar music"
+   ],
+   "mo_ta": "Sad music on guitar",
+   "tac_gia": "veterOK777",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/veterOK777/sounds/720183/"
+  },
+  {
+   "id": "fs-449812",
+   "loai": "nhac",
+   "nhom": "Lãng mạn",
+   "ten": "Guitar mộc 2",
+   "file": "nhac/freesound/acoustic-guitar-music/449812.m4a",
+   "thoi_luong": 60.251,
+   "the": [
+    "acoustic guitar music"
+   ],
+   "mo_ta": "Acoustic Guitar and Keys - Plains Soundtrack",
+   "tac_gia": "TheWandermiles",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/TheWandermiles/sounds/449812/"
+  },
+  {
+   "id": "fs-211963",
+   "loai": "nhac",
+   "nhom": "Lãng mạn",
+   "ten": "Guitar mộc 3",
+   "file": "nhac/freesound/acoustic-guitar-music/211963.m4a",
+   "thoi_luong": 21.301,
+   "the": [
+    "acoustic guitar music"
+   ],
+   "mo_ta": "Acoustic guitar rythm with maracas",
+   "tac_gia": "maurolupo",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/maurolupo/sounds/211963/"
+  },
+  {
+   "id": "fs-464918",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc dễ thương 2",
+   "file": "nhac/freesound/cute-music/464918.m4a",
+   "thoi_luong": 15.998,
+   "the": [
+    "cute music"
+   ],
+   "mo_ta": "(Loop) By the Sea",
+   "tac_gia": "plasterbrain",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/plasterbrain/sounds/464918/"
+  },
+  {
+   "id": "fs-578971",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc dễ thương 3",
+   "file": "nhac/freesound/cute-music/578971.m4a",
+   "thoi_luong": 15.792,
+   "the": [
+    "cute music"
+   ],
+   "mo_ta": "SUGGESTION 9.mp3",
+   "tac_gia": "nomiqbomi",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/nomiqbomi/sounds/578971/"
+  },
+  {
+   "id": "fs-213092",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc thiếu nhi 1",
+   "file": "nhac/freesound/kids-music/213092.m4a",
+   "thoi_luong": 79.509,
+   "the": [
+    "kids music"
+   ],
+   "mo_ta": "Dreamy Kid's Show Melody ",
+   "tac_gia": "SoundsExciting",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/SoundsExciting/sounds/213092/"
+  },
+  {
+   "id": "fs-532260",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc thiếu nhi 2",
+   "file": "nhac/freesound/kids-music/532260.m4a",
+   "thoi_luong": 25.476,
+   "the": [
+    "kids music"
+   ],
+   "mo_ta": "BBS.wav",
+   "tac_gia": "peatrom",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/peatrom/sounds/532260/"
+  },
+  {
+   "id": "fs-848396",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc tươi sáng 1",
+   "file": "nhac/freesound/cheerful-music/848396.m4a",
+   "thoi_luong": 60.107,
+   "the": [
+    "cheerful music"
+   ],
+   "mo_ta": "joyful bells - 120bpm",
+   "tac_gia": "solarpsychedelic",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/solarpsychedelic/sounds/848396/"
+  },
+  {
+   "id": "fs-425971",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc tươi sáng 2",
+   "file": "nhac/freesound/cheerful-music/425971.m4a",
+   "thoi_luong": 18.065,
+   "the": [
+    "cheerful music"
+   ],
+   "mo_ta": "BirdFish Happy Loop.mp3",
+   "tac_gia": "pinkinblue",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/pinkinblue/sounds/425971/"
+  },
+  {
+   "id": "fs-579524",
+   "loai": "nhac",
+   "nhom": "Vui tươi",
+   "ten": "Nhạc tươi sáng 3",
+   "file": "nhac/freesound/cheerful-music/579524.m4a",
+   "thoi_luong": 15.217,
+   "the": [
+    "cheerful music"
+   ],
+   "mo_ta": "Cardinal 5.mp3",
+   "tac_gia": "nomiqbomi",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/nomiqbomi/sounds/579524/"
+  },
+  {
+   "id": "fs-180239",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Nhạc Trung Hoa 1",
+   "file": "nhac/freesound/chinese-music/180239.m4a",
+   "thoi_luong": 15.22,
+   "the": [
+    "chinese music"
+   ],
+   "mo_ta": "Chinese flute Hulusi",
+   "tac_gia": "iluppai",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/iluppai/sounds/180239/"
+  },
+  {
+   "id": "fs-853450",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Nhạc Trung Hoa 3",
+   "file": "nhac/freesound/chinese-music/853450.m4a",
+   "thoi_luong": 29.955,
+   "the": [
+    "chinese music"
+   ],
+   "mo_ta": "EarlyFiles-TSR-Instrument-Random Play-Chines Vilion Random Melody 4",
+   "tac_gia": "CAT-FOX_ALEX",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/CAT-FOX_ALEX/sounds/853450/"
+  },
+  {
+   "id": "fs-472707",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Đàn tranh (guzheng) 1",
+   "file": "nhac/freesound/guzheng/472707.m4a",
+   "thoi_luong": 85.091,
+   "the": [
+    "guzheng"
+   ],
+   "mo_ta": "guzheng solo",
+   "tac_gia": "neolein",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/neolein/sounds/472707/"
+  },
+  {
+   "id": "fs-573972",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Đàn tranh (guzheng) 2",
+   "file": "nhac/freesound/guzheng/573972.m4a",
+   "thoi_luong": 37.5,
+   "the": [
+    "guzheng"
+   ],
+   "mo_ta": "A ride through chinese valley",
+   "tac_gia": "neolein",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/neolein/sounds/573972/"
+  },
+  {
+   "id": "fs-521367",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Đàn tranh (guzheng) 3",
+   "file": "nhac/freesound/guzheng/521367.m4a",
+   "thoi_luong": 62.998,
+   "the": [
+    "guzheng"
+   ],
+   "mo_ta": "blossom valley in paradise",
+   "tac_gia": "neolein",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/neolein/sounds/521367/"
+  },
+  {
+   "id": "fs-477169",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Đàn nhị (erhu) 1",
+   "file": "nhac/freesound/erhu/477169.m4a",
+   "thoi_luong": 33.222,
+   "the": [
+    "erhu"
+   ],
+   "mo_ta": "Erhu sample",
+   "tac_gia": "irzirgpznj",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/irzirgpznj/sounds/477169/"
+  },
+  {
+   "id": "fs-565196",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Đàn nhị (erhu) 2",
+   "file": "nhac/freesound/erhu/565196.m4a",
+   "thoi_luong": 30.438,
+   "the": [
+    "erhu"
+   ],
+   "mo_ta": "Erhu Melodic Loop.wav",
+   "tac_gia": "Ehved",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Ehved/sounds/565196/"
+  },
+  {
+   "id": "fs-265867",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Sáo trúc 1",
+   "file": "nhac/freesound/bamboo-flute/265867.m4a",
+   "thoi_luong": 30.941,
+   "the": [
+    "bamboo flute"
+   ],
+   "mo_ta": "Native American Style Flute Bamboo Low A3 Riff",
+   "tac_gia": "Wood_Flutes",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Wood_Flutes/sounds/265867/"
+  },
+  {
+   "id": "fs-339341",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Sáo trúc 2",
+   "file": "nhac/freesound/bamboo-flute/339341.m4a",
+   "thoi_luong": 16.364,
+   "the": [
+    "bamboo flute"
+   ],
+   "mo_ta": "DIZI FLUTE 01.wav",
+   "tac_gia": "CarlosCarty",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/CarlosCarty/sounds/339341/"
+  },
+  {
+   "id": "fs-814710",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Sáo trúc 3",
+   "file": "nhac/freesound/bamboo-flute/814710.m4a",
+   "thoi_luong": 28.172,
+   "the": [
+    "bamboo flute"
+   ],
+   "mo_ta": "Flute Chamber (beautiful winds deep reverb)",
+   "tac_gia": "CVLTIV8R",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/CVLTIV8R/sounds/814710/"
+  },
+  {
+   "id": "fs-365258",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Nhạc châu Á 1",
+   "file": "nhac/freesound/asian-music/365258.m4a",
+   "thoi_luong": 89.5,
+   "the": [
+    "asian music"
+   ],
+   "mo_ta": "Japan_Asian_Flute_Friend-Improv_Small_Room.wav",
+   "tac_gia": "RutgerMuller",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/RutgerMuller/sounds/365258/"
+  },
+  {
+   "id": "fs-513846",
+   "loai": "nhac",
+   "nhom": "Cổ trang & Á Đông",
+   "ten": "Nhạc châu Á 2",
+   "file": "nhac/freesound/asian-music/513846.m4a",
+   "thoi_luong": 44.579,
+   "the": [
+    "asian music"
+   ],
+   "mo_ta": "3 continents  - 16:04:2020, 09.36.wav",
+   "tac_gia": "belamalta10",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/belamalta10/sounds/513846/"
+  },
+  {
+   "id": "fs-467521",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Hip hop beat 1",
+   "file": "nhac/freesound/hip-hop-beat/467521.m4a",
+   "thoi_luong": 30.476,
+   "the": [
+    "hip hop beat"
+   ],
+   "mo_ta": "hip hop beat 9.wav",
+   "tac_gia": "arnasarnas",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/arnasarnas/sounds/467521/"
+  },
+  {
+   "id": "fs-416989",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Hip hop beat 2",
+   "file": "nhac/freesound/hip-hop-beat/416989.m4a",
+   "thoi_luong": 22.857,
+   "the": [
+    "hip hop beat"
+   ],
+   "mo_ta": "very dark hip hop beat 84 bpm.aif",
+   "tac_gia": "exotonestudio",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/exotonestudio/sounds/416989/"
+  },
+  {
+   "id": "fs-384581",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Hip hop beat 3",
+   "file": "nhac/freesound/hip-hop-beat/384581.m4a",
+   "thoi_luong": 55.822,
+   "the": [
+    "hip hop beat"
+   ],
+   "mo_ta": "Hip Hop Beat",
+   "tac_gia": "coolrealistic",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/coolrealistic/sounds/384581/"
+  },
+  {
+   "id": "fs-456135",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Trap beat 1",
+   "file": "nhac/freesound/trap-beat/456135.m4a",
+   "thoi_luong": 31.161,
+   "the": [
+    "trap beat"
+   ],
+   "mo_ta": "Mystery Trap Beat Loop",
+   "tac_gia": "RokZRooM",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/RokZRooM/sounds/456135/"
+  },
+  {
+   "id": "fs-352409",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Trap beat 2",
+   "file": "nhac/freesound/trap-beat/352409.m4a",
+   "thoi_luong": 46.005,
+   "the": [
+    "trap beat"
+   ],
+   "mo_ta": "simple_trap_beat_with_deep_bass.wav",
+   "tac_gia": "nesmartu",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/nesmartu/sounds/352409/"
+  },
+  {
+   "id": "fs-839969",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Trap beat 3",
+   "file": "nhac/freesound/trap-beat/839969.m4a",
+   "thoi_luong": 65.795,
+   "the": [
+    "trap beat"
+   ],
+   "mo_ta": "Gritty Gated Vapor-Trap Beat",
+   "tac_gia": "CVLTIV8R",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/CVLTIV8R/sounds/839969/"
+  },
+  {
+   "id": "fs-595788",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Lo-fi 1",
+   "file": "nhac/freesound/lofi-music/595788.m4a",
+   "thoi_luong": 71.941,
+   "the": [
+    "lofi music"
+   ],
+   "mo_ta": "Old Car Lo-Fi - Cinematic Music Synth Drum Keys Lo-Fi Travel Noise Mastered EQ.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/595788/"
+  },
+  {
+   "id": "fs-629165",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Lo-fi 2",
+   "file": "nhac/freesound/lofi-music/629165.m4a",
+   "thoi_luong": 43.636,
+   "the": [
+    "lofi music"
+   ],
+   "mo_ta": "Lofi Organ Loop 88 BPM.wav",
+   "tac_gia": "holizna",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/holizna/sounds/629165/"
+  },
+  {
+   "id": "fs-621183",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Lo-fi 3",
+   "file": "nhac/freesound/lofi-music/621183.m4a",
+   "thoi_luong": 22.588,
+   "the": [
+    "lofi music"
+   ],
+   "mo_ta": "85 BPM Lofi Vibes Melody.wav",
+   "tac_gia": "holizna",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/holizna/sounds/621183/"
+  },
+  {
+   "id": "fs-593834",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "EDM 1",
+   "file": "nhac/freesound/edm-music/593834.m4a",
+   "thoi_luong": 65.131,
+   "the": [
+    "edm music"
+   ],
+   "mo_ta": "Sahara dance - Cinematic deep-house edm music beat.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/593834/"
+  },
+  {
+   "id": "fs-594202",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "EDM 2",
+   "file": "nhac/freesound/edm-music/594202.m4a",
+   "thoi_luong": 52.128,
+   "the": [
+    "edm music"
+   ],
+   "mo_ta": "New York park - Cinematic EDM Music.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/594202/"
+  },
+  {
+   "id": "fs-639262",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Funk 1",
+   "file": "nhac/freesound/funk-music/639262.m4a",
+   "thoi_luong": 85.941,
+   "the": [
+    "funk music"
+   ],
+   "mo_ta": "Retro Party Dance 80s 70s Funk Talkbox Synth Organ Drum Music Cinematic.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/639262/"
+  },
+  {
+   "id": "fs-553380",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Funk 2",
+   "file": "nhac/freesound/funk-music/553380.m4a",
+   "thoi_luong": 78.559,
+   "the": [
+    "funk music"
+   ],
+   "mo_ta": "Southside Funk.wav",
+   "tac_gia": "BaDoink",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/BaDoink/sounds/553380/"
+  },
+  {
+   "id": "fs-470766",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Rock 1",
+   "file": "nhac/freesound/rock-music/470766.m4a",
+   "thoi_luong": 72.411,
+   "the": [
+    "rock music"
+   ],
+   "mo_ta": "rock music loop.mp3",
+   "tac_gia": "Prime45",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Prime45/sounds/470766/"
+  },
+  {
+   "id": "fs-564047",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Rock 2",
+   "file": "nhac/freesound/rock-music/564047.m4a",
+   "thoi_luong": 48.006,
+   "the": [
+    "rock music"
+   ],
+   "mo_ta": "I was at the Beach on my Hands (Rock)",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/564047/"
+  },
+  {
+   "id": "fs-791993",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Phonk 1",
+   "file": "nhac/freesound/phonk/791993.m4a",
+   "thoi_luong": 21.361,
+   "the": [
+    "phonk"
+   ],
+   "mo_ta": "Distorted Phonk Snare edited by REALMANE/ASTRVL",
+   "tac_gia": "REALMANE_ASTRVL_Official",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/REALMANE_ASTRVL_Official/sounds/791993/"
+  },
+  {
+   "id": "fs-652351",
+   "loai": "nhac",
+   "nhom": "Beat & hiện đại",
+   "ten": "Phonk 2",
+   "file": "nhac/freesound/phonk/652351.m4a",
+   "thoi_luong": 20.625,
+   "the": [
+    "phonk"
+   ],
+   "mo_ta": "Phonk Bell.wav",
+   "tac_gia": "Johnnie_Holiday",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Johnnie_Holiday/sounds/652351/"
+  },
+  {
+   "id": "fs-770060",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Nhạc thư giãn 1",
+   "file": "nhac/freesound/relaxing-music/770060.m4a",
+   "thoi_luong": 89.455,
+   "the": [
+    "relaxing music"
+   ],
+   "mo_ta": "Kinesis Stellae - Choir",
+   "tac_gia": "Vrymaa",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Vrymaa/sounds/770060/"
+  },
+  {
+   "id": "fs-875246",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Nhạc thư giãn 2",
+   "file": "nhac/freesound/relaxing-music/875246.m4a",
+   "thoi_luong": 47.511,
+   "the": [
+    "relaxing music"
+   ],
+   "mo_ta": "Mandaki-SOLO XYLOPHONE",
+   "tac_gia": "ManDaKi",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/ManDaKi/sounds/875246/"
+  },
+  {
+   "id": "fs-691608",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Nhạc thư giãn 3",
+   "file": "nhac/freesound/relaxing-music/691608.m4a",
+   "thoi_luong": 70.884,
+   "the": [
+    "relaxing music"
+   ],
+   "mo_ta": "Relaxing Galaxy Beat",
+   "tac_gia": "BenDerhover",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/BenDerhover/sounds/691608/"
+  },
+  {
+   "id": "fs-384202",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Ambient 1",
+   "file": "nhac/freesound/ambient-music/384202.m4a",
+   "thoi_luong": 53.147,
+   "the": [
+    "ambient music"
+   ],
+   "mo_ta": "Slow Cinematic Music.wav",
+   "tac_gia": "DeVern",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/DeVern/sounds/384202/"
+  },
+  {
+   "id": "fs-607299",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Ambient 2",
+   "file": "nhac/freesound/ambient-music/607299.m4a",
+   "thoi_luong": 40.805,
+   "the": [
+    "ambient music"
+   ],
+   "mo_ta": "Dance Pharao 2 - Electric Cinemaric House Ambient Dance EDM Music - Mastered.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/607299/"
+  },
+  {
+   "id": "fs-622423",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Jazz nhẹ 1",
+   "file": "nhac/freesound/jazz-music/622423.m4a",
+   "thoi_luong": 72.0,
+   "the": [
+    "jazz music"
+   ],
+   "mo_ta": "Jazz Piano Bar Relax Mood Pianist Cinematic Atmo Music Mastered.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/622423/"
+  },
+  {
+   "id": "fs-622672",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Jazz nhẹ 2",
+   "file": "nhac/freesound/jazz-music/622672.m4a",
+   "thoi_luong": 90.0,
+   "the": [
+    "jazz music"
+   ],
+   "mo_ta": "Cinematic Ethno Folk Cajon Vocal Tribal Jazz Slow Atmo Mood Music Film Movie Mastered.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/622672/"
+  },
+  {
+   "id": "fs-611945",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Jazz nhẹ 3",
+   "file": "nhac/freesound/jazz-music/611945.m4a",
+   "thoi_luong": 60.0,
+   "the": [
+    "jazz music"
+   ],
+   "mo_ta": "Walking - Jazz Guitar Solo Retro Cinematic Music Surround.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/611945/"
+  },
+  {
+   "id": "fs-400698",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Bossa nova 1",
+   "file": "nhac/freesound/bossa-nova/400698.m4a",
+   "thoi_luong": 22.013,
+   "the": [
+    "bossa nova"
+   ],
+   "mo_ta": "Rozenbaum Chords Bossa.wav",
+   "tac_gia": "FullMetalJedi",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/FullMetalJedi/sounds/400698/"
+  },
+  {
+   "id": "fs-659889",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Bossa nova 2",
+   "file": "nhac/freesound/bossa-nova/659889.m4a",
+   "thoi_luong": 27.042,
+   "the": [
+    "bossa nova"
+   ],
+   "mo_ta": "Short Elevator Music Loop",
+   "tac_gia": "BlondPanda",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/BlondPanda/sounds/659889/"
+  },
+  {
+   "id": "fs-369405",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Hộp nhạc 1",
+   "file": "nhac/freesound/music-box/369405.m4a",
+   "thoi_luong": 59.133,
+   "the": [
+    "music box"
+   ],
+   "mo_ta": "Music Box - J. Brahms - Opus 39 - Waltz no 3",
+   "tac_gia": "Flying_Deer_Fx",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Flying_Deer_Fx/sounds/369405/"
+  },
+  {
+   "id": "fs-613091",
+   "loai": "nhac",
+   "nhom": "Nhẹ nhàng",
+   "ten": "Hộp nhạc 2",
+   "file": "nhac/freesound/music-box/613091.m4a",
+   "thoi_luong": 78.042,
+   "the": [
+    "music box"
+   ],
+   "mo_ta": "broken music box 2",
+   "tac_gia": "f-r-a-g-i-l-e",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/f-r-a-g-i-l-e/sounds/613091/"
+  },
+  {
+   "id": "fs-609748",
+   "loai": "nhac",
+   "nhom": "Hồi hộp",
+   "ten": "Nhạc thám tử 1",
+   "file": "nhac/freesound/detective-music/609748.m4a",
+   "thoi_luong": 81.323,
+   "the": [
+    "detective music"
+   ],
+   "mo_ta": "Egypt Detective Flute Orcherstra Piano Atmo Dark Thriller Strings Cinematic Music Surround.wav",
+   "tac_gia": "szegvari",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/szegvari/sounds/609748/"
+  },
+  {
+   "id": "fs-320780",
+   "loai": "nhac",
+   "nhom": "Hồi hộp",
+   "ten": "Nhạc thám tử 2",
+   "file": "nhac/freesound/detective-music/320780.m4a",
+   "thoi_luong": 82.761,
+   "the": [
+    "detective music"
+   ],
+   "mo_ta": "aM5_intro.wav",
+   "tac_gia": "levelclearer",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/levelclearer/sounds/320780/"
+  },
+  {
+   "id": "fs-508714",
+   "loai": "nhac",
+   "nhom": "Hồi hộp",
+   "ten": "Nhạc điệp viên 1",
+   "file": "nhac/freesound/spy-music/508714.m4a",
+   "thoi_luong": 42.327,
+   "the": [
+    "spy music"
+   ],
+   "mo_ta": "40second Heist.wav",
+   "tac_gia": "Reg1n0ld",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Reg1n0ld/sounds/508714/"
+  },
+  {
+   "id": "fs-614032",
+   "loai": "nhac",
+   "nhom": "Hồi hộp",
+   "ten": "Nhạc điệp viên 2",
+   "file": "nhac/freesound/spy-music/614032.m4a",
+   "thoi_luong": 80.0,
+   "the": [
+    "spy music"
+   ],
+   "mo_ta": "Interscope (stealth music).wav",
+   "tac_gia": "Sticks5611",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Sticks5611/sounds/614032/"
+  },
+  {
+   "id": "fs-693725",
+   "loai": "nhac",
+   "nhom": "Hồi hộp",
+   "ten": "Nhạc ma quái 1",
+   "file": "nhac/freesound/creepy-music/693725.m4a",
+   "thoi_luong": 56.977,
+   "the": [
+    "creepy music"
+   ],
+   "mo_ta": "Music Box Creepy",
+   "tac_gia": "composingatnight",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/composingatnight/sounds/693725/"
+  },
+  {
+   "id": "fs-642503",
+   "loai": "nhac",
+   "nhom": "Hồi hộp",
+   "ten": "Nhạc ma quái 2",
+   "file": "nhac/freesound/creepy-music/642503.m4a",
+   "thoi_luong": 58.032,
+   "the": [
+    "creepy music"
+   ],
+   "mo_ta": "Intro ou background musical.mp3",
+   "tac_gia": "Arcane_77",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Arcane_77/sounds/642503/"
+  },
+  {
+   "id": "fs-583613",
+   "loai": "nhac",
+   "nhom": "Game & 8-bit",
+   "ten": "Nhạc 8-bit 1",
+   "file": "nhac/freesound/8bit-music/583613.m4a",
+   "thoi_luong": 71.08,
+   "the": [
+    "8bit music"
+   ],
+   "mo_ta": "8-bit Brisk Music Loop.wav",
+   "tac_gia": "EVRetro",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/EVRetro/sounds/583613/"
+  },
+  {
+   "id": "fs-657651",
+   "loai": "nhac",
+   "nhom": "Game & 8-bit",
+   "ten": "Nhạc 8-bit 2",
+   "file": "nhac/freesound/8bit-music/657651.m4a",
+   "thoi_luong": 64.0,
+   "the": [
+    "8bit music"
+   ],
+   "mo_ta": "8 bit game loop 010  simple mix 4 long 120 bpm.wav",
+   "tac_gia": "josefpres",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/josefpres/sounds/657651/"
+  },
+  {
+   "id": "fs-658341",
+   "loai": "nhac",
+   "nhom": "Game & 8-bit",
+   "ten": "Nhạc 8-bit 3",
+   "file": "nhac/freesound/8bit-music/658341.m4a",
+   "thoi_luong": 64.0,
+   "the": [
+    "8bit music"
+   ],
+   "mo_ta": "8 bit game loop 012  simple mix 4 long 120 bpm.wav",
+   "tac_gia": "josefpres",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/josefpres/sounds/658341/"
+  },
+  {
+   "id": "fs-421886",
+   "loai": "nhac",
+   "nhom": "Game & 8-bit",
+   "ten": "Nhạc đánh trùm 1",
+   "file": "nhac/freesound/boss-battle-music/421886.m4a",
+   "thoi_luong": 32.299,
+   "the": [
+    "boss battle music"
+   ],
+   "mo_ta": "Boss Battle.m4a",
+   "tac_gia": "B_Sean",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/B_Sean/sounds/421886/"
+  },
+  {
+   "id": "fs-477597",
+   "loai": "nhac",
+   "nhom": "Game & 8-bit",
+   "ten": "Nhạc chiến thắng 1",
+   "file": "nhac/freesound/victory-music/477597.m4a",
+   "thoi_luong": 49.49,
+   "the": [
+    "victory music"
+   ],
+   "mo_ta": "Skibka Music - Winner.mp3",
+   "tac_gia": "SkibkaMusic",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/SkibkaMusic/sounds/477597/"
+  },
+  {
+   "id": "fs-361139",
+   "loai": "nhac",
+   "nhom": "Game & 8-bit",
+   "ten": "Nhạc chiến thắng 2",
+   "file": "nhac/freesound/victory-music/361139.m4a",
+   "thoi_luong": 17.945,
+   "the": [
+    "victory music"
+   ],
+   "mo_ta": "Shine 1 (loop)",
+   "tac_gia": "SkibkaMusic",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/SkibkaMusic/sounds/361139/"
+  },
+  {
+   "id": "fs-725162",
+   "loai": "nhac",
+   "nhom": "Mở đầu & tin tức",
+   "ten": "Nhạc mở đầu 2",
+   "file": "nhac/freesound/intro-music/725162.m4a",
+   "thoi_luong": 24.0,
+   "the": [
+    "intro music"
+   ],
+   "mo_ta": "Epic Orchestral Intro Music",
+   "tac_gia": "dominictreis",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/dominictreis/sounds/725162/"
+  },
+  {
+   "id": "fs-410628",
+   "loai": "nhac",
+   "nhom": "Mở đầu & tin tức",
+   "ten": "Nhạc mở đầu 3",
+   "file": "nhac/freesound/intro-music/410628.m4a",
+   "thoi_luong": 40.012,
+   "the": [
+    "intro music"
+   ],
+   "mo_ta": "Tragic Night Pad.wav",
+   "tac_gia": "BuytheField",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/BuytheField/sounds/410628/"
+  },
+  {
+   "id": "fs-376306",
+   "loai": "nhac",
+   "nhom": "Mở đầu & tin tức",
+   "ten": "Nhạc tin tức 1",
+   "file": "nhac/freesound/news-music/376306.m4a",
+   "thoi_luong": 26.042,
+   "the": [
+    "news music"
+   ],
+   "mo_ta": "NewsReportMusic.wav",
+   "tac_gia": "ehohnke",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/ehohnke/sounds/376306/"
+  },
+  {
+   "id": "fs-665251",
+   "loai": "nhac",
+   "nhom": "Mở đầu & tin tức",
+   "ten": "Nhạc tin tức 2",
+   "file": "nhac/freesound/news-music/665251.m4a",
+   "thoi_luong": 19.319,
+   "the": [
+    "news music"
+   ],
+   "mo_ta": "News Jingle.wav",
+   "tac_gia": "dominictreis",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/dominictreis/sounds/665251/"
+  },
+  {
+   "id": "fs-524308",
+   "loai": "nhac",
+   "nhom": "Mở đầu & tin tức",
+   "ten": "Nhạc quảng cáo 1",
+   "file": "nhac/freesound/corporate-music/524308.m4a",
+   "thoi_luong": 58.659,
+   "the": [
+    "corporate music"
+   ],
+   "mo_ta": "Corporate company introduction video",
+   "tac_gia": "Bertsz",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/Bertsz/sounds/524308/"
+  },
+  {
+   "id": "fs-529380",
+   "loai": "nhac",
+   "nhom": "Mở đầu & tin tức",
+   "ten": "Nhạc quảng cáo 2",
+   "file": "nhac/freesound/corporate-music/529380.m4a",
+   "thoi_luong": 59.417,
+   "the": [
+    "corporate music"
+   ],
+   "mo_ta": "Unpretentious Reveal",
+   "tac_gia": "SondreDrakensson",
+   "giay_phep": "CC0-1.0",
+   "nguon": "https://freesound.org/people/SondreDrakensson/sounds/529380/"
+  },
+  {
    "id": "fma-268741",
    "loai": "nhac",
    "nhom": "Lo-fi & chill",

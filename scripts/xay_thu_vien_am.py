@@ -6,6 +6,7 @@ Chạy lại được (bỏ qua file đã có). Kết quả commit vào git đ�
 Nguồn (mỗi mục đều kiểm tra giấy phép CC0 ngay trên trang trước khi tải):
   - wyzowl/sfx-kit  (GitHub, CC0-1.0)          — 320 SFX cho video/motion (whoosh, pop, UI, impact…)
   - Freesound       (lọc license CC0, nhiều lượt tải nhất) — SFX hay dùng khi edit (cười, vỗ tay, boing…)
+  - Freesound       (CC0, bài dài ≥ 15 giây)   — nhạc nền hài, kịch tính, buồn, lãng mạn (FREESOUND_NHAC)
   - HoliznaCC0      (Free Music Archive, CC0)  — nhạc nền lo-fi / chill / vui
   - Komiku / Loyalty Freak Music (OpenGameArt, CC0) — nhạc nền vui, phiêu lưu, buồn
 Mọi file chuyển sang .m4a (AAC) — trình duyệt nào cũng phát được, ffmpeg đọc thẳng khi xuất.
@@ -142,9 +143,9 @@ FREESOUND = [
     ("Ăn uống", "Mở lon nước", "can open", 3, 3), ("Ăn uống", "Rót nước", "pouring water", 2, 8), ("Ăn uống", "Đá lanh canh", "ice cubes", 2, 4),
     ("Ăn uống", "Bụng réo", "stomach growl", 3, 5), ("Ăn uống", "Nước sôi", "boiling water", 2, 10), ("Ăn uống", "Thái rau", "chopping", 2, 6),
     ("Ăn uống", "Bát đĩa", "dishes", 2, 5),
-    ("Thiên nhiên", "Lửa cháy tí tách", "fire crackling", 3, 15), ("Thiên nhiên", "Sóng biển", "sea waves", 3, 20),
+    ("Thiên nhiên", "Lửa cháy tí tách", "fire crackling", 3, 15),
     ("Thiên nhiên", "Suối chảy", "stream", 2, 20), ("Thiên nhiên", "Đêm khuya", "night ambience", 2, 20), ("Thiên nhiên", "Rừng", "forest ambience", 2, 20),
-    ("Thiên nhiên", "Động đất", "earthquake", 2, 15), ("Thiên nhiên", "Sét đánh", "lightning", 2, 6),
+    ("Thiên nhiên", "Động đất", "earthquake", 2, 15),
     ("Thiên nhiên", "Thác nước", "waterfall", 2, 15), ("Thiên nhiên", "Lá xào xạc", "leaves rustling", 2, 10),
     ("Thiên nhiên", "Dưới nước", "underwater", 2, 12),
     ("Gameshow", "Thua (fail)", "fail", 3, 4), ("Gameshow", "Chiến thắng", "victory", 3, 6), ("Gameshow", "Máy đánh bạc", "slot machine", 2, 6),
@@ -173,6 +174,100 @@ FREESOUND = [
     ("Nhạc cụ & điểm nhấn", "Mõ gỗ (anime)", "woodblock", 2, 2), ("Nhạc cụ & điểm nhấn", "Tù và xung trận", "war horn", 2, 8),
     ("Nhạc cụ & điểm nhấn", "Organ nhà thờ", "organ chord", 2, 10), ("Nhạc cụ & điểm nhấn", "Kẻng tam giác (ting)", "triangle", 2, 3),
     ("Tiền & mua bán", "Xu rơi", "coin drop", 3, 3),
+    # ---- Kiểu tiểu phẩm hài / drama ngắn: bùm trầm, thịch, riser, chốt hài
+    ("Hài hước", "Bùm trầm (boom meme)", "bass boom", 3, 4), ("Hài hước", "Thịch (thud)", "thud", 3, 2),
+    ("Hài hước", "Nhạc chốt hài (comedy sting)", "comedy sting", 3, 6),
+    ("Hài hước", "Ting (loé sáng)", "ting", 2, 2),
+    ("Điện ảnh", "Riser căng dần", "riser", 3, 8), ("Điện ảnh", "Cú giật kịch tính (cinematic hit)", "cinematic hit", 3, 5),
+    ("Điện ảnh", "Braam", "braam", 2, 6), ("Điện ảnh", "Âm trầm rung (sub drop)", "sub drop", 2, 5),
+    ("Kinh dị & hồi hộp", "Violin căng thẳng (tremolo)", "violin tremolo", 2, 8),
+    ("Kinh dị & hồi hộp", "Dây đàn giật mình (string stab)", "string stab", 2, 4),
+    # ---- Đợt 3: mạng xã hội, không gian nền, đời thường Việt Nam
+    ("Hài hước", "Trống bongo dạo", "bongo fill", 2, 6), ("Hài hước", "Đi rón rén (tiptoe)", "tiptoe", 2, 6), ("Hài hước", "Oof", "oof", 2, 2),
+    ("Hài hước", "Nope", "nope", 2, 2), ("Hài hước", "Bloop", "bloop", 3, 2), ("Hài hước", "Chíp chíp (cute squeak)", "squeak", 3, 2),
+    ("Hài hước", "Tiếng chuông loé ý tưởng", "idea bell", 2, 3), ("Hài hước", "Kèn trumpet thua cuộc", "fail trumpet", 2, 5),
+    ("Hài hước", "Tiếng lắc đầu (cartoon shake)", "cartoon shake", 2, 3), ("Hài hước", "Vút lên (cartoon zip)", "cartoon zip", 3, 2),
+    ("Hài hước", "Trượt phanh hoạt hình", "cartoon skid", 2, 3), ("Hài hước", "Nháy mắt lấp lánh (bling)", "bling", 3, 2),
+    ("Mạng xã hội & điện thoại", "Tin nhắn đến", "message notification", 3, 3),
+    ("Mạng xã hội & điện thoại", "Gửi tin (swoosh)", "message sent", 2, 2),
+    ("Mạng xã hội & điện thoại", "Pop-up hiện ra", "pop up", 3, 2), ("Mạng xã hội & điện thoại", "Gõ phím điện thoại", "phone typing", 2, 5),
+    ("Mạng xã hội & điện thoại", "Bắt đầu quay (record beep)", "record beep", 2, 3),
+    ("Mạng xã hội & điện thoại", "Chuông đăng ký (bell)", "notification bell", 3, 3),
+    ("Mạng xã hội & điện thoại", "Thành công (success)", "success", 3, 3), ("Mạng xã hội & điện thoại", "Lỗi (error)", "error", 3, 3),
+    ("Mạng xã hội & điện thoại", "Mở khoá", "unlock", 2, 2), ("Mạng xã hội & điện thoại", "Click chuột", "mouse click", 3, 1),
+    ("Mạng xã hội & điện thoại", "Cuộc gọi tút tút", "phone dial tone", 2, 6),
+    ("Mạng xã hội & điện thoại", "Cúp máy", "phone hang up", 2, 4),
+    ("Không gian & nền", "Phố xá xe cộ", "street ambience", 2, 20), ("Không gian & nền", "Chợ / đông người", "market ambience", 2, 20),
+    ("Không gian & nền", "Quán cà phê", "cafe ambience", 2, 20), ("Không gian & nền", "Nhà hàng", "restaurant ambience", 2, 20),
+    ("Không gian & nền", "Văn phòng", "office ambience", 2, 20), ("Không gian & nền", "Sân trường", "playground", 2, 20),
+    ("Không gian & nền", "Đám đông rì rầm", "crowd talking", 2, 20), ("Không gian & nền", "Kẹt xe", "traffic", 2, 20),
+    ("Không gian & nền", "Thành phố về đêm", "city night", 2, 20),
+    ("Không gian & nền", "Mưa ngoài cửa sổ", "rain window", 2, 20),
+    ("Không gian & nền", "Siêu thị", "supermarket", 2, 20), ("Không gian & nền", "Phòng yên tĩnh (room tone)", "room tone", 2, 15),
+    ("Đời thường", "Túi ni lông sột soạt", "plastic bag", 3, 4), ("Đời thường", "Đặt cốc xuống bàn", "cup down", 2, 2),
+    ("Đời thường", "Đếm tiền", "counting money", 2, 5), ("Đời thường", "Chuông thang máy", "elevator ding", 2, 3),
+    ("Đời thường", "Ghế kẽo kẹt", "chair creak", 2, 4), ("Đời thường", "Bước chân chạy", "running footsteps", 3, 6),
+    ("Đời thường", "Giày cao gót", "high heels", 2, 6), ("Đời thường", "Dép lê", "flip flops", 2, 5), ("Đời thường", "Quạt máy", "fan", 2, 10),
+    ("Đời thường", "Rửa bát", "washing dishes", 2, 8), ("Đời thường", "Quét nhà", "sweeping", 2, 6), ("Đời thường", "Bấm bút", "pen click", 2, 2),
+    ("Đời thường", "Viết bút chì", "pencil writing", 2, 5), ("Đời thường", "Mở ngăn kéo", "drawer", 2, 3),
+    ("Đời thường", "Vải sột soạt", "cloth rustle", 2, 3), ("Đời thường", "Rơi đồ xuống sàn", "drop", 3, 2),
+    ("Đời thường", "Gõ bàn", "table knock", 2, 2), ("Đời thường", "Hút ống hút", "straw", 2, 4), ("Đời thường", "Lắc đá trong ly", "ice shake", 2, 4),
+    ("Xe cộ & còi", "Còi xe máy", "motorbike horn", 3, 3), ("Xe cộ & còi", "Xe tay ga", "scooter", 2, 8), ("Xe cộ & còi", "Xe tải", "truck", 2, 10),
+    ("Xe cộ & còi", "Xe buýt", "bus", 2, 10), ("Xe cộ & còi", "Xe đạp", "bicycle", 2, 6),
+    ("Xe cộ & còi", "Đề máy không nổ", "engine fail start", 2, 5),
+    ("Kinh dị & hồi hộp", "Tim đập nhanh", "heartbeat fast", 2, 8), ("Kinh dị & hồi hộp", "Máy đo tim (ECG)", "ecg beep", 2, 8),
+    ("Kinh dị & hồi hộp", "Tim ngừng đập (flatline)", "flatline", 2, 6), ("Kinh dị & hồi hộp", "Tiếng thở sợ hãi", "scared breathing", 2, 8),
+    ("Kinh dị & hồi hộp", "Cửa sắt đóng sầm", "metal door", 2, 5), ("Kinh dị & hồi hộp", "Gió hú", "howling wind", 2, 15),
+    ("Kinh dị & hồi hộp", "Quạ bay", "crows", 2, 10),
+    ("Lấp lánh & phép thuật", "Hé lộ (magic reveal)", "magic reveal", 3, 5), ("Lấp lánh & phép thuật", "Thiên thần (angel)", "angel", 2, 6),
+    ("Lấp lánh & phép thuật", "Chuông ngân (chime)", "chime", 3, 5), ("Lấp lánh & phép thuật", "Bùa sáng (shine)", "shine", 3, 3),
+    ("Thiên nhiên", "Sóng biển", "ocean waves", 2, 40), ("Thiên nhiên", "Sấm sét", "lightning thunder", 2, 12),
+    ("Thiên nhiên", "Mưa to", "heavy rain", 2, 20), ("Thiên nhiên", "Gió giật", "wind gust", 2, 8),
+    ("Thiên nhiên", "Dế đêm", "night crickets", 2, 20), ("Thiên nhiên", "Ếch đêm mưa", "frogs night", 2, 20),
+    ("Đám đông", "Đám đông cười", "crowd laugh", 3, 8), ("Đám đông", "Đám đông ồ lên (ooh)", "crowd ooh", 2, 6),
+    ("Đám đông", "Đám đông hét", "crowd scream", 2, 8), ("Đám đông", "Trẻ con cười", "children laughing", 2, 8),
+    ("Đám đông", "Vỗ tay ít người", "small applause", 2, 8), ("Đám đông", "Huýt sáo cổ vũ", "cheer whistle", 2, 5),
+    ("Gameshow", "Đếm 3-2-1", "countdown", 3, 6), ("Gameshow", "Hết giờ", "time up", 2, 4), ("Gameshow", "Tích tắc hồi hộp", "ticking clock", 2, 10),
+    ("Gameshow", "Trúng thưởng (jackpot)", "jackpot", 2, 6), ("Gameshow", "Hoàn thành màn", "level complete", 3, 5),
+]
+
+# Nhạc nền Freesound (CC0) — (nhóm, tên, từ khoá, số file, thời lượng tối đa); chỉ lấy bài dài từ NHAC_FS_TOI_THIEU giây.
+NHAC_FS_TOI_THIEU = 15
+FREESOUND_NHAC = [
+    ("Hài hước", "Nhạc hài", "comedy music", 4, 120), ("Hài hước", "Nhạc vui nhộn", "funny music", 3, 120),
+    ("Hài hước", "Nhạc lén lút", "sneaky music", 3, 120), ("Hài hước", "Nhạc hoạt hình", "cartoon music", 3, 120),
+    ("Kịch tính & drama", "Nhạc kịch tính", "dramatic music", 4, 120), ("Kịch tính & drama", "Nhạc hồi hộp", "suspense music", 3, 120),
+    ("Kịch tính & drama", "Nhạc căng thẳng", "tension music", 3, 120), ("Kịch tính & drama", "Dàn nhạc hùng tráng", "epic orchestral", 3, 120),
+    ("Kịch tính & drama", "Nhạc violin", "violin music", 2, 120),
+    ("Buồn & cảm xúc", "Nhạc buồn", "sad music", 3, 120), ("Buồn & cảm xúc", "Piano cảm xúc", "emotional piano", 3, 120),
+    ("Lãng mạn", "Nhạc lãng mạn", "romantic music", 3, 120),
+    ("Vui tươi", "Nhạc vui", "happy music", 3, 120), ("Vui tươi", "Nhạc sôi nổi", "upbeat music", 3, 120), ("Vui tươi", "Ukulele", "ukulele music", 2, 120),
+    ("Hành động", "Nhạc rượt đuổi", "chase music", 2, 120), ("Hành động", "Nhạc hành động", "action music", 3, 120),
+    ("Hồi hộp", "Nhạc bí ẩn", "mysterious music", 2, 120), ("Hồi hộp", "Nhạc kinh dị", "horror music", 2, 120),
+    ("Hài hước", "Nhạc xiếc", "circus music", 2, 90), ("Hài hước", "Nhạc ngớ ngẩn", "silly music", 3, 90),
+    ("Hài hước", "Nhạc kazoo / tuba", "tuba music", 2, 90),
+    ("Kịch tính & drama", "Nhạc trailer", "trailer music", 3, 90), ("Kịch tính & drama", "Nhạc đấu trí", "intense music", 3, 90),
+    ("Kịch tính & drama", "Nhạc hùng tráng", "heroic music", 2, 90),
+    ("Buồn & cảm xúc", "Piano buồn", "sad piano music", 3, 90), ("Buồn & cảm xúc", "Guitar buồn", "sad guitar", 2, 90),
+    ("Buồn & cảm xúc", "Nhạc nhớ nhung", "nostalgic music", 2, 90),
+    ("Lãng mạn", "Nhạc tình yêu", "love music", 2, 90), ("Lãng mạn", "Guitar mộc", "acoustic guitar music", 3, 90),
+   
+    ("Vui tươi", "Nhạc dễ thương", "cute music", 3, 90), ("Vui tươi", "Nhạc thiếu nhi", "kids music", 3, 90),
+    ("Vui tươi", "Nhạc tươi sáng", "cheerful music", 3, 90),
+    ("Cổ trang & Á Đông", "Nhạc Trung Hoa", "chinese music", 3, 90), ("Cổ trang & Á Đông", "Đàn tranh (guzheng)", "guzheng", 3, 90),
+    ("Cổ trang & Á Đông", "Đàn nhị (erhu)", "erhu", 2, 90), ("Cổ trang & Á Đông", "Sáo trúc", "bamboo flute", 3, 90),
+    ("Cổ trang & Á Đông", "Nhạc châu Á", "asian music", 2, 90),
+    ("Beat & hiện đại", "Hip hop beat", "hip hop beat", 3, 90), ("Beat & hiện đại", "Trap beat", "trap beat", 3, 90),
+    ("Beat & hiện đại", "Lo-fi", "lofi music", 3, 90), ("Beat & hiện đại", "EDM", "edm music", 2, 90),
+    ("Beat & hiện đại", "Funk", "funk music", 2, 90), ("Beat & hiện đại", "Rock", "rock music", 2, 90), ("Beat & hiện đại", "Phonk", "phonk", 2, 90),
+    ("Nhẹ nhàng", "Nhạc thư giãn", "relaxing music", 3, 90), ("Nhẹ nhàng", "Ambient", "ambient music", 2, 90),
+    ("Nhẹ nhàng", "Jazz nhẹ", "jazz music", 3, 90), ("Nhẹ nhàng", "Bossa nova", "bossa nova", 2, 90), ("Nhẹ nhàng", "Hộp nhạc", "music box", 2, 90),
+    ("Hồi hộp", "Nhạc thám tử", "detective music", 2, 90), ("Hồi hộp", "Nhạc điệp viên", "spy music", 2, 90),
+    ("Hồi hộp", "Nhạc ma quái", "creepy music", 2, 90),
+    ("Game & 8-bit", "Nhạc 8-bit", "8bit music", 3, 90), ("Game & 8-bit", "Nhạc đánh trùm", "boss battle music", 2, 90),
+    ("Game & 8-bit", "Nhạc chiến thắng", "victory music", 2, 90),
+    ("Mở đầu & tin tức", "Nhạc mở đầu", "intro music", 3, 60), ("Mở đầu & tin tức", "Nhạc tin tức", "news music", 2, 60),
+    ("Mở đầu & tin tức", "Nhạc quảng cáo", "corporate music", 2, 90),
 ]
 
 # Album HoliznaCC0 (FMA) — lấy vài bài đầu mỗi album; nhóm tâm trạng.
@@ -257,12 +352,12 @@ def sfx_kit(tam: str, ds: list) -> None:
     print(f"  sfx-kit: {len(meta['sounds'])} file")
 
 
-def freesound(tam: str, ds: list, cu: list) -> None:
+def freesound(tam: str, ds: list, cu: list, danh_sach: list = FREESOUND, loai: str = "sfx", toi_thieu: float = 0.1) -> None:
     da_co: dict = {}          # từ khoá đã tải lần trước → giữ nguyên file (kết quả tìm đổi theo thời gian)
     for m in cu:
         if m["id"].startswith("fs-") and m.get("the"):
             da_co.setdefault(m["the"][0], []).append(m)
-    for nhom, ten, q, so, toi_da in FREESOUND:
+    for nhom, ten, q, so, toi_da in danh_sach:
         if q in da_co:
             ds += [{**m, "nhom": nhom} for m in da_co[q]]
             continue
@@ -282,23 +377,23 @@ def freesound(tam: str, ds: list, cu: list) -> None:
                 continue
             g = lambda k: (re.search(rf'data-{k}="([^"]*)"', khoi) or [None, ""])[1]  # noqa: E731
             sid, dai = g("sound-id"), float(g("duration") or 0)
-            if not sid or not 0.1 < dai <= toi_da:
+            if not sid or not toi_thieu < dai <= toi_da:
                 continue
             mp3 = g("mp3").replace("-lq.mp3", "-hq.mp3")
-            rel = f"sfx/freesound/{ten_file(q)}/{sid}.m4a"
+            rel = f"{loai}/freesound/{ten_file(q)}/{sid}.m4a"
             dich = os.path.join(RA, rel)
             if not os.path.exists(dich):
                 p = os.path.join(tam, "fs", sid + ".mp3")
                 os.makedirs(os.path.dirname(p), exist_ok=True)
                 try:
                     open(p, "wb").write(tai(mp3))
-                    chuyen(p, dich, 128, chuan_hoa=True)
+                    chuyen(p, dich, 128 if loai == "sfx" else 96, chuan_hoa=True)
                 except Exception as e:  # một file hỏng/502: bỏ qua, lấy kết quả kế tiếp
                     print(f"  bỏ {sid}: {e}")
                     continue
                 time.sleep(0.5)
             lay += 1
-            ds.append({"id": "fs-" + sid, "loai": "sfx", "nhom": nhom, "ten": f"{ten} {lay}", "file": rel,
+            ds.append({"id": "fs-" + sid, "loai": loai, "nhom": nhom, "ten": f"{ten} {lay}", "file": rel,
                        "thoi_luong": round(dai, 3), "the": [q], "mo_ta": html.unescape(g("title")),
                        "tac_gia": g("username"), "giay_phep": "CC0-1.0",
                        "nguon": f"https://freesound.org/people/{g('username')}/sounds/{sid}/"})
@@ -395,7 +490,7 @@ def main() -> None:
     mf = os.path.join(RA, "thu_vien.json")
     cu = json.load(open(mf, encoding="utf-8"))["muc"] if os.path.exists(mf) else []
     ds: list = []
-    for bo, ham, tien_to in ((a.bo_sfx_kit, sfx_kit, "kit-"), (a.bo_freesound, lambda t, d: freesound(t, d, cu), "fs-"),
+    for bo, ham, tien_to in ((a.bo_sfx_kit, sfx_kit, "kit-"), (a.bo_freesound, lambda t, d: (freesound(t, d, cu), freesound(t, d, cu, FREESOUND_NHAC, "nhac", NHAC_FS_TOI_THIEU)), "fs-"),
                              (a.bo_nhac, lambda t, d: (nhac_fma(t, d), nhac_oga(t, d)), ("fma-", "oga-"))):
         if bo:
             ds += [m for m in cu if m["id"].startswith(tien_to)]
