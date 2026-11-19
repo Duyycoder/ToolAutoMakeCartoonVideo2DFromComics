@@ -69,11 +69,13 @@ export class ThuVienAm {
             ? '⭐ = lưu vào thư viện của tôi để dùng ở mọi dự án. Kéo xuống timeline hoặc bấm ＋ để thêm ở đầu phát.'
             : 'Mục có sẵn là CC0 — dùng tự do kể cả thương mại. Nhóm "Của tôi" là âm thanh bạn tự thêm.';
         try { await this._taiDanhMuc(); } catch (e) { this.ds.innerHTML = `<div class="goi-y">${esc(e.message)}</div>`; return; }
-        const nhom = duAn ? [] : [...new Set(danhMuc.filter((m) => m.loai === this.loai).map((m) => m.nhom))];
+        const dem = new Map();          // nhóm → số mục; "Của tôi" lên đầu, còn lại theo ABC
+        if (!duAn) for (const m of danhMuc) if (m.loai === this.loai) dem.set(m.nhom, (dem.get(m.nhom) || 0) + 1);
+        const nhom = [...dem.keys()].sort((a, b) => (b === 'Của tôi') - (a === 'Của tôi') || a.localeCompare(b, 'vi'));
         const chonNhom = this.el.querySelector('[data-nhom]');
         chonNhom.hidden = duAn;
         chonNhom.innerHTML = `<option value="">Tất cả nhóm</option>`
-            + nhom.map((n) => `<option ${n === this.nhom ? 'selected' : ''}>${esc(n)}</option>`).join('');
+            + nhom.map((n) => `<option value="${esc(n)}" ${n === this.nhom ? 'selected' : ''}>${esc(n)} (${dem.get(n)})</option>`).join('');
         this._veDs();
     }
 
