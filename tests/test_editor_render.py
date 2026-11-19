@@ -1185,3 +1185,15 @@ def test_ass_song_ngu_va_chu_nen_hop():
     hop = next(x for x in ass.splitlines() if x.endswith("}Hộp"))
     assert ",k_hop,," in hop and r"\3c&H0000FF&" in hop and r"\an4" in hop and r"\b1" in hop
     assert "Style: k_hop," in ass and "Style: k_chu," in ass
+
+
+def test_ass_karaoke_chia_gio_theo_do_dai_tu():
+    assert srt.chia_karaoke("Xin chào bạn", 2) == [["Xin", 0.0], ["chào", 0.6], ["bạn", 1.4]]
+    assert srt.chia_karaoke("", 2) == []
+    kieu = {"k_mac_dinh": {}, "k_1": {"karaoke": True, "song_ngu": True, "mau": "#ffffff", "mau_to": "#ff0000"}}
+    ass = srt.ghi_ass([{"bd": 1, "kt": 3, "text": "Xin chào bạn\nnhé", "text_goc": "Hi", "kieu": "k_1"},
+                       {"bd": 3, "kt": 4, "text": "A b"}], kieu, 1080, 1920)
+    # Kiểu karaoke: màu chính = màu tô (đỏ), màu phụ = màu chữ (trắng) — libass vẽ từ chưa tới bằng màu phụ.
+    assert "Style: k_1,Arial,85.3,&H000000FF,&H00FFFFFF," in ass
+    assert r"{\k46}Xin {\k62}chào {\k46}bạn\N{\k46}nhé\N{\fs59.7\1c&HFFFFFF&}Hi" in ass
+    assert ",k_mac_dinh,,0,0,0,,A b" in ass                       # kiểu không bật karaoke giữ nguyên

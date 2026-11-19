@@ -114,6 +114,37 @@ def _ass_mau(hex_mau: str, alpha: int = 0) -> str:
 TI_LE_GOC = 0.7      # cỡ chữ dòng bản gốc so với dòng bản dịch khi bật song ngữ
 
 
+def chia_karaoke(text: str, dai: float) -> List[List[Any]]:
+    """Chia thời lượng `dai` (giây) của một câu cho từng từ theo SỐ KÝ TỰ → [[từ, giây bắt đầu tô], …].
+
+    Phụ đề đã dịch không còn khớp từng từ với tiếng gốc nên không dùng giờ từng từ của Whisper; chia đều theo độ dài
+    từ cho nhịp tô tự nhiên. Bản JS cùng công thức: preview.js › chiaKaraoke.
+    """
+    tu = (text or "").split()
+    tong = sum(len(w) for w in tu) or 1
+    out, da = [], 0
+    for w in tu:
+        out.append([w, dai * da / tong])
+        da += len(w)
+    return out
+
+
+def _ass_karaoke(text: str, dai: float) -> str:
+    """Câu → chuỗi ASS có thẻ \\k (phần trăm giây) cho từng từ; xuống dòng giữ nguyên."""
+    dong = []
+    moc = chia_karaoke(text, dai)
+    ket = [b for _, b in moc[1:]] + [dai]
+    i = 0
+    for hang in (text or "").split("\n"):
+        phan = []
+        for w in hang.split():
+            cs = max(1, int(round((ket[i] - moc[i][1]) * 100)))
+            phan.append("{\\k%d}%s" % (cs, w.replace("\\", "\\\\").replace("{", "(").replace("}", ")")))
+            i += 1
+        dong.append(" ".join(phan))
+    return "\\N".join(dong)
+
+
 def ghi_ass(dong: List[Dict[str, Any]], kieu: Dict[str, Dict[str, Any]], rong: int, cao: int) -> str:
     """`dong`: [{bd, kt, text, kieu}] theo giờ TIMELINE. Cỡ chữ `co` tính theo khung cao 1080."""
     styles = []
@@ -123,20 +154,25 @@ def ghi_ass(dong: List[Dict[str, Any]], kieu: Dict[str, Dict[str, Any]], rong: i
         co_nen = (k.get("nen") or "None") not in ("None", "", None)
         vi_tri_y = float(k.get("vi_tri_y") if k.get("vi_tri_y") is not None else 0.9)
         le_duoi = max(0, int(round((1.0 - vi_tri_y) * cao)))
+        # Karaoke: libass vẽ từ CHƯA tới bằng màu phụ (SecondaryColour), từ đã tới bằng màu chính → đảo hai màu.
+        mau, mau_phu = _ass_mau(k.get("mau") or "#ffffff"), "&H000000FF"
+        if k.get("karaoke"):
+            mau, mau_phu = _ass_mau(k.get("mau_to") or "#ffd60a"), mau
         styles.append(
-            f"Style: {ten},{k.get('font') or 'Arial'},{co:.1f},{_ass_mau(k.get('mau') or '#ffffff')},"
-            f"&H000000FF,{_ass_mau(k.get('vien') or '#000000')},"
+            f"Style: {ten},{k.get('font') or 'Arial'},{co:.1f},{mau},"
+            f"{mau_phu},{_ass_mau(k.get('vien') or '#000000')},"
             f"{_ass_mau(k.get('mau_nen') or '#000000', int(k.get('nen_alpha', 110)))},"
             f"0,0,0,0,100,100,0,0,{3 if co_nen else 1},{vien:.1f},0,2,20,20,{le_duoi},1")
     su_kien = []
     sach = lambda s: (s or "").replace("\\", "\\\\").replace("{", "(").replace("}", ")").replace("\n", "\\N")
     for d in dong:
-        chu = sach(d.get("text"))
         k = (kieu or {}).get(d.get("kieu") or "k_mac_dinh") or {}
+        chu = _ass_karaoke(d.get("text") or "", float(d["kt"]) - float(d["bd"])) if k.get("karaoke") else sach(d.get("text"))
         goc = (d.get("text_goc") or "").strip()
         if k.get("song_ngu") and goc and goc != (d.get("text") or "").strip():
             # Song ngữ: bản gốc ở dòng dưới, chữ nhỏ bằng TI_LE_GOC lần bản dịch (preview.js › _vePhuDe dùng cùng tỉ lệ).
-            chu += "\\N{\\fs%.1f}%s" % (float(k.get("co") or 48) * cao / 1080.0 * TI_LE_GOC, sach(goc))
+            mau_goc = "\\1c&H%s&" % _ass_mau(k.get("mau") or "#ffffff")[4:] if k.get("karaoke") else ""
+            chu += "\\N{\\fs%.1f%s}%s" % (float(k.get("co") or 48) * cao / 1080.0 * TI_LE_GOC, mau_goc, sach(goc))
         su_kien.append(f"Dialogue: 0,{_ass_gio(d['bd'])},{_ass_gio(d['kt'])},{d.get('kieu') or 'k_mac_dinh'},,0,0,0,,{chu}")
     return "\n".join([
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {rong}", f"PlayResY: {cao}",

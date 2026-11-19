@@ -126,7 +126,7 @@ export class BangPhuDe {
             if (!o) return;
             let v = o.type === 'range' || o.type === 'number' ? Number(o.value) : o.value;
             if (o.dataset.k === 'nen') v = o.checked ? 'Box' : 'None';
-            if (o.dataset.k === 'song_ngu') v = o.checked;
+            if (o.dataset.k === 'song_ngu' || o.dataset.k === 'karaoke') v = o.checked;
             if (!this.tl.kieu_phu_de) this.ctx.sua('Kiểu chữ', [tao.dat(this.tl, ['kieu_phu_de'], { k_mac_dinh: kieuPhuDeMacDinh() })]);
             if (!this.tl.kieu_phu_de.k_mac_dinh) this.ctx.sua('Kiểu chữ', [tao.dat(this.tl, ['kieu_phu_de', 'k_mac_dinh'], kieuPhuDeMacDinh())]);
             const ten = this._kieuDangSua();
@@ -329,6 +329,8 @@ export class BangPhuDe {
             <div class="hang"><label class="check"><input type="checkbox" data-k="nen" ${(k.nen || 'None') !== 'None' ? 'checked' : ''}> Nền hộp</label>
                 <label>Màu nền<input type="color" data-k="mau_nen" value="${esc(k.mau_nen || '#000000')}"></label></div>
             <label class="check" title="Hiện thêm bản gốc (trước khi dịch) ở dòng dưới, chữ nhỏ hơn"><input type="checkbox" data-k="song_ngu" ${k.song_ngu ? 'checked' : ''}> Song ngữ — hiện thêm bản gốc ở dòng dưới</label>
+            <div class="hang"><label class="check" title="Tô màu lần lượt từng từ trong lúc câu hiện. Giờ mỗi từ chia theo độ dài từ trong câu (không lấy từ tiếng nói)."><input type="checkbox" data-k="karaoke" ${k.karaoke ? 'checked' : ''}> Karaoke — tô từng từ</label>
+                <label>Màu tô<input type="color" data-k="mau_to" value="${esc(k.mau_to || '#ffd60a')}"></label></div>
             <label>Vị trí dọc <span class="gt">${Math.round(k.vi_tri_y * 100)}%</span><input type="range" data-k="vi_tri_y" min="0.05" max="0.98" step="0.01" value="${k.vi_tri_y}"></label>
         </div>`;
     }

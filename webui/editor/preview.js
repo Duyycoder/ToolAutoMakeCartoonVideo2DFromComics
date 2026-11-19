@@ -19,6 +19,14 @@ import { ganXuLy, boXuLy, moKhoaAm, datTong } from './am_xu_ly.js';
 
 const LECH_TOI_DA = 0.35;   // giây lệch giữa một lớp và đồng hồ thì tua lại
 
+/* Karaoke: chia thời lượng `dai` của câu cho từng từ theo số ký tự → [[từ, giây bắt đầu tô], …] (bản Python: srt.chia_karaoke). */
+export function chiaKaraoke(text, dai) {
+    const tu = (text || '').split(/\s+/).filter(Boolean);
+    const tong = tu.reduce((a, w) => a + [...w].length, 0) || 1;
+    let da = 0;
+    return tu.map((w) => { const o = [w, dai * da / tong]; da += [...w].length; return o; });
+}
+
 export class Preview {
     constructor(ctx) {
         this.ctx = ctx;
@@ -464,7 +472,8 @@ export class Preview {
 
     _vePhuDe(t) {
         const dang = this.nguon ? [] : neoTai(this.tl, 'phu_de', t);
-        const c = dang.length ? dang[dang.length - 1].c : null;
+        const hien = dang.length ? dang[dang.length - 1] : null;
+        const c = hien ? hien.c : null;
         const chu = c ? (c.text || '') : '';
         this.phuDe.style.display = chu ? '' : 'none';
         if (!chu) { this.phuDe.textContent = ''; return; }
@@ -482,12 +491,23 @@ export class Preview {
                 .map(([a, b]) => `${a * vien}px ${b * vien}px 0 ${mauVien}`).join(',')
             : 'none';
         const coNen = (k.nen || 'None') !== 'None';
-        const boc = (x) => (coNen
-            ? `<span style="background:${k.mau_nen || 'rgba(0,0,0,.6)'};padding:0 .3em;box-decoration-break:clone;-webkit-box-decoration-break:clone">${esc(x)}</span>`
-            : esc(x));
+        const boc = (x, html) => (coNen
+            ? `<span style="background:${k.mau_nen || 'rgba(0,0,0,.6)'};padding:0 .3em;box-decoration-break:clone;-webkit-box-decoration-break:clone">${html || esc(x)}</span>`
+            : (html || esc(x)));
+        // Karaoke: từ nào đã tới giờ thì tô màu `mau_to` (chia giờ theo số ký tự — khớp srt.py › chia_karaoke).
+        let chinh = boc(chu);
+        if (k.karaoke) {
+            const moc = chiaKaraoke(chu, hien.kt - hien.bd), qua = t - hien.bd;
+            let i = 0;
+            chinh = boc(chu, chu.split('\n').map((hang) => hang.split(/\s+/).filter(Boolean).map((w) => {
+                const to = moc[i] && moc[i][1] <= qua + 1e-6;
+                i += 1;
+                return to ? `<span style="color:${esc(k.mau_to || '#ffd60a')}">${esc(w)}</span>` : esc(w);
+            }).join(' ')).join('\n'));
+        }
         // Song ngữ: bản gốc ở dòng dưới, cỡ 0.7 (khớp srt.py › TI_LE_GOC).
         const goc = k.song_ngu && (c.text_goc || '').trim() && c.text_goc.trim() !== chu.trim() ? c.text_goc.trim() : '';
-        this.phuDe.innerHTML = boc(chu) + (goc ? `<div style="font-size:.7em">${boc(goc)}</div>` : '');
+        this.phuDe.innerHTML = chinh + (goc ? `<div style="font-size:.7em">${boc(goc)}</div>` : '');
     }
 
     _veChe(t) {
