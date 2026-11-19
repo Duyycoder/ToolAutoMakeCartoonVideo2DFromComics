@@ -10,17 +10,26 @@ void main() { uv = vec2(p.x * 0.5 + 0.5, 0.5 - p.y * 0.5); gl_Position = vec4(p,
 const FS = `#version 300 es
 precision highp float; precision highp sampler3D;
 uniform sampler2D hinh; uniform sampler3D lut; uniform vec2 px; uniform float net, nhieu, coLut;
+uniform vec3 khoa; uniform float kNguong, kMem, coKhoa;
+vec2 sacDo(vec3 c) { return vec2(-0.169 * c.r - 0.331 * c.g + 0.5 * c.b, 0.5 * c.r - 0.419 * c.g - 0.081 * c.b); }
 in vec2 uv; out vec4 o;
 vec3 t(float x, float y) { return texture(hinh, uv + px * vec2(x, y)).rgb; }
 void main() {
     vec3 c = texture(hinh, uv).rgb;
+    float a = 1.0;
+    if (coKhoa > 0.5) {
+        // Phông xanh: khoảng cách sắc độ tới màu khoá (như bộ lọc chromakey của ffmpeg).
+        vec2 d2 = sacDo(c) - sacDo(khoa);
+        float d = sqrt(dot(d2, d2) / 2.0);
+        a = d < kNguong ? 0.0 : (kMem > 0.0 ? min(1.0, (d - kNguong) / kMem) : 1.0);
+    }
     if (net > 0.0 || nhieu > 0.0) {
         vec3 b = (t(-1.,-1.) + t(1.,-1.) + t(-1.,1.) + t(1.,1.) + 2.0 * (t(0.,-1.) + t(0.,1.) + t(-1.,0.) + t(1.,0.)) + 4.0 * c) / 16.0;
         c = mix(c, b, nhieu * (1.0 - smoothstep(0.02, 0.15, length(c - b))));   // giữ cạnh, làm mịn vùng phẳng
         c = clamp(c + net * (c - b), 0.0, 1.0);
     }
     if (coLut > 0.5) c = texture(lut, c * ${(N_LUT - 1) / N_LUT} + ${0.5 / N_LUT}).rgb;
-    o = vec4(c, 1.0);
+    o = vec4(c, a);
 }`;
 
 function bienDich(gl) {
@@ -60,7 +69,7 @@ export class LopGL {
             this.texLut = this._tex(gl.TEXTURE1, gl.TEXTURE_3D);
             gl.uniform1i(gl.getUniformLocation(this.pg, 'hinh'), 0);
             gl.uniform1i(gl.getUniformLocation(this.pg, 'lut'), 1);
-            this.u = Object.fromEntries(['px', 'net', 'nhieu', 'coLut'].map((k) => [k, gl.getUniformLocation(this.pg, k)]));
+            this.u = Object.fromEntries(['px', 'net', 'nhieu', 'coLut', 'khoa', 'kNguong', 'kMem', 'coKhoa'].map((k) => [k, gl.getUniformLocation(this.pg, k)]));
             this.gl = gl;
         } catch (e) {
             console.warn('Xem trước màu nâng cao tắt:', e.message);
@@ -79,8 +88,9 @@ export class LopGL {
     }
 
     /* Vẽ `nguon` (<video>/<img>) với chỉnh màu `mau`; `lutFile` = docCube của mau.lut (null nếu chưa tải/không có). */
-    dat(nguon, mau, lutFile) {
+    dat(nguon, mau, lutFile, khoaMau = null) {
         if (!this.gl) return false;
+        this.khoaMau = khoaMau && khoaMau.bat ? khoaMau : null;
         const gl = this.gl;
         if (this.nguon !== nguon) { this._dungHen(); if (this.nguon) this.nguon.style.opacity = ''; this.nguon = nguon; }
         const khoa = JSON.stringify([...KHOA_LUT.map((k) => mau[k]), !!lutFile]);
@@ -117,6 +127,17 @@ export class LopGL {
         gl.uniform1f(this.u.net, this.net);
         gl.uniform1f(this.u.nhieu, this.nhieu);
         gl.uniform1f(this.u.coLut, this.coLut ? 1 : 0);
+        const km = this.khoaMau;
+        gl.uniform1f(this.u.coKhoa, km ? 1 : 0);
+        if (km) {
+            const h = /^#?([0-9a-f]{6})$/i.exec(km.mau || '#00ff00');
+            const n = parseInt(h ? h[1] : '00ff00', 16);
+            gl.uniform3f(this.u.khoa, (n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
+            gl.uniform1f(this.u.kNguong, Math.max(0.01, Math.min(1, Number(km.nguong ?? 0.25))));
+            gl.uniform1f(this.u.kMem, Math.max(0, Math.min(1, Number(km.mem ?? 0.08))));
+        }
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 

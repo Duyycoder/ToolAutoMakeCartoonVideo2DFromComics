@@ -303,6 +303,10 @@ export class BangPhai {
             let hu = [...(c.hieu_ung || [])];
             hu[i] = { ...hu[i], [truong]: Number(o.value) };
             ops = [tao.dat(this.tl, p('hieu_ung'), hu)];
+        } else if (k.startsWith('khoa_mau.')) {
+            // Phông xanh: ô tích / màu / thanh trượt phần trăm.
+            const val = o.type === 'checkbox' ? o.checked : (o.type === 'range' ? Number(o.value) / 100 : o.value);
+            ops = [tao.dat(this.tl, p('khoa_mau'), { mau: '#00ff00', nguong: 0.25, mem: 0.08, ...(c.khoa_mau || {}), [k.slice(9)]: val })];
         } else if (k.startsWith('kieu.')) {
             // Kiểu chữ của clip chữ: giữ đúng kiểu dữ liệu của ô (chuỗi font/màu, số, ô tích) — không ép về số.
             const val = o.type === 'checkbox' ? o.checked : (o.type === 'number' || o.type === 'range' ? Number(o.value) : o.value);
@@ -491,6 +495,7 @@ export class BangPhai {
                 const bd = clip.bien_doi || {};
                 const ck = clip.cat_khung || {};
                 const ht = clip.hien_thi || {};
+                const km = clip.khoa_mau || {};
                 const pc = (x) => Math.round((x || 0) * 100);
                 const tCucBo = this.ctx.ui.dau_phat - (clip.bat_dau || 0);
                 const val = (k, fb) => giaTriTai(clip, k, tCucBo) ?? fb;
@@ -523,6 +528,13 @@ export class BangPhai {
                             <label>Phải %<input type="number" data-k="cat_khung.phai" min="0" max="100" value="${pc(ck.phai)}"></label></div>
                         <div class="hang"><label>Trên %<input type="number" data-k="cat_khung.tren" min="0" max="100" value="${pc(ck.tren)}"></label>
                             <label>Dưới %<input type="number" data-k="cat_khung.duoi" min="0" max="100" value="${pc(ck.duoi)}"></label></div>
+                    </div>`)
+                    + this._muc('khoa_mau', 'Phông xanh (chroma key)', `<div class="o-form">
+                        <div class="hang"><label class="check"><input type="checkbox" data-k="khoa_mau.bat" ${km.bat ? 'checked' : ''}> Xoá màu nền</label>
+                            <label>Màu cần xoá<input type="color" data-k="khoa_mau.mau" value="${esc(km.mau || '#00ff00')}"></label></div>
+                        <label>Độ rộng vùng xoá <span class="gt">${Math.round((km.nguong ?? 0.25) * 100)}</span><input type="range" data-k="khoa_mau.nguong" min="1" max="60" value="${Math.round((km.nguong ?? 0.25) * 100)}"></label>
+                        <label>Mềm mép <span class="gt">${Math.round((km.mem ?? 0.08) * 100)}</span><input type="range" data-k="khoa_mau.mem" min="0" max="30" value="${Math.round((km.mem ?? 0.08) * 100)}"></label>
+                        <div class="goi-y-nho">Đặt clip phông xanh ở dòng video phía trên, hình nền ở dòng dưới. Xem trước cần WebGL; bản xuất dùng ffmpeg chromakey.</div>
                     </div>`)
                     + this._muc('hien_thi', 'Hiển thị', `<div class="o-form">
                         <label>Độ mờ <span class="gt">${pc(val('hien_thi.do_mo', ht.do_mo ?? 1))}%</span> ${this._nutKF(clip, 'hien_thi.do_mo')}<input type="range" data-k="hien_thi.do_mo" min="0" max="100" value="${pc(val('hien_thi.do_mo', ht.do_mo ?? 1))}"></label>

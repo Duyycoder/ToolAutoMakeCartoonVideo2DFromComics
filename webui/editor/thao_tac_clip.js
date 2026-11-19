@@ -152,6 +152,22 @@ export function opsTachNeo(tl) {
     return { ops, soCau: sao.length };
 }
 
+/* Đánh dấu theo nhịp nhạc: `nhip` = giây trong MEDIA (server đo). Thay các dấu nhịp cũ nằm trong khoảng của clip bằng dấu mới
+   (dấu người dùng tự đặt giữ nguyên). Đầu phát và clip bắt dính vào các dấu này → cắt cảnh đúng nhịp. */
+export function opsDanhDauNhip(tl, cid, nhip) {
+    const c = (tl.clips || []).find((x) => x.id === cid);
+    if (!c) return [];
+    const bd = Number(c.bat_dau || 0), kt = ketThucClip(c);
+    const cu = (tl.danh_dau || []).filter((d) => !(d.nhip && d.t >= bd - 1e-6 && d.t <= kt + 1e-6));
+    let so = Math.max(0, ...(tl.danh_dau || []).map((d) => Number((/^dd_(\d+)$/.exec(d.id || '') || [])[1] || 0)));
+    const moi = nhip.filter((s) => s >= Number(c.vao || 0) - 1e-6 && s <= Number(c.ra || 0) + 1e-6)
+        .map((s) => ({ id: `dd_${so += 1}`, t: tron(bd + veTimeline(c, s)), ten: '♪', nhip: true }));
+    return [tao.dat(tl, ['danh_dau'], [...cu, ...moi].sort((a, b) => a.t - b.t))];
+}
+
+/* Xoá mọi dấu nhịp (giữ dấu tự đặt). */
+export const opsXoaDauNhip = (tl) => [tao.dat(tl, ['danh_dau'], (tl.danh_dau || []).filter((d) => !d.nhip))];
+
 /* Tự cắt khoảng lặng (jump cut): `khoang` = [[a, b], …] giây trong MEDIA (server đo bằng silencedetect). Mỗi khoảng lặng
    nằm trong clip được cắt ra và xoá gợn (phần sau dồn lên), chừa lại `dem` giây lặng ở mỗi đầu cho đỡ cụt tiếng.
    Clip liên kết trùng giờ với clip này (tiếng đã tách) cắt y hệt để hình–tiếng vẫn khớp. Trả {ops, so, giam} | null. */

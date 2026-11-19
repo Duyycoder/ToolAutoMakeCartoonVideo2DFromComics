@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from orchestrator.config import load_global_config, save_global_config
-from orchestrator.editor import (ai_bridge, chuan_hoa_file, dao_nguoc, goi_du_an, hang_doi, khoang_lang, luu_tru, mau_nang_cao, media, nuong, render,
+from orchestrator.editor import (ai_bridge, chuan_hoa_file, dao_nguoc, goi_du_an, hang_doi, khoang_lang, nhip, luu_tru, mau_nang_cao, media, nuong, render,
                                  srt, tai_len, thu_vien_am, workspace, xuat_tu_xa)
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -874,6 +874,23 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         except (RuntimeError, OSError, subprocess.SubprocessError) as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+    @r.post("/api/du-an/{pid}/media/{mid}/nhip")
+    def find_beats(pid: str, mid: str, body: KhoangLangSchema):
+        """Nhịp (beat) của nhạc trong đoạn [vao, ra] của media → {bpm, nhip: [giây trong media]}."""
+        folder, m, path = media_path(pid, mid)
+        if m.get("loai") not in ("video", "audio") or m.get("co_am_thanh") is False:
+            raise HTTPException(status_code=400, detail="Media này không có tiếng.")
+        ff = media.ffmpeg_exe()
+        if not ff or not os.path.isfile(path):
+            raise HTTPException(status_code=500, detail="Thiếu ffmpeg hoặc file gốc.")
+        try:
+            bpm, ds = nhip.do(ff, path, max(0.0, body.vao), body.ra)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except (RuntimeError, OSError, subprocess.SubprocessError) as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        return {"bpm": bpm, "nhip": ds}
+
     @r.post("/api/du-an/{pid}/media/{mid}/khung-dung")
     def freeze_frame(pid: str, mid: str, body: KhungDungSchema):
         """Lấy khung hình tại giây `t` của video thành media ảnh PNG (đóng băng khung hình)."""
@@ -1295,7 +1312,11 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         du_an = luu_tru.doc_duan(folder) or {}
         tl, _ = luu_tru.doc_timeline(folder)
         chi_tieng = bool(tc.get("chi_am_thanh"))
-        ra = render.ten_file_ra(folder, tc.get("ten") or du_an.get("name") or "video", ".m4a" if chi_tieng else ".mp4")
+        duoi = ".m4a" if chi_tieng else {"anh": ".png", "gif": ".gif"}.get(str(tc.get("dang") or ""), ".mp4")
+        if duoi in (".png", ".gif"):
+            tc["may_xuat"], may = "", None           # ảnh/GIF nhẹ — luôn làm ngay trên server
+            tc["xuat_srt"] = False
+        ra = render.ten_file_ra(folder, tc.get("ten") or du_an.get("name") or "video", duoi)
         try:
             kq = render.dung_lenh_xuat(folder, du_an, tl, tc, ra, ff)
         except ValueError as e:
@@ -1417,7 +1438,7 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
             for ten in os.listdir(d):
                 p = os.path.join(d, ten)
                 if (os.path.isfile(p) and not ten.startswith(".") and TIENG_THIET_BI not in ten
-                        and os.path.splitext(ten)[1].lower() in (".mp4", ".m4a", ".mov", ".srt")):
+                        and os.path.splitext(ten)[1].lower() in (".mp4", ".m4a", ".mov", ".srt", ".png", ".gif")):
                     ds.append({"ten": ten, "kich_thuoc": os.path.getsize(p), "luc": int(os.path.getmtime(p))})
         return {"ds": sorted(ds, key=lambda x: -x["luc"])}
 

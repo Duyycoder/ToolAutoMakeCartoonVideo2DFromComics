@@ -5,7 +5,7 @@
  * Khi kéo chỉ đổi style DOM; thả tay mới ghi lệnh vào store (một bước hoàn tác). */
 import { $, esc, toast, fmtThoiGian, api, hoi } from './chung.js';
 import { ganCamUng } from './timeline_cam_ung.js';
-import { opsKenBurns, opsDongBang, opsNoiMuotAm, capNoiMuot, opsCatKhoangLang, KIEU_KEN_BURNS } from './thao_tac_clip.js';
+import { opsKenBurns, opsDongBang, opsNoiMuotAm, capNoiMuot, opsCatKhoangLang, opsDanhDauNhip, opsXoaDauNhip, KIEU_KEN_BURNS } from './thao_tac_clip.js';
 import { ThuAm } from './thu_am.js';
 import {
     tao, thoiLuong, ketThucClip, thoiDiemMedia, opsDatTocDo, choTrong, idClipMoi, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, clipTai,
@@ -769,6 +769,22 @@ export class Timeline {
         } catch (err) { toast(err.message, 'error'); }
     }
 
+    /* Đặt điểm đánh dấu tại từng nhịp nhạc của clip (server tìm nhịp) để cắt cảnh theo nhạc. */
+    async danhDauNhip(cid) {
+        const c = this.tl.clips.find((x) => x.id === cid);
+        if (!c) return;
+        toast('Đang tìm nhịp nhạc…', 'info', 3000);
+        try {
+            const r = await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${encodeURIComponent(c.media)}/nhip`,
+                { method: 'POST', body: { vao: Number(c.vao || 0), ra: Number(c.ra || 0) } });
+            const hien = this.tl.clips.find((x) => x.id === cid);
+            if (!hien || !(r.nhip || []).length) { toast('Không tìm thấy nhịp rõ ràng trong clip này.', 'info'); return; }
+            if (this.ctx.sua('Đánh dấu theo nhịp', opsDanhDauNhip(this.tl, cid, r.nhip))) {
+                toast(`Đã đặt ${r.nhip.length} dấu nhịp (~${Math.round(r.bpm)} BPM). Bật bắt dính 🧲 để cắt/kéo clip đúng nhịp.`, 'success', 5000);
+            }
+        } catch (err) { toast(err.message, 'error'); }
+    }
+
     /* Tự cắt khoảng lặng của một clip: server đo các đoạn im (dưới -35 dB, dài từ 0,6 s), rồi cắt bỏ và dồn phần sau lên. */
     async catKhoangLang(cid) {
         const c = this.tl.clips.find((x) => x.id === cid);
@@ -1164,6 +1180,8 @@ export class Timeline {
         if (c && !c.loai && m && (m.loai === 'audio' || (m.loai === 'video' && m.co_am_thanh !== false))) {
             muc.push({ separator: true });
             muc.push({ id: 'cat-lang', text: '✂ Tự cắt khoảng lặng (jump cut)' });
+            muc.push({ id: 'dau-nhip', text: '🥁 Đánh dấu theo nhịp nhạc (beat)' });
+            if ((this.tl.danh_dau || []).some((d) => d.nhip)) muc.push({ id: 'xoa-nhip', text: '🥁 Xoá các dấu nhịp' });
         }
         if (capNoiMuot(this.tl, dangChon)) {
             muc.push({ separator: true });
@@ -1214,6 +1232,8 @@ export class Timeline {
             if (l.dataset.l === 'dao-nguoc') this.daoNguoc(cid);
             if (l.dataset.l === 'dong-bang') this.dongBang(cid);
             if (l.dataset.l === 'cat-lang') this.catKhoangLang(cid);
+            if (l.dataset.l === 'dau-nhip') this.danhDauNhip(cid);
+            if (l.dataset.l === 'xoa-nhip') this.ctx.sua('Xoá dấu nhịp', opsXoaDauNhip(this.tl));
             if (l.dataset.l === 'ken-burns') {
                 const ops = opsKenBurns(this.tl, this.tl.clips.find((x) => x.id === cid), l.dataset.v);
                 if (ops.length) this.ctx.sua(`Chuyển động: ${KIEU_KEN_BURNS[l.dataset.v]}`, ops);
@@ -1293,7 +1313,7 @@ export class Timeline {
         
         const danhDau = this.tl.danh_dau || [];
         for (const d of danhDau) {
-            thuoc += `<div class="danh-dau" data-dd="${esc(d.id)}" title="${esc(d.ten)}" style="position:absolute;bottom:0;left:${d.t * px - 6}px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:8px solid #ffeb3b;cursor:pointer;z-index:5;"></div>`;
+            thuoc += `<div class="danh-dau" data-dd="${esc(d.id)}" title="${esc(d.ten)}" style="position:absolute;bottom:0;left:${d.t * px - 6}px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:8px solid ${d.nhip ? "#4dd0e1" : "#ffeb3b"};cursor:pointer;z-index:5;"></div>`;
         }
 
         const media = Object.fromEntries(this.ctx.media.map((m) => [m.id, m]));

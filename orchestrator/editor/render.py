@@ -211,6 +211,8 @@ def la_lop_mac_dinh(c: Dict[str, Any]) -> bool:
     for d in ["bien_doi.x", "bien_doi.y", "bien_doi.ti_le", "bien_doi.xoay", "hien_thi.do_mo", "hien_thi.bo_goc"]:
         if d in kf and kf[d]:
             return False
+    if (c.get("khoa_mau") or {}).get("bat"):
+        return False            # phông xanh cần kênh alpha → luôn đi đường "lớp"
     b, k, h = c.get("bien_doi") or {}, c.get("cat_khung") or {}, c.get("hien_thi") or {}
     return (float(b.get("x", 0.5)) == 0.5 and float(b.get("y", 0.5)) == 0.5 and float(b.get("ti_le", 1)) == 1
             and not float(b.get("xoay") or 0) and not any(float(k.get(x) or 0) for x in ("trai", "phai", "tren", "duoi"))
@@ -481,7 +483,14 @@ class DungLenh:
         if cac_loc:
             loc.extend(cac_loc)
         loc.append(f"format={self.pfa}")
-        
+        km = c.get("khoa_mau") or {}
+        if km.get("bat"):
+            # Phông xanh (chroma key): điểm ảnh gần màu khoá (theo sắc độ U/V) thành trong suốt — cùng công thức với
+            # shader xem trước (xem_mau_gl.js): dưới `nguong` thì mất hẳn, trong khoảng `mem` kế tiếp thì mờ dần.
+            loc.append(f"chromakey=color=0x{_mau(km.get('mau') or '#00ff00')[-6:]}:"
+                       f"similarity={max(0.01, min(1.0, float(km.get('nguong', 0.25)))):.3f}:"
+                       f"blend={max(0.0, min(1.0, float(km.get('mem', 0.08)))):.3f}")
+
         hien = c.get("hien_thi") or {}
         r = float(hien.get("bo_goc") or 0) * self.H / 1080
         if r > 0.5:
@@ -809,6 +818,34 @@ class DungLenh:
             so = sum(int(b) - int(a) for a, b in doan)
             return {"cmd": cmd, "loc": ";\n".join(self.loc), "ass": "", "thoi_luong": so / self.fps, "so_khung": so,
                     "so_phu_de": 0, "kich_thuoc": [self.W, self.H], "tep": dict(self.tep)}
+        dang = "" if chi_tieng else str(self.tc.get("dang") or "")
+        if dang in ("anh", "gif"):
+            # Xuất ảnh tĩnh (PNG một khung tại `anh_tai` giây) hoặc GIF động: dựng đủ timeline như xuất video rồi chỉ lấy hình.
+            self.loc.append(f"[{aout}]anullsink")
+            cmd = [self.ffmpeg, "-hide_banner", "-y", "-nostats", "-progress", "pipe:1"]
+            for nhom in self.vao:
+                cmd += nhom
+            if dang == "anh":
+                t_anh = max(0.0, min(float(self.tc.get("anh_tai") or 0), T - 1 / self.fps))
+                self.loc.append(f"[{vc}]sidedata=mode=delete:type=DISPLAYMATRIX,format=rgb24[vanh]")
+                cmd += tham_so_file_loc(self.ffmpeg, "loc.txt") + ["-map", "[vanh]", "-an", "-ss", _so(t_anh), "-frames:v", "1",
+                                                                    "-update", "1", ten_ra]
+                T_ra = 1 / self.fps
+            else:
+                rong = min(self.W, 480 if self.W <= self.H else 640)
+                self.loc.append(f"[{vc}]fps=12,scale={_chan(rong)}:-2:flags=lanczos,split[gif1][gif2]")
+                self.loc.append("[gif1]palettegen=stats_mode=diff[gifp]")
+                self.loc.append("[gif2][gifp]paletteuse=dither=bayer:bayer_scale=4[vgif]")
+                vao_x, ra_x = self.tc.get("vung_vao"), self.tc.get("vung_ra")
+                if vao_x is not None and ra_x is not None and 0 <= float(vao_x) < float(ra_x):
+                    vao_x, ra_x = float(vao_x), min(float(ra_x), T)
+                else:
+                    vao_x, ra_x = 0.0, T
+                cmd += tham_so_file_loc(self.ffmpeg, "loc.txt") + ["-map", "[vgif]", "-an", "-ss", _so(vao_x), "-t", _so(ra_x - vao_x),
+                                                                    "-loop", "0", ten_ra]
+                T_ra = ra_x - vao_x
+            return {"cmd": cmd, "loc": ";\n".join(self.loc), "ass": ass, "thoi_luong": T_ra, "so_phu_de": len(dong_pd),
+                    "kich_thuoc": [self.W, self.H], "tep": dict(self.tep)}
         if chi_tieng:
             # Chỉ xuất tiếng: nhánh hình (cần cho tiếng đi cùng concat) không ra file → đổ vào nullsink,
             # không thì ffmpeg báo "output (vc) unconnected" và dừng.

@@ -144,3 +144,14 @@ test('hiệu ứng vào/ra của clip: keyframe ở đầu và cuối, đổi sa
     assert.deepEqual(Object.keys(c.keyframes), ['bien_doi.xoay']);
     assert.deepEqual([c.hu_vao, c.hu_ra, c.hu_dai], [undefined, undefined, undefined]);
 });
+
+test('đánh dấu theo nhịp: dấu đặt theo giờ timeline của clip, thay dấu nhịp cũ, giữ dấu tự đặt', async () => {
+    const { opsDanhDauNhip, opsXoaDauNhip } = await import('../../webui/editor/thao_tac_clip.js');
+    const s = new Store({ tracks: [{ id: 'A1', loai: 'audio' }], danh_dau: [{ id: 'dd_3', t: 1, ten: 'Điểm' }, { id: 'dd_4', t: 11, ten: '♪', nhip: true }],
+        clips: [{ id: 'c_1', track: 'A1', media: 'm1', bat_dau: 10, vao: 2, ra: 6, toc_do: 2 }] });      // 10 → 12, tốc 2×
+    s.thucHien('Nhịp', opsDanhDauNhip(s.timeline, 'c_1', [1.5, 2, 3, 4, 6.5]));
+    assert.deepEqual(s.timeline.danh_dau.map((d) => [d.id, d.t, !!d.nhip]),
+        [['dd_3', 1, false], ['dd_5', 10, true], ['dd_6', 10.5, true], ['dd_7', 11, true]]);
+    s.thucHien('Xoá', opsXoaDauNhip(s.timeline));
+    assert.deepEqual(s.timeline.danh_dau.map((d) => d.id), ['dd_3']);
+});

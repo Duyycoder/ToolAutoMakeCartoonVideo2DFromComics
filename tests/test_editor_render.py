@@ -1197,3 +1197,45 @@ def test_ass_karaoke_chia_gio_theo_do_dai_tu():
     assert "Style: k_1,Arial,85.3,&H000000FF,&H00FFFFFF," in ass
     assert r"{\k46}Xin {\k62}chào {\k46}bạn\N{\k46}nhé\N{\fs59.7\1c&HFFFFFF&}Hi" in ass
     assert ",k_mac_dinh,,0,0,0,,A b" in ass                       # kiểu không bật karaoke giữ nguyên
+
+
+def test_xuat_that_anh_tinh_va_gif(media_mau):
+    """Định dạng ảnh tĩnh (PNG một khung tại `anh_tai`) và GIF động: cùng dựng timeline như video, chỉ lấy hình."""
+    goc, exe = media_mau
+    tl = {"tracks": [{"id": "V1", "loai": "video"}], "kieu_phu_de": {}, "clips": [
+        {"id": "c1", "track": "V1", "media": "m_do", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1},
+        {"id": "c2", "track": "V1", "media": "m_xd", "bat_dau": 2, "vao": 0, "ra": 2, "toc_do": 1}]}
+
+    def xuat(tc, duoi):
+        lam = goc / "lam"
+        lam.mkdir(exist_ok=True)
+        ra = str(goc / ("ra" + duoi))
+        kq = render.dung_lenh_xuat(str(goc), _da(), tl, {"preset": "ultrafast", **tc}, ra, exe)
+        (lam / "loc.txt").write_text(kq["loc"], encoding="utf-8")
+        res = subprocess.run(kq["cmd"], cwd=str(lam), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+        assert res.returncode == 0, res.stderr[-800:]
+        return ra
+
+    png = xuat({"dang": "anh", "anh_tai": 3.0}, ".png")
+    assert open(png, "rb").read(4) == b"\x89PNG"
+    px = _doc_khung(exe, png, 0, 320, 180)[90, 160]
+    assert px[2] > 180 and px[0] < 80, f"khung tại 3 s phải là clip xanh dương: {px}"
+    gif = xuat({"dang": "gif", "vung_vao": 1.0, "vung_ra": 3.0}, ".gif")
+    assert open(gif, "rb").read(6) in (b"GIF89a", b"GIF87a")
+    ts = media.do_thong_so(gif)
+    assert abs(float(ts.get("thoi_luong") or 0) - 2.0) < 0.3, ts
+
+
+def test_xuat_that_phong_xanh(media_mau):
+    """Chroma key: lớp phủ xanh lá bật `khoa_mau` thì trong suốt, lộ nền đỏ bên dưới; không bật thì che kín."""
+    goc, exe = media_mau
+    tl = lambda **kw: {"tracks": [{"id": "V2", "loai": "video"}, {"id": "V1", "loai": "video"}], "kieu_phu_de": {}, "clips": [
+        {"id": "c1", "track": "V1", "media": "m_do", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1},
+        {"id": "c2", "track": "V2", "media": "m_xl", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1, **kw}]}
+    ra, _ = _xuat_va_kiem(exe, goc, _da(), tl())
+    px = _doc_khung(exe, ra, 1, 320, 180)[90, 160]
+    assert px[1] > 90 and px[0] < 60, f"chưa khoá màu: lớp xanh lá che nền: {px}"
+    ra, kq = _xuat_va_kiem(exe, goc, _da(), tl(khoa_mau={"bat": True, "mau": "#008000", "nguong": 0.2, "mem": 0.05}))
+    assert "chromakey=color=0x008000" in kq["loc"]
+    px = _doc_khung(exe, ra, 1, 320, 180)[90, 160]
+    assert px[0] > 180 and px[1] < 60, f"khoá màu xanh lá → phải thấy nền đỏ: {px}"

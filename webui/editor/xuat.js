@@ -6,6 +6,16 @@ import { KHUNG, khungHienTai, datKhung } from './khung_hinh.js';
 import { htmlMayXuat, ganMayXuat, luuMayXuat, mayXuatCanLuu } from './may_xuat_ui.js';
 import { chayXuatThietBi, ganThietBi } from './xuat_thiet_bi/ui_xuat_tb.js';
 
+/* Chọn nhanh theo nền tảng: [tên, khung, độ phân giải, fps, chất lượng (CRF)]. */
+const NEN_TANG = [
+    ['TikTok / Reels / Shorts (dọc 9:16)', '9:16', '1080p', '30', '19'],
+    ['YouTube (ngang 16:9)', '16:9', '1080p', '30', '19'],
+    ['YouTube 4K', '16:9', '4k', '30', '19'],
+    ['Instagram bài đăng (4:5)', '4:5', '1080p', '30', '19'],
+    ['Facebook / vuông (1:1)', '1:1', '1080p', '30', '22'],
+    ['Gửi nhanh qua Zalo / Messenger (nhẹ)', '9:16', '720p', '30', '26'],
+];
+
 export function ganXuat(ctx) {
     const nut = $('btnXuat');
     nut.disabled = false;
@@ -102,6 +112,11 @@ function moHop(ctx) {
         <p class="modal-noi-dung">Dài ${fmtThoiGian(tong)} · khung dự án ${ts.rong}×${ts.cao} · ${ts.fps} fps. Lưu vào thư mục xuat/ của dự án.</p>
         <div class="o-form">
             <label>Tên file<input type="text" name="ten" value="${esc(nho.ten || ctx.du.name)}"></label>
+            <div class="hang">
+                <label>Định dạng<select name="dang">${[['', 'Video .mp4'], ['gif', 'Ảnh động .gif'], ['anh', 'Ảnh tĩnh .png tại đầu phát (làm ảnh bìa)']]
+                    .map(([v, t]) => `<option value="${v}" ${(nho.dang || '') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+                <label>Nền tảng<select name="nen_tang"><option value="">— chọn nhanh —</option>${NEN_TANG.map(([ten], i) => `<option value="${i}">${ten}</option>`).join('')}</select></label>
+            </div>
             <label>Khung hình (đổi cả màn xem trước)<select name="khung">
                 ${KHUNG.map(([v, t]) => `<option value="${v}" ${khungHienTai(ts).khung === v ? 'selected' : ''}>${t}</option>`).join('')}
                 ${khungHienTai(ts).khung ? '' : `<option value="" selected>Như dự án (${ts.rong}×${ts.cao})</option>`}</select></label>
@@ -135,6 +150,14 @@ function moHop(ctx) {
     const f = nen.querySelector('form');
     const r = f.querySelector('[name=giam_nhac_nen]');
     if (r) r.addEventListener('input', () => { r.closest('label').querySelector('.gt').textContent = `${r.value}%`; });
+    // Chọn nền tảng → điền sẵn khung, độ phân giải, fps, chất lượng phù hợp.
+    f.nen_tang.addEventListener('change', () => {
+        const p = NEN_TANG[Number(f.nen_tang.value)];
+        if (!p || f.nen_tang.value === '') return;
+        const [, khung, dpg, fps, crf] = p;
+        if ([...f.khung.options].some((o) => o.value === khung)) f.khung.value = khung;
+        f.do_phan_giai.value = dpg; f.fps.value = fps; f.crf.value = crf;
+    });
     const dong = () => nen.remove();
     // Thiết bị này: hồ sơ máy + phần server làm hộ; máy không làm được thì khoá nút Xuất.
     const tb = ganThietBi(ctx, f, nho);
@@ -151,6 +174,10 @@ function moHop(ctx) {
             giam_nhac_nen: r ? Number(r.value) : 90,
             giu_hdr: !!(f.giu_hdr && f.giu_hdr.checked), may_xuat: f.may_xuat.value, ...tb.luaChon(),
         };
+        if (f.dang.value && !tc.chi_am_thanh) {
+            // Ảnh tĩnh / GIF luôn do server làm (nhẹ); ảnh tĩnh lấy khung tại đầu phát.
+            Object.assign(tc, { dang: f.dang.value, may_xuat: '', anh_tai: Math.round((ctx.ui.dau_phat || 0) * 1000) / 1000 });
+        }
         if (f.chi_vung && f.chi_vung.checked) {
             tc.vung_vao = tl.vung_vao || 0;
             tc.vung_ra = tl.vung_ra ?? tong;

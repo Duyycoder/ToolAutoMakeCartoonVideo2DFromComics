@@ -359,7 +359,8 @@ export class Preview {
     _mauGL(l, c, nguon) {
         const mau = c.mau || {};
         const ss = this.soSanh && this.soSanh.cid === c.id;
-        if (!coNangCao(mau) && !ss) { l.gl?.tat(); l.el.querySelector('.ss-vach')?.remove(); return; }
+        const khoaMau = c.khoa_mau && c.khoa_mau.bat ? c.khoa_mau : null;
+        if (!coNangCao(mau) && !ss && !khoaMau) { l.gl?.tat(); l.el.querySelector('.ss-vach')?.remove(); return; }
         if (!l.gl) l.gl = new LopGL(l.el);
         let lut = null;
         if (mau.lut) {
@@ -374,7 +375,7 @@ export class Preview {
             }
         }
         l.lutFile = lut;
-        if (!l.gl.dat(nguon, mau, lut)) { l.gl.tat(); return; }
+        if (!l.gl.dat(nguon, mau, lut, khoaMau)) { l.gl.tat(); return; }
         // So sánh trước/sau: bên trái là khung gốc (thẻ nguồn hiện lại, bỏ filter lớp), bên phải là bản đã chỉnh.
         const cv = l.gl.cv;
         if (ss) {
