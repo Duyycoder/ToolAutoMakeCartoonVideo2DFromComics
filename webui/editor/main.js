@@ -151,7 +151,14 @@ async function khoiDong() {
     ctx.luuUi = (som = false) => boLuu.danhDauUi(som);
     ctx.sua = (ten, ops, opts) => {
         try {
-            return store.thucHien(ten, ops, opts);
+            const kq = store.thucHien(ten, ops, opts);
+            // Sau mỗi lệnh (thêm lại video, nhân đôi, dán, kéo mép…): clip nào trùng đoạn nguồn với clip khác cùng video thì
+            // nhận ngay bản phụ đề/vùng che riêng — không bao giờ để hai chỗ trên timeline dùng chung một câu.
+            if (kq) {
+                const tach = opsTachNeo(store.timeline);
+                if (tach.soCau) store.thucHien('Tách phụ đề dùng chung', tach.ops);
+            }
+            return kq;
         } catch (e) {
             toast(e.message, 'warn');
             return null;
