@@ -566,6 +566,25 @@ export function opsBoChongRung(tl, c) {
         tao.dat(tl, p('ra'), tron(o.vao + Number(c.ra || 0))), tao.dat(tl, p('chong_rung'), undefined)];
 }
 
+/* Xoá nền AI: clip chuyển sang media `moi` (file có nền là màu khoá xanh lá) và BẬT phông xanh với đúng màu đó → nền trong suốt.
+   Nhớ nguồn cũ + thiết lập phông xanh cũ trong `xoa_nen` để bỏ được. */
+export function opsXoaNen(tl, c, moi) {
+    const p = (k) => ['clips', { id: c.id }, k];
+    const L = Number(c.ra || 0) - Number(c.vao || 0);
+    const ra = Math.round(Math.min(L, Number(moi.thoi_luong) || L) * 1000) / 1000;
+    return [tao.dat(tl, p('media'), moi.id), tao.dat(tl, p('vao'), 0), tao.dat(tl, p('ra'), ra),
+        tao.dat(tl, p('khoa_mau'), { bat: true, mau: '#00ff00', nguong: 0.2, mem: 0.08 }),
+        tao.dat(tl, p('xoa_nen'), { media: c.media, vao: Number(c.vao || 0), ra: Number(c.ra || 0), ...(c.khoa_mau ? { khoa_mau: c.khoa_mau } : {}) })];
+}
+
+export function opsBoXoaNen(tl, c) {
+    const p = (k) => ['clips', { id: c.id }, k], o = c.xoa_nen;
+    const tron = (x) => Math.round(Math.max(o.vao, Math.min(o.ra, x)) * 1000) / 1000;
+    return [tao.dat(tl, p('media'), o.media), tao.dat(tl, p('vao'), tron(o.vao + Number(c.vao || 0))),
+        tao.dat(tl, p('ra'), tron(o.vao + Number(c.ra || 0))), tao.dat(tl, p('khoa_mau'), o.khoa_mau),
+        tao.dat(tl, p('xoa_nen'), undefined)];
+}
+
 /* Đặt tốc độ cố định (bỏ đồ thị tốc độ nếu có). */
 export function opsDatTocDo(tl, c, v) {
     const ops = [tao.dat(tl, ['clips', { id: c.id }, 'toc_do'], v)];
@@ -998,8 +1017,11 @@ export function cacMucMenuClip(tl, mediaDict, cid, dangChonTuDanhSach, coBoNhoTa
     
     if (c && !c.loai && tr && tr.loai === 'video' && m && m.loai === 'video') {
         muc.push({ separator: true });
-        if (!c.chong_rung) muc.push({ id: 'dao-nguoc', text: c.dao_nguoc ? '⏪ Bỏ tua ngược' : '⏪ Tua ngược' });
-        if (!c.dao_nguoc) muc.push({ id: 'chong-rung', text: c.chong_rung ? '🎯 Bỏ chống rung' : '🎯 Chống rung' });
+        // Ba thao tác này đều thay clip bằng một file dựng lại → mỗi clip chỉ dùng một thứ một lúc.
+        const dung = c.dao_nguoc ? 'dao' : c.chong_rung ? 'rung' : c.xoa_nen ? 'nen' : '';
+        if (!dung || dung === 'dao') muc.push({ id: 'dao-nguoc', text: c.dao_nguoc ? '⏪ Bỏ tua ngược' : '⏪ Tua ngược' });
+        if (!dung || dung === 'rung') muc.push({ id: 'chong-rung', text: c.chong_rung ? '🎯 Bỏ chống rung' : '🎯 Chống rung' });
+        if (!dung || dung === 'nen') muc.push({ id: 'xoa-nen', text: c.xoa_nen ? '🧍 Bỏ xoá nền' : '🧍 Xoá nền bằng AI' });
     }
 
     if (c && !c.loai && m && m.loai !== 'anh') {

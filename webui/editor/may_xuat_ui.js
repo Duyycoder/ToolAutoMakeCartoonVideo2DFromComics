@@ -4,10 +4,10 @@
 import { api, toast } from './chung.js';
 
 /* coThietBi: thêm lựa chọn "Thiết bị này" (xuất trên trình duyệt — chỉ hộp Xuất của editor bản web). */
-export function htmlMayXuat(chon, coThietBi = false) {
+export function htmlMayXuat(chon, coThietBi = false, mayNay = false) {
     const laptop = chon === 'laptop', thietBi = coThietBi && chon === 'thiet_bi';
     return `<label>Máy xuất<select name="may_xuat">
-                <option value="" ${laptop || thietBi ? '' : 'selected'}>Server</option>
+                <option value="" ${laptop || thietBi ? '' : 'selected'}>${mayNay ? 'Máy này (GPU/CPU của máy đang chạy app)' : 'Server'}</option>
                 <option value="laptop" ${laptop ? 'selected' : ''}>Laptop GPU qua Tailscale</option>
                 ${coThietBi ? `<option value="thiet_bi" ${thietBi ? 'selected' : ''}>Thiết bị này (phần cứng máy đang dùng)</option>` : ''}</select></label>
             <div class="o-thiet-bi" data-tb ${thietBi ? '' : 'hidden'}></div>

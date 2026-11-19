@@ -133,7 +133,8 @@ function moHop(ctx) {
                 <label>Bộ mã hoá<select name="bo_ma_hoa">${[['auto', 'Tự chọn (NVENC nếu có GPU)'], ['nvenc', 'NVENC (GPU NVIDIA)'], ['x264', 'x264 (CPU)']]
                         .map(([v, t]) => `<option value="${v}" ${(nho.bo_ma_hoa || 'auto') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
             </div>
-            ${htmlMayXuat(nho.may_xuat, !MAY_NAY)}
+            ${htmlMayXuat(MAY_NAY ? '' : nho.may_xuat, !MAY_NAY, MAY_NAY)}
+            ${MAY_NAY ? '<div class="goi-y-nho">App đang chạy ngay trên máy này nên "Máy này" xuất bằng chính phần cứng của máy (NVENC nếu có GPU NVIDIA) — không cần mục "Thiết bị này" như bản web.</div>' : ''}
             ${coGiong ? `<label>Giảm nhạc nền khi có giọng lồng <span class="gt">${nho.giam_nhac_nen ?? 90}%</span>
                 <input type="range" name="giam_nhac_nen" min="0" max="100" value="${nho.giam_nhac_nen ?? 90}"></label>` : ''}
             ${coHdr ? `<label class="check"><input type="checkbox" name="giu_hdr" ${nho.giu_hdr ? 'checked' : ''}> Giữ HDR 10-bit (HLG, HEVC)

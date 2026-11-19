@@ -729,3 +729,13 @@ test('chống rung rồi bỏ chống rung trả clip về đúng đoạn gốc 
     s.thucHien('Bỏ', opsBoChongRung(s.timeline, s.timeline.clips[0]));
     assert.deepEqual([c.media, c.vao, c.ra, c.chong_rung], ['m1', 3, 7, undefined]);
 });
+
+test('xoá nền AI bật phông xanh đúng màu khoá; bỏ xoá nền trả lại nguồn và phông xanh cũ', async () => {
+    const { opsXoaNen, opsBoXoaNen } = await import('../../webui/editor/store.js');
+    const s = new Store(tl2());
+    s.thucHien('Xoá nền', opsXoaNen(s.timeline, s.timeline.clips[0], { id: 'm_nen', thoi_luong: 5 }));
+    const c = s.timeline.clips[0];
+    assert.deepEqual([c.media, c.vao, c.ra, c.khoa_mau.bat, c.khoa_mau.mau], ['m_nen', 0, 5, true, '#00ff00']);
+    s.thucHien('Bỏ', opsBoXoaNen(s.timeline, c));
+    assert.deepEqual([c.media, c.vao, c.ra, c.khoa_mau, c.xoa_nen], ['m1', 2, 7, undefined, undefined]);
+});

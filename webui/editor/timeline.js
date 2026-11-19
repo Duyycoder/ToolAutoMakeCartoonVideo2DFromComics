@@ -11,7 +11,7 @@ import {
     tao, thoiLuong, ketThucClip, thoiDiemMedia, opsDatTocDo, choTrong, idClipMoi, hutDinh, diemDinh, chongClip, gioiHanTia, opsTach, clipTai,
     hienThiNeo, bangClipChuaMedia, opsDatGio, opsThemTrack, opsKhepKhoang, opsXoaGon, opsChenGon, opsTiaToiDauPhat, idMoiNhieu,
     moRongNhom, opsTachAm, idNhomMoi, trackVideoTuDuoiLen, opsThemChuyenCanh, opsXoaChuyenCanh, nhanClip, viTriKeyframes,
-    mucMenuChoClip, opsNhanDoi, clipMediaMoi, nhomNeoMoi, opsDaoNguoc, opsBoDaoNguoc, opsChongRung, opsBoChongRung, opsThemNhieuMedia, opsSapXepTrack, KIEU_SAP_XEP_TRACK,
+    mucMenuChoClip, opsNhanDoi, clipMediaMoi, nhomNeoMoi, opsDaoNguoc, opsBoDaoNguoc, opsChongRung, opsBoChongRung, opsXoaNen, opsBoXoaNen, opsThemNhieuMedia, opsSapXepTrack, KIEU_SAP_XEP_TRACK,
 } from './store.js';
 
 const LOP = { video: 'v', phu_de: 's', lop_phu: 'o', audio: 'a' };
@@ -839,8 +839,9 @@ export class Timeline {
     }
 
     /* Chờ một việc nền của server (POST trả {khoa, trang_thai}) chạy xong → media mới. Hỏi lại mỗi 1,5 giây. */
-    async _choViecNen(v) {
+    async _choViecNen(v, khiTienDo = null) {
         while (v.trang_thai === 'dang') {
+            if (khiTienDo && v.phan_tram != null) khiTienDo(v.phan_tram);
             await new Promise((r) => setTimeout(r, 1500));
             v = await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/viec-nen?khoa=${encodeURIComponent(v.khoa)}`);
         }
@@ -866,6 +867,31 @@ export class Timeline {
             if (kq && this.ctx.sua('Gộp clip', kq.ops)) {
                 this.chonClip(kq.id);
                 toast('Đã gộp. Muốn sửa lại bên trong thì hoàn tác (Ctrl+Z).', 'success', 4000);
+            }
+        } catch (err) { toast(err.message, 'error'); } finally { tb.remove(); }
+    }
+
+    /* Xoá nền bằng AI / bỏ xoá nền một clip video. Server tách chủ thể từng khung hình (CPU) nên chỉ hợp clip ngắn. */
+    async xoaNen(cid) {
+        const c = this.tl.clips.find((x) => x.id === cid);
+        if (!c) return;
+        if (c.xoa_nen) {
+            if (!this.ctx.media.find((x) => x.id === c.xoa_nen.media)) { toast('Video gốc đã bị xoá khỏi dự án.', 'warn'); return; }
+            this.ctx.sua('Bỏ xoá nền', opsBoXoaNen(this.tl, c));
+            return;
+        }
+        const tb = toast('Đang xoá nền bằng AI… 0%', 'info', 3600000);
+        try {
+            const m = await this._choViecNen(await api(`/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${encodeURIComponent(c.media)}/xoa-nen`,
+                { method: 'POST', body: { phien: this.ctx.boLuu.phien, vao: Number(c.vao || 0), ra: Number(c.ra || 0) } }),
+            (pt) => { tb.textContent = `Đang xoá nền bằng AI… ${pt}% (cứ làm việc khác)`; });
+            const hien = this.tl.clips.find((x) => x.id === cid);
+            if (!hien || hien.media !== c.media || hien.vao !== c.vao || hien.ra !== c.ra) {
+                toast('Clip đã đổi trong lúc xoá nền — bấm Xoá nền lại (file đã làm sẽ được dùng lại).', 'warn');
+                return;
+            }
+            if (this.ctx.sua('Xoá nền bằng AI', opsXoaNen(this.tl, hien, m))) {
+                toast('Đã xoá nền. Đặt clip ở dòng video phía trên hình nền; chỉnh mép ở mục Phông xanh.', 'success', 5000);
             }
         } catch (err) { toast(err.message, 'error'); } finally { tb.remove(); }
     }
@@ -1326,6 +1352,7 @@ export class Timeline {
             }
             if (l.dataset.l === 'dao-nguoc') this.daoNguoc(cid);
             if (l.dataset.l === 'chong-rung') this.chongRung(cid);
+            if (l.dataset.l === 'xoa-nen') this.xoaNen(cid);
             if (l.dataset.l === 'gop-clip') this.gopClip(dangChon);
             if (l.dataset.l === 'dong-bang') this.dongBang(cid);
             if (l.dataset.l === 'cat-lang') this.catKhoangLang(cid);

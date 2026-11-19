@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from orchestrator.config import load_global_config, save_global_config
 from orchestrator.editor import (ai_bridge, chong_rung, chuan_hoa_file, dao_nguoc, goi_du_an, gop_clip, hang_doi, khoang_lang, nhip, luu_tru, mau_nang_cao, media, nuong, render,
-                                 srt, tai_len, thu_vien_am, workspace, xuat_tu_xa)
+                                 srt, tai_len, thu_vien_am, workspace, xoa_nen, xuat_tu_xa)
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 TIENG_THIET_BI = "tieng-thiet-bi"   # tên file tiếng tạm server dựng cho xuất trên thiết bị (ẩn khỏi "Bản đã xuất")
@@ -954,6 +954,32 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
                 chong_rung.tao(ff, path, dich, vao, ra, m.get("co_am_thanh") is not False, manh)
             return qlm.dang_ky_file(folder, pid, dich, tu_media=mid)
         return chay_nen(f"{pid}:cr:{mid}:{vao:.2f}:{ra:.2f}:{manh}", lam)
+
+    @r.post("/api/du-an/{pid}/media/{mid}/xoa-nen")
+    def remove_background(pid: str, mid: str, body: DaoNguocSchema):
+        """Xoá nền bằng AI đoạn [vao, ra] của video → media mới có nền là màu khoá xanh lá. Chạy nền (/viec-nen);
+        trong lúc chạy việc có thêm `phan_tram`."""
+        folder, m, path = media_path(pid, mid)
+        khoa_ghi(folder, body.phien)
+        if m.get("loai") != "video":
+            raise HTTPException(status_code=400, detail="Chỉ xoá nền được clip video.")
+        ff = media.ffmpeg_exe()
+        if not ff or not os.path.isfile(path):
+            raise HTTPException(status_code=500, detail="Thiếu ffmpeg hoặc file video gốc.")
+        if not os.path.isfile(xoa_nen.MODEL):
+            raise HTTPException(status_code=500, detail="Máy này chưa có model xoá nền (assets/models/u2netp.onnx).")
+        vao, ra = max(0.0, float(body.vao)), min(float(body.ra), float(m.get("thoi_luong") or body.ra))
+        if not 0 <= vao < ra or ra - vao > xoa_nen.DAI_TOI_DA:
+            raise HTTPException(status_code=400, detail=f"Đoạn xoá nền không hợp lệ hoặc dài quá {int(xoa_nen.DAI_TOI_DA / 60)} phút.")
+        dich = os.path.join(folder, luu_tru.MEDIA_DIR, f"{m.get('ten') or mid} (xoá nền {vao:.2f}-{ra:.2f}).mp4")
+        khoa = f"{pid}:xn:{mid}:{vao:.2f}:{ra:.2f}"
+
+        def lam():
+            if not os.path.isfile(dich):
+                xoa_nen.tao(ff, path, dich, vao, ra, int(m.get("rong") or 0), int(m.get("cao") or 0), float(m.get("fps") or 0),
+                            m.get("co_am_thanh") is not False, bao=lambda p: viec_nen[khoa].update(phan_tram=int(p * 100)))
+            return qlm.dang_ky_file(folder, pid, dich, tu_media=mid)
+        return chay_nen(khoa, lam)
 
     @r.post("/api/du-an/{pid}/media/{mid}/khoang-lang")
     def find_silence(pid: str, mid: str, body: KhoangLangSchema):
