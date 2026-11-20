@@ -299,7 +299,7 @@ select { cursor: pointer; }
 .vung-tha b { color: var(--chu); display: block; margin-bottom: 4px; }
 
 /* -------------------------------------------------------------- Preview */
-.preview-khung { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; position: relative; }
+.preview-khung { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; position: relative; overflow: hidden; }
 .preview-man {
     position: relative; background: #000; box-shadow: 0 0 0 1px var(--vien); overflow: hidden;
     display: flex; align-items: center; justify-content: center;
@@ -396,14 +396,14 @@ select { cursor: pointer; }
 .lop-cac .lop-video { position: absolute; overflow: hidden; }
 .lop-cac .lop-video video, .lop-cac .lop-video img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: fill; }
 .preview-man .lop-nguon, .preview-man .lop-nguon-anh { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; object-fit: contain; z-index: 1; }
-.preview-man .lop-tay-nam { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
-.preview-man .khung-bien-doi { position: absolute; outline: 1px dashed var(--lam); pointer-events: auto; cursor: move; }
-.preview-man .nam-goc { position: absolute; width: 10px; height: 10px; background: #fff; border: 2px solid var(--lam); border-radius: 50%; z-index: 5; }
-.preview-man .nam-goc[data-nam="tl"] { left: -5px; top: -5px; cursor: nwse-resize; }
-.preview-man .nam-goc[data-nam="tr"] { right: -5px; top: -5px; cursor: nesw-resize; }
-.preview-man .nam-goc[data-nam="bl"] { left: -5px; bottom: -5px; cursor: nesw-resize; }
-.preview-man .nam-goc[data-nam="br"] { right: -5px; bottom: -5px; cursor: nwse-resize; }
-.preview-man .nam-xoay { position: absolute; width: 10px; height: 10px; background: #fff; border: 2px solid var(--cam); border-radius: 50%; left: 50%; top: -20px; transform: translateX(-50%); cursor: grab; z-index: 5; }
+.preview-khung .lop-tay-nam { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.preview-khung .khung-bien-doi { position: absolute; outline: 1px dashed var(--lam); pointer-events: auto; cursor: move; }
+.preview-khung .nam-goc { position: absolute; width: 10px; height: 10px; background: #fff; border: 2px solid var(--lam); border-radius: 50%; z-index: 5; }
+.preview-khung .nam-goc[data-nam="tl"] { left: -5px; top: -5px; cursor: nwse-resize; }
+.preview-khung .nam-goc[data-nam="tr"] { right: -5px; top: -5px; cursor: nesw-resize; }
+.preview-khung .nam-goc[data-nam="bl"] { left: -5px; bottom: -5px; cursor: nesw-resize; }
+.preview-khung .nam-goc[data-nam="br"] { right: -5px; bottom: -5px; cursor: nwse-resize; }
+.preview-khung .nam-xoay { position: absolute; width: 10px; height: 10px; background: #fff; border: 2px solid var(--cam); border-radius: 50%; left: 50%; top: -20px; transform: translateX(-50%); cursor: grab; z-index: 5; }
 .preview-man .goi-y { position: relative; z-index: 7; }
 .preview-man .lop-phu-de {
     position: absolute; left: 5%; right: 5%; bottom: 8%; text-align: center; color: #fff; z-index: 3; pointer-events: none;

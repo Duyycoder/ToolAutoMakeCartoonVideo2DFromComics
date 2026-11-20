@@ -60,6 +60,8 @@ export class Preview {
         this.lopChuHinh = q('chu-hinh');
         this.lopVe = q('ve-vung');
         this.tayNam = q('tay-nam');
+        // Lớp tay nắm nằm NGOÀI khung (khung cắt overflow) → clip to hơn khung vẫn thấy viền + kéo được phần thò ra.
+        this.khung.appendChild(this.tayNam);
         this.nutVe = q('ve-tl');
         this.lop = new Map();          // track id → {el: div, v: <video>, img: <img>, clip}
         this.amThanh = new Map();      // clip id → <audio>
@@ -116,6 +118,9 @@ export class Preview {
         const rong = Math.max(40, Math.min(w, h * tiLe));
         this.man.style.width = `${Math.floor(rong)}px`;
         this.man.style.height = `${Math.floor(rong / tiLe)}px`;
+        // Lớp tay nắm trùng gốc toạ độ với khung xem trước (toạ độ hop tính theo khung).
+        Object.assign(this.tayNam.style, { left: `${this.man.offsetLeft}px`, top: `${this.man.offsetTop}px`,
+            width: `${this.man.offsetWidth}px`, height: `${this.man.offsetHeight}px` });
     }
 
     _url(m) { return `/api/du-an/${encodeURIComponent(this.ctx.id)}/media/${m.id}/file?v=${esc(m.proxy || '')}`; }
@@ -643,91 +648,106 @@ export class Preview {
 
     _ganTayNam() {
         this.tayNam.addEventListener('pointerdown', (e) => {
-            const x = this._clipChonHien();
-            const khung = e.target.closest('.khung-bien-doi');
-            if (!x || !khung || this.ctx.store.chiDoc) return;
-            e.preventDefault();
-            const c = x.loai === 'media' ? x.l.clip : x.c;
-            const tCucBo = this.ctx.ui.dau_phat - (c.bat_dau || 0);
-            const val = (k, fb) => giaTriTai(c, k, tCucBo) ?? fb;
-            const b0 = {
-                x: val('bien_doi.x', (c.bien_doi || {}).x ?? BIEN_DOI_MAC_DINH.x),
-                y: val('bien_doi.y', (c.bien_doi || {}).y ?? BIEN_DOI_MAC_DINH.y),
-                ti_le: val('bien_doi.ti_le', (c.bien_doi || {}).ti_le ?? BIEN_DOI_MAC_DINH.ti_le),
-                xoay: val('bien_doi.xoay', (c.bien_doi || {}).xoay ?? 0)
-            };
-            if (c.loai === 'hinh') {
-                b0.rong = val('bien_doi.rong', (c.bien_doi || {}).rong ?? 0.2);
-                b0.cao = val('bien_doi.cao', (c.bien_doi || {}).cao ?? 0.2);
+            if (e.target.closest('.khung-bien-doi')) this._keoBienDoi(e, e.target.dataset.nam || 'doi');
+        });
+        // Bấm thẳng vào video/ảnh trên màn xem trước: chọn clip đó (lớp trên cùng tại điểm bấm) và kéo dời luôn.
+        this.cacLop.addEventListener('pointerdown', (e) => {
+            const el = e.target.closest('.lop-video');
+            if (!el || e.button !== 0 || this.dangPhat || this.nguon || this.ctx.store.chiDoc) return;
+            const l = [...this.lop.values()].find((x) => x.el === el);
+            if (!l || !l.clip) return;
+            if (this.ctx.chon.clip !== l.clip.id) this.ctx.timeline.chonClip(l.clip.id);
+            this._keoBienDoi(e, 'doi');
+        });
+    }
+
+    /* Kéo dời / đổi cỡ / xoay clip đang chọn bằng tay nắm. nam: 'doi' | 'xoay' | 'tl' | 'tr' | 'bl' | 'br'. */
+    _keoBienDoi(e, nam) {
+        const x = this._clipChonHien();
+        const khung = this.tayNam.querySelector('.khung-bien-doi');
+        if (!x || !khung || this.ctx.store.chiDoc) return;
+        e.preventDefault();
+        const c = x.loai === 'media' ? x.l.clip : x.c;
+        const tCucBo = this.ctx.ui.dau_phat - (c.bat_dau || 0);
+        const val = (k, fb) => giaTriTai(c, k, tCucBo) ?? fb;
+        const b0 = {
+            x: val('bien_doi.x', (c.bien_doi || {}).x ?? BIEN_DOI_MAC_DINH.x),
+            y: val('bien_doi.y', (c.bien_doi || {}).y ?? BIEN_DOI_MAC_DINH.y),
+            ti_le: val('bien_doi.ti_le', (c.bien_doi || {}).ti_le ?? BIEN_DOI_MAC_DINH.ti_le),
+            xoay: val('bien_doi.xoay', (c.bien_doi || {}).xoay ?? 0)
+        };
+        if (c.loai === 'hinh') {
+            b0.rong = val('bien_doi.rong', (c.bien_doi || {}).rong ?? 0.2);
+            b0.cao = val('bien_doi.cao', (c.bien_doi || {}).cao ?? 0.2);
+        }
+        const W = this.man.clientWidth, H = this.man.clientHeight;
+        const r = this.man.getBoundingClientRect();
+        const x0 = e.clientX, y0 = e.clientY;
+        const tam = { x: r.left + b0.x * W, y: r.top + b0.y * H };
+        const kc0 = Math.hypot(x0 - tam.x, y0 - tam.y) || 1;
+        const goc0 = Math.atan2(y0 - tam.y, x0 - tam.x);
+        let moi = null;
+        khung.setPointerCapture(e.pointerId);
+        const di = (ev) => {
+            let dx, dy;
+            if (nam === 'doi') { dx = ev.clientX - x0; dy = ev.clientY - y0; }
+            else if (nam === 'xoay') { dx = (Math.atan2(ev.clientY - tam.y, ev.clientX - tam.x) - goc0) * 180 / Math.PI; dy = 0; }
+            else if (x.loai === 'hinh') { dx = ev.clientX - x0; dy = ev.clientY - y0; }
+            else { dx = Math.hypot(ev.clientX - tam.x, ev.clientY - tam.y) / kc0; dy = 0; }
+            
+            moi = bienDoiSauKeo(b0, x.loai, nam, dx, dy, W, H, ev.shiftKey);
+            
+            // Bỏ keyframe biến đổi khi vẽ tạm — không thì preview vẫn đọc giá trị keyframe, lớp đứng yên lúc kéo.
+            const kfKhac = Object.fromEntries(Object.entries(c.keyframes || {}).filter(([k]) => !k.startsWith('bien_doi.')));
+            const tam2 = { ...c, bien_doi: moi, keyframes: kfKhac };
+            if (x.loai === 'media') {
+                this._datHop(x.l, tam2, this._media(c.media), this.ctx.ui.dau_phat);
+                this._veTayNam2(x.l.hop);
+            } else {
+                const h = hopChuHinh(tam2, W, H, x.loai === 'chu' ? x.el.offsetWidth : 0, x.loai === 'chu' ? x.el.offsetHeight : 0);
+                Object.assign(x.el.style, {
+                    left: `${h.cx}px`, top: `${h.cy}px`, transform: `translate(-50%,-50%) rotate(${h.xoay}deg)`
+                });
+                if (x.loai === 'chu') x.el.style.fontSize = `${(tam2.kieu?.co || 48) * H / 1080 * (tam2.bien_doi.ti_le || 1)}px`;
+                else if (x.loai === 'hinh') {
+                    x.el.style.width = `${h.w}px`; x.el.style.height = `${h.h}px`;
+                }
+                this._veTayNam2(h);
             }
-            const W = this.man.clientWidth, H = this.man.clientHeight;
-            const r = this.man.getBoundingClientRect();
-            const nam = e.target.dataset.nam || 'doi';
-            const x0 = e.clientX, y0 = e.clientY;
-            const tam = { x: r.left + b0.x * W, y: r.top + b0.y * H };
-            const kc0 = Math.hypot(x0 - tam.x, y0 - tam.y) || 1;
-            const goc0 = Math.atan2(y0 - tam.y, x0 - tam.x);
-            let moi = null;
-            khung.setPointerCapture(e.pointerId);
-            const di = (ev) => {
-                let dx, dy;
-                if (nam === 'doi') { dx = ev.clientX - x0; dy = ev.clientY - y0; }
-                else if (nam === 'xoay') { dx = (Math.atan2(ev.clientY - tam.y, ev.clientX - tam.x) - goc0) * 180 / Math.PI; dy = 0; }
-                else if (x.loai === 'hinh') { dx = ev.clientX - x0; dy = ev.clientY - y0; }
-                else { dx = Math.hypot(ev.clientX - tam.x, ev.clientY - tam.y) / kc0; dy = 0; }
-                
-                moi = bienDoiSauKeo(b0, x.loai, nam, dx, dy, W, H, ev.shiftKey);
-                
-                const tam2 = { ...c, bien_doi: moi };
-                if (x.loai === 'media') {
-                    this._datHop(x.l, tam2, this._media(c.media), this.ctx.ui.dau_phat);
-                    this._veTayNam2(x.l.hop);
-                } else {
-                    const h = hopChuHinh(tam2, W, H, x.loai === 'chu' ? x.el.offsetWidth : 0, x.loai === 'chu' ? x.el.offsetHeight : 0);
-                    Object.assign(x.el.style, {
-                        left: `${h.cx}px`, top: `${h.cy}px`, transform: `translate(-50%,-50%) rotate(${h.xoay}deg)`
-                    });
-                    if (x.loai === 'chu') x.el.style.fontSize = `${(tam2.kieu?.co || 48) * H / 1080 * (tam2.bien_doi.ti_le || 1)}px`;
-                    else if (x.loai === 'hinh') {
-                        x.el.style.width = `${h.w}px`; x.el.style.height = `${h.h}px`;
-                    }
-                    this._veTayNam2(h);
+        };
+        const xong = () => {
+            khung.removeEventListener('pointermove', di);
+            khung.removeEventListener('pointerup', xong);
+            if (!moi) return;
+            const r4 = (v) => Math.round(v * 10000) / 10000;
+            const bd = { x: r4(moi.x), y: r4(moi.y), ti_le: r4(moi.ti_le), xoay: moi.xoay };
+            const ten = nam === 'doi' ? 'Dời lớp' : nam === 'xoay' ? 'Xoay lớp' : 'Đổi cỡ lớp';
+            
+            const kf = c.keyframes || {};
+            let ops = [];
+            
+            const processProp = (k, v) => {
+                const full = 'bien_doi.' + k;
+                const ds = kf[full] || [];
+                if (ds.length > 0 || ds.some(d => Math.abs(d.t - tCucBo) < 1e-4)) {
+                    let moiDS = [...ds];
+                    const idx = moiDS.findIndex(d => Math.abs(d.t - tCucBo) < 1e-4);
+                    if (idx >= 0) moiDS[idx] = { ...moiDS[idx], v };
+                    else moiDS.push({ t: tCucBo, v, em: 'tuyen_tinh' });
+                    moiDS.sort((a,b) => a.t - b.t);
+                    ops.push(tao.dat(this.tl, ['clips', { id: c.id }, 'keyframes', full], moiDS));
                 }
             };
-            const xong = () => {
-                khung.removeEventListener('pointermove', di);
-                khung.removeEventListener('pointerup', xong);
-                if (!moi) return;
-                const r4 = (v) => Math.round(v * 10000) / 10000;
-                const bd = { x: r4(moi.x), y: r4(moi.y), ti_le: r4(moi.ti_le), xoay: moi.xoay };
-                const ten = nam === 'doi' ? 'Dời lớp' : nam === 'xoay' ? 'Xoay lớp' : 'Đổi cỡ lớp';
-                
-                const kf = c.keyframes || {};
-                let ops = [];
-                
-                const processProp = (k, v) => {
-                    const full = 'bien_doi.' + k;
-                    const ds = kf[full] || [];
-                    if (ds.length > 0 || ds.some(d => Math.abs(d.t - tCucBo) < 1e-4)) {
-                        let moiDS = [...ds];
-                        const idx = moiDS.findIndex(d => Math.abs(d.t - tCucBo) < 1e-4);
-                        if (idx >= 0) moiDS[idx] = { ...moiDS[idx], v };
-                        else moiDS.push({ t: tCucBo, v, em: 'tuyen_tinh' });
-                        moiDS.sort((a,b) => a.t - b.t);
-                        ops.push(tao.dat(this.tl, ['clips', { id: c.id }, 'keyframes', full], moiDS));
-                    }
-                };
-                
-                if (nam === 'doi') { processProp('x', bd.x); processProp('y', bd.y); }
-                else if (nam === 'xoay') { processProp('xoay', bd.xoay); }
-                else { processProp('ti_le', bd.ti_le); }
-                
-                ops.push(tao.dat(this.tl, ['clips', { id: c.id }, 'bien_doi'], { ...(c.bien_doi || {}), ...bd }));
-                if (!this.ctx.sua(ten, ops)) this.veTai(this.ctx.ui.dau_phat);
-            };
-            khung.addEventListener('pointermove', di);
-            khung.addEventListener('pointerup', xong);
-        });
+            
+            if (nam === 'doi') { processProp('x', bd.x); processProp('y', bd.y); }
+            else if (nam === 'xoay') { processProp('xoay', bd.xoay); }
+            else { processProp('ti_le', bd.ti_le); }
+            
+            ops.push(tao.dat(this.tl, ['clips', { id: c.id }, 'bien_doi'], { ...(c.bien_doi || {}), ...bd }));
+            if (!this.ctx.sua(ten, ops)) this.veTai(this.ctx.ui.dau_phat);
+        };
+        khung.addEventListener('pointermove', di);
+        khung.addEventListener('pointerup', xong);
     }
 
     _veTayNam2(h) {
@@ -956,7 +976,10 @@ export class Preview {
                 this._hienLop(l, tr, moi, t, true);
                 if (l === nen) this._neo = { t, luc: bayGio };
             } else if (moi) {
-                l.v.volume = Math.min(1, Number(moi.am_luong ?? 1) * this.master * heSoFade(moi, t));
+                // Clip có keyframe: đặt lại vị trí/tỉ lệ/xoay/độ mờ mỗi nhịp để chuyển động mượt giữa 2 keyframe.
+                if (moi.keyframes && Object.keys(moi.keyframes).length) this._datHop(l, moi, this._media(moi.media), t);
+                const amLuong = Number(giaTriTai(moi, 'am_luong', t - (moi.bat_dau || 0)) ?? 1);
+                l.v.volume = Math.min(1, amLuong * this.master * heSoFade(moi, t));
                 if (moi.toc_do_cong) l.v.playbackRate = this._tocPhat(moi, t);   // đồ thị tốc độ: đổi theo từng nhịp
                 if (moi.nen_mo) this._veNenMo(l, moi);
                 if (l !== nen && l.v.readyState >= 1 && Math.abs(l.v.currentTime - thoiDiemMedia(moi, t)) > LECH_TOI_DA) {
