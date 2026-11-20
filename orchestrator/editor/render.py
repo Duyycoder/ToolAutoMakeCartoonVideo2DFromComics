@@ -343,7 +343,11 @@ class DungLenh:
                 self.loc.append(f"[bgm{i}]scale={w4}:{h4}:force_original_aspect_ratio=increase:flags=fast_bilinear,crop={w4}:{h4},"
                                 f"boxblur=6:2,scale={self.W}:{self.H}:flags=bilinear,setsar=1,format={self.pf}[nn{i}]")
                 nhan = f"fgm{i}"
-            lop, x, y = self._lop(c, nhan, str(i), lech_t=0.0)
+            # Chuyển cảnh ở đầu: luồng bắt đầu SỚM hơn clip (phần kéo dài + tpad) → keyframe phải lùi theo.
+            cong = toc_do_cong.cua_clip(c)
+            toc_dau = cong[0]["v"] if cong else float(c.get("toc_do") or 1)
+            dau = float(c.get("pad_truoc") or 0) + max(0.0, float(c.get("vao_goc", c.get("vao") or 0)) - float(c.get("vao") or 0)) / toc_dau
+            lop, x, y = self._lop(c, nhan, str(i), lech_t=dau, lech_trong=dau)
             if not nen_mo:
                 self.loc.append(f"color=c={self.nen}:s={self.W}x{self.H}:r={_so(self.fps)}:d={_so(dai)},format={self.pf}[nn{i}]")
             hoa_tron = c.get("hien_thi", {}).get("hoa_tron", "normal")
@@ -454,7 +458,7 @@ class DungLenh:
         self.loc.append(f"[{cur}]{toc_s}fps={_so(self.fps)},{tpad_str}trim=duration={_so(dai_xuat)},setpts=PTS-STARTPTS[{sau}]")
         return k, sau, dai_xuat
 
-    def _lop(self, c: Dict[str, Any], vao_nhan: str, i: str, lech_t: float = 0.0) -> Tuple[str, str, str]:
+    def _lop(self, c: Dict[str, Any], vao_nhan: str, i: str, lech_t: float = 0.0, lech_trong: float = 0.0) -> Tuple[str, str, str]:
         """Biến một luồng thành LỚP RGBA theo biến đổi/cắt khung/độ mờ/bo góc/xoay → (nhãn, x_expr, y_expr)."""
         m = self.media[c["media"]]
         mw, mh = float(m.get("rong") or self.W), float(m.get("cao") or self.H)
@@ -466,13 +470,20 @@ class DungLenh:
         
         kf = c.get("keyframes") or {}
         
-        if "bien_doi.ti_le" in kf and kf["bien_doi.ti_le"]:
-            ti_le_expr = bieu_thuc(kf["bien_doi.ti_le"], lech=lech_t)
-        else:
-            ti_le_expr = _so(float(c.get("bien_doi", {}).get("ti_le", 1)))
-            
+        # Hai đồng hồ: filter TRONG lớp (scale/rotate/geq) chạy trên luồng của clip (chưa dời tới bat_dau) → lệch lech_trong
+        # (thời gian luồng chạy trước điểm đầu clip); còn x/y của overlay tính theo đồng hồ của overlay → lệch lech_t.
+        # Dùng lech_t cho cả hai thì clip phủ bắt đầu giữa timeline bị đứng yên rồi nhảy cỡ đột ngột.
+        def kf_bt(duong_dan: str, lech: float, bien: str = 't') -> str:
+            return bieu_thuc(kf[duong_dan], bien=bien, lech=lech) if kf.get(duong_dan) else ""
+
+        ti_le_tinh = _so(float(c.get("bien_doi", {}).get("ti_le", 1)))
+        ti_le_expr = kf_bt("bien_doi.ti_le", lech_trong) or ti_le_tinh
+        ti_le_ngoai = kf_bt("bien_doi.ti_le", lech_t) or ti_le_tinh
+
         w_expr = f"({_so(mw * K * (1 - tr_ - ph))}*{ti_le_expr})"
         h_expr = f"({_so(mh * K * (1 - tr2 - du))}*{ti_le_expr})"
+        w_ngoai = f"({_so(mw * K * (1 - tr_ - ph))}*{ti_le_ngoai})"
+        h_ngoai = f"({_so(mh * K * (1 - tr2 - du))}*{ti_le_ngoai})"
         wc, hc = _chan(mw * K * (1 - tr_ - ph) * float(c.get("bien_doi", {}).get("ti_le", 1))), _chan(mh * K * (1 - tr2 - du) * float(c.get("bien_doi", {}).get("ti_le", 1)))
         
         loc = []
@@ -515,7 +526,7 @@ class DungLenh:
             loc.append(f"geq=lum='p(X,Y)':cb='p(X,Y)':cr='p(X,Y)':a='{a}'")
             
         if "hien_thi.do_mo" in kf and kf["hien_thi.do_mo"]:
-            do_mo_expr = bieu_thuc(kf["hien_thi.do_mo"], bien='T', lech=lech_t)
+            do_mo_expr = kf_bt("hien_thi.do_mo", lech_trong, bien='T')
             loc.append(f"geq=lum='p(X\\,Y)':cb='p(X\\,Y)':cr='p(X\\,Y)':a='alpha(X\\,Y)*{do_mo_expr}'")
         else:
             mo = float(hien.get("do_mo", 1))
@@ -532,26 +543,26 @@ class DungLenh:
         else:
             y_expr = _so(float(c.get("bien_doi", {}).get("y", 0.5)))
             
-        cx_expr = f"({x_expr}*{self.W}+{_so((tr_ - ph)/2)}*{w_expr})"
-        cy_expr = f"({y_expr}*{self.H}+{_so((tr2 - du)/2)}*{h_expr})"
+        cx_expr = f"({x_expr}*{self.W}+{_so((tr_ - ph)/2)}*{w_ngoai})"
+        cy_expr = f"({y_expr}*{self.H}+{_so((tr2 - du)/2)}*{h_ngoai})"
         
-        ow_expr = f"({w_expr})"
-        oh_expr = f"({h_expr})"
+        ow_expr = f"({w_ngoai})"
+        oh_expr = f"({h_ngoai})"
         
         if "bien_doi.xoay" in kf and kf["bien_doi.xoay"]:
-            xoay_expr = bieu_thuc(kf["bien_doi.xoay"], lech=lech_t)
+            xoay_expr = kf_bt("bien_doi.xoay", lech_trong)
             rad_expr = f"(({xoay_expr})*PI/180)"
             loc.append(f"rotate='{rad_expr}':ow='hypot(iw,ih)':oh='hypot(iw,ih)':c=none")
-            ow_expr = f"hypot({w_expr},{h_expr})"
-            oh_expr = f"hypot({w_expr},{h_expr})"
+            ow_expr = f"hypot({w_ngoai},{h_ngoai})"
+            oh_expr = f"hypot({w_ngoai},{h_ngoai})"
         else:
             xoay = float(c.get("bien_doi", {}).get("xoay", 0))
             if abs(xoay) > 0.01:
                 import math
                 a = math.radians(xoay)
                 loc.append(f"rotate={a:.6f}:ow=rotw({a:.6f}):oh=roth({a:.6f}):c=none")
-                ow_expr = f"({w_expr}*{_so(abs(math.cos(a)))}+{h_expr}*{_so(abs(math.sin(a)))})"
-                oh_expr = f"({w_expr}*{_so(abs(math.sin(a)))}+{h_expr}*{_so(abs(math.cos(a)))})"
+                ow_expr = f"({w_ngoai}*{_so(abs(math.cos(a)))}+{h_ngoai}*{_so(abs(math.sin(a)))})"
+                oh_expr = f"({w_ngoai}*{_so(abs(math.sin(a)))}+{h_ngoai}*{_so(abs(math.cos(a)))})"
         
         ra = f"l{i}"
         self.loc.append(f"[{vao_nhan}]" + ",".join(loc) + f"[{ra}]")

@@ -1291,3 +1291,44 @@ def test_xuat_that_lop_dieu_chinh_chi_ap_trong_khoang_cua_no(media_mau):
     # Lớp điều chỉnh rỗng (chưa chỉnh gì) thì không thêm bộ lọc nào.
     tl["clips"][1]["hieu_ung"] = []
     assert "dcb" not in render.dung_lenh_xuat(str(goc), _da(), tl, {}, "ra.mp4", exe)["loc"]
+
+
+# ──────────────────────────────────────────────────────────────
+# Keyframe tỉ lệ khi xuất: phải đổi dần đều từng khung, khớp giờ cục bộ của clip
+# ──────────────────────────────────────────────────────────────
+KF_TI_LE = {"bien_doi.ti_le": [{"t": 0, "v": 0.2, "em": "tuyen_tinh"}, {"t": 2, "v": 0.8, "em": "tuyen_tinh"}]}
+
+
+def _rong_xanh(exe, ra, rong=320, cao=180):
+    """Bề rộng vùng xanh lá ở dòng giữa của TỪNG khung → list."""
+    res = subprocess.run([exe, "-loglevel", "error", "-i", ra, "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"],
+                         capture_output=True, timeout=60)
+    fr = np.frombuffer(res.stdout, np.uint8).reshape(-1, cao, rong, 3)
+    return [int(((f[cao // 2, :, 1] > 80) & (f[cao // 2, :, 0] < 80)).sum()) for f in fr]
+
+
+def test_keyframe_ti_le_lop_phu_bat_dau_giua_timeline_doi_deu(media_mau):
+    """Lớp phủ bắt đầu ở giây 1: cỡ phải lớn dần đều từ 0.2 → 0.8 (từng bị đứng yên rồi nhảy cỡ đột ngột)."""
+    goc, exe = media_mau
+    tl = {"tracks": [{"id": "V2", "loai": "video"}, {"id": "V1", "loai": "video"}], "clips": [
+        {"id": "c1", "track": "V1", "media": "m_do", "bat_dau": 0, "vao": 0, "ra": 3, "toc_do": 1},
+        {"id": "c2", "track": "V2", "media": "m_xl", "bat_dau": 1, "vao": 0, "ra": 2, "toc_do": 1,
+         "bien_doi": {"x": 0.5, "y": 0.5, "ti_le": 0.2}, "keyframes": KF_TI_LE},
+    ], "kieu_phu_de": {}}
+    ra, _ = _xuat_va_kiem(exe, goc, _da(mau_nen="#ff0000"), tl)
+    ws = _rong_xanh(exe, ra)[31:]          # từ khung thứ 2 của lớp phủ
+    assert all(0 <= b - a <= 6 for a, b in zip(ws, ws[1:])), f"Cỡ lớp phủ phải tăng đều từng khung: {ws}"
+    assert abs(ws[29] - 160) <= 6, f"Giữa 2 keyframe (giây 2) lớp phủ phải rộng ~160px, nhận {ws[29]}"
+
+
+def test_keyframe_ti_le_clip_nen_sau_chuyen_canh_dung_gio(media_mau):
+    """Clip nền có chuyển cảnh ở đầu: luồng bắt đầu sớm hơn clip 0.5s — keyframe không được chạy sớm theo."""
+    goc, exe = media_mau
+    tl = {"tracks": [{"id": "V1", "loai": "video"}], "clips": [
+        {"id": "c1", "track": "V1", "media": "m_do", "bat_dau": 0, "vao": 0, "ra": 2, "toc_do": 1},
+        {"id": "c2", "track": "V1", "media": "m_xl", "bat_dau": 2, "vao": 0, "ra": 2, "toc_do": 1,
+         "bien_doi": {"x": 0.5, "y": 0.5, "ti_le": 0.2}, "keyframes": KF_TI_LE},
+    ], "chuyen_canh": [{"id": "cc_1", "truoc": "c1", "sau": "c2", "loai": "fade", "dai": 1}], "kieu_phu_de": {}}
+    ra, _ = _xuat_va_kiem(exe, goc, _da(), tl)
+    ws = _rong_xanh(exe, ra)
+    assert abs(ws[90] - 160) <= 6, f"Giây 3 (giữa 2 keyframe của clip 2) phải rộng ~160px, nhận {ws[90]}"
