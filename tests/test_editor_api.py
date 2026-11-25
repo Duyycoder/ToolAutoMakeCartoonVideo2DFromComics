@@ -694,3 +694,65 @@ def test_xoa_nen_ai_chay_nen_ra_media_moi(ws):
     _cho_media(ws)
     assert v["media"]["loai"] == "video" and "xoá nền 0.00-0.60" in v["media"]["file"] and v["media"]["tu_media"] == m["id"]
     assert v.get("phan_tram") == 100
+
+
+def test_xuat_videoedit_tao_concat_json_va_chep_media(ws):
+    import json
+    import time
+    pid = _tao(ws, "Phim Videoedit")["id"]
+    phien = ws.get(f"/api/du-an/{pid}").json()["khoa"]["phien"]
+    m = _tai_len(ws, pid, phien, "canh.mp4", b"video-data" * 100)
+    tl = luu_tru.timeline_rong()
+    tl["clips"] = [
+        {
+            "id": "c1", "track": "V1", "media": m["id"],
+            "bat_dau": 0.0, "vao": 0.5, "ra": 3.5, "toc_do": 1.0,
+            "am_luong": 0.8, "am_vao": 0.2, "am_ra": 0.3,
+            "bien_doi": {"x": 0.5, "y": 0.5, "ti_le": 1.0, "xoay": 0.0},
+            "hien_thi": {"do_mo": 1.0},
+            "keyframes": {"hien_thi.do_mo": [{"t": 0.0, "v": 0.0, "em": "tuyen_tinh"}, {"t": 3.0, "v": 1.0, "em": "vao_ra"}]},
+        },
+        {
+            "id": "pd1", "loai": "phu_de", "track": "S1",
+            "tu_media": m["id"], "t_vao": 1.0, "t_ra": 2.5,
+            "text": "Xin chào Videoedit", "kieu": "k_mac_dinh",
+        },
+        {
+            "id": "ch1", "loai": "chu", "track": "O1",
+            "bat_dau": 0.2, "ket_thuc": 1.8, "text": "Tiêu đề",
+            "bien_doi": {"x": 0.25, "y": 0.75, "ti_le": 1.2, "xoay": 15},
+            "hien_thi": {"do_mo": 0.9},
+            "kieu": {"co": 54, "mau": "#ff0000", "dam": True},
+        },
+    ]
+    assert ws.put(f"/api/du-an/{pid}/timeline", json={"phien": phien, "phien_ban": 0, "timeline": tl}).status_code == 200
+
+    assert ws.post(f"/api/du-an/{pid}/xuat-videoedit", json={"thu_muc": ""}).status_code == 400
+    dich = ws.tmp / "DanceForPR_out"
+    v = ws.post(f"/api/du-an/{pid}/xuat-videoedit", json={"thu_muc": str(dich)}).json()
+    for _ in range(50):
+        if v["trang_thai"] != "dang":
+            break
+        time.sleep(0.05)
+        v = ws.get(f"/api/du-an/{pid}/xuat-videoedit").json()
+
+    assert v["trang_thai"] == "xong", v
+    assert v["so_media"] == 1 and v["so_clip"] == 3
+    concat_file = dich / "concat.json"
+    assert concat_file.is_file()
+    data = json.loads(concat_file.read_text(encoding="utf-8"))
+    assert data["version"] == 2 and data["concat"] == "0.1.0"
+    assert data["name"] == "Phim Videoedit"
+    assert [t["id"] for t in data["tracks"]] == ["A1", "V1", "O1", "S1"]  # phụ đề/chữ (ASS) luôn trên video
+    assert len(data["media"]) == 1
+    media_dst = dich / m["file"]
+    assert media_dst.is_file() and media_dst.read_bytes() == b"video-data" * 100
+    assert data["media"][0]["path"] == os.path.abspath(str(media_dst))
+    assert data["media"][0]["kind"] == "video"
+
+    by_id = {c["id"]: c for c in data["clips"]}
+    assert by_id["c1"]["kind"] == "video" and by_id["c1"]["duration"] == 3.0 and by_id["c1"]["sourceStart"] == 0.5
+    assert by_id["c1"]["keyframes"]["opacity"][0] == {"at": 0.0, "value": 0.0, "ease": [0.0, 0.0, 1.0, 1.0]}
+    assert by_id["pd1"]["kind"] == "text" and by_id["pd1"]["start"] == 0.5 and by_id["pd1"]["duration"] == 1.5
+    assert by_id["ch1"]["kind"] == "text" and by_id["ch1"]["offsetX"] == -0.25 and by_id["ch1"]["offsetY"] == 0.25
+    assert data["timelines"][0]["clips"] == data["clips"]
