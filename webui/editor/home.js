@@ -78,7 +78,7 @@ function menuThe(id, x, y) {
         <button data-l="ten">✎ Đổi tên</button>
         <button data-l="mo-ta">📝 Sửa mô tả</button>
         <button data-l="thu-muc">📂 Mở thư mục</button>
-        <button data-l="xuat-goi">📦 Xuất file dự án (.zip)</button><hr>
+        <button data-l="xuat-videoedit">🎬 Xuất dự án Videoedit</button><hr>
         <button data-l="xoa" class="nguy">🗑 Xoá (chuyển vào Thùng rác)</button>`;
     document.body.appendChild(m);
     const r = m.getBoundingClientRect();
@@ -91,7 +91,7 @@ function menuThe(id, x, y) {
         try {
             if (l === 'mo') moDuAn(id);
             if (l === 'thu-muc') await api(`/api/du-an/${id}/mo-thu-muc`, { method: 'POST' });
-            if (l === 'xuat-goi') await xuatGoi(id);
+            if (l === 'xuat-videoedit') await xuatVideoedit(d);
             if (l === 'nhan-ban') {
                 const ten = await hoi({ tieuDe: 'Nhân bản dự án', o: { giaTri: d.name + ' (bản sao)' }, nut: 'Nhân bản' });
                 if (ten && ten.trim()) {
@@ -215,27 +215,29 @@ function hopDuAnMoi() {
     f.ten.focus();
 }
 
-/* ------------------------------------------------------------------ Gói dự án (.duan.zip): mang dự án sang máy khác */
+/* ------------------------------------------------------------------ Xuất dự án sang Videoedit (concat.json + media) */
 const CO_PHAN_GOI = 16 * 1024 * 1024;       // 16 MB mỗi phần — dưới giới hạn 100 MB/yêu cầu của Cloudflare
 
-/* Server đóng gói ở nền (dự án lớn mất cả phút) → hỏi tiến độ → xong thì trình duyệt tải file về. */
-async function xuatGoi(id) {
-    const t = toast('Đang đóng gói dự án… 0%', 'info', 3600000);
+/* Nhập đường dẫn thư mục đích → server chép media + sinh concat.json ở nền → báo tiến độ. */
+async function xuatVideoedit(d) {
+    const goiY = `${d.folder}_videoedit`;
+    const thuMuc = await hoi({
+        tieuDe: 'Xuất dự án sang Videoedit',
+        noiDung: 'Nhập đường dẫn thư mục đích trên máy (sẽ tự tạo thư mục nếu chưa có và sinh file concat.json cùng media):',
+        o: { giaTri: goiY, goiY: 'Ví dụ: C:\\Users\\ASUS\\Downloads\\TenDuAn' },
+        nut: 'Xuất dự án',
+    });
+    if (!thuMuc || !thuMuc.trim()) return;
+    const t = toast('Đang xuất dự án sang Videoedit… 0%', 'info', 3600000);
     try {
-        let v = await api(`/api/du-an/${id}/goi`, { method: 'POST', body: {} });
+        let v = await api(`/api/du-an/${d.id}/xuat-videoedit`, { method: 'POST', body: { thu_muc: thuMuc.trim() } });
         while (v.trang_thai === 'dang') {
-            t.textContent = `Đang đóng gói dự án… ${v.phan_tram}%`;
-            await new Promise((r) => setTimeout(r, 1000));
-            v = await api(`/api/du-an/${id}/goi`);
+            t.textContent = `Đang xuất dự án sang Videoedit… ${v.phan_tram}%`;
+            await new Promise((r) => setTimeout(r, 500));
+            v = await api(`/api/du-an/${d.id}/xuat-videoedit`);
         }
-        if (v.trang_thai !== 'xong') throw new Error(v.loi || 'Đóng gói thất bại.');
-        const a = document.createElement('a');
-        a.href = `/api/du-an/${id}/goi/tai`;
-        a.download = '';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        toast(`Đã đóng gói (${(v.kich_thuoc / 1048576).toFixed(0)} MB) — trình duyệt đang tải file về. Sang máy kia bấm "Nhập file dự án".`, 'success', 8000);
+        if (v.trang_thai !== 'xong') throw new Error(v.loi || 'Xuất dự án Videoedit thất bại.');
+        toast(`Đã xuất dự án Videoedit (${v.so_media} media, ${v.so_clip} clip) tại: ${v.thu_muc}`, 'success', 9000);
     } catch (e) { toast(e.message, 'error'); } finally { t.remove(); }
 }
 

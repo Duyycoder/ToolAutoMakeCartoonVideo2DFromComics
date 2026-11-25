@@ -83,6 +83,9 @@ class KhungDungSchema(PhienSchema):
 class GoiSchema(BaseModel):
     kem_xuat: bool = False
 
+class XuatVideoeditSchema(BaseModel):
+    thu_muc: str = ""
+
 class TimelineSchema(PhienSchema):
     phien_ban: int
     timeline: Dict[str, Any]
@@ -357,6 +360,42 @@ def tao_router(process_mgr, pipeline=None) -> APIRouter:
         if viec.get("trang_thai") != "xong" or not os.path.isfile(viec.get("file") or ""):
             raise HTTPException(status_code=404, detail="Chưa có gói — bấm Xuất file dự án trước.")
         return FileResponse(viec["file"], media_type="application/zip", filename=os.path.basename(viec["file"]))
+
+    videoedit_viec: Dict[str, Dict[str, Any]] = {}
+
+    @r.post("/api/du-an/{pid}/xuat-videoedit")
+    def export_videoedit(pid: str, body: XuatVideoeditSchema):
+        """Xuất dự án ra thư mục định dạng Videoedit (`concat.json` + media) ở luồng nền."""
+        folder = folder_cua(pid)
+        dich = (body.thu_muc or "").strip()
+        if not dich:
+            raise HTTPException(status_code=400, detail="Phải nhập đường dẫn thư mục đích.")
+        viec = videoedit_viec.get(pid)
+        if viec and viec["trang_thai"] == "dang":
+            return viec
+        viec = {
+            "trang_thai": "dang", "phan_tram": 0, "kich_thuoc": 0,
+            "thu_muc": os.path.abspath(dich), "loi": "",
+        }
+        videoedit_viec[pid] = viec
+
+        def lam():
+            try:
+                kq = goi_du_an.xuat_videoedit(folder, dich, lambda p: viec.update(phan_tram=int(p * 100)))
+                viec.update(
+                    trang_thai="xong", phan_tram=100,
+                    kich_thuoc=kq["kich_thuoc"], thu_muc=kq["thu_muc"],
+                    so_media=kq["so_media"], so_clip=kq["so_clip"],
+                )
+            except Exception as e:
+                viec.update(trang_thai="loi", loi=str(e))
+        threading.Thread(target=lam, daemon=True).start()
+        return viec
+
+    @r.get("/api/du-an/{pid}/xuat-videoedit")
+    def export_videoedit_status(pid: str):
+        folder_cua(pid)
+        return videoedit_viec.get(pid) or {"trang_thai": "chua", "phan_tram": 0, "kich_thuoc": 0, "thu_muc": "", "loi": ""}
 
     @r.get("/api/du-an/{pid}")
     def open_project(pid: str, phien: str = ""):
